@@ -19,6 +19,58 @@ import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
 export const RAIZ = path.dirname(fileURLToPath(import.meta.url));
+
+// FOTOGRAFIA (s409, condição (a) do Feca para a atualização do cru): com `SHARPENUP_FOTO=<arq>`,
+// registra toda mensagem que o inject manda (SEM o campo `cru`, que é o único acréscimo
+// permitido) e toda saída dos `format*` do content.js. Duas fotografias, antes e depois de
+// uma mudança, provam se o texto que vai para o servidor mudou. Desligada, não faz nada.
+
+// MODO QUEBRADO (s409, condição (b) do Feca): com `SHARPENUP_CRU_QUEBRADO=1`, cada ponto
+// em que a extensão MONTA ou MANDA o cru passa a lançar erro. O texto tem de sair idêntico
+// (`cru_mutacao.mjs` compara as duas fotografias). Cada troca precisa achar o seu alvo em
+// algum arquivo; a contagem fica em `QUEBRAS` e o `cru_mutacao.mjs` cobra que todas casaram.
+const _ERRO = '(() => { throw new Error("mutação s409: cru quebrado"); })()';
+const _QUEBRAS_INJECT = [
+  ["_cruDe.set(b, cru)", _ERRO],          // guardar o cru ao lado do bilhete
+  ["_cruDe.get(b)", _ERRO],               // montar a lista `cru` da mensagem
+  ["_cruB3.get(ex.bsid)", _ERRO],         // Bet365: o par summary + confirmation
+  ["btoa(s)", _ERRO],                     // Pitaco: os bytes em base64
+];
+const _QUEBRAS_CONTENT = [
+  ["_cruPorFamilia.get(familia)", _ERRO], // guardar o cru que chega do inject
+  ['chrome.runtime.sendMessage({ type: "ENVIAR_CRU"', _ERRO + ' || ({ type: "ENVIAR_CRU"'],
+];
+export const QUEBRAS = {};
+function _quebrar(src, trocas) {
+  if (!process.env.SHARPENUP_CRU_QUEBRADO) return src;
+  for (const [a, b] of trocas) {
+    const n = src.split(a).length - 1;
+    QUEBRAS[a] = (QUEBRAS[a] || 0) + n;
+    src = src.split(a).join(b);
+  }
+  return src;
+}
+
+export const FOTO = [];
+
+// COBERTURA DO CRU (s409): sempre ligada e barata. Por caso, os códigos que os formatadores
+// imprimiram em `[Código: …]` e os que vieram no campo `cru` das mensagens do inject. O
+// `run.mjs` confere as duas listas uma contra a outra (ver lá).
+export const CRU = {};
+function _caso() { return globalThis.__casoHarness || ""; }
+function _cruRegistro() {
+  const k = _caso();
+  return (CRU[k] = CRU[k] || { texto: new Set(), cru: new Set(), naoJson: 0, maior: 0, itens: 0 });
+}
+function _fotografar(tipo, valor) {
+  if (!process.env.SHARPENUP_FOTO) return;
+  let v = valor;
+  if (tipo === "inject" && v && typeof v === "object" && "cru" in v) {
+    v = Object.assign({}, v);
+    delete v.cru;
+  }
+  FOTO.push({ caso: globalThis.__casoHarness || "", tipo, v: JSON.stringify(v) });
+}
 export const EXT = path.dirname(RAIZ);
 
 const ler = (p) => fs.readFileSync(p, "utf8");
@@ -179,6 +231,15 @@ export async function rodarInject(cfg) {
     },
     postMessage(msg) {
       mensagens.push(msg);
+      _fotografar("inject", msg);
+      if (msg && Array.isArray(msg.cru)) {
+        const r = _cruRegistro();
+        for (const it of msg.cru) {
+          r.itens++;
+          r.cru.add(String(it && it.codigo));
+          try { r.maior = Math.max(r.maior, JSON.stringify(it.cru).length); } catch (e) { r.naoJson++; }
+        }
+      }
       // Entrega também aos ouvintes do próprio inject (é assim que o content dispara o replay).
       for (const cb of ouvintes) { try { cb({ data: msg, source: janela }); } catch (e) {} }
     },
@@ -259,10 +320,12 @@ export async function rodarInject(cfg) {
     // Binário: a Pitaco responde protobuf em gRPC-Web, então o inject dela monta e lê bytes.
     // No navegador esses globais sempre existiram; aqui o `vm` só enxerga o que a gente passa.
     Uint8Array, Int8Array, Uint32Array, DataView, ArrayBuffer, TextDecoder, TextEncoder,
+    // `btoa`: o cru da Pitaco (s409) viaja como os BYTES do protobuf em base64.
+    btoa: (s) => Buffer.from(String(s), "latin1").toString("base64"),
   };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  vm.runInContext(ler(path.join(EXT, cfg.inject)), ctx, { filename: cfg.inject });
+  vm.runInContext(_quebrar(ler(path.join(EXT, cfg.inject)), _QUEBRAS_INJECT), ctx, { filename: cfg.inject });
 
   // 1) a página pede a lista (é o que o hook escuta). `corpoInicial` simula o CORPO que a
   // página envia — necessário quando o inject guarda a requisição para repaginar depois.
@@ -329,7 +392,7 @@ export async function rodarInject(cfg) {
  * por comentário é necessário (o slice por marcador quebrava a cada edição de comentário).
  */
 export function carregarContent() {
-  let src = ler(path.join(EXT, "content.js"));
+  let src = _quebrar(ler(path.join(EXT, "content.js")), _QUEBRAS_CONTENT);
   const fim = src.lastIndexOf("})();");
   if (fim < 0) throw new Error("content.js: não achei o fechamento do IIFE");
   src = src.slice(0, fim) + "\n  globalThis.__SUget = (n) => eval(n);\n" + src.slice(fim);
@@ -381,7 +444,17 @@ export function carregarContent() {
   vm.createContext(ctx);
   vm.runInContext(src, ctx, { filename: "content.js" });
   if (typeof ctx.__SUget !== "function") throw new Error("content.js: __SUget não foi exposto");
-  return { pegar: (nome) => ctx.__SUget(nome), storage };
+  const pegar = (nome) => {
+    const v = ctx.__SUget(nome);
+    if (typeof v !== "function" || !/^format/.test(nome)) return v;
+    return (...args) => {
+      const r = v(...args);
+      _fotografar(nome, r);
+      for (const m of String(r || "").matchAll(/\[Código: ([^\]\n]*)\]/g)) _cruRegistro().texto.add(m[1]);
+      return r;
+    };
+  };
+  return { pegar, storage };
 }
 
 /** Linha `Rótulo: valor` de um bloco de texto do bilhete (o que a IA lê). */

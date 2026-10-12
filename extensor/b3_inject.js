@@ -35,6 +35,43 @@
 // summary MUDA quando a aposta resolve (namespace D1→D0), então serve só de `bsid` para buscar o
 // detalhe na mesma visão.
 (function () {
+  // ── CRU para o servidor (s409, Projeto Ficha Sharpen) ───────────────────────────────
+  // O objeto da CASA de onde cada bilhete saiu, para o SERVIDOR montar a Ficha (o adaptador
+  // mora lá, `app/adaptadores/`). Vai num campo NOVO (`cru`) da mesma mensagem: a lista de
+  // sempre segue intacta, e é ela que vira o texto. Erro aqui nunca sobe: sem cru, a
+  // captura de hoje segue igual. `codigo` = o mesmo campo que o formatador imprime em
+  // `[Código: …]`.
+  const _cruDe = new WeakMap();
+  function _marcarCru(b, cru) { try { _cruDe.set(b, cru); } catch (e) {} }
+  function _crus(lista, campo, proprio) {
+    const out = [];
+    try {
+      for (const b of lista || []) {
+        const c = proprio ? b : _cruDe.get(b);
+        const cod = b && b[campo];
+        if (!c || cod == null || cod === "") continue;
+        out.push({ codigo: String(cod), cru: proprio ? _semMarcas(c) : c });
+      }
+    } catch (e) {}
+    return out;
+  }
+  // Tira só as marcas que o próprio inject põe no objeto da casa (`__aberta`).
+  function _semMarcas(o) {
+    const r = {};
+    for (const k of Object.keys(o || {})) if (k.slice(0, 2) !== "__") r[k] = o[k];
+    return r;
+  }
+  const _cruB3 = new Map();   // bsid → { summary, confirmation }
+  function _crusB3() {
+    const out = [];
+    try {
+      for (const ex of byBsid.values()) {
+        const c = _cruB3.get(ex.bsid);
+        if (c && ex.code) out.push({ codigo: String(ex.code), cru: c });
+      }
+    } catch (e) {}
+    return out;
+  }
   const RX_SUM = /\/sportshistoryapi\/summary/i;
   const RX_CONF = /\/sportshistoryapi\/confirmation/i;
   const byBsid = new Map();       // bsid(string) → bilhete mesclado (summary + confirmation)
@@ -203,6 +240,7 @@
   function enviar(fim, driver) {
     const msg = { __sharpenupB3Data: true, hook: true, href: location.href,
                   topo: window.top === window, bets: Array.from(byBsid.values()),
+                  cru: _crusB3(),
                   respostas: respostas, history: outrasHistory,
                   fim: !!fim, driver: driver || null };
     try { window.postMessage(msg, "*"); } catch (e) {}
@@ -244,6 +282,7 @@
   }
 
   function mergeSummary(b, settled) {
+    try { const k = _cruB3.get(b.bsid) || {}; k.summary = b; _cruB3.set(b.bsid, k); } catch (e) {}
     const ex = byBsid.get(b.bsid) || { bsid: b.bsid };
     ex.aberta = b.bs === "0";
     ex.tp = b.tp; ex.stake = b.stake; ex.ts = b.ts; ex.oddFrac = b.oddFrac; ex.rt = b.rt; ex.tipo = b.tipo;
@@ -254,6 +293,7 @@
     byBsid.set(b.bsid, ex);
   }
   function mergeConf(bsid, c) {
+    try { const k = _cruB3.get(bsid) || {}; k.confirmation = c; _cruB3.set(bsid, k); } catch (e) {}
     const ex = byBsid.get(bsid) || { bsid: bsid };
     ex.code = c.br; ex.da = c.da; ex.legs = c.legs;
     if (c.ts != null) ex.ts = c.ts;

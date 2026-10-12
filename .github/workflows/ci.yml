@@ -77,6 +77,9 @@ jobs:
       - name: Regressão da captura (harness do extensor)
         run: node extensor/harness/run.mjs
 
+      - name: Cru quebrado não muda o texto (s409)
+        run: node extensor/harness/cru_mutacao.mjs
+
       - name: Auditoria do SharpenUp (12 pontos de registro)
         run: python tools/audit_sharpenup.py
 

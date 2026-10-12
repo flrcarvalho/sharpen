@@ -39,6 +39,32 @@
 // lista vazia** — nunca erro, nunca repetição. Logo a parada é dupla: `skip >= count` OU lista
 // vazia. O avanço usa o tamanho que VOLTOU, não o `limit` pedido.
 (function () {
+  // ── CRU para o servidor (s409, Projeto Ficha Sharpen) ───────────────────────────────
+  // O objeto da CASA de onde cada bilhete saiu, para o SERVIDOR montar a Ficha (o adaptador
+  // mora lá, `app/adaptadores/`). Vai num campo NOVO (`cru`) da mesma mensagem: a lista de
+  // sempre segue intacta, e é ela que vira o texto. Erro aqui nunca sobe: sem cru, a
+  // captura de hoje segue igual. `codigo` = o mesmo campo que o formatador imprime em
+  // `[Código: …]`.
+  const _cruDe = new WeakMap();
+  function _marcarCru(b, cru) { try { _cruDe.set(b, cru); } catch (e) {} }
+  function _crus(lista, campo, proprio) {
+    const out = [];
+    try {
+      for (const b of lista || []) {
+        const c = proprio ? b : _cruDe.get(b);
+        const cod = b && b[campo];
+        if (!c || cod == null || cod === "") continue;
+        out.push({ codigo: String(cod), cru: proprio ? _semMarcas(c) : c });
+      }
+    } catch (e) {}
+    return out;
+  }
+  // Tira só as marcas que o próprio inject põe no objeto da casa (`__aberta`).
+  function _semMarcas(o) {
+    const r = {};
+    for (const k of Object.keys(o || {})) if (k.slice(0, 2) !== "__") r[k] = o[k];
+    return r;
+  }
   const RX = /\/my_bets\/list/i;               // endpoint da LISTA de bilhetes
   const byId = new Map();                      // id(string) → bilhete normalizado
   let respostas = 0;                           // respostas VÁLIDAS do endpoint (autodiagnóstico)
@@ -126,6 +152,7 @@
       window.postMessage({
         __sharpenupJBData: true, hook: true,
         bilhetes: Array.from(byId.values()), respostas: respostas, fim: fimReplay,
+        cru: _crus(Array.from(byId.values()), "id"),
       }, "*");
     } catch (e) {}
   }
@@ -153,6 +180,7 @@
     respostas++;
     for (const raw of j.results) {
       const b = parseBet(raw);
+      if (b) _marcarCru(b, raw);
       if (b) guardar(b);
     }
     aprender(url);

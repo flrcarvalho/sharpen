@@ -44,6 +44,32 @@
 // NÃO DECIDE NADA: normaliza a lista e sobe o bilhete cru. Estado desconhecido sobe como
 // está; quem traduz é o `content.js` + `casas/CASA_SPORTINGBET.md`.
 (function () {
+  // ── CRU para o servidor (s409, Projeto Ficha Sharpen) ───────────────────────────────
+  // O objeto da CASA de onde cada bilhete saiu, para o SERVIDOR montar a Ficha (o adaptador
+  // mora lá, `app/adaptadores/`). Vai num campo NOVO (`cru`) da mesma mensagem: a lista de
+  // sempre segue intacta, e é ela que vira o texto. Erro aqui nunca sobe: sem cru, a
+  // captura de hoje segue igual. `codigo` = o mesmo campo que o formatador imprime em
+  // `[Código: …]`.
+  const _cruDe = new WeakMap();
+  function _marcarCru(b, cru) { try { _cruDe.set(b, cru); } catch (e) {} }
+  function _crus(lista, campo, proprio) {
+    const out = [];
+    try {
+      for (const b of lista || []) {
+        const c = proprio ? b : _cruDe.get(b);
+        const cod = b && b[campo];
+        if (!c || cod == null || cod === "") continue;
+        out.push({ codigo: String(cod), cru: proprio ? _semMarcas(c) : c });
+      }
+    } catch (e) {}
+    return out;
+  }
+  // Tira só as marcas que o próprio inject põe no objeto da casa (`__aberta`).
+  function _semMarcas(o) {
+    const r = {};
+    for (const k of Object.keys(o || {})) if (k.slice(0, 2) !== "__") r[k] = o[k];
+    return r;
+  }
   const RX = /\/mybets\/betslips/i;
   const PATH_API = "/pt-br/sports/api/mybets/betslips";
   const porId = new Map();                       // betSlipNumber(string) → bilhete cru
@@ -96,6 +122,7 @@
       window.postMessage({
         __sharpenupSPBData: true, hook: true, respostas: respostas, abortos: abortos,
         bets: Array.from(porId.values()), fim: fimReal,
+        cru: _crus(Array.from(porId.values()), "betSlipNumber", true),
       }, "*");
     } catch (e) {}
   }

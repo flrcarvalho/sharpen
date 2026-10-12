@@ -32,6 +32,32 @@
 //   • `bet_total_odds` é arredondada a 2 casas; a odd exata é o produto das `bet_selection_odd`.
 //   • o ID que o card estampa é `internal_bet_id` (7 dígitos), não `ticket_id` (11).
 (function () {
+  // ── CRU para o servidor (s409, Projeto Ficha Sharpen) ───────────────────────────────
+  // O objeto da CASA de onde cada bilhete saiu, para o SERVIDOR montar a Ficha (o adaptador
+  // mora lá, `app/adaptadores/`). Vai num campo NOVO (`cru`) da mesma mensagem: a lista de
+  // sempre segue intacta, e é ela que vira o texto. Erro aqui nunca sobe: sem cru, a
+  // captura de hoje segue igual. `codigo` = o mesmo campo que o formatador imprime em
+  // `[Código: …]`.
+  const _cruDe = new WeakMap();
+  function _marcarCru(b, cru) { try { _cruDe.set(b, cru); } catch (e) {} }
+  function _crus(lista, campo, proprio) {
+    const out = [];
+    try {
+      for (const b of lista || []) {
+        const c = proprio ? b : _cruDe.get(b);
+        const cod = b && b[campo];
+        if (!c || cod == null || cod === "") continue;
+        out.push({ codigo: String(cod), cru: proprio ? _semMarcas(c) : c });
+      }
+    } catch (e) {}
+    return out;
+  }
+  // Tira só as marcas que o próprio inject põe no objeto da casa (`__aberta`).
+  function _semMarcas(o) {
+    const r = {};
+    for (const k of Object.keys(o || {})) if (k.slice(0, 2) !== "__") r[k] = o[k];
+    return r;
+  }
   const RX = /\/restapi\/v1\/betslip\/(history|active)/i;   // endpoint da LISTA de bilhetes
   const byRef = new Map();                     // internal_bet_id(string) → bilhete normalizado
   let respostas = 0;                           // respostas do endpoint que o hook viu (autodiagnóstico)
@@ -108,6 +134,7 @@
       window.postMessage({
         __sharpenupSTKData: true, hook: true,
         bilhetes: Array.from(byRef.values()), respostas: respostas, fim: fimReplay,
+        cru: _crus(Array.from(byRef.values()), "ref"),
       }, "*");
     } catch (e) {}
   }
@@ -130,7 +157,7 @@
     if (!d || !Array.isArray(d.tickets)) return null;    // corpo de erro / formato mudou
     respostas++;
     const novos = [];
-    for (const t of d.tickets) parseTicket(t, novos);
+    for (const t of d.tickets) { const _n0 = novos.length; parseTicket(t, novos); for (let _i = _n0; _i < novos.length; _i++) _marcarCru(novos[_i], t); }
     for (const b of novos) guardar(b);
     aprender(url, corpoEnviado);
     LOG("bilhetes na resposta:", novos.length, "· total:", byRef.size,

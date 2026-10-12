@@ -23,6 +23,39 @@
     ["token", "modo", "casa", "frameAtivo", "frameRect", "frameCount"]);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  // ── CRU para o servidor (s409, Projeto Ficha Sharpen) ───────────────────────────────
+  // Todo inject manda, no campo NOVO `cru`, o objeto da CASA de cada bilhete. Aqui ele só é
+  // GUARDADO (o último de cada código); quem o manda embora é o `_enviarCruDaRodada`, no fim
+  // da varredura, por FORA do envio do texto e sem esperar resposta. Nada daqui toca no que
+  // vira texto, e nada daqui lança: sem cru, a captura de hoje segue igual.
+  // Família = as letras do marcador da mensagem (`__sharpenupDXData` → "dx").
+  const _cruPorFamilia = new Map();   // familia → Map(codigo → cru)
+  window.addEventListener("message", (ev) => {
+    try {
+      const d = ev && ev.data;
+      if (!d || typeof d !== "object" || !Array.isArray(d.cru)) return;
+      const k = Object.keys(d).find((x) => /^__sharpenup[A-Z0-9]+Data$/.test(x) && d[x] === true);
+      if (!k) return;
+      const familia = k.slice(11, -4).toLowerCase();
+      let m = _cruPorFamilia.get(familia);
+      if (!m) { m = new Map(); _cruPorFamilia.set(familia, m); }
+      for (const it of d.cru) {
+        if (it && it.codigo != null && it.codigo !== "" && it.cru) m.set(String(it.codigo), it.cru);
+      }
+    } catch (e) {}
+  });
+  function _enviarCruDaRodada() {
+    try {
+      for (const [familia, m] of _cruPorFamilia) {
+        const itens = Array.from(m, ([codigo, cru]) => ({ codigo: codigo, cru: cru }));
+        if (!itens.length) continue;
+        // Sem `await`: o envio do cru não segura nada da captura de hoje.
+        Promise.resolve(chrome.runtime.sendMessage({ type: "ENVIAR_CRU", familia: familia, itens: itens }))
+          .catch(() => {});
+      }
+    } catch (e) {}
+  }
+
   // Tickets da Superbet capturados pelo sb_inject.js (mundo MAIN) — as RESPOSTAS
   // JSON que a própria página recebe da API. O robô só rola a lista p/ a página
   // paginar; a extensão lê o dado exato do site, sem clicar e sem requisição nova.
@@ -1662,6 +1695,7 @@
     toastLocal(blocos.length + " bilhete(s) coletado(s), enviando…", true);
     let resp = null;
     try { resp = await chrome.runtime.sendMessage({ type: "ENVIAR_TEXTO", texto: texto }); } catch (e) {}
+    _enviarCruDaRodada();   // s409: o cru vai DEPOIS do texto, separado e sem espera
     if (resp && resp.ok) {
       try { await chrome.storage.local.remove("envioPendente"); } catch (e) {}
     } else {
