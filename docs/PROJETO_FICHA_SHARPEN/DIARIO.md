@@ -5,6 +5,42 @@
 
 ---
 
+## 2026-10-12 (fim da noite) · etapa 1 · furo N3, motivo de cada ida à IA, dicionário D24/R27
+
+**Onde está:** commit `201ac56`, deploy `ba47530f` (23h20 UTC); as 8 casas seguem viradas. **Próxima ação:**
+o Feca captura 2 ou 3 casas viradas; o consultor confere no banco com o `virada_log` (motivos) e o
+`medicoes/medir_virada_custo.py`; depois o teste real do N3 (recarregar a extensão SEM F5 na aba da casa).
+Etapa 2 (Master: Críquete, Boxe, Defesas, Laterais, Dupla/Tripla, grafias) só com a liberação do Feca.
+
+**A · furo N3 (parecer 012).** A Ficha tirava o código da fila da IA com o cru GUARDADO mesmo quando o texto
+tinha mudado: o cru velho (aberto) escondia a liquidação. Agora só tira se o cru é desta captura (janela de
+30 s + a espera) ou se o bloco não mudou desde a última leitura; senão a IA lê e o `virada_log` conta à
+parte (`sem_cru_novo`). Junto: a Ficha grava o `bloco_visto` do que resolveu (sem ele, a captura seguinte
+de texto igual mandaria a aberta de volta à IA) e a linha no código de que a espera supõe um processo só.
+Teste de banco escrito antes da correção: falhava (a IA recebia `[]`), passa depois; a mutação que tira a
+checagem é pega.
+
+**B · dicionário (D24: o termo entra com 1 voto e o erro se conserta depois).**
+- `Total` sem qualificador é regra, não termo (`dicionario.categoria_do_total`): Futebol, Hóquei, Handebol
+  = Gols; Basquete, Futebol Americano = Pontos; Tênis até 4,5 Sets, acima Games; Vôlei até 4,5 Sets, acima
+  Pontos; outro esporte = IA. Descrição `Over/Under X.X [A v B]`. O `total → Gols` de 1 voto da BetMartini
+  saiu na semente seguinte.
+- Termos vagos (`VAGOS`, hoje `especiais`) nunca entram e sempre vão à IA; `especiais → Futebol` (`*` e
+  7Games) apagado.
+- Correções do Feca (`scripts/corrigir_termo.py`, `origem='feca'`, vencem a semente inclusive a da casa):
+  `winner. quarter {n}` (DEX) = ML, descrição `Time - 1Q [A v B]`; `fastest lap` e `volta mais rápida` =
+  Player Props em todas as casas, descrição `<piloto> volta mais rápida [<prova>]`; `fourth quarter -
+  total` = Pontos (o termo real da BetMartini é `fourth quarter - total (incl. overtime)`: gravados os
+  dois). 0 apostas da Ficha do mês usavam esses termos (só apostas da IA e pernas de múltipla).
+- R27: a semente só aprende valor do Master (`app/taxonomia.py`), ignora aposta editada à mão (o bilhete e
+  o voto do texto da mesma aposta), e a Ficha confere o Master antes de gravar (`fora do Master` → IA).
+- Semente logo depois de um `/extrair` de casa virada que mandou termo novo à IA (lê a decisão da IA na
+  `sombra_rotulos`), além da rodada das 04h; cada rodada vai ao `semente_log` (termos por casa,
+  contraditos, novos). 1ª rodada (manual, 23h30 UTC): 329 termos, 1 contraditório, 65 novos.
+
+**Gates:** `tests/test_virada.py` 33 e harness de banco 68; 20 mutações (P a AH), 20 detectadas (AH escapou
+na 1ª rodada: o teste não tinha o voto do texto da aposta editada; ganhou). pytest tests 1876 verde.
+
 ## 2026-10-12 (noite) · D10 · a aposta sai da IA na origem; D10 corrigido; dicionário diário
 
 **Onde está:** commit `53f4609` no ar; as 8 casas seguem viradas. **Próxima ação:** na 1ª captura depois

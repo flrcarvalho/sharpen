@@ -8,6 +8,13 @@
 > `termos_pendentes` e a classificação em lote (§4.3) não foram construídos (BACKLOG §1). Chave do
 > termo: categoria pelo mercado normalizado (`{n}` no número) e, se o mercado tem duas decisões,
 > pelo par mercado + seleção (seleção sem trocar número: `1` e `2` são seleções diferentes).
+>
+> **s412 (12/10, D24 e R27):** o termo entra com 1 voto e o erro se conserta depois, pela correção do
+> Feca (`scripts/corrigir_termo.py`, `origem = 'feca'`; vence a semente, inclusive a da casa; regrava as
+> apostas da Ficha do mês corrente, nunca as de mês passado). Proteções da semente: só valor do Master,
+> nunca aposta editada à mão, nunca termo vago (`VAGOS`: `especiais`). `Total` sem qualificador é REGRA
+> (categoria principal do esporte, `categoria_do_total`), não termo. A semente roda às 04h e logo depois
+> de um `/extrair` de casa virada que mandou termo novo à IA; cada rodada vai ao `semente_log`.
 
 ## 1. O problema que ele resolve
 

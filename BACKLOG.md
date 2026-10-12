@@ -68,8 +68,19 @@ o `docs/HISTORICO.md`. Este arquivo só guarda o que está **aberto**.
   Betcoin e Kikobet entram quando o cru delas chegar: varrer os nomes de campo, ligar na sombra,
   `scripts/reprocessar_ficha_cru.py`, `semear_dicionario.py --aplicar` e
   `medicoes/medir_backtest_virada.py CASA`; zero dinheiro divergente sem explicação = vira.
-- **Ficha (s411): o dicionário aprende uma vez por dia** (`dicionario.diario`, 07h UTC): termo
-  novo de casa virada vai para a IA e entra no dicionário na rodada seguinte. Falta a fila
+- **Ficha (s412): conferência da etapa 1 e teste real do N3.** O Feca captura 2 ou 3 casas
+  viradas; o consultor confere no banco com o `virada_log` (colunas de motivo) e o
+  `medicoes/medir_virada_custo.py`. Depois, o N3 ao vivo: recarregar a extensão SEM F5 na aba da
+  casa e capturar uma aposta que liquidou; o esperado é `sem_cru_novo` > 0 e a IA lendo o bloco.
+- **Ficha (s412): etapa 2, Master (D25), espera a liberação do Feca.** Críquete e Boxe no
+  `MASTER_ESPORTES`; Defesas e Laterais no `MASTER_APOSTAS`; Dupla (2) / Tripla (3) / Múltipla (4+)
+  no Master, na IA, na Ficha e no `contrato_texto.py`; grafias na §4 (Fórmula 1 = F1, Badmilton/
+  Badmington = Badminton, Beisebol = Baseball, Esoccer = eSoccer), só daqui para frente; a semente
+  conta só votos posteriores à mudança para os termos afetados; `/propagar-categoria` e
+  `/audit-casas`; registrar a hora do deploy (o cache do prompt é reescrito uma vez por casa).
+  Especiais e Aumentadas ficam fora (marca separada da categoria, em discussão).
+- **Ficha (s411): o dicionário aprende uma vez por dia** (`dicionario.diario`, 07h UTC) e, desde a
+  s412, logo depois do `/extrair` que mandou termo novo à IA (`semente_log`). Falta a fila
   `termos_pendentes` com a classificação em lote (`04_DICIONARIO §4`). Hoje, cobertura
   in-sample: MyStake 144/146, Shuffle 78/80, Megapari 18/19, Duel 66/70, Bet Panda 149/168,
   DEX 52/60, BetMartini 79/97, Vavada 40/57 (a Altenar numera esporte que só apareceu em
