@@ -342,6 +342,17 @@ async def receber(payload: dict = Body(...)):
     if _desligada():
         # 503, nunca 200: com 200 a extensão marcaria o cru como enviado e não reenviaria.
         raise HTTPException(503, "Captura do cru desligada no servidor; reenvie depois.")
+    import virada as _virada      # tardio: a virada importa este módulo
+    # Corrida cru × extrair (Feca, 12/10): o `/extrair` da casa virada espera este cru
+    # terminar (`virada.esperar_cru`) antes de mandar qualquer coisa à IA.
+    _virada.cru_entrou(sess.dono, sess.casa_key)
+    try:
+        return await _processar(sess, payload, versao)
+    finally:
+        _virada.cru_saiu(sess.dono, sess.casa_key)
+
+
+async def _processar(sess, payload: dict, versao: str) -> dict:
     origem = str(payload.get("origem") or "")
     casa_origem = _captura.casa_de_host(origem) if origem else None
     if casa_origem and casa_origem != (sess.casa_key or "").upper():
@@ -386,7 +397,8 @@ async def receber(payload: dict = Body(...)):
             registros.append(_registro(f, motivos, cru_id))
         if registros:
             await gravar(sess.dono, sess.casa_key, sess.parceiro, versao, origem, registros)
-            # Casa VIRADA (§7): a aceita vai à planilha; a recusada fica para a IA, pelo texto.
+            # Casa VIRADA (§7): a aceita vai à planilha, aberta ou liquidada; a recusada e o
+            # termo fora do dicionário ficam para a IA, pelo texto.
             na_planilha = await _virada.gravar_aceitas(sess, registros)
         fichas_aceitas = sum(1 for r in registros if r["aceita"])
         fichas_recusadas = len(registros) - fichas_aceitas

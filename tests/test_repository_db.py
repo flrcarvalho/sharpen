@@ -1437,12 +1437,17 @@ def test_captura_crua_grava_uma_vez_e_cru_mudado_vira_linha_nova():
 #      nem era montada. O estado de produção é sombra LIGADA e virada desligada.)
 #   s411 (dicionário e D10, mesmo Postgres local):
 #   E. a virada grava mesmo com termo fora do dicionário          → termo_fora vermelho
-#   F. a virada reescreve código que a IA já gravou (sem D10)     → d10 vermelho
+#   s411, 2ª rodada (a aposta sai da IA na origem, enquanto aberta; D10 = não reescrever a
+#   LIQUIDADA):
+#   G. sem o filtro de liquidada (`_liquidados` vazio)            → d10_liquidada vermelho
+#   H. o pré-dedup não corta o que a Ficha resolveu               → aberta_sai_da_ia vermelho
+#   I. o /extrair não lê o cru guardado (só a rota grava)         → cru_guardado vermelho
+#   O. a semente vota na linha gravada pela Ficha                 → virada_semente_nao_vota vermelho
 
 _VIRADA = ("5508528206", "5504514128", "5500000003")     # aceita, recusada, sem cru
 
 
-def _virada_cenario(monkeypatch, chave, sombra="", termos=True):
+def _virada_cenario(monkeypatch, chave, sombra="", termos=True, aberta=False):
     import json as _json
     from pathlib import Path
     from types import SimpleNamespace
@@ -1460,8 +1465,9 @@ def _virada_cenario(monkeypatch, chave, sombra="", termos=True):
     monkeypatch.delenv("CRU_CAPTURA_DESLIGADA", raising=False)
     monkeypatch.setenv("FICHA_CASAS_VIRADAS", chave)
     aceita, recusada, _ = _VIRADA
+    cru_aceita = dict(crus[aceita], status=0) if aberta else crus[aceita]
     payload = {"token": "t", "versao": "0.7.51", "familia": "vb", "itens": [
-        {"codigo": aceita, "cru": crus[aceita]},
+        {"codigo": aceita, "cru": cru_aceita},
         {"codigo": recusada, "cru": dict(crus[recusada], status=7)}]}   # status 7: recusa
     # O lote de TEXTO da mesma captura: os 3 bilhetes, como o SharpenUp manda sempre.
     texto = "\n\n".join(f"[Código: {c}]\nStake: 10\nStatus: Perdido\n" for c in _VIRADA)
@@ -1475,16 +1481,19 @@ def _virada_cenario(monkeypatch, chave, sombra="", termos=True):
     return sess, payload, texto
 
 
-async def _virada_ponta_a_ponta(sess, payload, texto, antes=None):
+async def _virada_ponta_a_ponta(sess, payload, texto, antes=None, virar_no_extrair=None):
     """Rota da Ficha → `/extrair` (o pré-dedup de sempre) → IA dublê → `/salvar`.
-    `antes` = linha que a IA já tinha gravado (código, resultado), para o D10."""
+    `antes` = linha que a IA já tinha gravado (código, resultado). `virar_no_extrair` = a
+    chave passa a valer só DEPOIS da rota (o cru chegou antes da virada)."""
+    import os
     import ficha
     import main
 
     await _reset()
     pool = await get_pool()
     async with pool.acquire() as conn:
-        for t in ("captura_crua", "ficha_sombra", "bloco_visto", "dicionario_termos"):
+        for t in ("captura_crua", "ficha_sombra", "bloco_visto", "dicionario_termos",
+                  "ficha_virada", "virada_log"):
             await conn.execute(f"TRUNCATE {t}")
         for casa, tipo, termo, sharpen in getattr(sess, "termos", []):
             await conn.execute("INSERT INTO dicionario_termos (casa, tipo, termo_casa, "
@@ -1497,6 +1506,8 @@ async def _virada_ponta_a_ponta(sess, payload, texto, antes=None):
                 f"\t10\t2\t{res}\t{cod}", casa=sess.casa, parceiro=sess.parceiro),
             sess.dono, sess.dono)
     resp = await ficha.receber(payload)
+    if virar_no_extrair is not None:
+        os.environ["FICHA_CASAS_VIRADAS"] = virar_no_extrair
     para_ia, cortados = await main._dedup_superbet_text(texto, sess.dono, sess.casa,
                                                         sess.parceiro)
     lidos = repository.codigos_do_texto(para_ia)
@@ -1504,9 +1515,12 @@ async def _virada_ponta_a_ponta(sess, payload, texto, antes=None):
                     f"Time A [A vs B]\t10\t2\tL\t{c}" for c in lidos)
     await main.gravar_tsv(main.SalvarRequest(tsv=tsv, casa=sess.casa, parceiro=sess.parceiro),
                           sess.dono, sess.dono)
+    await asyncio.sleep(0.1)          # a métrica vai por `_fire`
     async with pool.acquire() as conn:
         banco = {r["codigo_bilhete"]: (r["origem"], r["resultado"]) for r in await conn.fetch(
             "SELECT codigo_bilhete, origem, resultado FROM bilhetes WHERE dono = $1", sess.dono)}
+        sess.log = [dict(r) for r in await conn.fetch(
+            "SELECT capturadas, ja_no_banco, pela_ficha, para_ia FROM virada_log")]
     return resp, sorted(lidos), cortados, banco
 
 
@@ -1522,6 +1536,48 @@ def test_virada_tres_bilhetes_chegam_ao_banco(monkeypatch):
                      sem_cru: ("extracao", "L")}
 
 
+def test_virada_semente_nao_vota_na_linha_da_propria_ficha(monkeypatch):
+    """O esporte da linha `origem='ficha'` saiu do dicionário: votar nela seria o dicionário
+    votando em si mesmo. A aceita gravada pela Ficha fica sem par; a linha da IA vota."""
+    import dicionario
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+
+    async def fontes():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            return (await dicionario.pares(conn))[2]
+    assert _run(fontes()) == {"sem par": 1, "texto (esporte)": 0}
+
+
+def test_virada_metrica_por_captura(monkeypatch):
+    """Métrica de cada virada (Feca, 12/10): capturadas, quantas a IA não leu, quantas foram."""
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    assert sess.log == [{"capturadas": 3, "ja_no_banco": 1, "pela_ficha": 0, "para_ia": 2}]
+
+
+def test_virada_aberta_sai_da_ia_na_origem(monkeypatch):
+    """A Ficha aceita grava a aposta ABERTA, e o pré-dedup a tira do lote da IA."""
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA", aberta=True)
+    resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(sess, payload, texto))
+    assert resp["na_planilha"] == 1 and banco[aceita] == ("ficha", None)
+    assert (lidos, cortados) == (sorted([recusada, sem_cru]), 1)
+    assert sess.log == [{"capturadas": 3, "ja_no_banco": 0, "pela_ficha": 1, "para_ia": 2}]
+
+
+def test_virada_cru_guardado_antes_da_virada(monkeypatch):
+    """A extensão não reenvia cru igual: o cru que chegou ANTES da virada (só sombra) é lido
+    no `/extrair` e a Ficha grava a aposta. Sem isso a aberta antiga ficaria com a IA."""
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "", sombra="VAVADA")
+    resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(
+        sess, payload, texto, virar_no_extrair="VAVADA"))
+    assert resp["na_planilha"] == 0
+    assert banco[aceita] == ("ficha", "W") and (lidos, cortados) == (sorted([recusada, sem_cru]), 1)
+
+
 def test_virada_termo_fora_do_dicionario_vai_para_a_ia(monkeypatch):
     """Regra do Feca (12/10): termo sem par conhecido vai para a IA, como hoje. A Ficha é
     aceita e guardada, mas não vai à planilha; a IA lê os três."""
@@ -1532,15 +1588,26 @@ def test_virada_termo_fora_do_dicionario_vai_para_a_ia(monkeypatch):
     assert {o for o, _ in banco.values()} == {"extracao"} and len(banco) == 3
 
 
-def test_virada_d10_nao_reescreve_o_que_a_ia_gravou(monkeypatch):
-    """D10: a aposta que a IA já gravou (aberta) fica com a IA. A Ficha liquidada não a
-    reescreve, e o pré-dedup não a corta (aberta no banco): a IA a liquida pelo texto."""
-    aceita = _VIRADA[0]
+def test_virada_aberta_da_ia_passa_para_a_ficha(monkeypatch):
+    """Aposta ABERTA que a IA gravou antes da virada passa para a Ficha na próxima captura: a
+    Ficha grava o resultado (a linha mantém a origem de quem a criou) e o código sai do lote."""
+    aceita, recusada, sem_cru = _VIRADA
     resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(
         *_virada_cenario(monkeypatch, "VAVADA"), antes=(aceita, "")))
-    assert resp["fichas"]["aceitas"] == 1 and resp["na_planilha"] == 0
-    assert (lidos, cortados) == (sorted(_VIRADA), 0)
-    assert banco[aceita] == ("extracao", "L") and len(banco) == 3
+    assert resp["na_planilha"] == 1
+    assert (lidos, cortados) == (sorted([recusada, sem_cru]), 1)
+    assert banco[aceita] == ("extracao", "W") and len(banco) == 3
+
+
+def test_virada_d10_liquidada_nao_e_reescrita(monkeypatch):
+    """D10 (Feca, 12/10): "não mexer no passado é não ir futricar as apostas de mês passado".
+    A LIQUIDADA no banco fica como está (aqui L, que a Ficha diria W), e a IA não a lê."""
+    aceita, recusada, sem_cru = _VIRADA
+    resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(
+        *_virada_cenario(monkeypatch, "VAVADA"), antes=(aceita, "L")))
+    assert resp["na_planilha"] == 0
+    assert (lidos, cortados) == (sorted([recusada, sem_cru]), 1)
+    assert banco[aceita] == ("extracao", "L")
 
 
 @pytest.mark.parametrize("sombra", ["VAVADA", ""])

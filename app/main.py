@@ -734,6 +734,9 @@ async def lifespan(_app: FastAPI):
     asyncio.create_task(_usuarios_refresher())
     # Tempo real (s241): LISTEN base_mudou numa conexão dedicada; alimenta /eventos.
     asyncio.create_task(_eventos.escutar_banco())
+    # Ficha (s411): o dicionário de termos refaz a semente sozinho uma vez por dia.
+    import dicionario as _dicionario
+    asyncio.create_task(_dicionario.diario())
     yield
 
 
@@ -1217,7 +1220,7 @@ def _split_betfair_bilhetes(text: str) -> list[str]:
 
 
 async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
-                               parceiro: str = "") -> tuple[str, int]:
+                               parceiro: str = "", casa_key: str = "") -> tuple[str, int]:
     """Espelha `_dedup_betano_text` para a Superbet.
 
     Remove bilhetes já liquidados no banco + duplicatas dentro do colar. A chave é o
@@ -1236,9 +1239,17 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     sem) e o gravador usa o de lá. Hashear o bloco errado faria a barreira nunca
     disparar, em silêncio — que é o modo de falha caro deste mecanismo, porque ninguém
     reclama de economia que não aconteceu.
+
+    **Casa VIRADA (Ficha, s411):** sai também todo código que a Ficha resolveu, ABERTO ou
+    liquidado (`virada.resolver_no_extrair`, que antes espera o cru da mesma captura chegar).
+    A IA só recebe o que a Ficha não resolveu: Ficha recusada, termo fora do dicionário, ou
+    cru que não chegou a tempo.
     """
+    import virada as _virada
+    casa_key = casa_key or _virada.chave_da_casa(casa)
+    virou = _virada.virada(casa_key)
     blocks = _split_superbet_bilhetes(text)
-    if len(blocks) < 2:
+    if len(blocks) < 2 and not virou:
         return text, 0
 
     # Código na caixa em que veio, NUNCA em maiúsculas. O banco grava o código verbatim
@@ -1260,13 +1271,24 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     conhecidos = await blocos_conhecidos(dono, casa, codigos, parceiro)
     # O de-para de hash usa o MESMO recorte do gravador. Ver o aviso do docstring.
     por_codigo = {k: hash_bloco(v) for k, v in blocos_por_codigo(text).items()}
+    pela_ficha: set[str] = set()
+    espera = 0.0
+    if virou:
+        pela_ficha, espera = await _virada.resolver_no_extrair(
+            dono, casa_key, casa, parceiro, [c for c in dict.fromkeys(codigos)
+                                             if c not in ja_resolvidos])
 
     mantidos: list[str] = []
     vistos: set[str] = set()
-    skipped = inalterados = 0
+    skipped = inalterados = n_ficha = 0
     for block, bid in zip(blocks, ids):
         if bid:
             if bid in vistos or bid in ja_resolvidos:
+                skipped += 1
+                continue
+            if bid in pela_ficha:
+                vistos.add(bid)
+                n_ficha += 1
                 skipped += 1
                 continue
             atual = por_codigo.get(bid)
@@ -1280,6 +1302,12 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     if inalterados:
         logger.info("barreira: %d bilhete(s) sem nenhuma mudança desde a última leitura "
                     "· %s/%s", inalterados, dono, casa)
+    if virou:
+        logger.info("virada: %s/%s · %d capturada(s), %d pela Ficha, %d à IA (espera %.1f s)",
+                    dono, casa, len(set(codigos)), n_ficha, len(mantidos), espera)
+        _fire(_virada.registrar(dono, casa_key, len(set(codigos)),
+                                len(set(codigos) & ja_resolvidos), n_ficha, inalterados,
+                                len(mantidos), espera))
 
     if not mantidos:
         return "", skipped
@@ -4088,7 +4116,7 @@ async def extrair(
             # caminho — o pior caso é não pular nada (a IA reprocessa e o UPSERT dedupa),
             # nunca esconder bilhete, que era o modo de falha antigo.
             texto, n_skip = await _dedup_superbet_text(
-                texto, dono, _casa_display(casa_key), parceiro)
+                texto, dono, _casa_display(casa_key), parceiro, casa_key=casa_key)
             xls_skipped += n_skip
         if texto:
             base_content.append({"type": "text", "text": texto})

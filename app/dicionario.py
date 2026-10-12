@@ -166,3 +166,110 @@ def votar(pares, votos_texto=()) -> tuple[dict, dict]:
             unanimes[("*", "esporte", termo)] = (next(iter(topo)),
                                                  sum(sum(c.values()) for c in casas.values()))
     return unanimes, contraditos
+
+
+# ── semente (`04 §3`): os pares que já existem ─────────────────────────────────────────
+
+async def pares(conn) -> tuple[list, list, dict]:
+    """([(casa_key, Ficha, esporte da IA, categoria da IA)], um por aposta com cru;
+    [(casa_key, termos de esporte do texto, esporte da IA)], um por bilhete da sombra;
+    contagem por fonte). Linha gravada pela própria Ficha (`origem = 'ficha'`) NÃO vota: o
+    esporte dela saiu deste dicionário, e votar nela seria o dicionário votando em si mesmo."""
+    import json
+    from collections import Counter
+
+    import ficha
+    ultimo = {}
+    for r in await conn.fetch("SELECT dono, casa, parceiro, familia, codigo, cru::text AS cru "
+                              "FROM captura_crua ORDER BY id"):
+        ultimo[(r["dono"], r["casa"], r["parceiro"], r["codigo"])] = r
+    codigos = [k[3] for k in ultimo]
+    nomes = {r["k"]: r["casa"] for r in await conn.fetch(
+        "SELECT DISTINCT upper(replace(casa, ' ', '')) AS k, casa FROM bilhetes")}
+    bil = {(b["dono"], b["casa"], b["parceiro"], b["codigo_bilhete"]): b for b in await conn.fetch(
+        "SELECT dono, casa, parceiro, codigo_bilhete, esporte, aposta FROM bilhetes "
+        "WHERE codigo_bilhete = ANY($1::text[]) AND origem IS DISTINCT FROM 'ficha'", codigos)}
+    sombra = {(s["dono"], s["codigo"]): s for s in await conn.fetch(
+        "SELECT DISTINCT ON (dono, codigo) dono, codigo, ia_esporte, ia_aposta "
+        "FROM sombra_rotulos WHERE codigo = ANY($1::text[]) ORDER BY dono, codigo, criado_em DESC",
+        codigos)}
+    out, fontes = [], Counter()
+    for (dono, casa, parceiro, codigo), r in ultimo.items():
+        f, motivos = ficha.montar_ficha(r["familia"], json.loads(r["cru"]), casa)
+        if f is None or motivos:
+            continue
+        b = bil.get((dono, nomes.get(casa, casa), parceiro, codigo))
+        if b:
+            out.append((casa, f, b["esporte"], b["aposta"]))
+            fontes["bilhetes"] += 1
+        elif (s := sombra.get((dono, codigo))):
+            out.append((casa, f, s["ia_esporte"], s["ia_aposta"]))
+            fontes["sombra_rotulos"] += 1
+        else:
+            fontes["sem par"] += 1
+    # Complemento de ESPORTE: o texto do SharpenUp em `sombra_rotulos` escreve o termo da casa
+    # por perna (`Esporte: tennis`), desde antes do cru existir. Só onde dá para dizer de qual
+    # perna é o termo (`esportes_do_texto`).
+    texto = []
+    for s in await conn.fetch(
+            "SELECT DISTINCT ON (dono, casa, codigo) casa, bruto, ia_esporte FROM sombra_rotulos "
+            "WHERE codigo IS NOT NULL ORDER BY dono, casa, codigo, criado_em DESC"):
+        termos = esportes_do_texto(s["bruto"])
+        if termos:
+            texto.append(((s["casa"] or "").replace(" ", "").upper(), termos, s["ia_esporte"]))
+    fontes["texto (esporte)"] = len(texto)
+    return out, texto, dict(fontes)
+
+
+async def gravar_semente(conn, unanimes: dict) -> int:
+    """Refaz a semente inteira numa transação. Linha `origem = 'feca'` nunca é tocada; semente
+    que deixou de ser unânime some (a aposta volta para a IA)."""
+    async with conn.transaction():
+        await conn.execute("DELETE FROM dicionario_termos WHERE origem = 'semente'")
+        for (c, t, termo), (sharpen, n) in unanimes.items():
+            await conn.execute(
+                """INSERT INTO dicionario_termos (casa, tipo, termo_casa, termo_sharpen,
+                                                  origem, ocorrencias)
+                   VALUES ($1, $2, $3, $4, 'semente', $5)
+                   ON CONFLICT (casa, tipo, termo_casa) DO NOTHING""", c, t, termo, sharpen, n)
+    return len(unanimes)
+
+
+async def semear(conn) -> dict:
+    p, texto, fontes = await pares(conn)
+    unanimes, contraditos = votar(p, texto)
+    n = await gravar_semente(conn, unanimes)
+    return {"termos": n, "contraditos": len(contraditos), "fontes": fontes}
+
+
+# ── uma vez por dia (Feca, 12/10: "o dicionário aprende sozinho uma vez por dia") ─────────
+
+HORA_UTC = 7                     # 04h de Brasília, fora do horário de captura
+
+
+def segundos_ate(hora_utc: int, agora=None) -> float:
+    from datetime import datetime, timedelta, timezone
+    agora = agora or datetime.now(timezone.utc)
+    alvo = agora.replace(hour=hora_utc, minute=0, second=0, microsecond=0)
+    if alvo <= agora:
+        alvo += timedelta(days=1)
+    return (alvo - agora).total_seconds()
+
+
+async def diario() -> None:
+    """Tarefa do `lifespan`: refaz a semente todo dia às `HORA_UTC`. Falha numa rodada só
+    registra no log; o dicionário de ontem continua valendo."""
+    import asyncio
+    import logging
+
+    from database import get_pool
+    log = logging.getLogger("scanner")
+    while True:
+        await asyncio.sleep(segundos_ate(HORA_UTC))
+        try:
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                r = await semear(conn)
+            log.info("dicionário: semente diária, %s", r)
+        except Exception:  # noqa: BLE001
+            log.exception("dicionário: a semente diária falhou; vale a de ontem")

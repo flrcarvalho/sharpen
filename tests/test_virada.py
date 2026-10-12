@@ -4,8 +4,8 @@ descrição com a linha e coluna `sistema` na s411 (12/10/2026).
 
 Aqui, sem banco: a chave, a linha da planilha montada da Ficha, a tradução de esporte e
 categoria, a semente, e as travas da rota (a recusada nunca vai à planilha; termo fora do
-dicionário e código já gravado por outro caminho ficam com a IA; falha ao gravar nunca derruba
-a rota). O teste dos bilhetes chegando ao banco (aceita pela Ficha, recusada, sem cru, termo
+dicionário ficam com a IA; liquidada no banco nunca é reescrita; o `/extrair` espera o cru e
+resolve pelo cru guardado; falha ao gravar nunca derruba a rota). O teste dos bilhetes chegando ao banco (aceita pela Ficha, recusada, sem cru, termo
 fora do dicionário e D10 pela IA) está no harness de banco, `tests/test_repository_db.py`.
 
 Crus REAIS (`tests/ficha_crus_familias.json`), pelos adaptadores reais.
@@ -26,7 +26,12 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
  12. linha repetida quando já está no texto              → test_descricao_traz_a_linha_uma_vez_so
  13. tv sem inverter o sinal do `hisminus`               → test_tv_linha_com_hisminus_inverte_o_sinal
  14. sistema sem a 12ª coluna                            → test_sistema_da_altenar_preenche_a_coluna
- 15. a separação ignora o código já gravado (D10)        → test_d10_codigo_de_outro_caminho_fica_com_a_ia
+  s411, 2ª rodada (a aposta sai da IA na origem; D10 = não reescrever a LIQUIDADA):
+ 15. a rota reescreve a liquidada no banco               → test_d10_liquidada_no_banco_nao_e_reescrita
+ 17. a espera ignora o cru em processamento              → test_extrair_espera_o_cru_em_processamento
+ 18. a espera sem teto (trava em vez de falhar: wait_for) → test_extrair_sem_cru_espera_so_a_folga…
+ 19. cru igual já gravado é regravado                     → test_cru_igual_ja_gravado_pela_ficha…
+ 20. recusada no /salvar conta como resolvida pela Ficha  → test_recusada_no_salvar_fica_com_a_ia
  16. texto de múltipla com um `Esporte:` só vota         → test_esportes_do_texto_so_quando_a_perna_e_clara
 Inócua (registrada, não é buraco): `virada()` aceitar `*` — o `casas_viradas()` já tira o `*`
 da lista antes, então o código segue certo sem a linha.
@@ -229,53 +234,107 @@ def _registros():
     return [boa, ruim]
 
 
-def _sem_banco(monkeypatch, termos=None, outro=()):
-    """`separar` real, com o banco dublado: o dicionário e os códigos de outro caminho."""
-    termos = termos if termos is not None else {
-        k: "Futebol" for k in dicionario.chaves(_ficha("5508528206"))}
+class _Conn:
+    """Banco dublado: dicionário, códigos liquidados, `ficha_virada` e `captura_crua`."""
 
-    async def separar_no_banco(casa_key, dono, aceitas):
-        class Conn:
-            async def fetch(self, sql, *a):
-                if "dicionario_termos" in sql:
-                    return [{"tipo": t, "termo_casa": k, "termo_sharpen": v}
-                            for (t, k), v in termos.items()]
-                return [{"codigo_bilhete": c} for c in outro]
-        return await virada.separar(Conn(), casa_key, dono, aceitas)
-    monkeypatch.setattr(virada, "_separar_no_banco", separar_no_banco)
+    def __init__(self, termos=None, liquidados=(), estado=None, crus=()):
+        self.termos = termos if termos is not None else {
+            k: "Futebol" for k in dicionario.chaves(_ficha("5508528206"))}
+        self.liquidados, self.crus = list(liquidados), list(crus)
+        self.estado = dict(estado or {})          # código → (impressão, estado)
+        self.motivos = {}
+
+    async def fetch(self, sql, *a):
+        if "dicionario_termos" in sql:
+            return [{"tipo": t, "termo_casa": k, "termo_sharpen": v}
+                    for (t, k), v in self.termos.items()]
+        if "extraction_state" in sql:
+            return [{"codigo_bilhete": c} for c in self.liquidados]
+        if "FROM ficha_virada" in sql:
+            return [{"codigo": c, "impressao": i, "estado": e}
+                    for c, (i, e) in self.estado.items()]
+        if "captura_crua" in sql:
+            return self.crus
+        raise AssertionError(sql)
+
+    async def execute(self, sql, *a):
+        assert "ficha_virada" in sql
+        _, _, cod, imp, est, motivo = a
+        self.estado[cod] = (imp, est)
+        self.motivos[cod] = motivo
 
 
-def _gravador(monkeypatch):
+def _banco(monkeypatch, **kw):
+    conn = _Conn(**kw)
+
+    class _Pool:
+        def acquire(self):
+            class _Ctx:
+                async def __aenter__(self_):
+                    return conn
+
+                async def __aexit__(self_, *e):
+                    return False
+            return _Ctx()
+
+    async def pool():
+        return _Pool()
+    monkeypatch.setattr(virada, "_pool_conn", pool)
+    return conn
+
+
+def _gravador(monkeypatch, rejeitados=()):
     vistos = []
 
     async def falso(dono, casa, parceiro, itens):
         vistos.extend((f["codigo"], e, c) for f, e, c in itens)
-        return {"salvos": len(itens)}
+        return {"salvos": len(itens) - len(rejeitados),
+                "rejeitados": [{"linha": n} for n in rejeitados]}
     monkeypatch.setattr(virada, "gravar_na_planilha", falso)
     return vistos
 
 
 def test_so_a_aceita_vai_a_planilha(monkeypatch):
     monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
-    _sem_banco(monkeypatch)
+    conn = _banco(monkeypatch)
     vistos = _gravador(monkeypatch)
     assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 1
     assert vistos == [("5508528206", "Futebol", "Múltipla")]
+    assert conn.estado["5508528206"][1] == "ficha" and conn.estado["5504514128"][1] == "ia"
+    assert conn.motivos["5504514128"] == "Ficha recusada"
 
 
 def test_termo_fora_do_dicionario_nao_vai_a_planilha(monkeypatch):
     monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
-    _sem_banco(monkeypatch, termos={})
+    conn = _banco(monkeypatch, termos={})
     vistos = _gravador(monkeypatch)
     assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 0 and vistos == []
+    assert conn.motivos["5508528206"] == "termo fora do dicionário"
 
 
-def test_d10_codigo_de_outro_caminho_fica_com_a_ia(monkeypatch):
-    """D10: o histórico não é reescrito pela Ficha. Código que a IA já gravou fica com ela."""
+def test_d10_liquidada_no_banco_nao_e_reescrita(monkeypatch):
+    """D10 (Feca, 12/10): "não mexer no passado é não ir futricar as apostas de mês passado".
+    Liquidada no banco, de qualquer origem, fica como está: nem grava, nem decide."""
     monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
-    _sem_banco(monkeypatch, outro=["5508528206"])
+    conn = _banco(monkeypatch, liquidados=["5508528206"])
     vistos = _gravador(monkeypatch)
     assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 0 and vistos == []
+    assert "5508528206" not in conn.estado
+
+
+def test_cru_igual_ja_gravado_pela_ficha_sai_sem_regravar(monkeypatch):
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
+    _banco(monkeypatch, estado={"5508528206": ("x", "ficha")})      # impressão do _ficha
+    vistos = _gravador(monkeypatch)
+    assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 1 and vistos == []
+
+
+def test_recusada_no_salvar_fica_com_a_ia(monkeypatch):
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
+    conn = _banco(monkeypatch)
+    _gravador(monkeypatch, rejeitados=[1])
+    assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 0
+    assert conn.estado["5508528206"][1] == "ia"
 
 
 def test_casa_nao_virada_nao_grava(monkeypatch):
@@ -284,21 +343,73 @@ def test_casa_nao_virada_nao_grava(monkeypatch):
     async def falso(*a):
         raise AssertionError("não devia gravar")
     monkeypatch.setattr(virada, "gravar_na_planilha", falso)
-    monkeypatch.setattr(virada, "_separar_no_banco", falso)
+    monkeypatch.setattr(virada, "_pool_conn", falso)
     assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 0
+    assert asyncio.run(virada.resolver_no_extrair("TDono", "VAVADA", "Vavada", "c", ["1"])) \
+        == (set(), 0.0)
 
 
 def test_falha_ao_gravar_nao_derruba_a_rota(monkeypatch):
     """O cru e a Ficha já estão guardados: a aposta vai pela IA, pelo texto."""
     monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
-    _sem_banco(monkeypatch)
+    conn = _banco(monkeypatch)
 
     async def quebra(*a):
         raise RuntimeError("banco fora")
     monkeypatch.setattr(virada, "gravar_na_planilha", quebra)
     assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 0
-    monkeypatch.setattr(virada, "_separar_no_banco", quebra)
+    assert conn.estado["5508528206"][1] == "ia"
+    monkeypatch.setattr(virada, "_pool_conn", quebra)
     assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 0
+
+
+def test_extrair_resolve_pelo_cru_guardado(monkeypatch):
+    """A extensão não reenvia cru igual: no `/extrair`, a aposta aberta que a IA gravou antes
+    da virada passa para a Ficha pelo cru GUARDADO. O que não tem cru fica com a IA."""
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
+    monkeypatch.setattr(virada, "FOLGA", 0.0)
+    _banco(monkeypatch, crus=[{"codigo": "5508528206", "familia": "vb",
+                               "cru": json.dumps(CRUS["5508528206"])}])
+    vistos = _gravador(monkeypatch)
+    feitos, _ = asyncio.run(virada.resolver_no_extrair(
+        "TDono", "VAVADA", "Vavada", "c", ["5508528206", "5500000003"]))
+    assert feitos == {"5508528206"} and [v[0] for v in vistos] == ["5508528206"]
+
+
+# ── corrida: o `/extrair` espera o cru da mesma captura ─────────────────────────────────
+
+def test_extrair_espera_o_cru_em_processamento():
+    async def cenario():
+        virada.cru_entrou("TDono", "VAVADA")
+
+        async def termina():
+            await asyncio.sleep(0.3)
+            virada.cru_saiu("TDono", "VAVADA")
+        t = asyncio.create_task(termina())
+        esperou = await virada.esperar_cru("TDono", "VAVADA", maximo=3, folga=0)
+        await t
+        return esperou
+    assert 0.25 <= asyncio.run(cenario()) < 1.5
+
+
+def test_extrair_sem_cru_espera_so_a_folga_e_com_teto():
+    virada._em_voo.clear(), virada._ultimo_fim.clear()
+    assert 0.15 <= asyncio.run(virada.esperar_cru("TDono", "DUEL", maximo=3, folga=0.2)) < 1
+    virada.cru_saiu("TDono", "DUEL")                       # cru desta captura já terminou
+    assert asyncio.run(virada.esperar_cru("TDono", "DUEL", maximo=3, folga=2)) < 0.5
+    virada.cru_entrou("TDono", "SHUFFLE")                  # nunca termina: o teto manda
+    # `wait_for`: sem o teto a espera seria eterna, e o teste tem de FALHAR, não travar
+    assert 0.25 <= asyncio.run(asyncio.wait_for(
+        virada.esperar_cru("TDono", "SHUFFLE", maximo=0.3), 3)) < 1.5
+    virada.cru_saiu("TDono", "SHUFFLE")
+
+
+def test_dicionario_aprende_uma_vez_por_dia():
+    from datetime import datetime, timezone
+    antes = datetime(2026, 10, 12, 6, 30, tzinfo=timezone.utc)
+    depois = datetime(2026, 10, 12, 7, 30, tzinfo=timezone.utc)
+    assert dicionario.segundos_ate(7, antes) == 1800
+    assert dicionario.segundos_ate(7, depois) == 23.5 * 3600
 
 
 def test_grava_pelo_salvar_com_origem_ficha(monkeypatch):

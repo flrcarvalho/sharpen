@@ -981,6 +981,38 @@ CREATE TABLE IF NOT EXISTS dicionario_termos (
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (casa, tipo, termo_casa)
 );
+
+-- Casa VIRADA (s411): o que a Ficha decidiu da última vez para cada código (`app/virada.py`).
+--   `estado` = `ficha` (gravada pela Ficha; o código sai do lote da IA) ou `ia` (recusada, termo
+--   fora do dicionário, recusada no /salvar: a IA lê). `impressao` = a do cru: cru igual com
+--   `ficha` sai do lote sem regravar. `casa` = casa_key.
+CREATE TABLE IF NOT EXISTS ficha_virada (
+    dono          TEXT NOT NULL,
+    casa          TEXT NOT NULL,
+    codigo        TEXT NOT NULL,
+    impressao     TEXT NOT NULL DEFAULT '',
+    estado        TEXT NOT NULL CHECK (estado IN ('ficha', 'ia')),
+    motivo        TEXT NOT NULL DEFAULT '',
+    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (dono, casa, codigo)
+);
+
+-- Uma linha por `/extrair` de casa virada (s411): a métrica de cada virada, antes × depois
+-- (`docs/PROJETO_FICHA_SHARPEN/medicoes/medir_virada_custo.py`). `capturadas` = códigos
+-- distintos no texto; `para_ia` = blocos que seguiram para a IA.
+CREATE TABLE IF NOT EXISTS virada_log (
+    id          BIGSERIAL PRIMARY KEY,
+    criado_em   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    dono        TEXT NOT NULL,
+    casa        TEXT NOT NULL,
+    capturadas  INTEGER NOT NULL,
+    ja_no_banco INTEGER NOT NULL,
+    pela_ficha  INTEGER NOT NULL,
+    inalterados INTEGER NOT NULL,
+    para_ia     INTEGER NOT NULL,
+    espera_s    REAL NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS virada_log_casa ON virada_log (casa, criado_em);
 """
 
 
