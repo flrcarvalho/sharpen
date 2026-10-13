@@ -41,7 +41,7 @@ sem linha, e depois nenhuma variação dele vai à IA.
 mercado novo vai à IA uma vez e depois não; a semente regrava a descrição do mês e não a do mês passado);
 23 mutações, 23 detectadas (M6, M7 e M14b escaparam na 1ª rodada; M6 mirava o ramo errado, M7 era barrada
 também por outra regra e ganhou caso próprio, M14b era inócua e a condição saiu). pytest tests 1888.
-Na conferência em produção, o `semente_log` mostrava 0 contraditos com 16 de descrição na lista: o filtro
+Na conferência em produção, o `semente_log` mostrava 0 contraditos com 12 de descrição contraditos: o filtro
 que esconde o par `mercado | seleção` escondia também a chave de descrição (mesmo separador). Corrigido,
 com teste e mutação (M15).
 
