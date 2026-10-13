@@ -43,6 +43,7 @@ FIXTURES_POR_FAMILIA = {
     "dx": ["dexsport.tickets.json"],
     "jb": ["betpanda.my_bets.json", "jonbet.my_bets_all.json", "jonbet.my_bets_open.json"],
     "shf": ["shuffle.sportsbets.json"],
+    "tp": ["1win.settled.json", "1win.open.json"],
     "tv": ["mystake.gethistory.json", "tivo.gethistory.json", "betfast.gethistory.json"],
     "vb": ["esportiva.settled.json", "esportiva.anuladas.json", "esportiva.cashout.json",
            "estrelabet.settled.json", "vaidebet.settled.json"],

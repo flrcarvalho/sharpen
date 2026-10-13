@@ -307,6 +307,17 @@ async def gravar_cru(dono: str, casa_key: str, parceiro: str, familia: str, vers
     return ids
 
 
+def _codigo_recusa(mod, cru) -> str:
+    """O código da Ficha recusada. A família que não guarda o código em `cru.id` (a 1win, em
+    `cru.bet.id`) diz onde ele mora pelo `codigo(cru)` do adaptador."""
+    try:
+        if hasattr(mod, "codigo"):
+            return str(mod.codigo(cru) or "")
+        return str((cru or {}).get("id") or "")
+    except Exception:  # noqa: BLE001 — cru torto não derruba a recusa
+        return ""
+
+
 def montar_ficha(familia: str, cru: dict, casa_key: str) -> tuple[dict | None, list[str]]:
     """(Ficha, motivos de recusa) pelo adaptador da família. Sem adaptador = (None, [])."""
     from adaptadores import Recusa, adaptador
@@ -316,10 +327,10 @@ def montar_ficha(familia: str, cru: dict, casa_key: str) -> tuple[dict | None, l
     try:
         f = mod.adaptar(cru, casa_key)
     except Recusa as e:
-        return {"codigo": str((cru or {}).get("id") or ""), "cru_recusado": True}, [str(e)]
+        return {"codigo": _codigo_recusa(mod, cru), "cru_recusado": True}, [str(e)]
     except Exception as e:  # noqa: BLE001 — defeito do adaptador é recusa gravada, nunca 500
         logger.exception("ficha: adaptador %s quebrou em %s", familia, casa_key)
-        return ({"codigo": str((cru or {}).get("id") or ""), "cru_recusado": True},
+        return ({"codigo": _codigo_recusa(mod, cru), "cru_recusado": True},
                 [f"erro do adaptador: {type(e).__name__}: {e}"[:300]])
     # A impressão é do SERVIDOR, sobre o cru que ficou guardado (já filtrado): o adaptador
     # só copia o que é da aposta.

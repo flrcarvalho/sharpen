@@ -6,7 +6,9 @@ A família é o prefixo do inject que escutou a casa (`dx` = `dx_inject.js`). Ca
 expõe `adaptar(cru, casa_key) -> dict` (a Ficha, `01_FICHA_SHARPEN.md §2`) e levanta
 `Recusa(motivo)` quando o cru não permite montar uma Ficha sem chutar. Também expõe
 `bilhetes_da_resposta(resposta) -> list` (onde a lista mora na resposta da API), que o teste
-usa para ler as fixtures da bancada do mesmo jeito que o inject lê a casa.
+usa para ler as fixtures da bancada do mesmo jeito que o inject lê a casa. Onde o código não
+mora em `cru.id` (a 1win o guarda em `cru.bet.id`), expõe também `codigo(cru) -> str`, que a
+recusa usa: sem ele a Ficha recusada seria gravada sem código.
 
 Regra de todos: o adaptador COPIA. Valor, data e status vêm como a casa escreveu; o que a
 planilha mostra é o `ficha.derivar` que decide. Número de ponto flutuante vira texto pelo
@@ -51,9 +53,9 @@ def iso_de_epoch(s) -> str | None:
         return None
 
 
-from . import dx, jb, shf, tv, vb, x1  # noqa: E402  (depois dos helpers que eles usam)
+from . import dx, jb, shf, tp, tv, vb, x1  # noqa: E402  (depois dos helpers que eles usam)
 
-ADAPTADORES = {"dx": dx, "jb": jb, "shf": shf, "tv": tv, "vb": vb, "x1": x1}
+ADAPTADORES = {"dx": dx, "jb": jb, "shf": shf, "tp": tp, "tv": tv, "vb": vb, "x1": x1}
 
 
 def adaptador(familia: str):

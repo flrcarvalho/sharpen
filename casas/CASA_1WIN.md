@@ -108,6 +108,13 @@ botão `Cash out de USDT 24,46` na aberta.
 
 Nenhum campo identifica a conta (nome, e-mail, id de usuário, saldo): o cru sobe inteiro.
 
+**Ficha (s413):** o cru é lido no servidor pelo `app/adaptadores/tp.py`, com a mesma leitura
+desta seção e da §5: stake = `amount`, odd = `bet.cf` (nunca o produto), retorno =
+`profitAmount` só na liquidada, código em `bet.id`. Sem amostra, a Ficha é RECUSADA com o
+motivo (sistema, bônus, freebet, carteira que não seja `real`, meio retorno, status 2/3/4 cujo
+dinheiro não prove ganha ou anulada) e o bilhete segue pela IA. Gate:
+`tests/test_adaptador_tp.py` (8 mutações, 8 detectadas).
+
 ---
 
 ## 3. ID do bilhete
