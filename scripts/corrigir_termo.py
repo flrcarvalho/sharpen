@@ -5,8 +5,10 @@ semente nunca sobrescreve) e regrava as apostas DA FICHA do MÊS CORRENTE que us
     python scripts/corrigir_termo.py CASA TIPO "TERMO" "PARA"            # ensaio, nada escrito
     python scripts/corrigir_termo.py CASA TIPO "TERMO" "PARA" --aplicar
 
-CASA = casa_key (`DEXSPORT`) ou `*` (todas). TIPO = `esporte` ou `categoria`. TERMO como a casa
-escreve (é normalizado: número vira `{n}` na categoria). PARA = valor do Master.
+CASA = casa_key (`DEXSPORT`) ou `*` (todas). TIPO = `esporte`, `categoria` ou `descricao`. TERMO
+como a casa escreve (é normalizado: número vira `{n}` na categoria). PARA = valor do Master.
+`descricao` (s413): TERMO = a chave `<esporte da casa> | <mercado>` (como o `semente_log` mostra) e
+PARA = o valor com as marcas (`{ou} Escanteios {n1}º Tempo`; `app/descricao_ficha.py`).
 Regra em `app/dicionario.py` (`corrigir_termo`).
 """
 from __future__ import annotations
@@ -44,7 +46,8 @@ async def main() -> None:
         async with conn.transaction():
             mudancas = await dicionario.corrigir_termo(conn, casa, tipo, termo, para,
                                                        aplicar=aplicar)
-    chave = dicionario.normalizar(termo, numeros=(tipo == "categoria"))
+    chave = (" ".join(termo.casefold().split()) if tipo == "descricao"
+             else dicionario.normalizar(termo, numeros=(tipo == "categoria")))
     print(f"{casa.upper()} {tipo} {chave!r} → {para!r}: "
           f"{len(mudancas)} aposta(s) da Ficha do mês corrente a regravar")
     for m in mudancas:

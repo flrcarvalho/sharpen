@@ -22,8 +22,7 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   8. mercado contraditório entra pelo voto da maioria    → test_semente_so_guarda_o_unanime
   9. bilhete `Múltiplos` da IA vota no esporte           → test_semente_so_guarda_o_unanime
  10. `*` exige unanimidade em vez da maioria por casa    → test_esporte_geral_pela_maioria_de_cada_casa
- 11. descrição sem a linha                               → test_descricao_traz_a_linha_uma_vez_so
- 12. linha repetida quando já está no texto              → test_descricao_traz_a_linha_uma_vez_so
+ 11/12. (descrição com a linha da casa: substituída pelo dicionário de descrição na s413)
  13. tv sem inverter o sinal do `hisminus`               → test_tv_linha_com_hisminus_inverte_o_sinal
  14. sistema sem a 12ª coluna                            → test_sistema_da_altenar_preenche_a_coluna
   s411, 2ª rodada (a aposta sai da IA na origem; D10 = não reescrever a LIQUIDADA):
@@ -44,6 +43,9 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   Z.  a semente da casa vence a correção do Feca         → test_correcao_do_feca_vence_a_semente
   AF. `Total` com a descrição geral                      → test_descricao_propria_do_feca
   AG. `Winner. Quarter N` sem a descrição própria        → test_descricao_propria_do_feca
+  s413 (dicionário de descrição; o resto em `tests/test_descricao_ficha.py`):
+  D1. mercado sem par de descrição grava assim mesmo      → test_descricao_fora_do_dicionario_vai_a_ia…
+  D2. maioria de 90% vira contradição (P7)                → test_esporte_geral_pela_maioria_de_cada_casa
 Inócua (registrada, não é buraco): `virada()` aceitar `*` — o `casas_viradas()` já tira o `*`
 da lista antes, então o código segue certo sem a linha.
 
@@ -153,7 +155,7 @@ def test_semente_so_guarda_o_unanime():
              ("MYSTAKE", simples("Handicap", "2"), "Futebol", "Outros"),
              ("MYSTAKE", simples("Total"), "Futebol", "Gols"),          # regra, não termo
              ("DEX", tres, "Múltiplos", "Múltipla")]
-    unanimes, contraditos = dicionario.votar(pares)
+    unanimes, contraditos, _ = dicionario.votar(pares)
     assert unanimes[("MYSTAKE", "categoria", "total de gols")] == ("Gols", 2)
     assert unanimes[("MYSTAKE", "esporte", "futebol")] == ("Futebol", 6)
     assert ("MYSTAKE", "categoria", "handicap") not in unanimes
@@ -167,12 +169,20 @@ def test_semente_so_guarda_o_unanime():
 
 def test_esporte_geral_pela_maioria_de_cada_casa():
     """`*` vale para todas as casas quando a decisão mais votada é a mesma em todas (a IA
-    errou 1 de 11 `tênis` na Betnacional, e isso não pode apagar o termo da MyStake)."""
+    errou 1 de 11 `tênis` na Betnacional, e isso não pode apagar o termo da MyStake).
+    s413 (P7): com 90% ou mais dos votos fica a maioria, também na casa, e o voto isolado vai
+    para a revisão; abaixo de 90% o termo continua contraditório."""
     um = {"tipo": "simples", "pernas": [_perna("Tênis", "A vs B")]}
     pares = ([("BETNACIONAL", um, "Tênis", "")] * 10 + [("BETNACIONAL", um, "Futebol", "")]
              + [("MYSTAKE", um, "Tênis", "")] * 3)
-    unanimes, contraditos = dicionario.votar(pares)
+    unanimes, contraditos, revisao = dicionario.votar(pares)
     assert unanimes[("*", "esporte", "tênis")] == ("Tênis", 14)
+    assert unanimes[("BETNACIONAL", "esporte", "tênis")] == ("Tênis", 10)
+    assert ("BETNACIONAL", "esporte", "tênis") not in contraditos
+    assert revisao == [{"casa": "BETNACIONAL", "tipo": "esporte", "termo": "tênis",
+                        "fica": "Tênis", "votos": {"Tênis": 10, "Futebol": 1}}]
+    nove = [("BETNACIONAL", um, "Tênis", "")] * 8 + [("BETNACIONAL", um, "Futebol", "")]
+    _, contraditos, _ = dicionario.votar(nove)                     # 8 de 9 = 89%
     assert ("BETNACIONAL", "esporte", "tênis") in contraditos
     pares += [("SHUFFLE", um, "Tênis de Mesa", "")] * 2
     assert ("*", "esporte", "tênis") not in dicionario.votar(pares)[0]
@@ -194,29 +204,31 @@ def test_esportes_do_texto_so_quando_a_perna_e_clara():
 
 # ── linha da planilha ─────────────────────────────────────────────────────────────────
 
+# O dicionário de descrição das duas pernas da 5508528206 (os valores que a IA ensinou).
+DESC = {("descricao", "sporttypeid 1 | total cantos"): "{ou} Escanteios",
+        ("descricao", "sporttypeid 19 | handicap de sets"): "{ent} {hc} Sets"}
+DESC_5508528206 = ("Over 11.5 Escanteios [Vicenza v Pisa] // "
+                   "Haro Rioja (F) +1.5 Sets [Haro Rioja (F) v Haris (F)]")
+
+
 def test_linha_da_planilha_de_uma_ficha_real():
-    """Dupla Vavada 5508528206 (futebol + vôlei), ganha: retorno ÷ stake como a régua mede."""
-    col = virada.linha_tsv(_ficha("5508528206"), "Vavada", "conta [Op]",
-                           "Múltiplos", "Múltipla").split("\t")
+    """Dupla Vavada 5508528206 (futebol + vôlei), ganha: retorno ÷ stake como a régua mede. A
+    descrição sai do dicionário de descrição (s413), perna por perna."""
+    f = _ficha("5508528206")
+    assert virada.descricao(f, DESC) == DESC_5508528206
+    col = virada.linha_tsv(f, "Vavada", "conta [Op]", "Múltiplos", "Múltipla",
+                           virada.descricao(f, DESC)).split("\t")
     assert col == ["10/10/2026", "Múltiplos", "", "Vavada", "conta [Op]", "Múltipla",
-                   "Mais de 11.5 Total cantos [Vicenza vs. Pisa] // Haro Rioja (F) (+1.5) "
-                   "Handicap de sets [Haro Rioja (F) vs. Haris (F)]",
-                   "25", "7,6192", "W", "5508528206"]
-
-
-def test_descricao_traz_a_linha_uma_vez_so():
-    f = {"pernas": [_perna("Futebol", "A vs B", "Time de casa total de escanteios", "Abaixo",
-                           "3.5"),
-                    _perna("Futebol", "C vs D", "Total sets", "Mais de 2.5", "2.5")]}
-    assert virada._descricao(f) == ("Abaixo 3.5 Time de casa total de escanteios [A vs B] // "
-                                    "Mais de 2.5 Total sets [C vs D]")
+                   DESC_5508528206, "25", "7,6192", "W", "5508528206"]
+    # uma perna sem par: a descrição não sai (a aposta vai para a IA)
+    assert virada.descricao(f, dict(list(DESC.items())[:1])) is None
 
 
 def test_descricao_propria_do_feca():
     """s412: `Total` sem qualificador = `Over/Under X.X [A v B]`; `Winner. Quarter N` (DEX) =
     `Time - NQ [A v B]`; volta mais rápida = `<piloto> volta mais rápida [<prova>]`."""
     def d(*pernas):
-        return virada._descricao({"pernas": list(pernas)})
+        return virada.descricao({"pernas": list(pernas)}, {})
     assert d(_perna("football", "Nasarawa United vs Doma United FC", "Total", "Under 3.5")) \
         == "Under 3.5 [Nasarawa United v Doma United FC]"
     assert d(_perna("Soccer", "OGC Nice vs Strasbourg", "Total", "over 3")) == "Over 3 [OGC Nice v Strasbourg]"
@@ -227,8 +239,8 @@ def test_descricao_propria_do_feca():
         == "Norris, Lando volta mais rápida [Bahrain Grand Prix 2026 - Race]"
     assert d(_perna("Fórmula 1", "Singapore GP", "Volta mais rápida", "Leclerc, Charles")) \
         == "Leclerc, Charles volta mais rápida [Singapore GP]"
-    # `Total` com seleção que não é Over/Under: a forma geral
-    assert d(_perna("Futebol", "A vs B", "Total", "Ímpar")) == "Ímpar Total [A vs B]"
+    # `Total` com seleção que não é Over/Under: o dicionário de descrição (aqui vazio: IA)
+    assert d(_perna("Futebol", "A vs B", "Total", "Ímpar")) is None
 
 
 def test_total_sem_qualificador_e_a_categoria_principal_do_esporte():
@@ -264,17 +276,17 @@ def test_termo_vago_nunca_traduz_nem_vota():
     f = {"tipo": "simples", "pernas": [_perna("Futebol", "A vs B", "Especiais")]}
     assert dicionario.traduzir(f, termos)[1:] == (None, [("categoria", "especiais")])
     um = {"tipo": "simples", "pernas": [_perna("Especiais", "A vs B", "Especiais")]}
-    unanimes, _ = dicionario.votar([("7GAMES", um, "Futebol", "Outros")] * 3,
-                                   [("7GAMES", ["Especiais"], "Futebol")])
+    unanimes, _, _ = dicionario.votar([("7GAMES", um, "Futebol", "Outros")] * 3,
+                                      [("7GAMES", ["Especiais"], "Futebol")])
     assert unanimes == {}
 
 
 def test_semente_so_aprende_valor_do_master():
     """R27: a IA às vezes escreve categoria ou esporte que o Master não tem; não vota."""
     um = {"tipo": "simples", "pernas": [_perna("Futebol", "A vs B", "Vencedor")]}
-    unanimes, _ = dicionario.votar([("MYSTAKE", um, "Futebal", "Vencedor da partida")] * 2)
+    unanimes, _, _ = dicionario.votar([("MYSTAKE", um, "Futebal", "Vencedor da partida")] * 2)
     assert unanimes == {}
-    unanimes, _ = dicionario.votar([("MYSTAKE", um, "Futebol", "ML")] * 2)
+    unanimes, _, _ = dicionario.votar([("MYSTAKE", um, "Futebol", "ML")] * 2)
     assert unanimes[("MYSTAKE", "categoria", "vencedor")] == ("ML", 2)
 
 
@@ -308,10 +320,10 @@ def test_tv_linha_com_hisminus_inverte_o_sinal():
 def test_sistema_da_altenar_preenche_a_coluna():
     """BetMartini 5501503684 (R16): sistema 2 de 3 = `3x Duplas`, a 12ª coluna do texto."""
     f = _ficha("5501503684", casa="BETMARTINI")
-    col = virada.linha_tsv(f, "BetMartini", "c", "Múltiplos", "Múltipla").split("\t")
+    col = virada.linha_tsv(f, "BetMartini", "c", "Múltiplos", "Múltipla", "d").split("\t")
     assert len(col) == 12 and col[11] == "3x Duplas"
     assert virada._sistema(dict(f, sistema="ilegível")) == ""
-    assert len(virada.linha_tsv(_ficha("5508528206"), "V", "c", "x", "y").split("\t")) == 11
+    assert len(virada.linha_tsv(_ficha("5508528206"), "V", "c", "x", "y", "d").split("\t")) == 11
 
 
 # ── rota ───────────────────────────────────────────────────────────────────────────────
@@ -319,8 +331,10 @@ def test_sistema_da_altenar_preenche_a_coluna():
 def test_simples_aberta_sai_sem_resultado():
     cru = dict(CRUS["5508528206"], status=0, selections=CRUS["5508528206"]["selections"][:1])
     f = dict(vb.adaptar(cru, "VAVADA"), impressao="x")
-    col = virada.linha_tsv(f, "Vavada", "c", "Futebol", "Over/Under").split("\t")
+    col = virada.linha_tsv(f, "Vavada", "c", "Futebol", "Over/Under",
+                           virada.descricao(f, DESC)).split("\t")
     assert (col[1], col[5], col[9]) == ("Futebol", "Over/Under", "")
+    assert col[6] == "Over 11.5 Escanteios [Vicenza v Pisa]"
     assert "\t" not in col[6] and virada._carimbo(f) == "20261010074000"
 
 
@@ -335,7 +349,7 @@ class _Conn:
 
     def __init__(self, termos=None, liquidados=(), estado=None, crus=()):
         self.termos = termos if termos is not None else {
-            k: "Futebol" for k in dicionario.chaves(_ficha("5508528206"))}
+            **{k: "Futebol" for k in dicionario.chaves(_ficha("5508528206"))}, **DESC}
         self.liquidados, self.crus = list(liquidados), list(crus)
         self.estado = dict(estado or {})          # código → (impressão, estado)
         self.motivos = {}
@@ -383,7 +397,7 @@ def _gravador(monkeypatch, rejeitados=()):
     vistos = []
 
     async def falso(dono, casa, parceiro, itens):
-        vistos.extend((f["codigo"], e, c) for f, e, c in itens)
+        vistos.extend((f["codigo"], e, c) for f, e, c, _ in itens)
         return {"salvos": len(itens) - len(rejeitados),
                 "rejeitados": [{"linha": n} for n in rejeitados]}
     monkeypatch.setattr(virada, "gravar_na_planilha", falso)
@@ -406,6 +420,30 @@ def test_termo_fora_do_dicionario_nao_vai_a_planilha(monkeypatch):
     vistos = _gravador(monkeypatch)
     assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 0 and vistos == []
     assert conn.motivos["5508528206"] == "termo fora do dicionário"
+
+
+def test_descricao_fora_do_dicionario_vai_a_ia_uma_vez_e_depois_nao(monkeypatch):
+    """s413 (Feca: chamada extra à IA só para a descrição, nunca): mercado sem par de descrição
+    vai para a IA com o motivo próprio; a IA escreve a descrição, a semente aprende com 1 voto
+    (D24), e a captura seguinte do MESMO mercado, com outra linha, fica com a Ficha."""
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
+    sem = {k: v for k, v in _Conn().termos.items() if k != ("descricao", "sporttypeid 1 | total cantos")}
+    conn = _banco(monkeypatch, termos=sem)
+    vistos = _gravador(monkeypatch)
+    assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 0 and vistos == []
+    assert conn.motivos["5508528206"] == "descrição fora do dicionário"
+    # a IA descreveu a aposta; a semente aprende o mercado a partir dela
+    f = _ficha("5508528206")
+    unanimes, _, _ = dicionario.votar([("VAVADA", f, "Múltiplos", "Múltipla", DESC_5508528206)])
+    conn.termos.update({(t, k): v for (c, t, k), (v, _) in unanimes.items() if t == "descricao"})
+    assert conn.termos[("descricao", "sporttypeid 1 | total cantos")] == "{ou} Escanteios"
+    # outra aposta do mesmo mercado, com outra linha e outro lado: Ficha, sem IA
+    cru = json.loads(json.dumps(CRUS["5508528206"]))
+    cru["selections"][0]["name"] = "Menos de 9.5"
+    g = dict(vb.adaptar(cru, "VAVADA"), impressao="y")
+    assert virada.descricao(g, conn.termos).startswith("Under 9.5 Escanteios [Vicenza v Pisa] // ")
+    assert asyncio.run(virada.gravar_aceitas(SESS, [ficha._registro(g, [])])) == 1
+    assert conn.estado["5508528206"][1] == "ficha"
 
 
 def test_d10_liquidada_no_banco_nao_e_reescrita(monkeypatch):
@@ -557,9 +595,11 @@ def test_grava_pelo_salvar_com_origem_ficha(monkeypatch):
                                                              SalvarRequest=_SR))
     f = _ficha("5508528206")
     r = asyncio.run(virada.gravar_na_planilha("TDono", "Vavada", "conta [Op]",
-                                              [(f, "Múltiplos", "Múltipla")]))
+                                              [(f, "Múltiplos", "Múltipla", DESC_5508528206)]))
     assert r["salvos"] == 1
     body, dono, dono_view, origem = chamadas[0]
     assert (dono, dono_view, origem) == ("TDono", "TDono", "ficha")
-    assert body.tsv == virada.linha_tsv(f, "Vavada", "conta [Op]", "Múltiplos", "Múltipla")
+    assert body.tsv == virada.linha_tsv(f, "Vavada", "conta [Op]", "Múltiplos", "Múltipla",
+                                        DESC_5508528206)
+    assert DESC_5508528206 in body.tsv
     assert body.carimbos == {"5508528206": "20261010074000"} and body.moedas == ["USD"]

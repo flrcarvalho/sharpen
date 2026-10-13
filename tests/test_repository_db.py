@@ -1455,6 +1455,11 @@ def test_captura_crua_grava_uma_vez_e_cru_mudado_vira_linha_nova():
 #   AC. o conserto aceita valor fora do Master                  → corrigir_termo vermelho
 #   AD. a semente não roda depois da IA                         → semente_roda_logo_depois vermelho
 #   AE. sem `semente_log`                                       → semente_ignora + semente_roda vermelhos
+#   s413 (dicionário de descrição; 13/10/2026):
+#   D3. a semente não aprende a descrição da IA                 → virada_descricao_nova vermelho
+#   D4. a semente não regrava a descrição do mês corrente       → semente_regrava_a_descricao vermelho
+#   D5. a regravação mexe no mês passado                        → semente_regrava_a_descricao vermelho
+#   D6. o motivo `descrição fora do dicionário` não vai ao log   → virada_descricao_nova vermelho
 
 _VIRADA = ("5508528206", "5504514128", "5500000003")     # aceita, recusada, sem cru
 
@@ -1490,7 +1495,16 @@ def _virada_cenario(monkeypatch, chave, sombra="", termos=True, aberta=False):
     chaves = dicionario.chaves(vb.adaptar(crus[aceita], "VAVADA")) if termos else []
     sess.termos = [("VAVADA", t, k, "Futebol" if t == "esporte" else "Total de Escanteios")
                    for t, k in chaves]
+    # s413: o dicionário de DESCRIÇÃO das duas pernas da aceita (o que a IA ensinou)
+    if termos:
+        sess.termos += [("VAVADA", "descricao", k, v) for k, v in _DESC_ACEITA.items()]
     return sess, payload, texto
+
+
+_DESC_ACEITA = {"sporttypeid 1 | total cantos": "{ou} Escanteios",
+                "sporttypeid 19 | handicap de sets": "{ent} {hc} Sets"}
+_IA_ACEITA = ("Over 11.5 Escanteios [Vicenza v Pisa] // "
+              "Haro Rioja (F) +1.5 Sets [Haro Rioja (F) v Haris (F)]")
 
 
 async def _virada_ponta_a_ponta(sess, payload, texto, antes=None, virar_no_extrair=None):
@@ -1686,7 +1700,8 @@ async def _simples_no_banco(conn, sess, pela_ficha=False):
                        sess.parceiro, _SIMPLES, _json.dumps(crus[_SIMPLES]))
     if pela_ficha:
         for t, k, v in (("esporte", "badminton", "Badminton"),
-                        ("categoria", "handicap pontos", "Handicap")):
+                        ("categoria", "handicap pontos", "Handicap"),
+                        ("descricao", "badminton | handicap pontos", "{ent} {hc} Pontos")):
             await conn.execute("INSERT INTO dicionario_termos (casa, tipo, termo_casa, "
                                "termo_sharpen) VALUES ('VAVADA', $1, $2, $3) "
                                "ON CONFLICT DO NOTHING", t, k, v)
@@ -1816,6 +1831,107 @@ def test_corrigir_termo_regrava_so_a_ficha_do_mes_corrente(monkeypatch):
     assert editada == [] and outra == 0
     with pytest.raises(ValueError):
         _run(_corrigir_fora_do_master())
+
+
+def test_virada_descricao_nova_vai_a_ia_uma_vez_e_depois_nao(monkeypatch):
+    """s413 (Feca: chamada extra à IA só para a descrição, nunca). Mercado sem par de descrição:
+    a aposta vai para a IA com o motivo próprio (`descricao_fora`); a IA escreve a descrição; a
+    semente roda logo depois e aprende o mercado com 1 voto (D24); a aposta seguinte do MESMO
+    mercado, com outra linha e outro lado, fica com a Ficha e não vai à IA."""
+    import json as _json
+
+    import ficha
+    import main
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA", aberta=True)
+    sess.termos = [t for t in sess.termos if t[2] != "sporttypeid 1 | total cantos"]
+
+    async def rodar():
+        pool = await get_pool()
+        resp, lidos, _, _ = await _virada_ponta_a_ponta(sess, payload, texto)
+        async with pool.acquire() as conn:
+            log1 = dict(await conn.fetchrow("SELECT pela_ficha, descricao_fora FROM virada_log"))
+            # os termos de esporte/categoria do teste são do Feca: a semente só refaz a dela
+            await conn.execute("UPDATE dicionario_termos SET origem = 'feca'")
+            await conn.execute("TRUNCATE semente_log")
+            await conn.execute("UPDATE bilhetes SET descricao = $1 WHERE codigo_bilhete = $2",
+                               _IA_ACEITA, aceita)
+        tsv = f"10/10/2026\tMúltiplos\t\t{sess.casa}\t{sess.parceiro}\tMúltipla\t{_IA_ACEITA}" \
+              f"\t25\t7,6\t\t{aceita}"
+        await main._sombra_e_semente(sess.dono, sess.casa, texto, tsv)
+        async with pool.acquire() as conn:
+            aprendeu = await conn.fetchval(
+                "SELECT termo_sharpen FROM dicionario_termos WHERE casa = 'VAVADA' AND "
+                "tipo = 'descricao' AND termo_casa = 'sporttypeid 1 | total cantos'")
+            gat = [r["gatilho"] for r in await conn.fetch("SELECT gatilho FROM semente_log")]
+        # a aposta seguinte do mesmo mercado: outro código, outra linha, outro lado
+        crus = _json.loads((Path(__file__).resolve().parent / "ficha_crus_familias.json")
+                           .read_text(encoding="utf-8"))
+        novo = _json.loads(_json.dumps(crus[aceita]))
+        novo.update(id=5508528299, status=0)
+        novo["selections"][0]["name"] = "Menos de 9.5"
+        await ficha.receber(dict(payload, itens=[{"codigo": "5508528299", "cru": novo}]))
+        texto2 = "[Código: 5508528299]\nStake: 10\nStatus: Aberto\n"
+        para_ia, _ = await main._dedup_superbet_text(texto2, sess.dono, sess.casa, sess.parceiro)
+        await asyncio.sleep(0.1)
+        async with pool.acquire() as conn:
+            linha = dict(await conn.fetchrow(
+                "SELECT origem, descricao FROM bilhetes WHERE codigo_bilhete = '5508528299'"))
+            log2 = dict(await conn.fetchrow("SELECT pela_ficha, para_ia, descricao_fora FROM "
+                                            "virada_log ORDER BY id DESC LIMIT 1"))
+        return lidos, log1, aprendeu, gat, repository.codigos_do_texto(para_ia), linha, log2
+    lidos, log1, aprendeu, gat, lidos2, linha, log2 = _run(rodar())
+    assert aceita in lidos and log1 == {"pela_ficha": 0, "descricao_fora": 1}
+    assert aprendeu == "{ou} Escanteios" and gat == ["extrair"]
+    assert lidos2 == [] and log2 == {"pela_ficha": 1, "para_ia": 0, "descricao_fora": 0}
+    assert linha == {"origem": "ficha", "descricao": "Under 9.5 Escanteios [Vicenza v Pisa] // "
+                                                     "Haro Rioja (F) +1.5 Sets [Haro Rioja (F) v Haris (F)]"}
+
+
+def test_semente_regrava_a_descricao_da_ficha_do_mes_corrente(monkeypatch):
+    """s413, item 5: quando o mercado é aprendido (ou muda), a semente regrava a descrição das
+    linhas da Ficha DESTE mês. Mês passado não é tocado (D10, D23), nem a linha editada à mão."""
+    from datetime import datetime
+
+    import dicionario
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    cod = _SIMPLES
+
+    async def rodar():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await _simples_no_banco(conn, sess, pela_ficha=True)
+            antes = await conn.fetchval("SELECT descricao FROM bilhetes WHERE codigo_bilhete = $1", cod)
+            data = await conn.fetchval("SELECT data FROM bilhetes WHERE codigo_bilhete = $1", cod)
+            d, m, a = (data.split("/") if "/" in data else data[:10].split("-")[::-1])
+            mes, fora = datetime(int(a), int(m), 15), datetime(int(a) + 1, int(m), 15)
+            # o mercado passa a ter outro valor no dicionário (a correção do Feca, D24); os
+            # termos do teste viram `feca` para a semente não os apagar ao refazer a dela
+            await conn.execute("UPDATE dicionario_termos SET origem = 'feca'")
+            await conn.execute("UPDATE dicionario_termos SET termo_sharpen = '{ent} {hc} Pontos HC' "
+                               "WHERE tipo = 'descricao' AND termo_casa = 'badminton | handicap pontos'")
+            await conn.execute("TRUNCATE semente_log")
+            nada = await dicionario.semear(conn, "teste", hoje=fora)
+            feito = await dicionario.regravar_mes(conn, hoje=mes, campos=("descricao",))
+            r = await dicionario.semear(conn, "teste", hoje=mes)          # a semente regrava
+            log = [x["regravadas"] for x in await conn.fetch(
+                "SELECT regravadas FROM semente_log ORDER BY id")]
+            depois = await conn.fetchval("SELECT descricao FROM bilhetes WHERE codigo_bilhete = $1", cod)
+            bid = await conn.fetchval("SELECT id FROM bilhetes WHERE codigo_bilhete = $1", cod)
+            await conn.execute("INSERT INTO correcoes (bilhete_id, dono, casa, campo, valor_anterior, "
+                               "valor_novo) VALUES ($1, 'TDonoV', 'Vavada', 'descricao', 'x', 'y')", bid)
+            await conn.execute("UPDATE dicionario_termos SET termo_sharpen = '{ent} {hc} Pontos' "
+                               "WHERE tipo = 'descricao' AND termo_casa = 'badminton | handicap pontos'")
+            editada = await dicionario.regravar_mes(conn, aplicar=True, hoje=mes,
+                                                    campos=("descricao",))
+            await conn.execute("TRUNCATE correcoes")
+        return antes, (nada, r, log), feito, depois, editada
+    antes, (nada, r, log), feito, depois, editada = _run(rodar())
+    assert antes == "Golubeva, Mariia +12.5 Pontos [Golubeva, Mariia v Ryberg, Anna Siess]"
+    assert nada["regravadas"] == 0 and r["regravadas"] == 1 and log == [0, 1]
+    assert [m["depois"] for m in feito] == [{"descricao": antes.replace("Pontos", "Pontos HC")}]
+    assert depois == antes.replace("Pontos", "Pontos HC") and editada == []
 
 
 async def _corrigir_fora_do_master():

@@ -25,6 +25,11 @@ para a IA, e o `virada_log` o conta à parte (`sem_cru_novo`).
 **Esporte e categoria passam pelo Master antes de gravar** (`app/taxonomia.py`; R27): valor fora
 dele vai para a IA (`fora do Master`). O dicionário vale para todos os usuários da casa.
 
+**A descrição sai do dicionário de descrição** (s413, `app/descricao_ficha.py`; regra do Feca:
+chamada extra à IA só para a descrição, nunca): o mercado aprendido monta a descrição como a IA
+monta. Mercado sem par vai para a IA (`descrição fora do dicionário`), e a semente o aprende logo
+depois, com 1 voto (D24).
+
 Quando a aposta liquida, é a Ficha que grava o resultado: o cru muda, chega pela rota, e o
 UPSERT atualiza a linha aberta (resultado, e odd/stake/data, que só congelam quando resolve).
 
@@ -49,6 +54,7 @@ import os
 import re
 import time
 
+import descricao_ficha as _desc
 import dicionario as _dic
 import ficha as _ficha
 
@@ -126,22 +132,11 @@ async def esperar_cru(dono: str, casa_key: str, maximo: float = ESPERA_MAX,
 
 # ── a linha da planilha ─────────────────────────────────────────────────────────────────
 
-def _descricao(f: dict) -> str:
-    """`<seleção> <linha> <mercado> [<jogo>]` (`01_FICHA §3`), pernas unidas por ` // `. Fica
-    com o termo da casa. A linha (handicap/total) entra quando a casa a manda em campo
-    próprio e ela ainda não está no texto: sem ela, `Acima` não diz acima de quê."""
-    partes = []
-    for p in f.get("pernas") or []:
-        if (propria := _dic.descricao_perna(p)):        # Total, quarto, volta mais rápida
-            partes.append(propria)
-            continue
-        sel, merc, ev = (_limpo(p.get(k)) for k in ("selecao_casa", "mercado_casa", "evento"))
-        linha = _limpo(p.get("linha"))
-        if linha and linha in f"{sel} {merc}":
-            linha = ""
-        rotulo = " ".join(x for x in (sel, linha, merc) if x)
-        partes.append(f"{rotulo} [{ev}]" if ev else rotulo)
-    return " // ".join(partes)
+def descricao(f: dict, termos: dict) -> str | None:
+    """A descrição da Ficha pelo dicionário de descrição (`descricao_ficha.montar`): perna por
+    perna, unidas por ` // `, com a forma fixada pelo Feca (`dicionario.descricao_perna`) na
+    frente. None = algum mercado sem par: a aposta vai para a IA."""
+    return _desc.montar(f, termos, _dic.descricao_perna)[0]
 
 
 def _sistema(f: dict) -> str:
@@ -163,13 +158,15 @@ def _carimbo(f: dict) -> str | None:
     return d.astimezone(_ficha._BRT).strftime("%Y%m%d%H%M%S") if d else None
 
 
-def linha_tsv(f: dict, casa: str, parceiro: str, esporte: str, categoria: str) -> str:
+def linha_tsv(f: dict, casa: str, parceiro: str, esporte: str, categoria: str,
+              descricao_: str) -> str:
     """A linha da planilha (`MASTER_OUTPUT §2`, 10 colunas + código + sistema) de uma Ficha
-    ACEITA, com esporte e categoria JÁ traduzidos (`dicionario.traduzir`)."""
+    ACEITA, com esporte, categoria e descrição JÁ traduzidos (`dicionario.traduzir`,
+    `descricao`)."""
     d = _ficha.derivar(f)
     col = [
         d["data"], _limpo(esporte), "", _limpo(casa), _limpo(parceiro), _limpo(categoria),
-        _descricao(f), d["stake"], d["odd"] or "", d["resultado"], _limpo(f.get("codigo")),
+        _limpo(descricao_), d["stake"], d["odd"] or "", d["resultado"], _limpo(f.get("codigo")),
     ]
     if (s := _sistema(f)):
         col.append(s)
@@ -177,14 +174,14 @@ def linha_tsv(f: dict, casa: str, parceiro: str, esporte: str, categoria: str) -
 
 
 async def gravar_na_planilha(dono: str, casa: str, parceiro: str, itens: list[tuple]) -> dict:
-    """Grava Fichas ACEITAS em `bilhetes` pelo `/salvar`. `itens` = [(Ficha, esporte, categoria)].
-    Devolve a resposta dele."""
+    """Grava Fichas ACEITAS em `bilhetes` pelo `/salvar`. `itens` = [(Ficha, esporte, categoria,
+    descrição)]. Devolve a resposta dele."""
     if not itens:
         return {"salvos": 0, "rejeitados": [], "alertas": []}
     import main as _main          # tardio: o `main` inclui o router da Ficha
     linhas, carimbos, freebets, moedas = [], {}, {}, set()
-    for f, esporte, categoria in itens:
-        linhas.append(linha_tsv(f, casa, parceiro, esporte, categoria))
+    for f, esporte, categoria, desc in itens:
+        linhas.append(linha_tsv(f, casa, parceiro, esporte, categoria, desc))
         cod = _limpo(f.get("codigo"))
         if (c := _carimbo(f)):
             carimbos[cod] = c
@@ -208,6 +205,7 @@ async def gravar_na_planilha(dono: str, casa: str, parceiro: str, itens: list[tu
 MOTIVOS = {
     "Ficha recusada": "ficha_recusada",
     "termo fora do dicionário": "termo_fora",
+    "descrição fora do dicionário": "descricao_fora",
     "fora do Master": "fora_do_master",
     "recusada no /salvar": "recusada_salvar",
     "cru não chegou": "cru_nao_chegou",
@@ -265,11 +263,15 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
         if not no_master(esporte, categoria):
             ia(cod, "fora do Master")
             continue
+        desc = descricao(f, termos)
+        if not desc:
+            ia(cod, "descrição fora do dicionário")
+            continue
         imp = f.get("impressao") or ""
         if estado.get(cod) == (imp, "ficha"):
             resolvidos.add(cod)            # cru igual, já gravado pela Ficha: só sai do lote
             continue
-        gravar.append((f, esporte, categoria))
+        gravar.append((f, esporte, categoria, desc))
     if gravar:
         try:
             r = await gravar_na_planilha(dono, casa, parceiro, gravar)
@@ -278,7 +280,7 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
             logger.exception("virada: falha ao gravar %d Ficha(s) de %s/%s; vão pela IA",
                              len(gravar), dono, casa_key)
             recusadas = set(range(1, len(gravar) + 1))
-        for i, (f, _, _) in enumerate(gravar, 1):
+        for i, (f, *_) in enumerate(gravar, 1):
             cod = _limpo(f.get("codigo"))
             if i in recusadas:
                 ia(cod, "recusada no /salvar")
@@ -383,11 +385,10 @@ async def registrar(dono: str, casa_key: str, capturadas: int, ja_no_banco: int,
         pool = await _pool_conn()
         async with pool.acquire() as conn:
             await conn.execute(
-                """INSERT INTO virada_log (dono, casa, capturadas, ja_no_banco, pela_ficha,
-                                           inalterados, para_ia, espera_s, ficha_recusada,
-                                           termo_fora, fora_do_master, recusada_salvar,
-                                           cru_nao_chegou, sem_cru_novo)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)""",
+                f"""INSERT INTO virada_log (dono, casa, capturadas, ja_no_banco, pela_ficha,
+                                            inalterados, para_ia, espera_s,
+                                            {", ".join(MOTIVOS.values())})
+                    VALUES ({", ".join(f"${i}" for i in range(1, 9 + len(MOTIVOS)))})""",
                 dono, (casa_key or "").upper(), capturadas, ja_no_banco, pela_ficha,
                 inalterados, para_ia, round(espera, 2), *m)
     except Exception:  # noqa: BLE001
@@ -403,8 +404,9 @@ def marcar_termo_novo(dono: str, casa: str) -> None:
 
 
 def tomar_termo_novo(dono: str, casa: str) -> bool:
-    """True uma vez só, depois de um `/extrair` da casa virada que mandou termo fora do
-    dicionário para a IA. Quem chama roda a semente depois de gravar a decisão da IA."""
+    """True uma vez só, depois de um `/extrair` da casa virada que mandou termo (ou mercado de
+    descrição) fora do dicionário para a IA. Quem chama roda a semente depois de gravar a
+    decisão da IA."""
     k = (dono, chave_da_casa(casa))
     if k in _termo_novo:
         _termo_novo.discard(k)

@@ -1,0 +1,737 @@
+[
+ {
+  "casa": "MYSTAKE",
+  "chave": "futebol | time de fora total de escanteios",
+  "valor": "{t2} {ou} Escanteios",
+  "ensina": {
+   "esporte_casa": "Futebol",
+   "evento": "Barracas Central vs CA Huracán",
+   "mercado_casa": "Time de Fora total de escanteios",
+   "selecao_casa": "Abaixo",
+   "linha": "2.5",
+   "ia": "CA Huracán Under 2.5 Escanteios [Barracas Central v CA Huracán]"
+  },
+  "confere": {
+   "esporte_casa": "Futebol",
+   "evento": "Zulte Waregem vs Gent",
+   "mercado_casa": "Time de Fora total de escanteios",
+   "selecao_casa": "Acima",
+   "linha": "4.5",
+   "ia": "Gent Over 4.5 Escanteios [Zulte Waregem v Gent]"
+  }
+ },
+ {
+  "casa": "MYSTAKE",
+  "chave": "futebol | time de casa total de escanteios",
+  "valor": "{t1} {ou} Escanteios",
+  "ensina": {
+   "esporte_casa": "Futebol",
+   "evento": "Zulte Waregem vs Gent",
+   "mercado_casa": "Time de casa total de escanteios",
+   "selecao_casa": "Abaixo",
+   "linha": "3.5",
+   "ia": "Zulte Waregem Under 3.5 Escanteios [Zulte Waregem v Gent]"
+  },
+  "confere": {
+   "esporte_casa": "Futebol",
+   "evento": "Bristol Rovers vs Barnet FC",
+   "mercado_casa": "Time de casa total de escanteios",
+   "selecao_casa": "Abaixo",
+   "linha": "4.5",
+   "ia": "Bristol Rovers Under 4.5 Escanteios [Bristol Rovers v Barnet FC]"
+  }
+ },
+ {
+  "casa": "BETPANDA",
+  "chave": "badminton | total pontos",
+  "valor": "{ou} Pontos",
+  "ensina": {
+   "esporte_casa": "badminton",
+   "evento": "Ercetin B / Inci N vs Muroya K / Hatasue M",
+   "mercado_casa": "Total pontos",
+   "selecao_casa": "menos de 77.5",
+   "linha": null,
+   "ia": "Under 77.5 Pontos [Ercetin B / Inci N v Muroya K / Hatasue M]"
+  },
+  "confere": {
+   "esporte_casa": "badminton",
+   "evento": "Kauffmann, Victor Oerding vs Bogebjerg, William",
+   "mercado_casa": "Total pontos",
+   "selecao_casa": "menos de 80.5",
+   "linha": null,
+   "ia": "Under 80.5 Pontos [Kauffmann, Victor Oerding v Bogebjerg, William]"
+  }
+ },
+ {
+  "casa": "SHUFFLE",
+  "chave": "basketball | handicap (incluindo prolongamento)",
+  "valor": "{ent} {hc}",
+  "ensina": {
+   "esporte_casa": "BASKETBALL",
+   "evento": "Galatasaray SK vs Bursaspor",
+   "mercado_casa": "Handicap (incluindo prolongamento)",
+   "selecao_casa": "Galatasaray SK (-10.5)",
+   "linha": "10.5",
+   "ia": "Galatasaray SK -10.5 [Galatasaray SK v Bursaspor]"
+  },
+  "confere": {
+   "esporte_casa": "BASKETBALL",
+   "evento": "UBSC Graz vs BK Dukes Klosterneuburg",
+   "mercado_casa": "Handicap (incluindo prolongamento)",
+   "selecao_casa": "BK Dukes Klosterneuburg (+5.5)",
+   "linha": "5.5",
+   "ia": "BK Dukes Klosterneuburg +5.5 [UBSC Graz v BK Dukes Klosterneuburg]"
+  }
+ },
+ {
+  "casa": "DUEL",
+  "chave": "soccer | {time} total",
+  "valor": "{time} {ou} Gols",
+  "ensina": {
+   "esporte_casa": "Soccer",
+   "evento": "Hacken Gothenburg vs Orgryte IS",
+   "mercado_casa": "Orgryte IS total",
+   "selecao_casa": "over 1",
+   "linha": null,
+   "ia": "Orgryte IS Over 1 Gols [Hacken Gothenburg v Orgryte IS]"
+  },
+  "confere": {
+   "esporte_casa": "Soccer",
+   "evento": "FC Vaduz vs FC Basel 1893",
+   "mercado_casa": "FC Basel 1893 total",
+   "selecao_casa": "over 1.5",
+   "linha": null,
+   "ia": "FC Basel 1893 Over 1.5 Gols [FC Vaduz v FC Basel 1893]"
+  }
+ },
+ {
+  "casa": "DUEL",
+  "chave": "basketball | {time} total (incl. overtime)",
+  "valor": "{time} {ou} Pontos",
+  "ensina": {
+   "esporte_casa": "Basketball",
+   "evento": "Paris Basketball vs SIG Strasbourg",
+   "mercado_casa": "SIG Strasbourg total (incl. overtime)",
+   "selecao_casa": "under 80.5",
+   "linha": null,
+   "ia": "SIG Strasbourg Under 80.5 Pontos [Paris Basketball v SIG Strasbourg]"
+  },
+  "confere": {
+   "esporte_casa": "Basketball",
+   "evento": "Boulazac Basket Dordogne vs JL Bourg Basket",
+   "mercado_casa": "Boulazac Basket Dordogne total (incl. overtime)",
+   "selecao_casa": "over 80.5",
+   "linha": null,
+   "ia": "Boulazac Basket Dordogne Over 80.5 Pontos [Boulazac Basket Dordogne v JL Bourg Basket]"
+  }
+ },
+ {
+  "casa": "MYSTAKE",
+  "chave": "futebol | total de chutes",
+  "valor": "{ou} Chutes",
+  "ensina": {
+   "esporte_casa": "Futebol",
+   "evento": "São Paulo SP vs EC Vitória BA",
+   "mercado_casa": "Total de chutes",
+   "selecao_casa": "Abaixo",
+   "linha": "27.5",
+   "ia": "Under 27.5 Chutes [São Paulo SP v EC Vitória BA]"
+  },
+  "confere": {
+   "esporte_casa": "Futebol",
+   "evento": "Lazio vs SS Monza",
+   "mercado_casa": "Total de chutes",
+   "selecao_casa": "Acima",
+   "linha": "24.5",
+   "ia": "Over 24.5 Chutes [Lazio v SS Monza]"
+  }
+ },
+ {
+  "casa": "BETMARTINI",
+  "chave": "sporttypeid 1 | total corners",
+  "valor": "{ou} Escanteios",
+  "ensina": {
+   "esporte_casa": "sportTypeId 1",
+   "evento": "Pogon Szczecin vs. Korona Kielce",
+   "mercado_casa": "Total corners",
+   "selecao_casa": "Under 7.5",
+   "linha": null,
+   "ia": "Under 7.5 Escanteios [Pogon Szczecin v Korona Kielce]"
+  },
+  "confere": {
+   "esporte_casa": "sportTypeId 1",
+   "evento": "AL Shabab FC vs. Al Taawoun",
+   "mercado_casa": "Total corners",
+   "selecao_casa": "Over 11.5",
+   "linha": null,
+   "ia": "Over 11.5 Escanteios [AL Shabab FC v Al Taawoun]"
+  }
+ },
+ {
+  "casa": "BETPANDA",
+  "chave": "badminton | vencedor",
+  "valor": "{ent}",
+  "ensina": {
+   "esporte_casa": "badminton",
+   "evento": "Luo Y / Wang T G vs Hsu Y C / Sung Y-H",
+   "mercado_casa": "Vencedor",
+   "selecao_casa": "Hsu Y C / Sung Y-H",
+   "linha": null,
+   "ia": "Hsu Y C / Sung Y-H [Luo Y / Wang T G v Hsu Y C / Sung Y-H]"
+  },
+  "confere": {
+   "esporte_casa": "badminton",
+   "evento": "Kjaer C F / Kjaer R vs Garaga K P / Krishnamurthy Roy P",
+   "mercado_casa": "Vencedor",
+   "selecao_casa": "Garaga K P / Krishnamurthy Roy P",
+   "linha": null,
+   "ia": "Garaga K P / Krishnamurthy Roy P [Kjaer C F / Kjaer R v Garaga K P / Krishnamurthy Roy P]"
+  }
+ },
+ {
+  "casa": "MYSTAKE",
+  "chave": "futebol | time de fora total de cartões",
+  "valor": "{t2} {ou} Cartões",
+  "ensina": {
+   "esporte_casa": "Futebol",
+   "evento": "União Berlim vs SV 07 Elversberg",
+   "mercado_casa": "Time de fora total de cartões",
+   "selecao_casa": "Acima",
+   "linha": "2.5",
+   "ia": "SV 07 Elversberg Over 2.5 Cartões [União Berlim v SV 07 Elversberg]"
+  },
+  "confere": {
+   "esporte_casa": "Futebol",
+   "evento": "Gremio RS vs Internacional RS",
+   "mercado_casa": "Time de fora total de cartões",
+   "selecao_casa": "Acima",
+   "linha": "3.5",
+   "ia": "Internacional RS Over 3.5 Cartões [Gremio RS v Internacional RS]"
+  }
+ },
+ {
+  "casa": "DUEL",
+  "chave": "soccer | {n}st half - total",
+  "valor": "{ou} Gols {n1}º Tempo",
+  "ensina": {
+   "esporte_casa": "Soccer",
+   "evento": "Arsenal FC vs Lille OSC",
+   "mercado_casa": "1st half - total",
+   "selecao_casa": "under 1",
+   "linha": null,
+   "ia": "Under 1 Gols 1º Tempo [Arsenal FC v Lille OSC]"
+  },
+  "confere": {
+   "esporte_casa": "Soccer",
+   "evento": "Boyaca Chico FC vs Cucuta Deportivo FC",
+   "mercado_casa": "1st half - total",
+   "selecao_casa": "over 1",
+   "linha": null,
+   "ia": "Over 1 Gols 1º Tempo [Boyaca Chico FC v Cucuta Deportivo FC]"
+  }
+ },
+ {
+  "casa": "BETPANDA",
+  "chave": "badminton | handicap pontos",
+  "valor": "{ent} {hc} Pontos",
+  "ensina": {
+   "esporte_casa": "badminton",
+   "evento": "Golubeva, Mariia vs Ryberg, Anna Siess",
+   "mercado_casa": "Handicap pontos",
+   "selecao_casa": "Golubeva, Mariia (+11.5)",
+   "linha": null,
+   "ia": "Golubeva, Mariia +11.5 Pontos [Golubeva, Mariia v Ryberg, Anna Siess]"
+  },
+  "confere": {
+   "esporte_casa": "badminton",
+   "evento": "Wakhevitsch, Arthur vs Christophersen, Mads",
+   "mercado_casa": "Handicap pontos",
+   "selecao_casa": "Wakhevitsch, Arthur (+11.5)",
+   "linha": null,
+   "ia": "Wakhevitsch, Arthur +11.5 Pontos [Wakhevitsch, Arthur v Christophersen, Mads]"
+  }
+ },
+ {
+  "casa": "MYSTAKE",
+  "chave": "futebol | total de cartões",
+  "valor": "{ou} Cartões",
+  "ensina": {
+   "esporte_casa": "Futebol",
+   "evento": "Blackburn Rovers FC vs Cardiff City",
+   "mercado_casa": "Total de cartões",
+   "selecao_casa": "Abaixo",
+   "linha": "3.5",
+   "ia": "Under 3.5 Cartões [Blackburn Rovers FC v Cardiff City]"
+  },
+  "confere": {
+   "esporte_casa": "Futebol",
+   "evento": "Vasco da Gama vs Clube do Remo PA",
+   "mercado_casa": "Total de cartões",
+   "selecao_casa": "Acima",
+   "linha": "5.5",
+   "ia": "Over 5.5 Cartões [Vasco da Gama v Clube do Remo PA]"
+  }
+ },
+ {
+  "casa": "BETMARTINI",
+  "chave": "sporttypeid 20 | player receptions over/under (incl. ot)",
+  "valor": "{ent} - {ou} Recepções",
+  "ensina": {
+   "esporte_casa": "sportTypeId 20",
+   "evento": "LA Rams vs. BUF Bills",
+   "mercado_casa": "Player receptions Over/Under (incl. OT)",
+   "selecao_casa": "Dawson Knox (BUF) under 1.5",
+   "linha": null,
+   "ia": "Dawson Knox - Under 1.5 Recepções [LA Rams v BUF Bills]"
+  },
+  "confere": {
+   "esporte_casa": "sportTypeId 20",
+   "evento": "ARZ Cardinals vs. DET Lions",
+   "mercado_casa": "Player receptions Over/Under (incl. OT)",
+   "selecao_casa": "Kendrick Bourne (ARI) Over 3.5",
+   "linha": null,
+   "ia": "Kendrick Bourne - Over 3.5 Recepções [ARZ Cardinals v DET Lions]"
+  }
+ },
+ {
+  "casa": "DUEL",
+  "chave": "ice hockey | handicap",
+  "valor": "{ent} {hc}",
+  "ensina": {
+   "esporte_casa": "Ice Hockey",
+   "evento": "KAC Klagenfurt vs Red Bull Salzburg",
+   "mercado_casa": "Handicap",
+   "selecao_casa": "KAC Klagenfurt (-1.5)",
+   "linha": null,
+   "ia": "KAC Klagenfurt -1.5 [KAC Klagenfurt v Red Bull Salzburg]"
+  },
+  "confere": {
+   "esporte_casa": "Ice Hockey",
+   "evento": "Frederikshavn White Hawks vs Herning Blue Fox",
+   "mercado_casa": "Handicap",
+   "selecao_casa": "Herning Blue Fox (-2.5)",
+   "linha": null,
+   "ia": "Herning Blue Fox -2.5 [Frederikshavn White Hawks v Herning Blue Fox]"
+  }
+ },
+ {
+  "casa": "DUEL",
+  "chave": "tennis | winner",
+  "valor": "{ent}",
+  "ensina": {
+   "esporte_casa": "Tennis",
+   "evento": "Krajicek A / Mektic N vs Miedler L / Oberleitner N",
+   "mercado_casa": "Winner",
+   "selecao_casa": "Krajicek A / Mektic N",
+   "linha": null,
+   "ia": "Krajicek A / Mektic N [Krajicek A / Mektic N v Miedler L / Oberleitner N]"
+  },
+  "confere": {
+   "esporte_casa": "Tennis",
+   "evento": "Hsieh S-W / Ostapenko J vs Routliffe E / Sutjiadi A",
+   "mercado_casa": "Winner",
+   "selecao_casa": "Routliffe E / Sutjiadi A",
+   "linha": null,
+   "ia": "Routliffe E / Sutjiadi A [Hsieh S-W / Ostapenko J v Routliffe E / Sutjiadi A]"
+  }
+ },
+ {
+  "casa": "VAVADA",
+  "chave": "sporttypeid 1 | total cantos",
+  "valor": "{ou} Escanteios",
+  "ensina": {
+   "esporte_casa": "sportTypeId 1",
+   "evento": "Aalesund vs. Sarpsborg 08",
+   "mercado_casa": "Total cantos",
+   "selecao_casa": "Mais de 13.5",
+   "linha": null,
+   "ia": "Over 13.5 Escanteios [Aalesund v Sarpsborg 08]"
+  },
+  "confere": {
+   "esporte_casa": "sportTypeId 1",
+   "evento": "Randers vs. Viborg FF",
+   "mercado_casa": "Total cantos",
+   "selecao_casa": "Mais de 12.5",
+   "linha": null,
+   "ia": "Over 12.5 Escanteios [Randers v Viborg FF]"
+  }
+ },
+ {
+  "casa": "BETMARTINI",
+  "chave": "sporttypeid 12 | total (incl. ot)",
+  "valor": "{ou} Pontos",
+  "ensina": {
+   "esporte_casa": "sportTypeId 12",
+   "evento": "Neptunas vs. JL Bourg Basket",
+   "mercado_casa": "Total (incl. OT)",
+   "selecao_casa": "Under 169",
+   "linha": null,
+   "ia": "Under 169 Pontos [Neptunas v JL Bourg Basket]"
+  },
+  "confere": {
+   "esporte_casa": "sportTypeId 12",
+   "evento": "Kk Cedevita Zagreb Junior vs. Zadar",
+   "mercado_casa": "Total (incl. OT)",
+   "selecao_casa": "Over 163.5",
+   "linha": null,
+   "ia": "Over 163.5 Pontos [Kk Cedevita Zagreb Junior v Zadar]"
+  }
+ },
+ {
+  "casa": "SHUFFLE",
+  "chave": "soccer | handicap",
+  "valor": "{ent} {hc}",
+  "ensina": {
+   "esporte_casa": "SOCCER",
+   "evento": "Bristol City FC U21 vs Exeter City Reservas U21",
+   "mercado_casa": "Handicap",
+   "selecao_casa": "Exeter City Reservas U21 (+1)",
+   "linha": "1",
+   "ia": "Exeter City Reservas U21 +1 [Bristol City FC U21 v Exeter City Reservas U21]"
+  },
+  "confere": {
+   "esporte_casa": "SOCCER",
+   "evento": "FC Wiltz 71 vs FC Una Strassen",
+   "mercado_casa": "Handicap",
+   "selecao_casa": "FC Una Strassen (-2)",
+   "linha": "-2",
+   "ia": "FC Una Strassen -2 [FC Wiltz 71 v FC Una Strassen]"
+  }
+ },
+ {
+  "casa": "DEXSPORT",
+  "chave": "football | draw no bet",
+  "valor": "{ent}",
+  "ensina": {
+   "esporte_casa": "football",
+   "evento": "Rancho Santana vs UNAN Managua",
+   "mercado_casa": "Draw no bet",
+   "selecao_casa": "Rancho Santana",
+   "linha": null,
+   "ia": "Rancho Santana [Rancho Santana v UNAN Managua]"
+  },
+  "confere": {
+   "esporte_casa": "football",
+   "evento": "Art Municipal Jalapa vs Managua FC",
+   "mercado_casa": "Draw no bet",
+   "selecao_casa": "Art Municipal Jalapa",
+   "linha": null,
+   "ia": "Art Municipal Jalapa [Art Municipal Jalapa v Managua FC]"
+  }
+ },
+ {
+  "casa": "DEXSPORT",
+  "chave": "football | corners {time} total",
+  "valor": "{time} {ou} Escanteios",
+  "ensina": {
+   "esporte_casa": "football",
+   "evento": "Lecce vs Bologna",
+   "mercado_casa": "Corners Lecce total",
+   "selecao_casa": "Under 3.5",
+   "linha": null,
+   "ia": "Lecce Under 3.5 Escanteios [Lecce v Bologna]"
+  },
+  "confere": {
+   "esporte_casa": "football",
+   "evento": "Cercle Brugge vs Anderlecht",
+   "mercado_casa": "Corners Anderlecht total",
+   "selecao_casa": "Over 5.5",
+   "linha": null,
+   "ia": "Anderlecht Over 5.5 Escanteios [Cercle Brugge v Anderlecht]"
+  }
+ },
+ {
+  "casa": "DEXSPORT",
+  "chave": "basketball | total. half {n}",
+  "valor": "{ou} Pontos {n1}ª Metade",
+  "ensina": {
+   "esporte_casa": "basketball",
+   "evento": "Trabzonspor vs Bordo Sportif",
+   "mercado_casa": "Total. Half 1",
+   "selecao_casa": "Under 82.5",
+   "linha": null,
+   "ia": "Under 82.5 Pontos 1ª Metade [Trabzonspor v Bordo Sportif]"
+  },
+  "confere": {
+   "esporte_casa": "basketball",
+   "evento": "Racing De Chivilcoy vs Gimnasia Comodoro Rivadavia",
+   "mercado_casa": "Total. Half 1",
+   "selecao_casa": "Over 80.5",
+   "linha": null,
+   "ia": "Over 80.5 Pontos 1ª Metade [Racing De Chivilcoy v Gimnasia Comodoro Rivadavia]"
+  }
+ },
+ {
+  "casa": "SHUFFLE",
+  "chave": "tennis | total jogos",
+  "valor": "{ou} Games",
+  "ensina": {
+   "esporte_casa": "TENNIS",
+   "evento": "Ana Filipa Santos vs Lukas, Tena",
+   "mercado_casa": "Total jogos",
+   "selecao_casa": "Menos de 16.5",
+   "linha": "16.5",
+   "ia": "Under 16.5 Games [Ana Filipa Santos v Lukas, Tena]"
+  },
+  "confere": {
+   "esporte_casa": "TENNIS",
+   "evento": "Sramkova, Rebecca vs Okamura, Kyoka",
+   "mercado_casa": "Total jogos",
+   "selecao_casa": "Menos de 18.5",
+   "linha": "18.5",
+   "ia": "Under 18.5 Games [Sramkova, Rebecca v Okamura, Kyoka]"
+  }
+ },
+ {
+  "casa": "BETMARTINI",
+  "chave": "sporttypeid 1 | {time} total corners",
+  "valor": "{time} {ou} Escanteios",
+  "ensina": {
+   "esporte_casa": "sportTypeId 1",
+   "evento": "Bragantino vs. Cruzeiro",
+   "mercado_casa": "Bragantino total corners",
+   "selecao_casa": "Under 5.5",
+   "linha": null,
+   "ia": "Bragantino Under 5.5 Escanteios [Bragantino v Cruzeiro]"
+  },
+  "confere": {
+   "esporte_casa": "sportTypeId 1",
+   "evento": "Augsburg vs. Bayern Munich",
+   "mercado_casa": "Bayern Munich total corners",
+   "selecao_casa": "Over 7.5",
+   "linha": null,
+   "ia": "Bayern Munich Over 7.5 Escanteios [Augsburg v Bayern Munich]"
+  }
+ },
+ {
+  "casa": "BETMARTINI",
+  "chave": "sporttypeid 12 | {n}st half - total",
+  "valor": "{ou} Pontos {n1}ª Metade",
+  "ensina": {
+   "esporte_casa": "sportTypeId 12",
+   "evento": "Phoenix-MT Fot vs. KTE",
+   "mercado_casa": "1st half - total",
+   "selecao_casa": "Under 82.5",
+   "linha": null,
+   "ia": "Under 82.5 Pontos 1ª Metade [Phoenix-MT Fot v KTE]"
+  },
+  "confere": {
+   "esporte_casa": "sportTypeId 12",
+   "evento": "Perth Wildcats vs. New Zealand Breakers",
+   "mercado_casa": "1st half - total",
+   "selecao_casa": "Under 91.5",
+   "linha": null,
+   "ia": "Under 91.5 Pontos 1ª Metade [Perth Wildcats v New Zealand Breakers]"
+  }
+ },
+ {
+  "casa": "BETPANDA",
+  "chave": "hóquei no gelo | total (incluindo prolongamento e penalties)",
+  "valor": "{ou} Gols",
+  "ensina": {
+   "esporte_casa": "Hóquei no Gelo",
+   "evento": "Red Eagles Hokkaido vs Stars Kobe",
+   "mercado_casa": "Total (incluindo prolongamento e penalties)",
+   "selecao_casa": "menos de 6.5",
+   "linha": null,
+   "ia": "Under 6.5 Gols [Red Eagles Hokkaido v Stars Kobe]"
+  },
+  "confere": {
+   "esporte_casa": "Hóquei no Gelo",
+   "evento": "Hockey Unterland Cavaliers vs EK Zeller Eisbaren",
+   "mercado_casa": "Total (incluindo prolongamento e penalties)",
+   "selecao_casa": "mais de 6.5",
+   "linha": null,
+   "ia": "Over 6.5 Gols [Hockey Unterland Cavaliers v EK Zeller Eisbaren]"
+  }
+ },
+ {
+  "casa": "BETPANDA",
+  "chave": "futebol | total de cartões",
+  "valor": "{ou} Cartões",
+  "ensina": {
+   "esporte_casa": "Futebol",
+   "evento": "Racing Avallaneda vs CA Belgrano de Cordoba",
+   "mercado_casa": "Total de cartões",
+   "selecao_casa": "mais de 4.5",
+   "linha": null,
+   "ia": "Over 4.5 Cartões [Racing Avallaneda v CA Belgrano de Cordoba]"
+  },
+  "confere": {
+   "esporte_casa": "Futebol",
+   "evento": "CR Flamengo vs Fluminense FC",
+   "mercado_casa": "Total de cartões",
+   "selecao_casa": "mais de 5.5",
+   "linha": null,
+   "ia": "Over 5.5 Cartões [CR Flamengo v Fluminense FC]"
+  }
+ },
+ {
+  "casa": "VAVADA",
+  "chave": "sporttypeid 12 | vencedor (incluindo prolongamento)",
+  "valor": "{ent}",
+  "ensina": {
+   "esporte_casa": "sportTypeId 12",
+   "evento": "Cariduras de Fajardo Women vs. Leonas de Ponce Women",
+   "mercado_casa": "Vencedor (incluindo prolongamento)",
+   "selecao_casa": "Leonas de Ponce Women",
+   "linha": null,
+   "ia": "Leonas de Ponce Women [Cariduras de Fajardo Women v Leonas de Ponce Women]"
+  },
+  "confere": {
+   "esporte_casa": "sportTypeId 12",
+   "evento": "OKK Beograd vs. Spd Radnicki Kragujevac",
+   "mercado_casa": "Vencedor (incluindo prolongamento)",
+   "selecao_casa": "Spd Radnicki Kragujevac",
+   "linha": null,
+   "ia": "Spd Radnicki Kragujevac [OKK Beograd v Spd Radnicki Kragujevac]"
+  }
+ },
+ {
+  "casa": "VAVADA",
+  "chave": "sporttypeid 20 | total field goals made (incl. overtime)",
+  "valor": "{ou} Field Goals",
+  "ensina": {
+   "esporte_casa": "sportTypeId 20",
+   "evento": "NO Saints vs. MIN Vikings",
+   "mercado_casa": "Total field goals made (incl. overtime)",
+   "selecao_casa": "Mais de 4.5",
+   "linha": null,
+   "ia": "Over 4.5 Field Goals [NO Saints v MIN Vikings]"
+  },
+  "confere": {
+   "esporte_casa": "sportTypeId 20",
+   "evento": "NO Saints vs. MIN Vikings",
+   "mercado_casa": "Total field goals made (incl. overtime)",
+   "selecao_casa": "Menos de 3.5",
+   "linha": null,
+   "ia": "Under 3.5 Field Goals [NO Saints v MIN Vikings]"
+  }
+ },
+ {
+  "casa": "VAVADA",
+  "chave": "sporttypeid 12 | handicap (incluindo prolongamento)",
+  "valor": "{ent} {hc}",
+  "ensina": {
+   "esporte_casa": "sportTypeId 12",
+   "evento": "OKK Beograd vs. Spd Radnicki Kragujevac",
+   "mercado_casa": "Handicap (incluindo prolongamento)",
+   "selecao_casa": "Spd Radnicki Kragujevac (+6.5)",
+   "linha": null,
+   "ia": "Spd Radnicki Kragujevac +6.5 [OKK Beograd v Spd Radnicki Kragujevac]"
+  },
+  "confere": {
+   "esporte_casa": "sportTypeId 12",
+   "evento": "Phoenix Suns vs. San Antonio Spurs",
+   "mercado_casa": "Handicap (incluindo prolongamento)",
+   "selecao_casa": "San Antonio Spurs (-5.5)",
+   "linha": null,
+   "ia": "San Antonio Spurs -5.5 [Phoenix Suns v San Antonio Spurs]"
+  }
+ },
+ {
+  "casa": "VAVADA",
+  "chave": "sporttypeid 34 | vencedor",
+  "valor": "{ent}",
+  "ensina": {
+   "esporte_casa": "sportTypeId 34",
+   "evento": "Cizek, Ales vs. Kamil Kleprlik",
+   "mercado_casa": "Vencedor",
+   "selecao_casa": "Kamil Kleprlik",
+   "linha": null,
+   "ia": "Kamil Kleprlik [Ales Cizek v Kamil Kleprlik]"
+  },
+  "confere": {
+   "esporte_casa": "sportTypeId 34",
+   "evento": "Vaclav Kosar vs. Tomas Andrle",
+   "mercado_casa": "Vencedor",
+   "selecao_casa": "Vaclav Kosar",
+   "linha": null,
+   "ia": "Vaclav Kosar [Vaclav Kosar v Tomas Andrle]"
+  }
+ },
+ {
+  "casa": "DEXSPORT",
+  "chave": "basketball | total. with overtime",
+  "valor": "{ou} Pontos",
+  "ensina": {
+   "esporte_casa": "basketball",
+   "evento": "Ryukyu Golden Kings Okinawa vs Shimane Susanoo Magic",
+   "mercado_casa": "Total. With overtime",
+   "selecao_casa": "Under 162.5",
+   "linha": null,
+   "ia": "Under 162.5 Pontos [Ryukyu Golden Kings Okinawa v Shimane Susanoo Magic]"
+  },
+  "confere": {
+   "esporte_casa": "basketball",
+   "evento": "Nagasaki Velka vs Gunma Crane Thunders",
+   "mercado_casa": "Total. With overtime",
+   "selecao_casa": "Over 152.5",
+   "linha": null,
+   "ia": "Over 152.5 Pontos [Nagasaki Velka v Gunma Crane Thunders]"
+  }
+ },
+ {
+  "casa": "SHUFFLE",
+  "chave": "handball | handicap",
+  "valor": "{ent} {hc}",
+  "ensina": {
+   "esporte_casa": "HANDBALL",
+   "evento": "Huddinge HK vs GF Kroppskultur",
+   "mercado_casa": "Handicap",
+   "selecao_casa": "Huddinge HK (+3.5)",
+   "linha": "-3.5",
+   "ia": "Huddinge HK +3.5 [Huddinge HK v GF Kroppskultur]"
+  },
+  "confere": {
+   "esporte_casa": "HANDBALL",
+   "evento": "SPR Chrobry Glogow vs Wisla Plock",
+   "mercado_casa": "Handicap",
+   "selecao_casa": "SPR Chrobry Glogow (+9.5)",
+   "linha": "-9.5",
+   "ia": "SPR Chrobry Glogow +9.5 [SPR Chrobry Glogow v Wisla Plock]"
+  }
+ },
+ {
+  "casa": "SHUFFLE",
+  "chave": "soccer | total cartões",
+  "valor": "{ou} Cartões",
+  "ensina": {
+   "esporte_casa": "SOCCER",
+   "evento": "Elche CF vs RC Celta de Vigo",
+   "mercado_casa": "Total cartões",
+   "selecao_casa": "Mais de 3.5",
+   "linha": "3.5",
+   "ia": "Over 3.5 Cartões [Elche CF v RC Celta de Vigo]"
+  },
+  "confere": {
+   "esporte_casa": "SOCCER",
+   "evento": "Elche CF vs RC Celta de Vigo",
+   "mercado_casa": "Total cartões",
+   "selecao_casa": "Mais de 4.5",
+   "linha": "4.5",
+   "ia": "Over 4.5 Cartões [Elche CF v RC Celta de Vigo]"
+  }
+ },
+ {
+  "casa": "DEXSPORT",
+  "chave": "basketball | total. quarter {n}",
+  "valor": "{ou} Pontos {n1}º Quarto",
+  "ensina": {
+   "esporte_casa": "basketball",
+   "evento": "Cleveland Cavaliers vs Orlando Magic",
+   "mercado_casa": "Total. Quarter 1",
+   "selecao_casa": "Under 57.5",
+   "linha": null,
+   "ia": "Under 57.5 Pontos 1º Quarto [Cleveland Cavaliers v Orlando Magic]"
+  },
+  "confere": {
+   "esporte_casa": "basketball",
+   "evento": "Anyang KGC vs Changwon LG Sakers",
+   "mercado_casa": "Total. Quarter 1",
+   "selecao_casa": "Over 43.5",
+   "linha": null,
+   "ia": "Over 43.5 Pontos 1º Quarto [Anyang KGC v Changwon LG Sakers]"
+  }
+ }
+]

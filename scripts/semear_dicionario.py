@@ -7,6 +7,11 @@ com a decisão mais recente da IA em `sombra_rotulos`. Entra no dicionário só 
 (`dicionario.votar`); o que a IA decidiu de mais de um jeito sai na lista para o Feca e fica de
 fora, ou seja, vai para a IA.
 
+Desde a s413 também o dicionário de DESCRIÇÃO (`app/descricao_ficha.py`: o mercado da casa →
+o nome do mercado que a IA escreveu, perna a perna), e a maioria de 90% decide (o voto isolado
+vai para a revisão). Depois de gravar, a semente regrava a descrição das apostas da Ficha do
+mês corrente (`dicionario.regravar_mes`).
+
 Idempotente: refaz a semente inteira a cada rodada. O servidor roda a mesma semente
 sozinho uma vez por dia (`dicionario.diario`, 04h de Brasília); este script é para rodar na hora. Linha `origem = 'feca'` nunca é tocada.
 Semente que deixou de ser unânime é apagada (a aposta volta para a IA).
@@ -44,21 +49,25 @@ async def main() -> None:
     async with pool.acquire() as conn:
         p, texto, fontes = await dicionario.pares(conn)
         print("pares:", fontes)
-        unanimes, contraditos = dicionario.votar(p, texto)
+        unanimes, contraditos, revisao = dicionario.votar(p, texto)
         por_casa = collections.Counter((c, t) for c, t, _ in unanimes)
         for (c, t), n in sorted(por_casa.items()):
             print(f"{c:11} {t:9} {n:4} termos unânimes")
         print(f"\n{len(contraditos)} termos em que a IA decidiu de mais de um jeito (ficam com a IA):")
         for (c, t, termo), cnt in sorted(contraditos.items()):
-            if dicionario.SEP not in termo:
+            if t == "descricao" or dicionario.SEP not in termo:
                 print(f"  {c:11} {t:9} {termo!r}: " + ", ".join(f"{k} ×{v}" for k, v in cnt.most_common()))
+        print(f"\n{len(revisao)} termos decididos pela maioria de 90% (o voto isolado, para revisão):")
+        for x in revisao:
+            print(f"  {x['casa']:11} {x['tipo']:9} {x['termo']!r}: fica {x['fica']!r}; votos {x['votos']}")
         if not aplicar:
             print("\nensaio: nada gravado (use --aplicar)")
             return
         r = await dicionario.semear(conn, "manual")       # grava e registra no semente_log
-        print("novos nesta rodada:", r["novos"])
+        print("novos nesta rodada:", r["novos"], "· apostas da Ficha do mês com a descrição "
+              "regravada:", r["regravadas"])
         total = await conn.fetchval("SELECT count(*) FROM dicionario_termos")
-        print(f"\ngravado: {len(unanimes)} termos de semente; {total} no dicionário")
+        print(f"\ngravado: {r['termos']} termos de semente; {total} no dicionário")
 
 
 if __name__ == "__main__":

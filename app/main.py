@@ -1260,8 +1260,8 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
 
     **Casa VIRADA (Ficha, s411):** sai também todo código que a Ficha resolveu, ABERTO ou
     liquidado (`virada.resolver_no_extrair`, que antes espera o cru da mesma captura chegar).
-    A IA só recebe o que a Ficha não resolveu: Ficha recusada, termo fora do dicionário, ou
-    cru que não chegou a tempo.
+    A IA só recebe o que a Ficha não resolveu: Ficha recusada, termo (ou descrição) fora do
+    dicionário, ou cru que não chegou a tempo.
     """
     import virada as _virada
     casa_key = casa_key or _virada.chave_da_casa(casa)
@@ -1335,7 +1335,7 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
         _fire(_virada.registrar(dono, casa_key, len(set(codigos)),
                                 len(set(codigos) & ja_resolvidos), n_ficha, inalterados,
                                 len(mantidos), espera, motivos))
-        if motivos.get("termo fora do dicionário"):
+        if motivos.get("termo fora do dicionário") or motivos.get("descrição fora do dicionário"):
             _virada.marcar_termo_novo(dono, casa)
         # A Ficha LEU estes blocos: sem o `bloco_visto` deles, a captura seguinte (texto igual,
         # cru não reenviado) acharia o texto "mudado" e mandaria a aposta de volta à IA.

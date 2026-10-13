@@ -21,9 +21,15 @@ banco pela régua antes de cada virada):
 D24 (s412): **o termo entra com 1 voto e o erro se conserta depois** (`corrigir_termo`, origem
 `feca`, que regrava as apostas da Ficha do mês corrente; o passado não, D10/D23). Por isso a
 semente tem proteções (R27, pesquisa 001): só aprende valor que está no Master
-(`app/taxonomia.py`), ignora aposta editada à mão (`correcoes` com campo `esporte` ou `aposta`)
-e nunca aprende termo VAGO (`VAGOS`). E `Total` sem qualificador não é termo, é regra
+(`app/taxonomia.py`), ignora aposta editada à mão (`correcoes` com campo `esporte`, `aposta` ou
+`descricao`) e nunca aprende termo VAGO (`VAGOS`). E `Total` sem qualificador não é termo, é regra
 (`categoria_do_total`): a categoria principal do esporte.
+
+s413 (Feca, 12/10): **chamada extra à IA só para a descrição, nunca.** O dicionário tem um terceiro
+tipo, `descricao`: o mercado da casa (sem lado, sem linha) → o nome do mercado no padrão do
+Sharpen, aprendido da descrição que a IA escreveu, perna a perna (`app/descricao_ficha.py`).
+E a semente decide pela MAIORIA quando ela tem 90% ou mais dos votos (P7 do parecer 013): o voto
+isolado vai para a lista de revisão (`semente_log.revisao`), não derruba o termo.
 """
 from __future__ import annotations
 
@@ -116,6 +122,18 @@ def _limpo(v) -> str:
     return " ".join(str(v or "").split())
 
 
+# Seleção que é CÓDIGO: `1` e `2` são seleções diferentes, o número não é linha.
+_SEL_CODIGO = frozenset({"1", "2", "x", "1x", "x2", "12"})
+
+
+def sel_chave(sel) -> str:
+    """A seleção na chave do par mercado + seleção (s413, P6 do parecer 013): número vira `{n}`
+    também nela (`total pontos | menos de 71.5` até `80.5` eram 10 termos), menos na seleção
+    que é código (`1`, `2`, `X`, `1X`...)."""
+    s = normalizar(sel, numeros=False)
+    return s if s in _SEL_CODIGO else normalizar(sel)
+
+
 def chaves(f: dict) -> list[tuple[str, str]]:
     """As chaves (tipo, termo normalizado) que a tradução desta Ficha consulta, na ordem."""
     out = []
@@ -126,7 +144,7 @@ def chaves(f: dict) -> list[tuple[str, str]]:
         p = pernas[0]
         out.append(("categoria", normalizar(p.get("mercado_casa"))))
         out.append(("categoria", normalizar(p.get("mercado_casa")) + SEP
-                    + normalizar(p.get("selecao_casa"), numeros=False)))
+                    + sel_chave(p.get("selecao_casa"))))
     return out
 
 
@@ -150,7 +168,7 @@ def traduzir(f: dict, termos: dict) -> tuple[str | None, str | None, list[tuple[
         categoria = MULTIPLA if pernas else None
     else:
         merc = normalizar(pernas[0].get("mercado_casa"))
-        par = merc + SEP + normalizar(pernas[0].get("selecao_casa"), numeros=False)
+        par = merc + SEP + sel_chave(pernas[0].get("selecao_casa"))
         if merc in VAGOS:
             categoria = None
         elif merc == TOTAL:
@@ -200,12 +218,17 @@ def _master() -> tuple[frozenset, frozenset]:
     return frozenset(taxonomia.esportes_canonicos()), frozenset(taxonomia.categorias_canonicas())
 
 
-def votar(pares, votos_texto=()) -> tuple[dict, dict]:
-    """Semente (`04 §3`). `pares` = [(casa, Ficha, esporte da IA, categoria da IA)];
+MAIORIA = 0.9                    # P7: com 90% ou mais dos votos, fica a maioria
+
+
+def votar(pares, votos_texto=()) -> tuple[dict, dict, list]:
+    """Semente (`04 §3`). `pares` = [(casa, Ficha, esporte da IA, categoria da IA[, descrição
+    da IA])];
     `votos_texto` = [(casa, termos de esporte do texto, esporte da IA)], o complemento do
     `sombra_rotulos` (só esporte: no texto o mercado vem colado à seleção).
-    Devolve ({(casa, tipo, termo): (termo Sharpen, ocorrências)} só com os UNÂNIMES,
-    {(casa, tipo, termo): Counter} com os que a IA decidiu de mais de um jeito).
+    Devolve ({(casa, tipo, termo): (termo Sharpen, ocorrências)} com os decididos,
+    {(casa, tipo, termo): Counter} com os que a IA decidiu de mais de um jeito sem maioria,
+    [revisão]: os votos isolados que a maioria de 90% venceu, para o Feca olhar).
 
     Só vota o que a Ficha isola sem ambiguidade: esporte de bilhete de UM esporte (a IA
     escreve `Múltiplos` também para 3 jogos do mesmo esporte, e aí o voto não diz nada do
@@ -213,12 +236,21 @@ def votar(pares, votos_texto=()) -> tuple[dict, dict]:
 
     Proteções (s412, R27): voto com valor FORA do Master não conta (a IA às vezes escreve
     categoria que não existe); termo VAGO não vota; `Total` sem qualificador não vota (é regra,
-    `categoria_do_total`)."""
+    `categoria_do_total`).
+
+    DESCRIÇÃO (s413): cada perna vota `chave do mercado → valor` (`descricao_ficha.votos`), e as
+    variantes de escrita da IA para o mesmo mercado contam como um voto só (`canonico`); o valor
+    guardado é a variante mais votada."""
     from collections import Counter, defaultdict
+
+    import descricao_ficha
     esportes_m, categorias_m = _master()
     votos: dict = defaultdict(Counter)
-    for casa, f, esp_ia, cat_ia in pares:
+    for casa, f, esp_ia, cat_ia, *resto in pares:
         casa = (casa or "").upper()
+        if resto and resto[0]:
+            for k, v in descricao_ficha.votos(f, resto[0]):
+                votos[(casa, "descricao", k)][v] += 1
         pernas = f.get("pernas") or []
         termos_esp = {_esp(p) for p in pernas} - {""}
         esp_ia, cat_ia = _limpo(esp_ia), _limpo(cat_ia)
@@ -231,20 +263,30 @@ def votar(pares, votos_texto=()) -> tuple[dict, dict]:
             merc = normalizar(p.get("mercado_casa"))
             if merc and merc not in VAGOS and merc != TOTAL:
                 votos[(casa, "categoria", merc)][cat_ia] += 1
-                votos[(casa, "categoria", merc + SEP + normalizar(p.get("selecao_casa"), numeros=False))][cat_ia] += 1
+                votos[(casa, "categoria", merc + SEP + sel_chave(p.get("selecao_casa")))][cat_ia] += 1
     for casa, termos_txt, esp_ia in votos_texto:
         termos_esp = {normalizar(t, numeros=False) for t in termos_txt} - {""}
         esp_ia = _limpo(esp_ia)
         if len(termos_esp) == 1 and esp_ia and esp_ia != MULTIPLOS and esp_ia in esportes_m \
                 and not termos_esp & VAGOS:
             votos[((casa or "").upper(), "esporte", next(iter(termos_esp)))][esp_ia] += 1
-    unanimes, contraditos = {}, {}
+    unanimes, contraditos, revisao = {}, {}, []
     for k, c in votos.items():
-        if len(c) == 1:
-            termo, n = next(iter(c.items()))
-            unanimes[k] = (termo, n)
-        else:
+        grupo = Counter()
+        for v, n in c.items():
+            grupo[descricao_ficha.canonico(v) if k[1] == "descricao" else v] += n
+        topo, n_topo = grupo.most_common(1)[0]
+        total = sum(c.values())
+        if len(grupo) > 1 and n_topo / total < MAIORIA:
             contraditos[k] = c
+            continue
+        dentro = [v for v in c if (descricao_ficha.canonico(v) if k[1] == "descricao" else v)
+                  == topo]
+        termo = max(dentro, key=lambda v: (c[v], v))
+        unanimes[k] = (termo, n_topo)
+        if len(grupo) > 1:
+            revisao.append({"casa": k[0], "tipo": k[1], "termo": k[2], "fica": termo,
+                            "votos": dict(c)})
     # ESPORTE vale para todas as casas (`*`): o nome de um esporte não muda de casa para casa,
     # e a Altenar numera os esportes na plataforma (`sportTypeId 4` é o mesmo em toda casa
     # dela). É o que traduz o esporte que numa casa só apareceu em múltipla mista (`basquete`
@@ -259,13 +301,13 @@ def votar(pares, votos_texto=()) -> tuple[dict, dict]:
         if len(topo) == 1:
             unanimes[("*", "esporte", termo)] = (next(iter(topo)),
                                                  sum(sum(c.values()) for c in casas.values()))
-    return unanimes, contraditos
+    return unanimes, contraditos, revisao
 
 
 # ── semente (`04 §3`): os pares que já existem ─────────────────────────────────────────
 
 async def pares(conn) -> tuple[list, list, dict]:
-    """([(casa_key, Ficha, esporte da IA, categoria da IA)], um por aposta com cru;
+    """([(casa_key, Ficha, esporte da IA, categoria da IA, descrição da IA)], um por aposta com cru;
     [(casa_key, termos de esporte do texto, esporte da IA)], um por bilhete da sombra;
     contagem por fonte). Linha gravada pela própria Ficha (`origem = 'ficha'`) NÃO vota: o
     esporte dela saiu deste dicionário, e votar nela seria o dicionário votando em si mesmo."""
@@ -280,16 +322,16 @@ async def pares(conn) -> tuple[list, list, dict]:
     codigos = [k[3] for k in ultimo]
     nomes = {r["k"]: r["casa"] for r in await conn.fetch(
         "SELECT DISTINCT upper(replace(casa, ' ', '')) AS k, casa FROM bilhetes")}
-    # Aposta editada à mão (`correcoes` com `esporte` ou `aposta`) não vota (R27): o dicionário
+    # Aposta editada à mão (`correcoes` com `esporte`, `aposta` ou `descricao`) não vota (R27): o dicionário
     # vale para todos os usuários da casa, e com 1 voto uma edição viraria regra para todos.
     # Também não cai para a `sombra_rotulos`: a decisão da IA ali é a que alguém corrigiu.
     bil = {(b["dono"], b["casa"], b["parceiro"], b["codigo_bilhete"]): b for b in await conn.fetch(
-        "SELECT b.dono, b.casa, b.parceiro, b.codigo_bilhete, b.esporte, b.aposta, "
+        "SELECT b.dono, b.casa, b.parceiro, b.codigo_bilhete, b.esporte, b.aposta, b.descricao, "
         "EXISTS (SELECT 1 FROM correcoes c WHERE c.bilhete_id = b.id "
-        "        AND c.campo IN ('esporte', 'aposta')) AS editada FROM bilhetes b "
+        "        AND c.campo IN ('esporte', 'aposta', 'descricao')) AS editada FROM bilhetes b "
         "WHERE b.codigo_bilhete = ANY($1::text[]) AND b.origem IS DISTINCT FROM 'ficha'", codigos)}
     sombra = {(s["dono"], s["codigo"]): s for s in await conn.fetch(
-        "SELECT DISTINCT ON (dono, codigo) dono, codigo, ia_esporte, ia_aposta "
+        "SELECT DISTINCT ON (dono, codigo) dono, codigo, ia_esporte, ia_aposta, ia_descricao "
         "FROM sombra_rotulos WHERE codigo = ANY($1::text[]) ORDER BY dono, codigo, criado_em DESC",
         codigos)}
     out, fontes = [], Counter()
@@ -301,10 +343,10 @@ async def pares(conn) -> tuple[list, list, dict]:
         if b and b["editada"]:
             fontes["editada à mão"] += 1
         elif b:
-            out.append((casa, f, b["esporte"], b["aposta"]))
+            out.append((casa, f, b["esporte"], b["aposta"], b["descricao"]))
             fontes["bilhetes"] += 1
         elif (s := sombra.get((dono, codigo))):
-            out.append((casa, f, s["ia_esporte"], s["ia_aposta"]))
+            out.append((casa, f, s["ia_esporte"], s["ia_aposta"], s["ia_descricao"]))
             fontes["sombra_rotulos"] += 1
         else:
             fontes["sem par"] += 1
@@ -313,7 +355,7 @@ async def pares(conn) -> tuple[list, list, dict]:
     # perna é o termo (`esportes_do_texto`).
     editadas = {(r["dono"], r["codigo_bilhete"]) for r in await conn.fetch(
         "SELECT DISTINCT b.dono, b.codigo_bilhete FROM bilhetes b JOIN correcoes c "
-        "ON c.bilhete_id = b.id WHERE c.campo IN ('esporte', 'aposta') "
+        "ON c.bilhete_id = b.id WHERE c.campo IN ('esporte', 'aposta', 'descricao') "
         "AND b.codigo_bilhete IS NOT NULL")}
     texto = []
     for s in await conn.fetch(
@@ -343,13 +385,29 @@ async def gravar_semente(conn, unanimes: dict) -> int:
     return len(unanimes)
 
 
-async def semear(conn, gatilho: str = "manual") -> dict:
+def coberto_pelo_feca(feca, casa: str, tipo: str, termo: str) -> bool:
+    """A correção do Feca vence a semente no termo E nas chaves mais específicas do mesmo
+    mercado (`mercado | seleção`), na casa dela ou em todas (`*`). P5 do parecer 013: sem isso
+    `winner. quarter {n} | <time>` voltava como "novo → Player Props" a cada rodada."""
+    for c, t, ft in feca:
+        if t == tipo and c in (casa, "*") and (termo == ft or termo.startswith(ft + SEP)):
+            return True
+    return False
+
+
+async def semear(conn, gatilho: str = "manual", hoje=None) -> dict:
     """Refaz a semente e grava o resultado em `semente_log` (s412): termos por casa, termos
-    contraditos e termos NOVOS desta rodada (que não estavam na semente anterior)."""
+    contraditos e termos NOVOS desta rodada (que não estavam na semente anterior). Desde a
+    s413 também a lista de revisão (o voto isolado que a maioria de 90% venceu) e, depois de
+    gravar, regrava a DESCRIÇÃO das apostas da Ficha do mês corrente (`regravar_mes`)."""
     import json
     from collections import Counter
     p, texto, fontes = await pares(conn)
-    unanimes, contraditos = votar(p, texto)
+    unanimes, contraditos, revisao = votar(p, texto)
+    feca = [(r["casa"], r["tipo"], r["termo_casa"]) for r in await conn.fetch(
+        "SELECT casa, tipo, termo_casa FROM dicionario_termos WHERE origem = 'feca'")]
+    unanimes = {k: v for k, v in unanimes.items() if not coberto_pelo_feca(feca, *k)}
+    revisao = [r for r in revisao if not coberto_pelo_feca(feca, r["casa"], r["tipo"], r["termo"])]
     antes = {(r["casa"], r["tipo"], r["termo_casa"]): r["termo_sharpen"] for r in await conn.fetch(
         "SELECT casa, tipo, termo_casa, termo_sharpen FROM dicionario_termos "
         "WHERE origem = 'semente'")}
@@ -359,13 +417,17 @@ async def semear(conn, gatilho: str = "manual") -> dict:
              for (c, t, k), (v, _) in sorted(unanimes.items()) if antes.get((c, t, k)) != v]
     contra = [{"casa": c, "tipo": t, "termo": k, "votos": dict(cnt)}
               for (c, t, k), cnt in sorted(contraditos.items()) if SEP not in k]
+    regravadas = await regravar_mes(conn, aplicar=True, hoje=hoje, campos=("descricao",))
     await conn.execute(
-        """INSERT INTO semente_log (gatilho, termos, termos_por_casa, contraditos, novos, fontes)
-           VALUES ($1, $2, $3::jsonb, $4::jsonb, $5::jsonb, $6::jsonb)""",
+        """INSERT INTO semente_log (gatilho, termos, termos_por_casa, contraditos, novos, fontes,
+                                    revisao, regravadas)
+           VALUES ($1, $2, $3::jsonb, $4::jsonb, $5::jsonb, $6::jsonb, $7::jsonb, $8)""",
         gatilho, n, json.dumps(por_casa, ensure_ascii=False),
         json.dumps(contra, ensure_ascii=False), json.dumps(novos, ensure_ascii=False),
-        json.dumps(fontes, ensure_ascii=False))
-    return {"termos": n, "contraditos": len(contraditos), "novos": len(novos), "fontes": fontes}
+        json.dumps(fontes, ensure_ascii=False), json.dumps(revisao, ensure_ascii=False),
+        len(regravadas))
+    return {"termos": n, "contraditos": len(contraditos), "novos": len(novos),
+            "revisao": len(revisao), "regravadas": len(regravadas), "fontes": fontes}
 
 
 # ── logo depois de um `/extrair` de casa virada que mandou termo novo à IA (s412) ─────────
@@ -417,23 +479,28 @@ async def corrigir_termo(conn, casa: str, tipo: str, termo: str, para: str,
     """Grava a correção do Feca (`origem = 'feca'`, a semente nunca a sobrescreve) e regrava as
     apostas DA FICHA (`origem = 'ficha'`) do MÊS CORRENTE que usaram o termo: esporte,
     categoria e descrição. Mês passado não é tocado (D10, D23), nem campo que alguém editou à
-    mão (`correcoes`). Devolve as mudanças; `aplicar=False` só mostra."""
-    import json
-    from datetime import datetime, timedelta, timezone
+    mão (`correcoes`). Devolve as mudanças; `aplicar=False` só mostra.
 
-    import ficha
-    import virada
+    `descricao` (s413): TERMO = a chave (`<esporte da casa> | <mercado>`, como o `semente_log`
+    mostra) e PARA = o valor com as marcas (`{ou} Escanteios {n1}º Tempo`)."""
+    import descricao_ficha
     casa, tipo = (casa or "").upper(), tipo
-    if tipo not in ("esporte", "categoria"):
-        raise ValueError(f"tipo {tipo!r}: esporte ou categoria")
-    termo = normalizar(termo, numeros=(tipo == "categoria"))
-    esportes_m, categorias_m = _master()
-    if para not in (esportes_m if tipo == "esporte" else categorias_m):
-        raise ValueError(f"{para!r} não está no Master")
-    if termo in VAGOS:
-        raise ValueError(f"{termo!r} é vago: vai sempre para a IA")
-    hoje = hoje or datetime.now(timezone.utc) - timedelta(hours=3)
-    mes = (hoje.year, hoje.month)
+    if tipo not in ("esporte", "categoria", "descricao"):
+        raise ValueError(f"tipo {tipo!r}: esporte, categoria ou descricao")
+    if tipo == "descricao":
+        termo = " ".join(str(termo or "").casefold().split())
+        estranhas = set(re.findall(r"\{[a-z0-9]+\}", para)) - set(descricao_ficha.MARCAS) \
+            - {"{n%d}" % i for i in range(1, 10)}
+        if not para.strip() or estranhas or descricao_ficha.SEP not in termo:
+            raise ValueError(f"{termo!r} → {para!r}: chave `esporte | mercado` e valor com as "
+                             f"marcas {descricao_ficha.MARCAS} e {{n1}}…")
+    else:
+        termo = normalizar(termo, numeros=(tipo == "categoria"))
+        esportes_m, categorias_m = _master()
+        if para not in (esportes_m if tipo == "esporte" else categorias_m):
+            raise ValueError(f"{para!r} não está no Master")
+        if termo in VAGOS:
+            raise ValueError(f"{termo!r} é vago: vai sempre para a IA")
     if aplicar:
         await conn.execute(
             """INSERT INTO dicionario_termos (casa, tipo, termo_casa, termo_sharpen, origem,
@@ -442,10 +509,36 @@ async def corrigir_termo(conn, casa: str, tipo: str, termo: str, para: str,
                ON CONFLICT (casa, tipo, termo_casa) DO UPDATE SET termo_sharpen = $4,
                  origem = 'feca', confirmado = TRUE, atualizado_em = NOW()""",
             casa, tipo, termo, para)
-    alvo = ["*"] if casa == "*" else [casa]
+
+    def usa(f):
+        if tipo == "descricao":
+            return termo in {descricao_ficha.chave(p) for p in f.get("pernas") or []}
+        return termo in {k[1] if SEP not in k[1] else k[1].split(SEP)[0] for k in chaves(f)
+                         if k[0] == tipo}
+    return await regravar_mes(conn, casa, aplicar, hoje, usa, {(tipo, termo): para})
+
+
+async def regravar_mes(conn, casa: str = "*", aplicar: bool = False, hoje=None, usa=None,
+                       por_cima: dict | None = None,
+                       campos=("esporte", "aposta", "descricao")) -> list[dict]:
+    """Regrava as apostas DA FICHA do MÊS CORRENTE pelo dicionário de hoje (D24): `campos` de
+    cada linha, quando o dicionário sabe o valor e ele mudou. Mês passado não é tocado (D10,
+    D23), nem campo editado à mão. `usa(Ficha)` filtra; `por_cima` = termos que valem também no
+    ensaio (a correção ainda não gravada). Devolve as mudanças.
+
+    A semente chama com `campos=("descricao",)` depois de cada rodada (s413, item 5): o mercado
+    aprendido conserta a descrição das linhas deste mês, e só ela."""
+    import json
+    from datetime import datetime, timedelta, timezone
+
+    import ficha
+    import virada
+    hoje = hoje or datetime.now(timezone.utc) - timedelta(hours=3)
+    mes = (hoje.year, hoje.month)
+    casa = (casa or "*").upper()
     feitas = await conn.fetch(
         "SELECT dono, casa, codigo FROM ficha_virada WHERE estado = 'ficha' "
-        "AND ($1 = '*' OR casa = ANY($2::text[]))", casa, alvo)
+        "AND ($1 = '*' OR casa = $1)", casa)
     mudancas, cache = [], {}
     for fv in feitas:
         cru = await conn.fetchrow(
@@ -454,20 +547,21 @@ async def corrigir_termo(conn, casa: str, tipo: str, termo: str, para: str,
         if not cru:
             continue
         f, motivos = ficha.montar_ficha(cru["familia"], json.loads(cru["cru"]), fv["casa"])
-        if f is None or motivos:
-            continue
-        usadas = {k[1] if SEP not in k[1] else k[1].split(SEP)[0] for k in chaves(f)
-                  if k[0] == tipo}
-        if termo not in usadas:
+        if f is None or motivos or (usa and not usa(f)):
             continue
         if fv["casa"] not in cache:
             cache[fv["casa"]] = await carregar(conn, fv["casa"])
-        termos = dict(cache[fv["casa"]])
-        termos[(tipo, termo)] = para           # vale também no ensaio
-        esporte, categoria, faltam = traduzir(f, termos)
-        if faltam or not esporte or not categoria:
+        termos = {**cache[fv["casa"]], **(por_cima or {})}
+        novo = {}
+        if "esporte" in campos or "aposta" in campos:
+            esporte, categoria, faltam = traduzir(f, termos)
+            if not faltam and esporte and categoria:
+                novo.update({k: v for k, v in (("esporte", esporte), ("aposta", categoria))
+                             if k in campos})
+        if "descricao" in campos and (d := virada.descricao(f, termos)):
+            novo["descricao"] = d
+        if not novo:
             continue
-        descricao = virada._descricao(f)
         for b in await conn.fetch(
                 "SELECT b.id, b.data, b.esporte, b.aposta, b.descricao, "
                 "ARRAY(SELECT DISTINCT c.campo FROM correcoes c WHERE c.bilhete_id = b.id) AS ed "
@@ -476,16 +570,15 @@ async def corrigir_termo(conn, casa: str, tipo: str, termo: str, para: str,
                 fv["dono"], fv["codigo"], fv["casa"]):
             if _mes(b["data"]) != mes:
                 continue
-            novo = {"esporte": esporte, "aposta": categoria, "descricao": descricao}
-            novo = {k: v for k, v in novo.items() if v != b[k] and k not in (b["ed"] or [])}
-            if not novo:
+            muda = {k: v for k, v in novo.items() if v != b[k] and k not in (b["ed"] or [])}
+            if not muda:
                 continue
             mudancas.append({"id": b["id"], "dono": fv["dono"], "codigo": fv["codigo"],
-                             "antes": {k: b[k] for k in novo}, "depois": novo})
+                             "antes": {k: b[k] for k in muda}, "depois": muda})
             if aplicar:
-                sets = ", ".join(f"{k} = ${i}" for i, k in enumerate(novo, 2))
+                sets = ", ".join(f"{k} = ${i}" for i, k in enumerate(muda, 2))
                 await conn.execute(f"UPDATE bilhetes SET {sets} WHERE id = $1",
-                                   b["id"], *novo.values())
+                                   b["id"], *muda.values())
     return mudancas
 
 

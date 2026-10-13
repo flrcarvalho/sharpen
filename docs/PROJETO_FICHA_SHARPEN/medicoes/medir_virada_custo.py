@@ -73,6 +73,7 @@ async def main() -> None:
                 "coalesce(sum(para_ia), 0) AS ia, coalesce(sum(pela_ficha), 0) AS f, "
                 "coalesce(avg(espera_s), 0) AS esp, "
                 "sum(ficha_recusada) AS \"Ficha recusada\", sum(termo_fora) AS \"termo fora\", "
+                "sum(descricao_fora) AS \"descrição fora\", "
                 "sum(fora_do_master) AS \"fora do Master\", "
                 "sum(recusada_salvar) AS \"recusada no /salvar\", "
                 "sum(cru_nao_chegou) AS \"cru não chegou\", "

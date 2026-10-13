@@ -971,7 +971,7 @@ ALTER TABLE ficha_sombra ADD COLUMN IF NOT EXISTS cru_id BIGINT;
 --   `casa` = casa_key, ou `*` quando o termo vale para todas.
 CREATE TABLE IF NOT EXISTS dicionario_termos (
     casa          TEXT NOT NULL,
-    tipo          TEXT NOT NULL CHECK (tipo IN ('esporte', 'categoria')),
+    tipo          TEXT NOT NULL CHECK (tipo IN ('esporte', 'categoria', 'descricao')),
     termo_casa    TEXT NOT NULL,
     termo_sharpen TEXT NOT NULL,
     origem        TEXT NOT NULL DEFAULT 'semente',
@@ -1036,6 +1036,18 @@ CREATE TABLE IF NOT EXISTS semente_log (
     novos           JSONB NOT NULL DEFAULT '[]',
     fontes          JSONB NOT NULL DEFAULT '{}'
 );
+
+-- s413: o dicionário de DESCRIÇÃO (`app/descricao_ficha.py`). `tipo = 'descricao'`, `termo_casa`
+-- = `<esporte da casa> | <mercado normalizado>`, `termo_sharpen` = o valor com as marcas
+-- (`{ou} Escanteios {n1}º Tempo`). `descricao_fora` = mercado sem par: a aposta foi para a IA.
+-- `revisao` = os votos isolados que a maioria de 90% venceu (P7); `regravadas` = apostas da
+-- Ficha do mês corrente cuja descrição a rodada consertou.
+ALTER TABLE dicionario_termos DROP CONSTRAINT IF EXISTS dicionario_termos_tipo_check;
+ALTER TABLE dicionario_termos ADD CONSTRAINT dicionario_termos_tipo_check
+    CHECK (tipo IN ('esporte', 'categoria', 'descricao'));
+ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS descricao_fora INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE semente_log ADD COLUMN IF NOT EXISTS revisao JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE semente_log ADD COLUMN IF NOT EXISTS regravadas INTEGER NOT NULL DEFAULT 0;
 """
 
 
