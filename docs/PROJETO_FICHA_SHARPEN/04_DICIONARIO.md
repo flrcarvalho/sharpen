@@ -15,6 +15,15 @@
 > nunca aposta editada à mão, nunca termo vago (`VAGOS`: `especiais`). `Total` sem qualificador é REGRA
 > (categoria principal do esporte, `categoria_do_total`), não termo. A semente roda às 04h e logo depois
 > de um `/extrair` de casa virada que mandou termo novo à IA; cada rodada vai ao `semente_log`.
+>
+> **s414 (13/10, dicionário de DESCRIÇÃO):** terceiro tipo, `descricao` (`app/descricao_ficha.py`). Chave
+> `<esporte da casa> | <mercado normalizado>` (sem lado, sem linha, sem seleção; o time do jogo vira
+> `{time}`); valor = o nome do mercado tirado da descrição da IA, com marcas (`{ou} Escanteios {n1}º
+> Tempo`). Mercado sem par vai à IA (`descrição fora do dicionário`) e a semente aprende logo depois. A
+> maioria de 90% decide em todos os tipos (o isolado vai para `semente_log.revisao`); o par mercado +
+> seleção troca número por `{n}` também na seleção, menos na seleção-código (`1`, `2`, `X`); a correção
+> do Feca cobre as chaves mais específicas do mesmo mercado. Depois de cada rodada a semente regrava a
+> descrição das apostas da Ficha do mês corrente. Cobertura: `medicoes/medir_descricao_cobertura.py`.
 
 ## 1. O problema que ele resolve
 

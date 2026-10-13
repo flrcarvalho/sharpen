@@ -25,6 +25,7 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   M11. o Feca não cobre a chave mais específica (P5)      → test_feca_cobre_as_chaves_mais_especificas
   M13. o período segue a IA, não o Master (§12.10)        → test_o_periodo_vira_marca
   M14. o mercado do LADO aceita voto sem o time          → test_descricao_que_nao_fecha_com_o_cru_nao_vota
+  M15. o `semente_log` esconde a contradição de descrição  → test_semente_log_registra…
   M12. pernas fora da ordem do cru                       → test_montagem_igual_a_da_ia_nas_fixtures
   Inócua (registrada): exigir o time também no voto do mercado com o NOME do time; o
   `aprender` já recusa a descrição sem o `{time}` que o cru tem (é a M7).
@@ -35,6 +36,7 @@ ela escreve; o erro se conserta depois, D24, `corrigir_termo.py descricao`), a o
 (`Leclerc, Charles`: a IA vira em metade das vezes; a Ficha fica com o cru, `MASTER_DESCRICAO
 §9`) e a 1xBet além do que as fixtures têm (19 crus, o subjogo no nome do jogo).
 """
+import asyncio
 import json
 import sys
 from pathlib import Path
@@ -212,3 +214,33 @@ def test_feca_cobre_as_chaves_mais_especificas():
     assert not dicionario.coberto_pelo_feca(feca, "DEXSPORT", "categoria", "winner. quarter")
     assert dicionario.coberto_pelo_feca([("*", "categoria", "fastest lap")], "BETPANDA",
                                         "categoria", "fastest lap | norris, lando")
+
+
+def test_semente_log_registra_a_contradicao_de_descricao(monkeypatch):
+    """A chave de descrição tem ` | ` (esporte | mercado), o mesmo separador do par mercado +
+    seleção, que o log esconde. A contradição de descrição tem de aparecer no `semente_log`."""
+    f = {"tipo": "simples", "pernas": [_p("Soccer", "A vs B", "Total corners", "over 9.5")]}
+
+    async def pares(conn):
+        return ([("DUEL", f, "Futebol", "Escanteios", "Over 9.5 Escanteios [A v B]"),
+                 ("DUEL", f, "Futebol", "Escanteios", "Over 9.5 Cantos [A v B]")], [], {})
+
+    async def nada(*a, **k):
+        return []
+
+    async def grava(conn, u):
+        return len(u)
+    monkeypatch.setattr(dicionario, "pares", pares)
+    monkeypatch.setattr(dicionario, "regravar_mes", nada)
+    monkeypatch.setattr(dicionario, "gravar_semente", grava)
+
+    class _C:
+        async def fetch(self, sql, *a):
+            return []
+
+        async def execute(self, sql, *a):
+            self.args = a
+    c = _C()
+    asyncio.run(dicionario.semear(c, "teste"))
+    contra = json.loads(c.args[3])
+    assert [x["termo"] for x in contra if x["tipo"] == "descricao"] == ["soccer | total corners"]

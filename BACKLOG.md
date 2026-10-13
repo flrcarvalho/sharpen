@@ -79,6 +79,18 @@ o `docs/HISTORICO.md`. Este arquivo só guarda o que está **aberto**.
   simples, sistema, bônus, freebet, polybet, e os espelhos da 1win (só `1win.io` registrado no
   manifest e no `_HOSTS_POR_CASA`; espelho novo cai no popup e pede "abra o Histórico e rode de
   novo"). `casas/CASA_1WIN.md §5`.
+- **Ficha (s414): dicionário de descrição, 1ª captura e decisões do Feca.** Na 1ª captura de casa
+  virada, conferir `virada_log.descricao_fora` (mercado sem par foi à IA) e o `semente_log` seguinte (a
+  semente aprendeu e regravou); `medicoes/medir_descricao_cobertura.py` mostra a cobertura por casa.
+  **Para o Feca (D24):** 5 mercados `1x2` aprenderam `{ent}` porque a IA escreveu só o time, igual a um
+  ML: BETMARTINI `sporttypeid 1 | booking {n}x{n}`, BETPANDA `basketball | assistências {n}x{n}
+  (incluindo prolongamento)`, SHUFFLE `soccer | cantos {n}x{n}` e `soccer | cartão {n}x{n}`, VAVADA
+  `sporttypeid 1 | cartões {n}x{n}` (a `Lens Cartões 1x2` virou `Lens`). A Bet Panda aprendeu `{ent} -
+  Mais Cartões` para o seu `cartão {n}x{n}`; a correção é `scripts/corrigir_termo.py CASA descricao
+  "<chave>" "{ent} - Mais Cartões" --aplicar` (ou o nome que o Feca escolher). Também dele: a ordem dos
+  nomes (`Leclerc, Charles`; a IA vira em metade das vezes, a Ficha fica com o cru) e a revisão de
+  `semente_log.revisao` (5 hoje). 19 apostas da Ficha de outubro seguem com o termo da casa até a
+  semente aprender o mercado delas.
 - **Ficha (s412): conferência da etapa 1 e teste real do N3.** O Feca captura 2 ou 3 casas
   viradas; o consultor confere no banco com o `virada_log` (colunas de motivo) e o
   `medicoes/medir_virada_custo.py`. Depois, o N3 ao vivo: recarregar a extensão SEM F5 na aba da

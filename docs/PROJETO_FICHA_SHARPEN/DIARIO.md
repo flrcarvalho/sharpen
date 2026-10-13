@@ -5,6 +5,46 @@
 
 ---
 
+## 2026-10-13 (madrugada) · dicionário de descrição · o mercado aprendido uma vez
+
+**Onde está:** commit `a24bcb6`, deploy `666dcf1d` (03h11 UTC), semente em produção às 03h23 UTC. **Próxima
+ação:** na 1ª captura de casa virada, conferir `virada_log.descricao_fora` e o `semente_log` (a semente roda
+logo depois e o mercado deixa de ir à IA); o Feca decide os 5 mercados `1x2` de cartões/escanteios que
+aprenderam só o time (BACKLOG §1). Seguem a conferência da etapa 1 e o N3 ao vivo.
+
+**Regra do Feca:** chamada extra à IA só para a descrição, nunca. O mercado é aprendido uma vez, sem lado e
+sem linha, e depois nenhuma variação dele vai à IA.
+
+- **Chave** (`app/descricao_ficha.py`): `<esporte da casa> | <mercado normalizado>`. O esporte entrou porque,
+  sem ele, 62 mercados se contradiziam (`1st half - total` é `Gols 1º Tempo` no futebol e `Pontos 1ª Metade`
+  no basquete). O time do jogo escrito no mercado vira `{time}` (com fronteira de palavra: o time `A` não
+  está dentro de `total`, pego pelo teste).
+- **Valor:** o nome do mercado tirado da descrição da IA, com marcas na posição de seleção, lado/linha,
+  handicap e time; o número do período vira `{n1}` (`Winner. Set 1` e `Set 2` são o mesmo mercado).
+- **Voto:** só quando a descrição fecha com o cru (jogo, lado, linha, seleção; número que não veio do cru
+  não vota). A IA escreve o mesmo mercado de vários jeitos (`Time - Over` × `Time Over`, `1º Tempo` ×
+  `1ª Metade`): é um voto só, guardada a variante mais votada. Mercado do time (ou do lado, `Time de casa
+  ...`) sem o time é erro da IA e não vota. Maioria de 90% decide; o isolado vai à revisão (P7).
+- **Medido e descartado:** virar `Sobrenome, Nome` como a IA. Ela vira em metade das vezes e na outra não
+  (a igualdade com a IA CAIU de 108 para 74 na Bet Panda e de 57 para 36 na Shuffle); fica o nome do cru.
+- **Conferido no cru:** "Sérvia -1.5 Cartões" (Ficha) × "+1.5" (IA) na MyStake: o cru tem `hisminus: true`,
+  a regra provada na tela (s392) inverte, e o texto que a IA leu era de versão anterior da extensão.
+- **Cobertura antes de ligar** (`medicoes/medir_descricao_cobertura.py`, in-sample, 845 apostas com cru):
+  descritas Bet Panda 153/168, Shuffle 73/80, Duel 130/149, MyStake 175/212, DEX 44/62, BetMartini 66/97,
+  Megapari 13/19, Vavada 37/58. No holdout temporal (aprende nos 70% antigos) a cobertura cai muito (MyStake
+  27%, BetMartini 5%): mercado novo continua aparecendo, e é a semente logo depois da IA que o cobre.
+- **Produção:** 783 termos de semente (469 de descrição), 38 apostas da Ficha de outubro regravadas, 19
+  ainda com o termo da casa. Achado para o Feca: 5 mercados `1x2` de cartões/escanteios/assistências
+  aprenderam `{ent}` (a IA escreveu só o time, igual a um ML; a Vavada `Lens Cartões 1x2` virou `Lens`).
+
+**Gates:** `tests/test_descricao_ficha.py` 12 (35 mercados reais), `test_virada` 33, banco 70 (2 novos:
+mercado novo vai à IA uma vez e depois não; a semente regrava a descrição do mês e não a do mês passado);
+23 mutações, 23 detectadas (M6, M7 e M14b escaparam na 1ª rodada; M6 mirava o ramo errado, M7 era barrada
+também por outra regra e ganhou caso próprio, M14b era inócua e a condição saiu). pytest tests 1888.
+Na conferência em produção, o `semente_log` mostrava 0 contraditos com 16 de descrição na lista: o filtro
+que esconde o par `mercado | seleção` escondia também a chave de descrição (mesmo separador). Corrigido,
+com teste e mutação (M15).
+
 ## 2026-10-12 (fim da noite) · etapa 1 · furo N3, motivo de cada ida à IA, dicionário D24/R27
 
 **Onde está:** commit `201ac56`, deploy `ba47530f` (23h20 UTC); as 8 casas seguem viradas. **Próxima ação:**
