@@ -1,4 +1,4 @@
-# STATUS — Masters & Casas (FDC Capital / Planilhador)
+﻿# STATUS — Masters & Casas (FDC Capital / Planilhador)
 
 Documento de rehydration de sessão. Quem abrir o Claude Code neste repo lê isto primeiro.
 
