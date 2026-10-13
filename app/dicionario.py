@@ -446,7 +446,8 @@ async def semear(conn, gatilho: str = "manual", hoje=None) -> dict:
              for (c, t, k), (v, _) in sorted(unanimes.items()) if antes.get((c, t, k)) != v]
     contra = [{"casa": c, "tipo": t, "termo": k, "votos": dict(cnt)}
               for (c, t, k), cnt in sorted(contraditos.items())
-              if t == "descricao" or SEP not in k]          # a chave de descrição tem ` | `
+              if (t == "descricao" or SEP not in k)          # a chave de descrição tem ` | `
+              and not coberto_pelo_feca(feca, c, t, k)]     # s415: o Feca já decidiu
     regravadas = await regravar_mes(conn, aplicar=True, hoje=hoje, campos=("descricao",))
     await conn.execute(
         """INSERT INTO semente_log (gatilho, termos, termos_por_casa, contraditos, novos, fontes,

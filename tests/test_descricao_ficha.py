@@ -46,6 +46,7 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   J13. sem trocar a letra cirílica (`Handiсap`)          → test_handicap_da_1xbet…
   J14. a linha do handicap não precisa chegar            → test_handicap_da_1xbet…
   J15. `Individual Total 2` não diz o time               → test_handicap_da_1xbet… (15 de 15)
+  J16. a lista de contradições mostra o termo do Feca    → test_semente_log_registra…
   (bateria: `scratchpad/mutar5.py` da s415; V1 a V4 e W1 a W7 nos cabeçalhos do harness de
   banco e de `test_virada.py`)
 
@@ -264,6 +265,16 @@ def test_semente_log_registra_a_contradicao_de_descricao(monkeypatch):
     asyncio.run(dicionario.semear(c, "teste"))
     contra = json.loads(c.args[3])
     assert [x["termo"] for x in contra if x["tipo"] == "descricao"] == ["soccer | total corners"]
+
+    # s415: o termo que o Feca já corrigiu sai da lista (não é mais para revisar)
+    class _CF(_C):
+        async def fetch(self, sql, *a):
+            if "origem = 'feca'" in sql:
+                return [{"casa": "DUEL", "tipo": "descricao", "termo_casa": "soccer | total corners"}]
+            return []
+    c = _CF()
+    asyncio.run(dicionario.semear(c, "teste"))
+    assert [x for x in json.loads(c.args[3]) if x["tipo"] == "descricao"] == []
 
 
 # ── s415 (T1): o jogador fora da chave ───────────────────────────────────────────────────

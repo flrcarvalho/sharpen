@@ -5,6 +5,33 @@
 
 ---
 
+## 2026-10-13 (tarde) · s415 · o jogador fora da chave, o vigia e o N3 de verdade
+
+**T1.** A DEX escreve o jogador dentro do mercado (`Alec Peters. Ressaltos. Com prorrogação`) e a
+chave de descrição era uma por jogador. Agora o nome do começo do mercado vira `{jogador}` quando a
+IA escreveu esse mesmo nome. Medido na captura das 15h54 a 16h01 UTC (virada_log 14 a 21), com o
+dicionário que existia antes dela: 59 de 154 códigos pela Ficha antes, 65 depois. O ganho veio da
+Bet Panda (o jogador antes de um `total` minúsculo) e da Megapari, não da DEX: as chaves fundidas da
+DEX ficaram **contraditas**, porque a própria IA escreve `Ressaltos` 14 vezes, `Rebotes` 5 e
+`Rebounds` 4 para o mesmo mercado. Decididas (o Master escreve `Rebotes`), a DEX iria de 6 para 18.
+Por isso o voto vale também na chave do próprio jogador: com a de qualquer um contradita, quem já
+foi visto não piora. A ordem importa: a de qualquer jogador vem primeiro, senão o voto isolado de um
+jogador (o que a maioria de 90% venceu) continuaria valendo para ele.
+
+**Lado da 1xBet.** `Handicap 1 (-1.5)` e `Handicap 2 (1.5)` viram `handicap {hc}`; a Megapari
+escreve `Handiсap` com o `с` cirílico em algumas linhas. A lista de contradições mostrou mais um:
+`Individual Total 2` não era lido como time, e a IA votava `{t1}` contra `{t2}` na mesma chave.
+
+**Vigia.** A amostra da IA não pode ir no lote da extração: o lote volta para a extensão, que o grava
+pelo `/salvar`, e a IA escreveria por cima da Ficha. Vai numa chamada à parte, em segundo plano. O
+teste de banco achou o furo do primeiro desenho: a aposta que a Ficha liquida pela rota do cru já
+chega ao `/extrair` como resolvida, então quem escolhe a amostra é o banco (`origem = 'ficha'`, ainda
+não conferida naquele resultado), não o que a Ficha resolveu no `/extrair`.
+
+**N3 de verdade.** Às 16h53 e 17h18 UTC o Gabriel capturou DEX e Duel com aposta que mudou e sem cru
+novo: `sem_cru_novo` 5 e 2, a IA leu os 7, e as 5 da DEX estão no banco como L resolvida. Recarregar a
+extensão não provoca o caso porque cada captura reinjeta o `content.js` e o inject.
+
 ## 2026-10-13 (madrugada) · dicionário de descrição · o mercado aprendido uma vez
 
 **Onde está:** commit `a24bcb6`, deploy `666dcf1d` (03h11 UTC), semente em produção às 03h23 UTC. **Próxima

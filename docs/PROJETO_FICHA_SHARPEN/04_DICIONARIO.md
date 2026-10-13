@@ -24,6 +24,14 @@
 > seleção troca número por `{n}` também na seleção, menos na seleção-código (`1`, `2`, `X`); a correção
 > do Feca cobre as chaves mais específicas do mesmo mercado. Depois de cada rodada a semente regrava a
 > descrição das apostas da Ficha do mês corrente. Cobertura: `medicoes/medir_descricao_cobertura.py`.
+>
+> **s415 (13/10, T1):** o jogador do começo do mercado vira `{jogador}` na chave e no valor (só quando
+> a IA escreveu o mesmo nome); o voto vale também na chave do próprio jogador, consultada depois da de
+> qualquer jogador. A seleção com o time do jogo vira `{ent}` no par de categoria. 1xBet: o handicap
+> sem lado nem sinal (`handicap {hc}`) e `Individual Total 1/2` diz o time. A regravação grava antes e
+> depois em `correcoes` (`origem = 'ficha'`, que não conta como edição à mão). Termo já corrigido pelo
+> Feca não aparece mais na lista de contradições. Medição: `medicoes/medir_jogador_chave.py`; lista:
+> `medicoes/listar_contradicoes.py`.
 
 ## 1. O problema que ele resolve
 

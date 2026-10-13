@@ -80,22 +80,27 @@ o `docs/HISTORICO.md`. Este arquivo só guarda o que está **aberto**.
   simples, sistema, bônus, freebet, polybet, e os espelhos da 1win (só `1win.io` registrado no
   manifest e no `_HOSTS_POR_CASA`; espelho novo cai no popup e pede "abra o Histórico e rode de
   novo"). `casas/CASA_1WIN.md §5`.
-- **Ficha (s414): dicionário de descrição, 1ª captura e decisões do Feca.** Na 1ª captura de casa
-  virada, conferir `virada_log.descricao_fora` (mercado sem par foi à IA) e o `semente_log` seguinte (a
-  semente aprendeu e regravou); `medicoes/medir_descricao_cobertura.py` mostra a cobertura por casa.
-  **Para o Feca (D24):** 5 mercados `1x2` aprenderam `{ent}` porque a IA escreveu só o time, igual a um
-  ML: BETMARTINI `sporttypeid 1 | booking {n}x{n}`, BETPANDA `basketball | assistências {n}x{n}
-  (incluindo prolongamento)`, SHUFFLE `soccer | cantos {n}x{n}` e `soccer | cartão {n}x{n}`, VAVADA
-  `sporttypeid 1 | cartões {n}x{n}` (a `Lens Cartões 1x2` virou `Lens`). A Bet Panda aprendeu `{ent} -
-  Mais Cartões` para o seu `cartão {n}x{n}`; a correção é `scripts/corrigir_termo.py CASA descricao
-  "<chave>" "{ent} - Mais Cartões" --aplicar` (ou o nome que o Feca escolher). Também dele: a ordem dos
-  nomes (`Leclerc, Charles`; a IA vira em metade das vezes, a Ficha fica com o cru) e a revisão de
-  `semente_log.revisao` (5 hoje). 19 apostas da Ficha de outubro seguem com o termo da casa até a
-  semente aprender o mercado delas.
-- **Ficha (s412): conferência da etapa 1 e teste real do N3.** O Feca captura 2 ou 3 casas
-  viradas; o consultor confere no banco com o `virada_log` (colunas de motivo) e o
-  `medicoes/medir_virada_custo.py`. Depois, o N3 ao vivo: recarregar a extensão SEM F5 na aba da
-  casa e capturar uma aposta que liquidou; o esperado é `sem_cru_novo` > 0 e a IA lendo o bloco.
+- **Ficha (s415): decisões do Feca e do consultor.** (1) As chaves de QUALQUER jogador ficaram
+  contraditas porque a IA escreve o mesmo mercado de jeitos diferentes: DEX `basketball | {jogador}.
+  ressaltos. com prorrogação` (`Ressaltos` 14, `Rebotes` 5, `Rebounds` 4), `{jogador}. total de
+  assistências. com prorrogação` (`Assistências` 8, `Assists` 1) e `{jogador} total de pontos. com
+  prorrogação`; Megapari `badminton | handicap {hc}` (`Pontos` 5 contra sem objeto 1). O
+  `MASTER_DESCRICAO` escreve `Rebotes`; decididas, a DEX vai de 6 para 18 de 27 na captura de 13/10.
+  O conserto é `scripts/corrigir_termo.py DEXSPORT descricao "basketball | {jogador}. ressaltos. com
+  prorrogação" "{jogador} - {ou} Rebotes" --aplicar` (idem as outras). (2) Gêmeos em português de
+  termos já decididos: DEX `football | o empate anula a aposta` e `handball | o empate anula a aposta`
+  (descrição `{ent}`; a de `draw no bet` virou `DNB {ent}`) e a categoria `vencedor. quarto {n}` (hoje
+  Player Props; a `winner. quarter {n}` do Feca é ML). (3) Vigia: ligar com `VIGIA_POR_DIA=3`
+  (proposta: 3 apostas por casa e dono por dia, ~US$ 0,05 por chamada, ~US$ 0,50/dia com ~10 pares
+  ativos; teto de 3 chamadas por par, ~US$ 1,50/dia). (4) O consultor revisa as contradições
+  (`docs/PROJETO_FICHA_SHARPEN/medicoes/contradicoes_semente_17.md`; a rodada atual sai com
+  `listar_contradicoes.py`) e o `semente_log.revisao`. Também do Feca: a ordem dos nomes
+  (`Leclerc, Charles`; a Ficha fica com o cru).
+- **Ficha (s412): conferência da etapa 1.** O consultor confere no banco com o `virada_log` (colunas
+  de motivo) e o `medicoes/medir_virada_custo.py`. O N3 já aconteceu em produção (s415: virada_log
+  25 e 28, 7 códigos do Gabriel com texto mudado e cru anterior; a IA leu os 7). Recarregar a extensão
+  não o provoca: cada captura reinjeta o `content.js` e o inject. Para provocar de propósito:
+  `CRU_CAPTURA_DESLIGADA=1` por alguns minutos (a rota responde 503 e a extensão reenvia depois).
 - **Ficha (s412): etapa 2, Master (D25), espera a liberação do Feca.** Críquete e Boxe no
   `MASTER_ESPORTES`; Defesas e Laterais no `MASTER_APOSTAS`; Dupla (2) / Tripla (3) / Múltipla (4+)
   no Master, na IA, na Ficha e no `contrato_texto.py`; grafias na §4 (Fórmula 1 = F1, Badmilton/
