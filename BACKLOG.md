@@ -68,6 +68,17 @@ o `docs/HISTORICO.md`. Este arquivo só guarda o que está **aberto**.
   Betcoin e Kikobet entram quando o cru delas chegar: varrer os nomes de campo, ligar na sombra,
   `scripts/reprocessar_ficha_cru.py`, `semear_dicionario.py --aplicar` e
   `medicoes/medir_backtest_virada.py CASA`; zero dinheiro divergente sem explicação = vira.
+- **Ficha (s413): 1win, blocos C e D, e o que a amostra não cobriu.** Captura no ar na
+  SharpenUp 0.7.53 (família `tp`, cru desde o 1º dia, sem adaptador). Falta, nesta ordem: (1) o
+  Feca atualizar para a 0.7.53 e capturar a 1win com F5 na aba (a 1ª captura pela extensão
+  instalada); (2) adaptador `app/adaptadores/tp.py` das fixtures (stake = `amount`; odd = `cf`,
+  nunca o produto das pernas; o código fica em `cru.bet.id`, não em `cru.id`, e o
+  `ficha.montar_ficha` lê `cru.id` na recusa) e `FICHA_SOMBRA_CASAS` + 1WIN; (3) backtest,
+  dicionário e virada (D22). **Não validado:** status 2/3/4 (ganha, anulada, cashout: hoje só o
+  dinheiro decide e o resto sobe a conferir), que `profitAmount` siga sendo retorno na ganha,
+  simples, sistema, bônus, freebet, polybet, e os espelhos da 1win (só `1win.io` registrado no
+  manifest e no `_HOSTS_POR_CASA`; espelho novo cai no popup e pede "abra o Histórico e rode de
+  novo"). `casas/CASA_1WIN.md §5`.
 - **Ficha (s412): conferência da etapa 1 e teste real do N3.** O Feca captura 2 ou 3 casas
   viradas; o consultor confere no banco com o `virada_log` (colunas de motivo) e o
   `medicoes/medir_virada_custo.py`. Depois, o N3 ao vivo: recarregar a extensão SEM F5 na aba da

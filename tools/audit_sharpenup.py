@@ -151,6 +151,7 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # Feca (a múltipla de 3 do Padres × Brewers, perdida, odd 14,93856). Reconhecido pela
     # regex GENÉRICA do repository.
     "SHUFFLE":    "Cfn16FgUcNikYecjCrA4j",
+    "1WIN":       "337819068",
     # `internal_bet_id` real da conta (a perdida de 07/08, stake R$18,88 @3,95) — numérico de
     # 7 dígitos. ⚠ É o ID que o CARD estampa; o `ticket_id` (11 dígitos) NÃO vai para o
     # marcador, senão print e captura gerariam códigos diferentes para o mesmo bilhete.

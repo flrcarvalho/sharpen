@@ -258,6 +258,9 @@ _CASA_DISPLAY: dict[str, str] = {
     # Plataforma PRÓPRIA, 1ª casa GraphQL (s401). A base não tinha a casa em grafia
     # nenhuma (medido em 08/10/2026, 7 tabelas), então vale a da marca.
     "SHUFFLE":        "Shuffle",
+    # Plataforma PRÓPRIA `top-parser` (s413). A base não tinha a casa em grafia nenhuma
+    # (medido em 12/10/2026, `audit_grafias`), então vale a da marca, em caixa baixa.
+    "1WIN":           "1win",
     "BETESPORTE":     "BETesporte",
     "BETFAIR":        "Betfair",
     "BETFAST":        "Betfast",
@@ -1045,6 +1048,9 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     "DEXSPORT",
     # Shuffle (s401) — plataforma própria (GraphQL). ID = nanoid de 21 caracteres.
     "SHUFFLE",
+    # 1win (s413) — plataforma própria `top-parser`. ID = numérico de 9 dígitos, o mesmo
+    # número que o card estampa como "ID".
+    "1WIN",
     "BETPIX365",
     # Estrela Bet (s303) — 5ª casa Altenar. Mesmo espaço de IDs do motor: numérico de 10
     # dígitos, o mesmo número que o rodapé do card estampa como `ID:`.

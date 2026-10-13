@@ -55,6 +55,7 @@ const CASA_ICONS={
   // Plataforma propria (s391).
   'DEX Sport':'https://www.google.com/s2/favicons?sz=128&domain=dexsport.io',
   'Shuffle':'https://www.google.com/s2/favicons?sz=128&domain=shuffle.com',
+  '1win':'https://www.google.com/s2/favicons?sz=128&domain=1win.io',
   'Faz1bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
   'MyStake':'https://www.google.com/s2/favicons?sz=128&domain=mystake.bet',
   'Polymarket':'https://www.google.com/s2/favicons?sz=128&domain=polymarket.com',
@@ -165,6 +166,7 @@ const HOUSE_DOMAIN={
   'Kikobet':'kikobet.com',
   'DEX Sport':'dexsport.io',
   'Shuffle':'shuffle.com',
+  '1win':'1win.io',
   'Faz1bet':'faz1.bet.br',   // grafia unificada no banco (s284); a s204 elegera 'Faz1Bet',
                              // mas imports posteriores viraram a maioria e a marca escreve minúsculo
   'MyStake':'mystake.bet',     // 4ª casa BetConstruct (s392)

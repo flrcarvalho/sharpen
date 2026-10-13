@@ -77,6 +77,9 @@ const CASA_HOSTS = {
   "DEX Sport":  ["dexsport.io"],
   // Plataforma própria, GraphQL (s401). O histórico: Esportes → Minhas Apostas.
   "Shuffle":    ["shuffle.com"],
+  // Plataforma própria `top-parser` (s413). O histórico: Esportes → Histórico de apostas. A
+  // API sai de `api-gateway.top-parser.com`; a ABA é o site da casa.
+  "1win":       ["1win.io"],
   // Antiga "Rei do Pitaco" (grafia unificada no banco na s270). Plataforma própria,
   // gRPC-Web/protobuf — inject próprio.
   "Pitaco":     ["pitaco.bet.br"],
@@ -355,6 +358,9 @@ async function capturar() {
                 : casa === "Betcoin" ? "jb_inject.js"
                 : casa === "DEX Sport" ? "dx_inject.js"
                 : casa === "Shuffle" ? "shf_inject.js"
+                // 1win: plataforma `top-parser`. `tp_`, e não `1w_`, para o nome não começar
+                // por dígito (mesmo motivo do `x1_` da 1xBet).
+                : casa === "1win" ? "tp_inject.js"
                 : casa === "Pitaco" ? "pt_inject.js"
                 : casa === "Novibet" ? "nv_inject.js"
                 // Motor Rogue: TRES casas espelho, MESMO inject — como Tivo/Betfast/Faz1bet.
