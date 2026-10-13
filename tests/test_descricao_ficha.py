@@ -30,11 +30,31 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   Inócua (registrada): exigir o time também no voto do mercado com o NOME do time; o
   `aprender` já recusa a descrição sem o `{time}` que o cru tem (é a M7).
   Mais 6 no cabeçalho de `test_virada.py` (D1, D2) e do harness de banco (D3 a D6).
+  s415 (T1, o jogador fora da chave; 13/10/2026), 15 de 15 detectadas:
+  J1. a chave ignora o jogador                           → test_dois_jogadores_no_mesmo_mercado…
+  J2. sem o voto na chave do próprio jogador             → test_dois_jogadores… / …contradito…
+  J3. a montagem não tenta a chave de qualquer jogador   → test_dois_jogadores…
+  J4. a chave do próprio jogador vem primeiro            → test_a_chave_de_qualquer_jogador_vem…
+  J5. palavra de mercado vira jogador                    → test_jogador_nao_e_palavra_de_mercado…
+  J6. o time do jogo vira jogador                        → test_jogador_nao_e_palavra_de_mercado…
+  J7. sem a abreviação (`Sr.`) no nome                   → test_jogador_nao_e_palavra_de_mercado…
+  J8. a seleção com o time fica na chave de categoria    → test_selecao_com_o_time_do_jogo_vira_ent…
+  J9. `traduzir` sem a chave de categoria do jogador     → test_dois_jogadores…
+  J10. a semente não vota no mercado do jogador          → test_dois_jogadores…
+  J11. o handicap do mercado (1xBet) não vira `{hc}`     → test_handicap_da_1xbet…
+  J12. o lado do handicap fica na chave                  → test_handicap_da_1xbet…
+  J13. sem trocar a letra cirílica (`Handiсap`)          → test_handicap_da_1xbet…
+  J14. a linha do handicap não precisa chegar            → test_handicap_da_1xbet…
+  J15. `Individual Total 2` não diz o time               → test_handicap_da_1xbet… (15 de 15)
+  (bateria: `scratchpad/mutar5.py` da s415; V1 a V4 e W1 a W7 nos cabeçalhos do harness de
+  banco e de `test_virada.py`)
 
 O QUE NÃO COBRE: se o nome do mercado que a IA escreveu está CERTO (o dicionário aprende o que
 ela escreve; o erro se conserta depois, D24, `corrigir_termo.py descricao`), a ordem dos nomes
 (`Leclerc, Charles`: a IA vira em metade das vezes; a Ficha fica com o cru, `MASTER_DESCRICAO
-§9`) e a 1xBet além do que as fixtures têm (19 crus, o subjogo no nome do jogo).
+§9`) e a 1xBet além do que as fixtures têm (19 crus, o subjogo no nome do jogo). O jogador
+só é achado no COMEÇO do mercado (a DEX); jogador no meio do mercado (`Total de remates de
+Luca Cagnoni`) segue uma chave por jogador.
 """
 import asyncio
 import json
@@ -244,3 +264,128 @@ def test_semente_log_registra_a_contradicao_de_descricao(monkeypatch):
     asyncio.run(dicionario.semear(c, "teste"))
     contra = json.loads(c.args[3])
     assert [x["termo"] for x in contra if x["tipo"] == "descricao"] == ["soccer | total corners"]
+
+
+# ── s415 (T1): o jogador fora da chave ───────────────────────────────────────────────────
+
+_DEX_JOGO = "BC Dubai vs Crvena Zvezda"
+
+
+def _dex(mercado, selecao, codigo):
+    return {"tipo": "simples", "codigo": codigo,
+            "pernas": [_p("basketball", _DEX_JOGO, mercado, selecao)]}
+
+
+def _semente(pares, casa="DEXSPORT"):
+    """A semente de verdade (`dicionario.votar`) e os termos da casa, como o `carregar`."""
+    unanimes, contraditos, _ = dicionario.votar(pares)
+    termos = {(t, k): v for (c, t, k), (v, _) in unanimes.items() if c in ("*", casa)}
+    return termos, contraditos
+
+
+def test_dois_jogadores_no_mesmo_mercado_o_primeiro_ensina_o_segundo_sai_pela_ficha():
+    """DEX (13/10): `basketball | alec peters. ressaltos. com prorrogação` era uma chave POR
+    jogador, e todo jogador novo ia para a IA. O primeiro ensina; o segundo, que a semente
+    nunca viu, sai pela Ficha: esporte, categoria e descrição, sem IA."""
+    ensina = _dex("Dwayne Bacon. Ressaltos. Com prorrogação", "Menos 3.5", "a1")
+    confere = _dex("Alec Peters. Ressaltos. Com prorrogação", "Mais 5.5", "a2")
+    termos, _ = _semente([("DEXSPORT", ensina, "Basquete", "Player Props",
+                           "Dwayne Bacon - Under 3.5 Rebotes [BC Dubai v Crvena Zvezda]")])
+    assert termos[("descricao", "basketball | {jogador}. ressaltos. com prorrogação")] \
+        == "{jogador} - {ou} Rebotes"
+    assert ("descricao", D.chave(confere["pernas"][0])) not in termos   # a do 2º não existe
+    assert dicionario.traduzir(confere, termos) == ("Basquete", "Player Props", [])
+    assert D.montar(confere, termos, dicionario.descricao_perna) == (
+        "Alec Peters - Over 5.5 Rebotes [BC Dubai v Crvena Zvezda]", [])
+    # o voto também fica na chave DESTE jogador, com o nome: se a de qualquer jogador ficar
+    # contradita (a IA escreve `Ressaltos`, `Rebotes` e `Rebounds`), ela ainda o descreve
+    assert termos[("descricao", "basketball | dwayne bacon. ressaltos. com prorrogação")] \
+        == "Dwayne Bacon - {ou} Rebotes"
+
+
+def test_jogador_contradito_cai_para_a_chave_do_proprio_jogador():
+    """Com a chave de qualquer jogador contradita, quem já foi visto ainda sai pela Ficha (a
+    chave dele vem PRIMEIRO); o jogador novo vai para a IA, como antes."""
+    a, b = (_dex(f"{n}. Ressaltos. Com prorrogação", "Menos 3.5", n) for n in ("Joel Parra",
+                                                                                 "Moses Wright"))
+    termos, contra = _semente([
+        ("DEXSPORT", a, "Basquete", "Player Props", "Joel Parra - Under 3.5 Rebotes [BC Dubai v Crvena Zvezda]"),
+        ("DEXSPORT", b, "Basquete", "Player Props", "Moses Wright - Under 3.5 Ressaltos [BC Dubai v Crvena Zvezda]")])
+    assert ("DEXSPORT", "descricao", "basketball | {jogador}. ressaltos. com prorrogação") in contra
+    assert D.montar(_dex("Joel Parra. Ressaltos. Com prorrogação", "Mais 4.5", "x"), termos)[0] \
+        == "Joel Parra - Over 4.5 Rebotes [BC Dubai v Crvena Zvezda]"
+    novo = _dex("Zach LeDay. Ressaltos. Com prorrogação", "Mais 4.5", "y")
+    assert D.montar(novo, termos) == (None, ["basketball | {jogador}. ressaltos. com prorrogação"])
+
+
+def test_a_chave_de_qualquer_jogador_vem_antes_da_do_proprio_jogador():
+    """A maioria (90%) decide a chave de qualquer jogador; o voto isolado de um jogador fica na
+    chave dele, mas não vale para ele enquanto a de qualquer um existir (P7)."""
+    jogs = [f"Jogador{c} Silva" for c in "ABCDEFGHIJ"]
+    pares = [("DEXSPORT", _dex(f"{j}. Ressaltos. Com prorrogação", "Menos 3.5", j), "Basquete",
+              "Player Props", f"{j} - Under 3.5 Rebotes [BC Dubai v Crvena Zvezda]") for j in jogs]
+    pares.append(("DEXSPORT", _dex("Joel Parra. Ressaltos. Com prorrogação", "Menos 3.5", "jp"),
+                  "Basquete", "Player Props",
+                  "Joel Parra - Under 3.5 Ressaltos [BC Dubai v Crvena Zvezda]"))
+    termos, _ = _semente(pares)
+    assert termos[("descricao", "basketball | joel parra. ressaltos. com prorrogação")] \
+        == "Joel Parra - {ou} Ressaltos"
+    assert D.montar(_dex("Joel Parra. Ressaltos. Com prorrogação", "Mais 4.5", "x"), termos)[0] \
+        == "Joel Parra - Over 4.5 Rebotes [BC Dubai v Crvena Zvezda]"
+
+
+def test_jogador_nao_e_palavra_de_mercado_nem_time():
+    """`_jogador`: duas palavras ou mais com maiúscula no começo do mercado, antes de `. ` ou de
+    `Total`. Mercado (`Match Winner`, `Double Chance. 1st Half`) e time do jogo não são jogador."""
+    J = D._jogador
+    assert J("Alec Peters. Ressaltos. Com prorrogação") == "Alec Peters"
+    assert J("Jerian Grant Total de pontos. Com prorrogação") == "Jerian Grant"
+    assert J("Kyle Pitts Sr. Total receções") == "Kyle Pitts Sr."
+    assert J("Luca Cagnoni total de remates à baliza (incl. prolongamento)") == "Luca Cagnoni"
+    assert J("Escanteios Anderlecht total") == "" and J("Corners Manchester City total") == ""
+    assert J("Sander van Ockenburg. 180s") == "Sander van Ockenburg"
+    for m in ("Match Winner", "Double Chance. 1st Half", "Handicap. Com prorrogação",
+              "Total. 1ª metade", "Corners. Double chance", "Ambas as equipes vão marcar"):
+        assert J(m) == "", m
+    assert J("Kaspiy Aktau total. 1-st half", ("Kaspiy Aktau", "Oulu")) == ""
+    assert J("Kaspiy Aktau. Escanteios", ("Kaspiy Aktau", "Oulu")) == ""        # time do jogo
+    # a chave de categoria troca o jogador também
+    f = _dex("Alec Peters. Ressaltos. Com prorrogação", "Menos 3.5", "z")
+    assert ("categoria", "{jogador}. ressaltos. com prorrogação") in dicionario.chaves(f)
+
+
+def test_selecao_com_o_time_do_jogo_vira_ent_na_chave_de_categoria():
+    """`resultado da partida | ng ka long angus` era um termo por jogador (T1)."""
+    ev = "Ng Ka Long Angus vs Lee Zii Jia"
+    assert dicionario.sel_chave("Ng Ka Long Angus", ev) == "{ent}"
+    assert dicionario.sel_chave("Lee Zii Jia", ev) == "{ent}"
+    assert dicionario.sel_chave("Roma ou empate", "Roma vs Lazio") == "{ent} ou empate"
+    assert dicionario.sel_chave("Peristeri (+6)", "Peristeri vs AEK") == "{ent} (+{n})"
+    assert dicionario.sel_chave("1", ev) == "1" and dicionario.sel_chave("X", ev) == "x"
+    assert dicionario.sel_chave("Over 2.5", ev) == "over {n}"
+
+
+def test_handicap_da_1xbet_lado_e_sinal_sao_o_mesmo_mercado():
+    """Megapari (T1): `Handicap 1 (-1.5)`, `Handicap 1 (1.5)` e `Handicap 2 (2.5)` são UM
+    mercado; o lado vira o `{time}` e o sinal com a linha vira o `{hc}`."""
+    jogo = "Lakers - Celtics"
+    ps = [_p("Basketball", jogo, m) for m in ("Handicap 1 (-1.5)", "Handicap 1 (1.5)",
+                                               "Handicap 2 (2.5)", "Handicap 2 (-3)")]
+    assert {D.chave(p) for p in ps} == {"basketball | handicap {hc}"}
+    termos = dict(_aprende_termos(ps[0], "Lakers -1.5 [Lakers v Celtics]"))
+    assert D.montar({"pernas": [ps[2]]}, termos)[0] == "Celtics +2.5 [Lakers v Celtics]"
+    assert D.montar({"pernas": [ps[3]]}, termos)[0] == "Celtics -3 [Lakers v Celtics]"
+    # a linha do mercado tem de chegar à descrição
+    assert D.montar({"pernas": [ps[2]]}, {("descricao", "basketball | handicap {hc}"): "{time}"}) \
+        == (None, ["basketball | handicap {hc}"])
+    # `Individual Total 2` diz QUAL time: vira `{time}` (a IA votava `{t1}` contra `{t2}`)
+    it = _p("Football", "Lakers - Celtics", "Individual Total 2 Over (0.5)")
+    assert D.decompor(it)["time"] == "Celtics"
+    assert _aprende(it, "Celtics Over 0.5 Gols [Lakers v Celtics]") == \
+        [("football | individual total 2 ({n})", "{time} {ou} Gols")]
+    # a Megapari escreve `Handiсap` com o `с` cirílico
+    assert D.chave(_p("Esports", "A - B", "Handiсap 2 (1.5) Rounds")) == "esports | handicap {hc} rounds"
+
+
+def _aprende_termos(p, ia):
+    return {("descricao", k): v for k, v in _aprende(p, ia)}

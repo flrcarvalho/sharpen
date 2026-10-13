@@ -126,12 +126,34 @@ def _limpo(v) -> str:
 _SEL_CODIGO = frozenset({"1", "2", "x", "1x", "x2", "12"})
 
 
-def sel_chave(sel) -> str:
+def sel_chave(sel, evento=None) -> str:
     """A seleção na chave do par mercado + seleção (s413, P6 do parecer 013): número vira `{n}`
     também nela (`total pontos | menos de 71.5` até `80.5` eram 10 termos), menos na seleção
-    que é código (`1`, `2`, `X`, `1X`...)."""
+    que é código (`1`, `2`, `X`, `1X`...). s415 (T1): o time ou jogador do jogo (`evento`) vira
+    `{ent}`: `resultado da partida | ng ka long angus` era um termo por jogador."""
+    import descricao_ficha
     s = normalizar(sel, numeros=False)
-    return s if s in _SEL_CODIGO else normalizar(sel)
+    if s in _SEL_CODIGO:
+        return s
+    s = _limpo(sel)
+    t1, t2, _, _ = descricao_ficha._times(evento)
+    for t in sorted((t1, t2), key=len, reverse=True):
+        i, n = descricao_ficha._achar(s, t) if t else (-1, 0)
+        if i >= 0:
+            s = s[:i] + "{ent}" + s[i + n:]
+    return normalizar(s)
+
+
+def _par(p: dict) -> str:
+    return normalizar(p.get("mercado_casa")) + SEP + sel_chave(p.get("selecao_casa"),
+                                                               p.get("evento"))
+
+
+def _merc_jogador(p: dict) -> str | None:
+    """A chave de categoria com o jogador trocado por `{jogador}` (s415), ou None."""
+    import descricao_ficha
+    m = descricao_ficha.mercado_com_jogador(p)
+    return normalizar(m) if m else None
 
 
 def chaves(f: dict) -> list[tuple[str, str]]:
@@ -143,8 +165,9 @@ def chaves(f: dict) -> list[tuple[str, str]]:
     if f.get("tipo") == "simples" and len(pernas) == 1:
         p = pernas[0]
         out.append(("categoria", normalizar(p.get("mercado_casa"))))
-        out.append(("categoria", normalizar(p.get("mercado_casa")) + SEP
-                    + sel_chave(p.get("selecao_casa"))))
+        out.append(("categoria", _par(p)))
+        if (mj := _merc_jogador(p)):
+            out.append(("categoria", mj))
     return out
 
 
@@ -168,13 +191,15 @@ def traduzir(f: dict, termos: dict) -> tuple[str | None, str | None, list[tuple[
         categoria = MULTIPLA if pernas else None
     else:
         merc = normalizar(pernas[0].get("mercado_casa"))
-        par = merc + SEP + sel_chave(pernas[0].get("selecao_casa"))
+        par = _par(pernas[0])
+        mj = _merc_jogador(pernas[0])
         if merc in VAGOS:
             categoria = None
         elif merc == TOTAL:
             categoria = categoria_do_total(esporte, pernas[0])
         else:
-            categoria = termos.get(("categoria", merc)) or termos.get(("categoria", par))
+            categoria = termos.get(("categoria", merc)) or termos.get(("categoria", par)) \
+                or (termos.get(("categoria", mj)) if mj else None)
         if categoria is None:
             faltam.append(("categoria", merc))
     return esporte, categoria, faltam
@@ -263,7 +288,9 @@ def votar(pares, votos_texto=()) -> tuple[dict, dict, list]:
             merc = normalizar(p.get("mercado_casa"))
             if merc and merc not in VAGOS and merc != TOTAL:
                 votos[(casa, "categoria", merc)][cat_ia] += 1
-                votos[(casa, "categoria", merc + SEP + sel_chave(p.get("selecao_casa")))][cat_ia] += 1
+                votos[(casa, "categoria", _par(p))][cat_ia] += 1
+                if (mj := _merc_jogador(p)):          # s415: o mercado de qualquer jogador
+                    votos[(casa, "categoria", mj)][cat_ia] += 1
     for casa, termos_txt, esp_ia in votos_texto:
         termos_esp = {normalizar(t, numeros=False) for t in termos_txt} - {""}
         esp_ia = _limpo(esp_ia)
@@ -328,7 +355,8 @@ async def pares(conn) -> tuple[list, list, dict]:
     bil = {(b["dono"], b["casa"], b["parceiro"], b["codigo_bilhete"]): b for b in await conn.fetch(
         "SELECT b.dono, b.casa, b.parceiro, b.codigo_bilhete, b.esporte, b.aposta, b.descricao, "
         "EXISTS (SELECT 1 FROM correcoes c WHERE c.bilhete_id = b.id "
-        "        AND c.campo IN ('esporte', 'aposta', 'descricao')) AS editada FROM bilhetes b "
+        "        AND c.campo IN ('esporte', 'aposta', 'descricao') "
+        "        AND c.origem IS DISTINCT FROM 'ficha') AS editada FROM bilhetes b "
         "WHERE b.codigo_bilhete = ANY($1::text[]) AND b.origem IS DISTINCT FROM 'ficha'", codigos)}
     sombra = {(s["dono"], s["codigo"]): s for s in await conn.fetch(
         "SELECT DISTINCT ON (dono, codigo) dono, codigo, ia_esporte, ia_aposta, ia_descricao "
@@ -356,6 +384,7 @@ async def pares(conn) -> tuple[list, list, dict]:
     editadas = {(r["dono"], r["codigo_bilhete"]) for r in await conn.fetch(
         "SELECT DISTINCT b.dono, b.codigo_bilhete FROM bilhetes b JOIN correcoes c "
         "ON c.bilhete_id = b.id WHERE c.campo IN ('esporte', 'aposta', 'descricao') "
+        "AND c.origem IS DISTINCT FROM 'ficha' "
         "AND b.codigo_bilhete IS NOT NULL")}
     texto = []
     for s in await conn.fetch(
@@ -513,7 +542,7 @@ async def corrigir_termo(conn, casa: str, tipo: str, termo: str, para: str,
 
     def usa(f):
         if tipo == "descricao":
-            return termo in {descricao_ficha.chave(p) for p in f.get("pernas") or []}
+            return any(termo in descricao_ficha.chaves_da_perna(p) for p in f.get("pernas") or [])
         return termo in {k[1] if SEP not in k[1] else k[1].split(SEP)[0] for k in chaves(f)
                          if k[0] == tipo}
     return await regravar_mes(conn, casa, aplicar, hoje, usa, {(tipo, termo): para})
@@ -564,8 +593,9 @@ async def regravar_mes(conn, casa: str = "*", aplicar: bool = False, hoje=None, 
         if not novo:
             continue
         for b in await conn.fetch(
-                "SELECT b.id, b.data, b.esporte, b.aposta, b.descricao, "
-                "ARRAY(SELECT DISTINCT c.campo FROM correcoes c WHERE c.bilhete_id = b.id) AS ed "
+                "SELECT b.id, b.casa, b.data, b.esporte, b.aposta, b.descricao, "
+                "ARRAY(SELECT DISTINCT c.campo FROM correcoes c WHERE c.bilhete_id = b.id "
+                "      AND c.origem IS DISTINCT FROM 'ficha') AS ed "
                 "FROM bilhetes b WHERE b.dono = $1 AND b.codigo_bilhete = $2 "
                 "AND upper(replace(b.casa, ' ', '')) = $3 AND b.origem = 'ficha'",
                 fv["dono"], fv["codigo"], fv["casa"]):
@@ -577,9 +607,18 @@ async def regravar_mes(conn, casa: str = "*", aplicar: bool = False, hoje=None, 
             mudancas.append({"id": b["id"], "dono": fv["dono"], "codigo": fv["codigo"],
                              "antes": {k: b[k] for k in muda}, "depois": muda})
             if aplicar:
+                # s415 (RC34, R29): o antes e o depois ficam em `correcoes` (`origem = 'ficha'`,
+                # que NÃO conta como edição à mão) e a linha renova o `atualizado_em`
                 sets = ", ".join(f"{k} = ${i}" for i, k in enumerate(muda, 2))
-                await conn.execute(f"UPDATE bilhetes SET {sets} WHERE id = $1",
-                                   b["id"], *muda.values())
+                async with conn.transaction():
+                    await conn.execute(f"UPDATE bilhetes SET {sets}, atualizado_em = NOW() "
+                                       "WHERE id = $1", b["id"], *muda.values())
+                    for k, v in muda.items():
+                        await conn.execute(
+                            "INSERT INTO correcoes (bilhete_id, dono, casa, campo, valor_anterior, "
+                            "valor_novo, descricao, origem) VALUES ($1, $2, $3, $4, $5, $6, $7, "
+                            "'ficha')", b["id"], fv["dono"], b["casa"], k, b[k], v,
+                            b["descricao"])
     return mudancas
 
 

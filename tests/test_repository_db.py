@@ -1934,6 +1934,116 @@ def test_semente_regrava_a_descricao_da_ficha_do_mes_corrente(monkeypatch):
     assert depois == antes.replace("Pontos", "Pontos HC") and editada == []
 
 
+def test_regravacao_grava_antes_e_depois_em_correcoes(monkeypatch):
+    """s415 (RC34, R29): toda regravação de descrição grava o antes e o depois em `correcoes`
+    (`origem = 'ficha'`) e renova o `atualizado_em`. E essa linha NÃO conta como edição à mão:
+    a correção seguinte do Feca ainda regrava; só a edição humana trava.
+    Mutações (s415, detectadas): V1 sem a linha em `correcoes`, V2 a linha sem `origem`, V3 sem
+    renovar o `atualizado_em`, V4 a linha automática lida como edição à mão.
+    Não cobre: a `sombra_rotulos` da aposta da Ficha com correção automática (o filtro de
+    `editadas` em `dicionario.pares`); hoje só a Ficha tem essa correção, e a linha dela não vota."""
+    from datetime import datetime
+
+    import dicionario
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    cod = _SIMPLES
+    chave = "badminton | handicap pontos"
+
+    async def rodar():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("TRUNCATE correcoes")
+            await _simples_no_banco(conn, sess, pela_ficha=True)
+            b = await conn.fetchrow("SELECT id, data, descricao FROM bilhetes "
+                                    "WHERE codigo_bilhete = $1", cod)
+            d, m, a = (b["data"].split("/") if "/" in b["data"] else b["data"][:10].split("-")[::-1])
+            mes = datetime(int(a), int(m), 15)
+            await conn.execute("UPDATE bilhetes SET atualizado_em = '2000-01-01' WHERE id = $1", b["id"])
+            await conn.execute("UPDATE dicionario_termos SET termo_sharpen = '{ent} {hc} Pontos HC' "
+                               "WHERE tipo = 'descricao' AND termo_casa = $1", chave)
+            um = await dicionario.regravar_mes(conn, aplicar=True, hoje=mes, campos=("descricao",))
+            trilha = [dict(r) for r in await conn.fetch(
+                "SELECT bilhete_id, campo, valor_anterior, valor_novo, origem FROM correcoes")]
+            atual = await conn.fetchval("SELECT atualizado_em > '2001-01-01' FROM bilhetes "
+                                        "WHERE id = $1", b["id"])
+            await conn.execute("UPDATE dicionario_termos SET termo_sharpen = '{ent} {hc} Pontos HC2' "
+                               "WHERE tipo = 'descricao' AND termo_casa = $1", chave)
+            dois = await dicionario.regravar_mes(conn, aplicar=True, hoje=mes, campos=("descricao",))
+            await conn.execute("INSERT INTO correcoes (bilhete_id, dono, casa, campo, valor_anterior, "
+                               "valor_novo) VALUES ($1, 'TDonoV', 'Vavada', 'descricao', 'x', 'y')",
+                               b["id"])
+            await conn.execute("UPDATE dicionario_termos SET termo_sharpen = '{ent} {hc} Pontos' "
+                               "WHERE tipo = 'descricao' AND termo_casa = $1", chave)
+            humano = await dicionario.regravar_mes(conn, aplicar=True, hoje=mes, campos=("descricao",))
+            await conn.execute("TRUNCATE correcoes")
+        return b, um, trilha, atual, dois, humano
+    b, um, trilha, atual, dois, humano = _run(rodar())
+    novo = b["descricao"].replace("Pontos", "Pontos HC")
+    assert [x["depois"] for x in um] == [{"descricao": novo}]
+    assert trilha == [{"bilhete_id": b["id"], "campo": "descricao", "valor_anterior": b["descricao"],
+                       "valor_novo": novo, "origem": "ficha"}]
+    assert atual is True
+    assert [x["depois"] for x in dois] == [{"descricao": b["descricao"].replace("Pontos", "Pontos HC2")}]
+    assert humano == []
+
+
+def test_vigia_le_pela_ia_compara_e_nao_grava(monkeypatch):
+    """s415 (RC34): com `VIGIA_POR_DIA`, a aposta que a Ficha acabou de gravar também é lida pela
+    IA (aqui um dublê, sem chamada paga), numa chamada à parte. A divergência de DINHEIRO fica em
+    `vigia_ficha` e o custo em `uso_tokens` (`caminho = 'vigia'`); a linha da Ficha não muda. A
+    cota é por casa e por dia: a captura seguinte do mesmo dia não chama a IA de novo.
+    Mutações (s415, detectadas): W3 sem a cota do dia, W4 confere aposta da IA, W5 a aberta
+    conferida não volta ao liquidar, W6 a resposta do vigia vai ao `/salvar`, W7 sem os fiscais.
+    Não cobre: a chamada à IA de verdade (dublê) e o custo (só a linha em `uso_tokens`)."""
+    import main
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
+    monkeypatch.setenv("VIGIA_POR_DIA", "2")
+    chamadas = []
+
+    async def ia_duble(system, texto_, faltantes, modelo, instrucao, pensamento=None):
+        chamadas.append(list(faltantes))
+        linha = (f"10/10/2026\tMúltiplos\t\t{sess.casa}\t{sess.parceiro}\tMúltipla\t{_IA_ACEITA}"
+                 f"\t99\t7,6\tW\t{aceita}")
+        return [linha], {"input": 100, "output": 50, "cache_read": 1000, "cache_write": 0}
+    monkeypatch.setattr(main, "_repescar_faltantes", ia_duble)
+    monkeypatch.setattr(main, "build_system", lambda casa_key: [])
+
+    async def rodar():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("TRUNCATE vigia_ficha")
+            await conn.execute("DELETE FROM uso_tokens WHERE caminho = 'vigia'")
+        await _virada_ponta_a_ponta(sess, payload, texto)
+        await asyncio.sleep(0.3)                        # o vigia vai por `_fire`
+        # 2ª captura no mesmo dia: a aceita já foi conferida NESTE resultado, e as outras duas
+        # são da IA (`origem = 'extracao'`): nada a conferir, nenhuma chamada
+        await main._dedup_superbet_text(texto, sess.dono, sess.casa, sess.parceiro)
+        await asyncio.sleep(0.3)
+        async with pool.acquire() as conn:
+            vig = [dict(r) for r in await conn.fetch(
+                "SELECT codigo, divergente, campos, ia->>'stake' AS ia_stake FROM vigia_ficha")]
+            uso = await conn.fetchval("SELECT count(*) FROM uso_tokens WHERE caminho = 'vigia'")
+            linha = tuple(await conn.fetchrow("SELECT stake, resultado FROM bilhetes "
+                                              "WHERE codigo_bilhete = $1", aceita))
+            vagas = await virada.vigia_vagas(conn, sess.dono, "VAVADA")          # 2 − 1
+            # a aberta conferida volta a ser candidata quando liquida
+            ja = await virada.vigia_candidatos(conn, sess.dono, "VAVADA", list(_VIRADA), 5)
+            await conn.execute("UPDATE vigia_ficha SET ficha = ficha || '{\"resultado\": \"\"}'")
+            aberta = await virada.vigia_candidatos(conn, sess.dono, "VAVADA", list(_VIRADA), 5)
+        return vig, uso, linha, vagas, ja, aberta
+    import virada
+    vig, uso, linha, vagas, ja, aberta = _run(rodar())
+    assert chamadas == [[aceita]]
+    # a resposta passa pelos fiscais do titular: a stake (99 no dublê) vem do `Stake:` do bloco
+    # e o resultado do `Status:` dele (o texto do cenário diz 10 e Perdido; a Ficha, 25 e W)
+    assert vig == [{"codigo": aceita, "divergente": True, "campos": ["stake", "resultado"],
+                    "ia_stake": "10"}]
+    assert uso == 1 and linha == ("25", "W")             # a IA não gravou nada
+    assert vagas == 1 and ja == [] and aberta == [aceita]
+
+
 async def _corrigir_fora_do_master():
     import dicionario
     pool = await get_pool()

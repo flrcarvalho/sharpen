@@ -33,6 +33,16 @@ junta essas variantes num voto só, e o valor guardado é a variante mais votada
 Nomes vêm como o cru manda (`Leclerc, Charles`), sem reordenar (`MASTER_DESCRICAO §9`); para
 ACHAR o nome na descrição da IA, que às vezes reordena, valem as variantes (`_variantes`).
 O separador do jogo é sempre ` v ` (`MASTER_DESCRICAO §5`), nunca `vs`/`vs.`/` - `.
+
+s415 (T1): **o nome do jogador também sai da chave**, como o número virou `{n}`. A DEX escreve o
+jogador DENTRO do mercado (`Alec Peters. Ressaltos. Com prorrogação`), e cada jogador novo era
+uma chave nova, indo para a IA. `_jogador` acha o nome no começo do mercado; ele vira
+`{jogador}` na chave e no valor (`{jogador}. ressaltos. com prorrogação` → `{jogador} - {ou}
+Ressaltos`) quando a IA escreveu esse mesmo nome. O voto vale também na chave do próprio
+jogador (com o nome, como antes): a de qualquer jogador é consultada primeiro, e a dele só
+entra quando a de qualquer um está contradita.
+E o handicap da 1xBet (`Handicap 1 (-1.5)`, `Handicap 2 (1.5)`) é um mercado só: o lado vira o
+`{time}` e o sinal com a linha vira `{hc}`.
 """
 from __future__ import annotations
 
@@ -59,9 +69,36 @@ _CODIGO = {"1": 0, "2": 1, "w1": 0, "w2": 1, "v1": 0, "v2": 1, "p1": 0, "p2": 1}
 _EMPATE = {"x", "empate", "draw"}
 _SEP_JOGO = (" vs. ", " vs ", " v ", " - ")
 _SUFIXO = re.compile(r"\s+(\d+\.[ªº]\s+\w+)$")          # `1.ª parte`, `3.º quarto` (1xBet)
-_INDICE = re.compile(r"\b(equipa|team|time|individual|handicap)\s+([12])\b", re.I)
+# s415: `Individual Total 1 (0.5)` (Megapari) também diz QUAL time
+_INDICE = re.compile(r"\b(equipa|team|time|individual total|individual|handicap)\s+([12])\b",
+                     re.I)
 _PARENS_COD = re.compile(r"\s*\([A-Z]{2,4}\)\s*$")      # `Patrick Queen (PIT)`
-MARCAS = ("{ent}", "{ou}", "{hc}", "{mais}", "{time}", "{t1}", "{t2}")
+MARCAS = ("{ent}", "{ou}", "{hc}", "{mais}", "{time}", "{t1}", "{t2}", "{jogador}")
+# s415: o handicap da 1xBet no mercado (`Handicap 1 (-1.5)`, `Handicap 2 (1.5) Sets`,
+# `Handicap 2 -1 In 10 Minute`): o índice diz o time e o número (com sinal) é a linha
+_HC_MERC = re.compile(r"\bhandicap\s+([12])\s*(?:\(\s*([+-]?\d+(?:[.,]\d+)?)\s*\)|([+-]\d+(?:[.,]\d+)?))",
+                      re.I)
+# s415 (T1): o jogador no começo do mercado (DEX): `Alec Peters. Ressaltos. Com prorrogação`,
+# `Jerian Grant Total de pontos. Com prorrogação`. Duas palavras ou mais, cada uma com
+# maiúscula (partícula de nome no meio vale), antes do primeiro `. ` ou de um `Total`. O ponto
+# de abreviação é do nome (`Kyle Pitts Sr. Total receções`).
+_FIM_JOGADOR = re.compile(r"\.(?=\s)|\s+(?=[Tt]otal\b)")      # Bet Panda: `… total de remates`
+_ABREV = frozenset({"jr", "sr", "st", "ii", "iii", "iv"})
+_PARTICULA = frozenset({"de", "da", "do", "dos", "das", "van", "von", "der", "den", "di", "del",
+                        "la", "le", "du", "bin", "al", "e"})
+# Palavra de MERCADO não é nome: `Double Chance. 1st Half` não tem jogador
+_NAO_NOME = frozenset({"total", "totals", "winner", "vencedor", "handicap", "match", "partida",
+                       "double", "chance", "dupla", "corners", "escanteios", "cantos", "cards",
+                       "cartões", "both", "ambas", "draw", "empate", "result", "resultado",
+                       "half", "tempo", "set", "quarter", "quarto", "period", "período", "game",
+                       "jogo", "map", "mapa", "race", "odd", "even", "exact", "correct", "score",
+                       "placar", "asian", "european", "europeu", "team", "equipa", "equipe",
+                       "player", "jogador", "goals", "gols", "points", "pontos", "first", "last",
+                       "next", "to", "win", "over", "under", "mais", "menos", "yes", "no",
+                       "sim", "não", "and", "or", "ou", "with", "com", "overtime",
+                       "prorrogação", "bookings", "booking", "offsides", "fouls", "shots"})
+# Letra cirílica no lugar da latina (a Megapari escreve `Handiсap` com o `с` cirílico)
+_HOMOGLIFOS = str.maketrans({"с": "c", "а": "a", "е": "e", "о": "o", "р": "p", "х": "x"})
 _MARCA = re.compile(r"\{[a-z0-9]+\}")
 # O recorte de período por esporte (`MASTER_DESCRICAO §12.10`): a IA escreve `1º Tempo` e
 # `1ª Metade` no basquete quase meio a meio, e o Master decide. Esporte do Sharpen (o que o
@@ -73,7 +110,8 @@ _ENT_LINHA = re.compile(r"(\{(?:ent|time|t1|t2)\}) - (\{(?:ou|hc|mais)\})")
 # descrição da IA sem o time é erro dela (o total do time vira o total do jogo) e não vota.
 # Medido (s413): na MyStake esse voto derrubava os mercados de cartões e chutes por time.
 _DO_TIME = re.compile(r"\b(time de casa|time de fora|hometeam|awayteam|home team|away team|"
-                      r"equipa [12]|individual [12]|do time de casa|do time de fora)\b")
+                      r"equipa [12]|individual [12]|individual total [12]|do time de casa|"
+                      r"do time de fora)\b")
 _MARCA_TIME = re.compile(r"\{(?:time|t1|t2|ent)\}")
 
 
@@ -165,14 +203,50 @@ def _forma_num(n: str) -> str:
     return n.rstrip("0").rstrip(".") if "." in n else n
 
 
+def _jogador(merc: str, times=()) -> str:
+    """O nome do jogador no começo do mercado, ou `""`. Time do jogo não é jogador (ele já vira
+    `{time}`), nem trecho com palavra de mercado (`_NAO_NOME`)."""
+    nome = ""
+    for m in _FIM_JOGADOR.finditer(merc or ""):
+        antes = merc[:m.start()].split()
+        if m.group(0).startswith(".") and antes and antes[-1].casefold() in _ABREV:
+            continue                                   # o ponto é do nome
+        nome = merc[:m.start()].strip()               # `Kyle Pitts Sr.` leva o ponto junto
+        break
+    ws = nome.split()
+    if len(ws) < 2:
+        return ""
+    for i, w in enumerate(ws):
+        if w.casefold() in _NAO_NOME or any(c.isdigit() for c in w):
+            return ""
+        if 0 < i < len(ws) - 1 and w.casefold() in _PARTICULA:
+            continue
+        if not w[0].isupper():
+            return ""
+    for t in times:
+        if t and (_achar(nome, t)[0] >= 0 or _achar(t, nome)[0] >= 0):
+            return ""
+    return nome
+
+
+def mercado_com_jogador(p: dict) -> str | None:
+    """O mercado da casa com o jogador trocado por `{jogador}` (a chave de CATEGORIA do
+    `dicionario`), ou None quando o mercado não começa por um jogador."""
+    merc = _limpo(p.get("mercado_casa")).translate(_HOMOGLIFOS)
+    t1, t2, _, _ = _times(p.get("evento"))
+    nome = _jogador(merc, (t1, t2))
+    return "{jogador}" + merc[len(nome):] if nome else None
+
+
 def decompor(p: dict) -> dict:
-    """As peças de uma perna, sem IA: seleção, lado e linha, handicap, `N+`, times, e o
-    mercado efetivo (com o subjogo da 1xBet) de onde saem a chave e os `{nK}`."""
+    """As peças de uma perna, sem IA: seleção, lado e linha, handicap, `N+`, times, jogador, e
+    o mercado efetivo (com o subjogo da 1xBet) de onde saem a chave e os `{nK}`."""
     t1, t2, pre, suf = _times(p.get("evento"))
-    sel, merc = _limpo(p.get("selecao_casa")), _limpo(p.get("mercado_casa"))
+    sel = _limpo(p.get("selecao_casa"))
+    merc = _limpo(p.get("mercado_casa")).translate(_HOMOGLIFOS)
     linha = _limpo(p.get("linha"))
     d = {"t1": t1, "t2": t2, "ent": "", "ou": "", "hc": "", "mais": "", "time": "",
-         "codigo": False}
+         "codigo": False, "jogador": _jogador(merc, (t1, t2))}
     alvo = sel or merc                                # 1xBet: a seleção mora no mercado
     sn = alvo.casefold()
     if sn in _CODIGO or sn in _EMPATE:
@@ -200,6 +274,10 @@ def decompor(p: dict) -> dict:
         mi = _INDICE.search(merc)
         if mi:
             d["time"] = (t1, t2)[int(mi.group(2)) - 1]
+        mh = _HC_MERC.search(merc)
+        if mh and not d["ou"]:
+            n = _num(mh.group(2) or mh.group(3))
+            d["hc"] = n if n[0] in "+-" or float(n) == 0 else "+" + n
     if not d["time"]:
         for t in (t1, t2):
             if t and _achar(merc, t)[0] >= 0:
@@ -223,14 +301,21 @@ def _fieis(sel: str, linha: str, merc: str, d: dict) -> list[str]:
         m = _MERC_LADO.search(merc)
         if m:
             out.append(m.group("num") or m.group("num2"))
+        elif d["hc"]:
+            out.append(d["hc"].lstrip("+-"))
     return [_num(x) for x in out]
 
 
-def chave(p: dict, d: dict | None = None) -> str:
-    """`<esporte da casa> | <mercado>`: sem lado, sem linha, sem seleção e sem o time do jogo."""
+def chave(p: dict, d: dict | None = None, jogador: bool = False) -> str:
+    """`<esporte da casa> | <mercado>`: sem lado, sem linha, sem seleção e sem o time do jogo.
+    `jogador=True`: o jogador do começo do mercado vira `{jogador}` (s415)."""
     d = d or decompor(p)
     esporte = " ".join(str(p.get("esporte_casa") or "").casefold().split())
     s = d["efetivo"]
+    if jogador and d["jogador"] and s.startswith(d["jogador"]):
+        s = "{jogador}" + s[len(d["jogador"]):]
+    if d["hc"] and not _limpo(p.get("selecao_casa")):
+        s = _HC_MERC.sub("handicap {hc}", s, count=1)      # o lado e o sinal saem (s415)
     for t in (d["t1"], d["t2"]):
         i, n = _achar(s, t) if t else (-1, 0)
         if i >= 0:
@@ -242,6 +327,13 @@ def chave(p: dict, d: dict | None = None) -> str:
     s = re.sub(rf"[<>]\s*(\(?){_NUM.pattern}(\)?)", r"\1{n}\2", s)
     s = _NUM.sub("{n}", s)
     return esporte + SEP + s.replace("§a", "1").replace("§b", "2")
+
+
+def chaves_da_perna(p: dict) -> set[str]:
+    """As chaves que a montagem desta perna consulta: a do mercado e, com jogador, a de
+    `{jogador}` (s415)."""
+    d = decompor(p)
+    return {chave(p, d), chave(p, d, jogador=True)}
 
 
 def aprender(p: dict, desc_perna: str, d: dict | None = None, k: str | None = None) -> str | None:
@@ -258,8 +350,8 @@ def aprender(p: dict, desc_perna: str, d: dict | None = None, k: str | None = No
         return None                                   # jogo no cru e não na descrição
     usados = set()
     for marca, valor in (("{ou}", d["ou"]), ("{hc}", d["hc"]), ("{mais}", d["mais"]),
-                         ("{ent}", d["ent"]), ("{time}", d["time"]), ("{t1}", d["t1"]),
-                         ("{t2}", d["t2"])):
+                         ("{jogador}", d["jogador"]), ("{ent}", d["ent"]), ("{time}", d["time"]),
+                         ("{t1}", d["t1"]), ("{t2}", d["t2"])):
         if not valor or valor in usados:
             continue
         i, n = _achar(s, valor)
@@ -347,8 +439,15 @@ def montar(f: dict, termos: dict, propria=None) -> tuple[str | None, list[str]]:
             partes.append(x)
             continue
         d = decompor(p)
-        k = chave(p, d)
-        valor = termos.get(("descricao", k))
+        # s415: o mercado de QUALQUER jogador vem primeiro (é o que a maioria decidiu; a chave
+        # deste jogador guarda só o voto dele, e entra quando a de qualquer um está contradita)
+        ks = [chave(p, d, jogador=True)] if d["jogador"] else []
+        ks.append(chave(p, d))
+        valor = None
+        for k in ks:
+            if (valor := termos.get(("descricao", k))) is not None:
+                break
+        k = ks[0] if valor is None else k
         esporte = termos.get(("esporte", " ".join(str(p.get("esporte_casa") or "").lower().split())))
         x = montar_perna(p, valor, d, esporte) if valor is not None else None
         if x is None:
@@ -387,6 +486,13 @@ def votos(f: dict, descricao: str) -> list[tuple[str, str]]:
         v = aprender(p, t, d, k)
         if v is None or montar_perna(p, v, d) is None:
             continue
+        if "{jogador}" in v:
+            # s415: a IA escreveu o jogador do cru. O voto vai para a chave de QUALQUER jogador
+            # e também para a deste jogador, com o nome no valor, como antes: a de qualquer
+            # jogador pode ficar contradita (a IA escreve `Ressaltos`, `Rebotes` e `Rebounds`
+            # para o mesmo mercado), e aí a deste jogador ainda o descreve.
+            out.append((k, v.replace("{jogador}", d["jogador"])))
+            k = chave(p, d, jogador=True)
         # mercado do LADO sem o time: errado (o do NOME do time já cai no `aprender`, que exige
         # o `{time}` que o cru tem)
         if _DO_TIME.search(k) and not _MARCA_TIME.search(v):

@@ -701,6 +701,41 @@ async def _sombra_e_semente(dono: str, casa: str, texto: str | None, tsv: str) -
         await _dicionario.semear_agora("extrair")
 
 
+async def _vigia_rodar(dono: str, casa_key: str, casa: str, parceiro: str, texto: str,
+                       candidatos: list[str]) -> None:
+    """Vigia da virada (s415, `virada.vigia_*`): lê pela IA, numa chamada à parte, até
+    `VIGIA_POR_DIA` apostas por casa e dia que a Ficha gravou e que estão nesta captura
+    (`virada.vigia_candidatos`), passa a resposta
+    pelos mesmos fiscais determinísticos do titular e compara o DINHEIRO com a linha da Ficha.
+    A resposta não vai para o `/salvar`: a IA não grava nada. Nunca levanta."""
+    import virada as _virada
+    try:
+        from database import get_pool
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            vagas = await _virada.vigia_vagas(conn, dono, casa_key)
+            amostra = await _virada.vigia_candidatos(conn, dono, casa_key, candidatos, vagas)
+        if not amostra:
+            return
+        from datetime import datetime, timedelta, timezone
+        hoje = (datetime.now(timezone.utc) - timedelta(hours=3)).strftime("%d/%m/%Y")
+        instrucao = {"type": "text", "text": _INSTRUCAO.format(
+            casa=casa, parceiro=parceiro or "(não informado)", data_referencia=hoje)}
+        recorte = _blocos_dos_codigos(texto, amostra)
+        linhas, tk = await _repescar_faltantes(
+            build_system(casa_key), texto, amostra, DEFAULT_MODEL, instrucao,
+            _pensamento_kw(casa_key, [{"type": "text", "text": recorte}]))
+        _fire(registrar_uso(dono, casa, DEFAULT_MODEL, 1, len(amostra), tk, caminho="vigia"))
+        tsv, _ = _fiscais_da_sombra("\n".join(linhas), recorte, False, None)
+        async with pool.acquire() as conn:
+            div = await _virada.vigia_registrar(conn, dono, casa_key, amostra, tsv)
+        logger.info("vigia: %s/%s · %d aposta(s) da Ficha lida(s) pela IA, %d divergente(s), "
+                    "US$ %.4f", dono, casa_key, len(amostra), div,
+                    custo_usd_chamada(DEFAULT_MODEL, tk))
+    except Exception:  # noqa: BLE001 — o vigia nunca derruba a captura
+        logger.exception("vigia: falhou para %s/%s", dono, casa_key)
+
+
 async def _barreira_lembrar(dono: str, casa: str, texto: str | None) -> None:
     """Grava o hash dos blocos que ACABARAM de ser lidos pela IA. A leitura da barreira
     é lá no `_dedup_superbet_text`; aqui só a memória.
@@ -1342,6 +1377,11 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
         if pela_ficha:
             _fire(_barreira_lembrar(dono, casa, "\n\n".join(
                 b for b, i in zip(blocks, ids) if i in pela_ficha)))
+        # Vigia (s415): candidatas = as desta captura que estão no banco (a Ficha as resolveu
+        # agora ou pela rota do cru, antes); quem escolhe é `vigia_candidatos`.
+        if _virada.vigia_por_dia() and (cands := sorted((pela_ficha | ja_resolvidos)
+                                                        & set(codigos))):
+            _fire(_vigia_rodar(dono, casa_key, casa, parceiro, text, cands))
 
     if not mantidos:
         return "", skipped

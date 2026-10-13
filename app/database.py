@@ -1048,6 +1048,29 @@ ALTER TABLE dicionario_termos ADD CONSTRAINT dicionario_termos_tipo_check
 ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS descricao_fora INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE semente_log ADD COLUMN IF NOT EXISTS revisao JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE semente_log ADD COLUMN IF NOT EXISTS regravadas INTEGER NOT NULL DEFAULT 0;
+
+-- s415 (RC34, R29): a regravação da Ficha (`dicionario.regravar_mes`) grava o antes e o depois
+-- em `correcoes`, com `origem = 'ficha'`. NULL = correção humana (ou script antigo): é ela que
+-- manda sobre a captura, e a regravação automática NÃO conta como edição à mão (senão a próxima
+-- correção do Feca não regravaria mais a linha, e a aposta sairia da semente).
+ALTER TABLE correcoes ADD COLUMN IF NOT EXISTS origem TEXT;
+
+-- s415 (RC34): o vigia da virada (`virada.vigia_*`, desligado sem `VIGIA_POR_DIA`). Uma
+-- amostra das apostas que a Ficha gravou também é lida pela IA, numa chamada à parte, só para
+-- comparar o dinheiro (stake, odd, resultado); a IA não grava nada. Uma linha por aposta
+-- conferida; `campos` = os que divergem (`linha` = a IA não devolveu linha para o código).
+CREATE TABLE IF NOT EXISTS vigia_ficha (
+    id          BIGSERIAL PRIMARY KEY,
+    criado_em   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    dono        TEXT NOT NULL,
+    casa        TEXT NOT NULL,
+    codigo      TEXT NOT NULL,
+    ficha       JSONB NOT NULL,
+    ia          JSONB,
+    divergente  BOOLEAN NOT NULL,
+    campos      TEXT[] NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS vigia_ficha_casa ON vigia_ficha (casa, criado_em);
 """
 
 

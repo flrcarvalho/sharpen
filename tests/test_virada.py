@@ -46,6 +46,9 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   s413 (dicionário de descrição; o resto em `tests/test_descricao_ficha.py`):
   D1. mercado sem par de descrição grava assim mesmo      → test_descricao_fora_do_dicionario_vai_a_ia…
   D2. maioria de 90% vira contradição (P7)                → test_esporte_geral_pela_maioria_de_cada_casa
+  s415 (o vigia; o resto no harness de banco):
+  W1. o vigia ignora a stake                              → test_vigia_compara_o_dinheiro_nao_a_forma
+  W2. o vigia compara a odd crua também na perdida        → test_vigia_compara_o_dinheiro_nao_a_forma
 Inócua (registrada, não é buraco): `virada()` aceitar `*` — o `casas_viradas()` já tira o `*`
 da lista antes, então o código segue certo sem a linha.
 
@@ -603,3 +606,33 @@ def test_grava_pelo_salvar_com_origem_ficha(monkeypatch):
                                         DESC_5508528206)
     assert DESC_5508528206 in body.tsv
     assert body.carimbos == {"5508528206": "20261010074000"} and body.moedas == ["USD"]
+
+
+# ── s415: o vigia da virada ──────────────────────────────────────────────────────────────
+
+def test_vigia_compara_o_dinheiro_nao_a_forma():
+    """O vigia acusa onde o DINHEIRO muda: stake, resultado, e a odd só pelo P/L na liquidada
+    (a IA escreve a odd da W como retorno ÷ stake, e as duas pagam o mesmo)."""
+    C = virada.vigia_comparar
+    ficha = {"stake": "10", "odd": "1,85", "resultado": "W"}
+    assert C(ficha, {"stake": "10,00", "odd": "1.85", "resultado": "W"}) == []
+    assert C(ficha, {"stake": "10", "odd": "1,8500", "resultado": "W"}) == []
+    assert C(ficha, {"stake": "12", "odd": "1,85", "resultado": "W"}) == ["stake", "odd"]
+    assert C(ficha, {"stake": "10", "odd": "1,85", "resultado": "L"}) == ["resultado"]
+    assert C(ficha, {"stake": "10", "odd": "1,95", "resultado": "W"}) == ["odd"]
+    # perdida: a odd não muda o dinheiro
+    assert C({"stake": "10", "odd": "1,85", "resultado": "L"},
+             {"stake": "10", "odd": "2,10", "resultado": "L"}) == []
+    # aberta: a própria odd
+    assert C({"stake": "10", "odd": "1,85", "resultado": ""},
+             {"stake": "10", "odd": "1,90", "resultado": ""}) == ["odd"]
+    assert C(ficha, None) == ["linha"]
+
+
+def test_vigia_desligado_sem_a_variavel(monkeypatch):
+    monkeypatch.delenv("VIGIA_POR_DIA", raising=False)
+    assert virada.vigia_por_dia() == 0
+    monkeypatch.setenv("VIGIA_POR_DIA", "3")
+    assert virada.vigia_por_dia() == 3
+    monkeypatch.setenv("VIGIA_POR_DIA", "x")
+    assert virada.vigia_por_dia() == 0

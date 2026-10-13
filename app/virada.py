@@ -395,6 +395,144 @@ async def registrar(dono: str, casa_key: str, capturadas: int, ja_no_banco: int,
         logger.exception("virada: não registrou a métrica de %s/%s", dono, casa_key)
 
 
+# ── vigia da virada (s415, RC34/R29) ─────────────────────────────────────────────────────
+# Uma amostra das apostas que a Ficha gravou também é lida pela IA, numa chamada À PARTE e em
+# segundo plano, só para comparar o dinheiro: stake, resultado e odd (P/L, na liquidada). A
+# IA não grava nada: a resposta dela vai só para `vigia_ficha`. Desligado com
+# `VIGIA_POR_DIA` vazio ou 0; ligado, é o máximo de apostas por casa por dia, numa chamada só
+# (a primeira captura do dia com aposta da Ficha ainda não conferida naquele resultado; a
+# aberta conferida volta a valer quando liquida). A chamada à parte e não no lote da
+# IA porque o lote volta para a extensão, que o grava pelo `/salvar`: a IA escreveria por
+# cima da Ficha.
+
+def vigia_por_dia() -> int:
+    try:
+        return max(0, int(os.environ.get("VIGIA_POR_DIA", "") or 0))
+    except ValueError:
+        return 0
+
+
+async def vigia_vagas(conn, dono: str, casa_key: str) -> int:
+    """Quantas apostas ainda cabem hoje (dia de Brasília) para esta casa e dono."""
+    n = await conn.fetchval(
+        "SELECT count(*) FROM vigia_ficha WHERE dono = $1 AND casa = $2 AND "
+        "(criado_em AT TIME ZONE 'America/Sao_Paulo')::date = "
+        "(NOW() AT TIME ZONE 'America/Sao_Paulo')::date", dono, (casa_key or "").upper())
+    return max(0, vigia_por_dia() - int(n or 0))
+
+
+async def vigia_candidatos(conn, dono: str, casa_key: str, codigos: list[str],
+                           vagas: int) -> list[str]:
+    """Até `vagas` apostas desta captura que a FICHA gravou (`origem = 'ficha'`) e que o vigia
+    ainda não conferiu NESTE resultado (a aberta conferida volta a ser candidata quando
+    liquida), a mais recente primeiro. A liquidada pela rota do cru já chega ao `/extrair`
+    como resolvida: por isso a escolha é pelo banco, não pelo que a Ficha resolveu agora."""
+    if vagas <= 0 or not codigos:
+        return []
+    rows = await conn.fetch(
+        "SELECT b.codigo_bilhete FROM bilhetes b WHERE b.dono = $1 AND b.origem = 'ficha' "
+        "AND upper(replace(b.casa, ' ', '')) = $2 AND b.codigo_bilhete = ANY($3::text[]) "
+        "AND NOT EXISTS (SELECT 1 FROM vigia_ficha v WHERE v.dono = b.dono AND v.casa = $2 "
+        "  AND v.codigo = b.codigo_bilhete "
+        "  AND coalesce(v.ficha->>'resultado', '') = coalesce(b.resultado, '')) "
+        "ORDER BY b.atualizado_em DESC NULLS LAST, b.id DESC LIMIT $4",
+        dono, (casa_key or "").upper(), list(codigos), vagas)
+    return [r["codigo_bilhete"] for r in rows]
+
+
+def _f(v) -> float | None:
+    """Número da planilha (`10,50`, `1.85`, `1.234,56`)."""
+    s = _limpo(v)
+    if not s:
+        return None
+    if "," in s:
+        s = s.replace(".", "").replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _pl(stake, odd, res) -> float | None:
+    """O P/L pelas fórmulas do `calcular_pl` (None na aberta)."""
+    if stake is None or not res:
+        return None
+    if res == "L":
+        return -stake
+    if res == "V":
+        return 0.0
+    if odd is None:
+        return None
+    if res == "W":
+        return stake * (odd - 1)
+    if res == "HW":
+        return stake / 2 * (odd - 1)
+    if res == "HL":
+        return -stake / 2
+    return None
+
+
+def vigia_comparar(ficha: dict, ia: dict | None) -> list[str]:
+    """Os campos de DINHEIRO em que a IA diverge da linha que a Ficha gravou. `ficha` e `ia` =
+    {stake, odd, resultado} como a planilha guarda. Sem linha da IA para o código: `["linha"]`.
+    A odd só conta onde muda o dinheiro: na liquidada compara o P/L (a IA escreve a odd da W
+    como retorno ÷ stake, e as duas pagam o mesmo); na aberta, a própria odd."""
+    if not ia:
+        return ["linha"]
+    out = []
+    sf, si = _f(ficha.get("stake")), _f(ia.get("stake"))
+    if sf is None or si is None or abs(sf - si) > 0.005:
+        out.append("stake")
+    rf, ri = _limpo(ficha.get("resultado")).upper(), _limpo(ia.get("resultado")).upper()
+    if rf != ri:
+        out.append("resultado")
+    of, oi = _f(ficha.get("odd")), _f(ia.get("odd"))
+    if rf and rf == ri:
+        pf, pi = _pl(sf, of, rf), _pl(si, oi, ri)
+        if pf is None or pi is None or abs(pf - pi) > 0.01:
+            out.append("odd")
+    elif not rf and not ri and (of is None or oi is None or abs(of - oi) > 0.005):
+        out.append("odd")
+    return out
+
+
+def _linhas_por_codigo(tsv: str) -> dict:
+    out = {}
+    for linha in (tsv or "").splitlines():
+        col = linha.split("\t")
+        if len(col) >= 11 and _limpo(col[10]):
+            out[_limpo(col[10])] = {"stake": col[7], "odd": col[8], "resultado": col[9],
+                                    "descricao": col[6]}
+    return out
+
+
+async def vigia_registrar(conn, dono: str, casa_key: str, codigos: list[str], tsv: str) -> int:
+    """Compara a resposta da IA (`tsv`, já pelos fiscais determinísticos) com a linha que a
+    Ficha gravou e grava uma linha por código em `vigia_ficha`. Devolve as divergentes."""
+    ia = _linhas_por_codigo(tsv)
+    div = 0
+    for cod in codigos:
+        b = await conn.fetchrow(
+            "SELECT stake, odd, resultado, descricao FROM bilhetes WHERE dono = $1 "
+            "AND codigo_bilhete = $2 AND upper(replace(casa, ' ', '')) = $3 "
+            "ORDER BY id DESC LIMIT 1", dono, cod, (casa_key or "").upper())
+        if not b:
+            continue
+        f = {k: b[k] for k in ("stake", "odd", "resultado", "descricao")}
+        campos = vigia_comparar(f, ia.get(cod))
+        div += bool(campos)
+        await conn.execute(
+            "INSERT INTO vigia_ficha (dono, casa, codigo, ficha, ia, divergente, campos) "
+            "VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6, $7::text[])",
+            dono, (casa_key or "").upper(), cod, json.dumps(f, ensure_ascii=False),
+            json.dumps(ia.get(cod), ensure_ascii=False) if cod in ia else None,
+            bool(campos), campos)
+        if campos:
+            logger.warning("vigia: %s %s %s · a IA diverge da Ficha em %s: Ficha %s × IA %s",
+                           dono, casa_key, cod, campos, f, ia.get(cod))
+    return div
+
+
 # ── termo novo foi para a IA: a semente roda logo depois dela (s412) ─────────────────────
 _termo_novo: set = set()
 
