@@ -17,8 +17,9 @@ Dois caminhos chegam aqui, e os dois chamam o mesmo `aplicar`:
      pela Ficha (aberto ou liquidado) SAI do lote da IA.
 
 **Cru velho não esconde a liquidação (furo N3, parecer 012; s412).** No `/extrair`, a Ficha só
-tira o código da fila da IA se o cru usado é DESTA captura (chegou na janela `JANELA_CRU` antes
-do extrair) ou se o bloco de texto não mudou desde a última leitura (a barreira de hoje). Texto
+tira o código da fila da IA se o cru usado é DESTA captura (chegou DEPOIS do último `/extrair`
+da mesma casa e dono; R32, s416) ou se o bloco de texto não mudou desde a última leitura (a
+barreira de hoje). Texto
 mudado sem cru novo (a extensão recarregada sem F5 na aba da casa manda o texto e não o cru) vai
 para a IA, e o `virada_log` o conta à parte (`sem_cru_novo`).
 
@@ -70,7 +71,11 @@ _SISTEMA_VB = re.compile(r"^(\d+) x (\d+) de (\d+)$")
 ESPERA_MAX = 8.0        # teto, com cru ainda em processamento
 FOLGA = 1.5             # sem cru em voo nem recente: espera isto por um POST que está no fio
 RECENTE = 3.0           # cru terminado até isto antes do extrair = é o desta captura
-JANELA_CRU = 30.0       # cru guardado até isto antes do extrair (+ a espera) = desta captura (N3)
+# Cru DESTA captura (N3) = chegou depois do último `/extrair` da mesma casa e dono (R32, s416;
+# o `virada_log` guarda o instante). A janela fixa de 30 s deixava de fora o cru que chega
+# antes (Duel, 14/10: 13 crus 32 s antes do `/extrair`, 8 apostas à IA à toa) e só vale
+# quando a casa ainda não tem `/extrair` nenhum no log.
+JANELA_CRU = 30.0
 # A espera supõe UM processo só: `_em_voo` e `_ultimo_fim` vivem na memória do processo; com
 # mais de uma réplica o cru pode entrar noutra e o `/extrair` não o veria em voo.
 _em_voo: dict[tuple, int] = {}
@@ -329,6 +334,13 @@ async def gravar_aceitas(sess, registros: list[dict]) -> int:
     return len(resolvidos)
 
 
+async def ultimo_extrair(conn, dono: str, casa_key: str):
+    """O instante do último `/extrair` desta casa e dono (a linha do `virada_log`, gravada no
+    fim de cada um), ou None. O `/extrair` de AGORA ainda não tem linha: ele a grava depois."""
+    return await conn.fetchval("SELECT max(criado_em) FROM virada_log WHERE dono = $1 AND "
+                               "casa = $2", dono, (casa_key or "").upper())
+
+
 async def resolver_no_extrair(dono: str, casa_key: str, casa: str, parceiro: str,
                               codigos: list[str], inalterados=frozenset()
                               ) -> tuple[set[str], float, dict]:
@@ -338,7 +350,8 @@ async def resolver_no_extrair(dono: str, casa_key: str, casa: str, parceiro: str
 
     `inalterados` = códigos cujo bloco de texto é igual ao da última leitura. Para os OUTROS,
     só o cru desta captura vale (N3): cru anterior com texto mudado é a liquidação que o cru
-    velho esconderia, e o código vai para a IA."""
+    velho esconderia, e o código vai para a IA. Desta captura = chegou depois do último
+    `/extrair` desta casa e dono (`virada_log`; R32), ou, sem nenhum, na `JANELA_CRU`."""
     if not virada(casa_key) or not codigos:
         return set(), 0.0, {}
     espera = 0.0
@@ -346,12 +359,15 @@ async def resolver_no_extrair(dono: str, casa_key: str, casa: str, parceiro: str
         espera = await esperar_cru(dono, casa_key)
         pool = await _pool_conn()
         async with pool.acquire() as conn:
+            ultimo = await ultimo_extrair(conn, dono, casa_key)
             crus = await conn.fetch(
                 "SELECT DISTINCT ON (codigo) codigo, familia, cru::text AS cru, "
-                "(recebido_em >= NOW() - make_interval(secs => $4)) AS fresco FROM captura_crua "
+                "(CASE WHEN $5::timestamptz IS NULL "
+                "      THEN recebido_em >= NOW() - make_interval(secs => $4) "
+                "      ELSE recebido_em > $5::timestamptz END) AS fresco FROM captura_crua "
                 "WHERE dono = $1 AND casa = $2 AND codigo = ANY($3::text[]) "
                 "ORDER BY codigo, id DESC", dono, casa_key.upper(), list(codigos),
-                float(JANELA_CRU + espera))
+                float(JANELA_CRU + espera), ultimo)
             candidatas, fica, velhos = {}, {}, {}
             for c in crus:
                 if not c["fresco"] and c["codigo"] not in inalterados:
@@ -399,9 +415,11 @@ async def registrar(dono: str, casa_key: str, capturadas: int, ja_no_banco: int,
 # Uma amostra das apostas que a Ficha gravou também é lida pela IA, numa chamada À PARTE e em
 # segundo plano, só para comparar o dinheiro: stake, resultado e odd (P/L, na liquidada). A
 # IA não grava nada: a resposta dela vai só para `vigia_ficha`. Desligado com
-# `VIGIA_POR_DIA` vazio ou 0; ligado, é o máximo de apostas por casa por dia, numa chamada só
-# (a primeira captura do dia com aposta da Ficha ainda não conferida naquele resultado; a
-# aberta conferida volta a valer quando liquida). A chamada à parte e não no lote da
+# `VIGIA_POR_DIA` vazio ou 0; ligado, é o máximo de apostas numa chamada. D28 (Feca,
+# 14/10/2026): UMA chamada por casa virada por dia (dia de Brasília), de qualquer dono, na
+# primeira captura do dia com aposta da Ficha ainda não conferida naquele resultado (a aberta
+# conferida volta a valer quando liquida). Ligado em 14/10/2026 com 3, por 2 semanas: rever
+# em 27/10 (BACKLOG). A chamada à parte e não no lote da
 # IA porque o lote volta para a extensão, que o grava pelo `/salvar`: a IA escreveria por
 # cima da Ficha.
 
@@ -412,13 +430,33 @@ def vigia_por_dia() -> int:
         return 0
 
 
-async def vigia_vagas(conn, dono: str, casa_key: str) -> int:
-    """Quantas apostas ainda cabem hoje (dia de Brasília) para esta casa e dono."""
-    n = await conn.fetchval(
-        "SELECT count(*) FROM vigia_ficha WHERE dono = $1 AND casa = $2 AND "
+async def vigia_vagas(conn, casa_key: str) -> int:
+    """Quantas apostas a chamada de hoje pode levar: `VIGIA_POR_DIA`, ou 0 se esta casa já
+    teve a sua chamada hoje (dia de Brasília), de QUALQUER dono (D28)."""
+    ja = await conn.fetchval(
+        "SELECT EXISTS (SELECT 1 FROM vigia_ficha WHERE casa = $1 AND "
         "(criado_em AT TIME ZONE 'America/Sao_Paulo')::date = "
-        "(NOW() AT TIME ZONE 'America/Sao_Paulo')::date", dono, (casa_key or "").upper())
-    return max(0, vigia_por_dia() - int(n or 0))
+        "(NOW() AT TIME ZONE 'America/Sao_Paulo')::date)", (casa_key or "").upper())
+    return 0 if ja else vigia_por_dia()
+
+
+_vigia_reservas: set = set()
+
+
+def vigia_reservar(casa_key: str, hoje: str) -> bool:
+    """Reserva a chamada do dia desta casa NESTE processo: duas capturas ao mesmo tempo (Feca e
+    Gabriel) passariam as duas pelo `vigia_vagas` antes de a primeira gravar. Supõe um
+    processo só, como a espera pelo cru."""
+    k = ((casa_key or "").upper(), hoje)
+    if k in _vigia_reservas:
+        return False
+    _vigia_reservas.add(k)
+    return True
+
+
+def vigia_soltar(casa_key: str, hoje: str) -> None:
+    """Devolve a reserva quando a chamada não aconteceu (nada a conferir, ou falhou)."""
+    _vigia_reservas.discard(((casa_key or "").upper(), hoje))
 
 
 async def vigia_candidatos(conn, dono: str, casa_key: str, codigos: list[str],

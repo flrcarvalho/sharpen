@@ -9,6 +9,9 @@ uma vez com a cópia da versão anterior e outra com a atual, e compare. `--fuso
 da versão anterior: conta as chaves dela que viram UMA chave na versão de `--app`.
 `--decidir-fundidas` = simula as chaves fundidas que ficaram contraditas decididas pela mais
 votada (quem decide de verdade é o Feca, por `corrigir_termo`).
+`--logs A-B` = os `virada_log` do teste (padrão 14-21). `--feca-ate ISO` = só as correções do
+Feca gravadas até esse instante (o "antes" de uma rodada de correções; s416: `2026-10-14T04:50Z`
+separa as 24 do D27).
 
 Resultado em 13/10/2026 (s415), 154 códigos: 59 pela Ficha com a s414, 65 com a s415, 77 com as
 3 fundidas contraditas decididas (`Ressaltos`/`Rebotes`/`Rebounds` na DEX é a maior).
@@ -33,7 +36,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 CORTE = datetime(2026, 10, 13, 15, 50, tzinfo=timezone.utc)
-LOGS = range(14, 22)
 
 
 def _carregar_env():
@@ -68,6 +70,8 @@ async def main():
     ap.add_argument("--app", default=str(ROOT / "app"))
     ap.add_argument("--fusoes", default="")
     ap.add_argument("--decidir-fundidas", action="store_true")
+    ap.add_argument("--logs", default="14-21")
+    ap.add_argument("--feca-ate", default="")
     a = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
     sys.path.insert(0, str(ROOT / "app"))
@@ -95,9 +99,10 @@ async def main():
             "AND codigo_bilhete IS NOT NULL", CORTE)}
         treino = [x for x in pares if x[1].get("codigo") not in depois]
         unanimes, contraditos, _ = dicionario.votar(treino, texto)
+        ate = datetime.fromisoformat(a.feca_ate.replace("Z", "+00:00")) if a.feca_ate else None
         feca = {(r["casa"], r["tipo"], r["termo_casa"]): r["termo_sharpen"] for r in await c.fetch(
             "SELECT casa, tipo, termo_casa, termo_sharpen FROM dicionario_termos "
-            "WHERE origem = 'feca'")}
+            "WHERE origem = 'feca' AND ($1::timestamptz IS NULL OR atualizado_em <= $1)", ate)}
         fk = [(cc, t, k) for cc, t, k in feca]
         unanimes = {k: v for k, v in unanimes.items() if not dicionario.coberto_pelo_feca(fk, *k)}
         fundidas = {k: c_ for k, c_ in contraditos.items() if "{jogador}" in k[2] or "{hc}" in k[2]}
@@ -118,8 +123,9 @@ async def main():
         # o teste: os códigos de cada captura 14..21
         res = defaultdict(Counter)
         exemplos = defaultdict(list)
+        i0, i1 = (int(x) for x in a.logs.split("-"))
         for lg in await c.fetch("SELECT * FROM virada_log WHERE id = ANY($1::bigint[]) ORDER BY id",
-                                list(LOGS)):
+                                list(range(i0, i1 + 1))):
             casa, dono, t = lg["casa"], lg["dono"], lg["criado_em"]
             cods = await c.fetch(
                 "SELECT codigo, estado, motivo FROM ficha_virada WHERE dono = $1 AND casa = $2 "

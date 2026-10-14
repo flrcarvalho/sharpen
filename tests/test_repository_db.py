@@ -1668,6 +1668,30 @@ def test_virada_n3_texto_mudou_sem_cru_novo_vai_para_a_ia(monkeypatch):
     assert log == {"pela_ficha": 0, "para_ia": 1, "sem_cru_novo": 1}
 
 
+def test_virada_r32_cru_32s_antes_do_extrair_e_desta_captura(monkeypatch):
+    """R32 (s416): Duel, 14/10 (virada_log 43): 13 crus chegaram às 04:21:55 e o `/extrair` às
+    04:22:27. A janela fixa de 30 s os julgava velhos e 8 apostas foram à IA à toa. Regra
+    nova: o cru vale para esta captura se chegou DEPOIS do último `/extrair` da mesma casa e
+    dono. Cru de antes da extração passada continua velho (o N3, no teste de cima).
+    Mutações R1 (volta a janela fixa) e R2 (qualquer cru vale, sem o N3): detectadas."""
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA", aberta=True)
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    mudou = texto.replace(f"[Código: {aceita}]\nStake: 10\nStatus: Perdido",
+                          f"[Código: {aceita}]\nStake: 10\nStatus: Ganho")
+
+    async def recuar():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            # o `/extrair` passado foi há 10 min; o cru novo chegou 32 s antes deste
+            await conn.execute("UPDATE virada_log SET criado_em = NOW() - interval '10 minutes'")
+            await conn.execute("UPDATE captura_crua SET recebido_em = NOW() - interval '32 seconds'")
+    _run(recuar())
+    lidos, log = _run(_virada_segunda_captura(sess, mudou, envelhecer=False))
+    assert aceita not in lidos
+    assert log["sem_cru_novo"] == 0 and log["pela_ficha"] == 1
+
+
 def test_virada_n3_texto_igual_sem_cru_novo_fica_com_a_ficha(monkeypatch):
     """A outra metade da regra: bloco igual ao da última leitura, cru antigo → a Ficha segura
     o código (é a barreira de hoje). Prova também que a Ficha grava o `bloco_visto` do que
@@ -1991,8 +2015,10 @@ def test_regravacao_grava_antes_e_depois_em_correcoes(monkeypatch):
 def test_vigia_le_pela_ia_compara_e_nao_grava(monkeypatch):
     """s415 (RC34): com `VIGIA_POR_DIA`, a aposta que a Ficha acabou de gravar também é lida pela
     IA (aqui um dublê, sem chamada paga), numa chamada à parte. A divergência de DINHEIRO fica em
-    `vigia_ficha` e o custo em `uso_tokens` (`caminho = 'vigia'`); a linha da Ficha não muda. A
-    cota é por casa e por dia: a captura seguinte do mesmo dia não chama a IA de novo.
+    `vigia_ficha` e o custo em `uso_tokens` (`caminho = 'vigia'`); a linha da Ficha não muda.
+    D28 (s416): UMA chamada por casa por dia, de qualquer dono: a captura seguinte do mesmo dia
+    não chama a IA de novo, nem com aposta nova a conferir (a reserva em memória é limpa antes,
+    para a prova ser a do banco, como depois de um restart).
     Mutações (s415, detectadas): W3 sem a cota do dia, W4 confere aposta da IA, W5 a aberta
     conferida não volta ao liquidar, W6 a resposta do vigia vai ao `/salvar`, W7 sem os fiscais.
     Não cobre: a chamada à IA de verdade (dublê) e o custo (só a linha em `uso_tokens`)."""
@@ -2027,11 +2053,15 @@ def test_vigia_le_pela_ia_compara_e_nao_grava(monkeypatch):
             uso = await conn.fetchval("SELECT count(*) FROM uso_tokens WHERE caminho = 'vigia'")
             linha = tuple(await conn.fetchrow("SELECT stake, resultado FROM bilhetes "
                                               "WHERE codigo_bilhete = $1", aceita))
-            vagas = await virada.vigia_vagas(conn, sess.dono, "VAVADA")          # 2 − 1
+            vagas = await virada.vigia_vagas(conn, "VAVADA")       # a chamada de hoje já foi
             # a aberta conferida volta a ser candidata quando liquida
             ja = await virada.vigia_candidatos(conn, sess.dono, "VAVADA", list(_VIRADA), 5)
             await conn.execute("UPDATE vigia_ficha SET ficha = ficha || '{\"resultado\": \"\"}'")
             aberta = await virada.vigia_candidatos(conn, sess.dono, "VAVADA", list(_VIRADA), 5)
+        # D28: com aposta a conferir de novo, a casa não chama a IA uma segunda vez no dia (a
+        # cota é da casa: `vigia_vagas` nem recebe o dono)
+        virada._vigia_reservas.clear()
+        await main._vigia_rodar(sess.dono, "VAVADA", sess.casa, sess.parceiro, texto, [aceita])
         return vig, uso, linha, vagas, ja, aberta
     import virada
     vig, uso, linha, vagas, ja, aberta = _run(rodar())
@@ -2041,7 +2071,7 @@ def test_vigia_le_pela_ia_compara_e_nao_grava(monkeypatch):
     assert vig == [{"codigo": aceita, "divergente": True, "campos": ["stake", "resultado"],
                     "ia_stake": "10"}]
     assert uso == 1 and linha == ("25", "W")             # a IA não gravou nada
-    assert vagas == 1 and ja == [] and aberta == [aceita]
+    assert vagas == 0 and ja == [] and aberta == [aceita]
 
 
 async def _corrigir_fora_do_master():

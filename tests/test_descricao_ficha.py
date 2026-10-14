@@ -32,9 +32,9 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   Mais 6 no cabeçalho de `test_virada.py` (D1, D2) e do harness de banco (D3 a D6).
   s415 (T1, o jogador fora da chave; 13/10/2026), 15 de 15 detectadas:
   J1. a chave ignora o jogador                           → test_dois_jogadores_no_mesmo_mercado…
-  J2. sem o voto na chave do próprio jogador             → test_dois_jogadores… / …contradito…
+  J2. (saiu na s416: o voto na chave do próprio jogador não existe mais, D29)
   J3. a montagem não tenta a chave de qualquer jogador   → test_dois_jogadores…
-  J4. a chave do próprio jogador vem primeiro            → test_a_chave_de_qualquer_jogador_vem…
+  J4. a chave do próprio jogador vem primeiro            → test_d27_ressaltos_rebotes…
   J5. palavra de mercado vira jogador                    → test_jogador_nao_e_palavra_de_mercado…
   J6. o time do jogo vira jogador                        → test_jogador_nao_e_palavra_de_mercado…
   J7. sem a abreviação (`Sr.`) no nome                   → test_jogador_nao_e_palavra_de_mercado…
@@ -49,6 +49,26 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   J16. a lista de contradições mostra o termo do Feca    → test_semente_log_registra…
   (bateria: `scratchpad/mutar5.py` da s415; V1 a V4 e W1 a W7 nos cabeçalhos do harness de
   banco e de `test_virada.py`)
+  s416 (D29, D27, 1win; 14/10/2026), 17 de 17 detectadas (e as da s415 de novo, todas pegas):
+  D1. sem a regra a (total puro)                         → test_d29_a_ordem_das_regras
+  D2. sem a regra b                                      → test_d29_a_ordem_das_regras
+  D3. a regra b sem o esqueleto (a forma que omite ganha) → test_d29_a_ordem_das_regras
+  D4. sem a regra c                                      → test_d29_a_ordem_das_regras
+  D5. a regra c sem exigir palavra de verdade (`VFL`)    → test_d29_a_ordem_das_regras
+  D6. o minuto não vira um estilo só                     → test_d29_dois_estilos…
+  D7. o `canonico` não usa o estilo                      → test_d29_dois_estilos…
+  D8. `Ressaltos`/`Rebounds` não viram `Rebotes`         → test_d27_ressaltos_rebotes…
+  D9. `PRA` não é reconhecido                            → test_d29_a_ordem_das_regras
+  D10. a descrição volta à maioria de 90%                → test_d29_dois_estilos…
+  D11. o empate exato não é marcado                      → test_d29_a_ordem_das_regras
+  D12. a regra e não vai para a revisão                  → test_semente_log_descricao_nao_fica…
+  J17. o lado do jogo (`Time de Fora`) vira jogador      → test_jogador_nao_e_palavra_de_mercado…
+  J18. o jogador só no começo da chave                   → test_jogador_depois_do_subjogo…
+  J19. `Vencedor. Quarto` sem a forma do Feca            → test_vencedor_quarto_e_o_gemeo…
+  H1. handicap positivo sem sinal (1win)                 → test_handicap_positivo_sem_sinal…
+  H2. o total puro com o jogo em ` - ` (1win)            → test_total_puro_da_1win…
+  (bateria: `scratchpad/mutar6.py` da s416; W3, W9, R1 e R2 no harness de banco e em
+  `test_virada.py`)
 
 O QUE NÃO COBRE: se o nome do mercado que a IA escreveu está CERTO (o dicionário aprende o que
 ela escreve; o erro se conserta depois, D24, `corrigir_termo.py descricao`), a ordem dos nomes
@@ -237,14 +257,15 @@ def test_feca_cobre_as_chaves_mais_especificas():
                                         "categoria", "fastest lap | norris, lando")
 
 
-def test_semente_log_registra_a_contradicao_de_descricao(monkeypatch):
-    """A chave de descrição tem ` | ` (esporte | mercado), o mesmo separador do par mercado +
-    seleção, que o log esconde. A contradição de descrição tem de aparecer no `semente_log`."""
-    f = {"tipo": "simples", "pernas": [_p("Soccer", "A vs B", "Total corners", "over 9.5")]}
+def test_semente_log_descricao_nao_fica_contradita_e_o_empate_vai_para_a_revisao(monkeypatch):
+    """D29 (s416): a descrição nunca entra na lista de contraditos; o empate que a regra não
+    decide (`e`, a mais votada) vai para a REVISÃO. A categoria segue com os 90% e com a lista
+    de contraditos, e o termo que o Feca já corrigiu sai das duas listas (s415)."""
+    f = {"tipo": "simples", "pernas": [_p("Baseball", "A vs B", "Total hits", "over 9.5")]}
 
     async def pares(conn):
-        return ([("DUEL", f, "Futebol", "Escanteios", "Over 9.5 Escanteios [A v B]"),
-                 ("DUEL", f, "Futebol", "Escanteios", "Over 9.5 Cantos [A v B]")], [], {})
+        return ([("DUEL", f, "Baseball", "Pontos", "Over 9.5 Hits [A v B]"),
+                 ("DUEL", f, "Baseball", "Corridas", "Over 9.5 Rebatidas [A v B]")], [], {})
 
     async def nada(*a, **k):
         return []
@@ -263,18 +284,89 @@ def test_semente_log_registra_a_contradicao_de_descricao(monkeypatch):
             self.args = a
     c = _C()
     asyncio.run(dicionario.semear(c, "teste"))
-    contra = json.loads(c.args[3])
-    assert [x["termo"] for x in contra if x["tipo"] == "descricao"] == ["soccer | total corners"]
+    contra, revisao = json.loads(c.args[3]), json.loads(c.args[6])
+    assert [x["tipo"] for x in contra] == ["categoria"]            # `total hits`: Pontos × Corridas
+    assert [(x["tipo"], x["termo"]) for x in revisao] == [("descricao", "baseball | total hits")]
 
-    # s415: o termo que o Feca já corrigiu sai da lista (não é mais para revisar)
+    # s415: o termo que o Feca já corrigiu sai das listas (não é mais para revisar)
     class _CF(_C):
         async def fetch(self, sql, *a):
             if "origem = 'feca'" in sql:
-                return [{"casa": "DUEL", "tipo": "descricao", "termo_casa": "soccer | total corners"}]
+                return [{"casa": "DUEL", "tipo": "descricao", "termo_casa": "baseball | total hits"},
+                        {"casa": "DUEL", "tipo": "categoria", "termo_casa": "total hits"}]
             return []
     c = _CF()
     asyncio.run(dicionario.semear(c, "teste"))
-    assert [x for x in json.loads(c.args[3]) if x["tipo"] == "descricao"] == []
+    assert json.loads(c.args[3]) == [] and json.loads(c.args[6]) == []
+
+
+def _mega(evento, mercado, codigo):
+    return {"tipo": "simples", "codigo": codigo, "pernas": [_p("Football", evento, mercado)]}
+
+
+def test_d29_dois_estilos_do_mesmo_mercado_saem_pela_ficha():
+    """D29 (d): estilo não é voto diferente. Megapari, `Team 1 Total Over 1.5 In 75 Minute`: a IA
+    escreveu `até 75'` num bilhete e `75º Minuto` no outro (reais, 13/10). Até a s415 eram dois
+    votos 1 × 1, a chave ficava contradita e toda aposta desse mercado ia para a IA. Agora é um
+    voto só, na forma `{n}min` (o Master não tem forma para o minuto), e o terceiro bilhete,
+    que a semente nunca viu, sai pela Ficha."""
+    a = _mega("Scotland (Women) - Czech Republic (Women)", "Team 1 Total Over 1.5 In 75 Minute", "m1")
+    b = _mega("Vissel Kobe - Jeonbuk Hyundai Motors", "Team 1 Total Under 2.5 In 75 Minute", "m2")
+    termos, contra = _semente([
+        ("MEGAPARI", a, "Futebol", "Gols",
+         "Scotland (Women) Over 1.5 Gols até 75' [Scotland (Women) v Czech Republic (Women)]"),
+        ("MEGAPARI", b, "Futebol", "Gols",
+         "Vissel Kobe Under 2.5 Gols 75º Minuto [Vissel Kobe v Jeonbuk Hyundai Motors]")],
+        casa="MEGAPARI")
+    k = "football | team 1 total {n} in {n} minute"
+    assert contra == {} and termos[("descricao", k)] == "{time} {ou} Gols {n3}min"
+    novo = _mega("Austria (Women) - Kosovo (Women)", "Team 1 Total Over 2.5 In 75 Minute", "m3")
+    assert dicionario.traduzir(novo, termos) == ("Futebol", "Gols", [])
+    assert D.montar(novo, termos, dicionario.descricao_perna) == (
+        "Austria (Women) Over 2.5 Gols 75min [Austria (Women) v Kosovo (Women)]", [])
+    # os estilos de minuto que a IA escreveu na Megapari (semente_log 17) são uma forma só
+    for v in ("{time} {ou} Gols {n3}min", "{time} - {ou} Gols {n3}º Minuto",
+              "{time} {ou} Gols {n3} Min", "{time} - {ou} Gols ({n3} min)",
+              "{time} {ou} Gols até {n3}'", "{time} {ou} Gols (até Min {n3})",
+              "{time} {ou} Gols até o {n3}º Minuto", "{time} {ou} Gols In {n3} Minute",
+              "{time} {ou} Gols no {n3}º Minuto", "{time} - {ou} Gols {n3} Minutos",
+              "{time} {ou} Gols Primeiros {n3} Minutos"):
+        assert D.canonico(v) == "{time} {ou} Gols {n3}min", v
+
+
+def test_d29_a_ordem_das_regras():
+    """D29: a. total puro sem objeto; b. a palavra do Master; c. o mercado escrito vence o time
+    sozinho; d. estilo (já no agrupamento); e. a mais votada, para a revisão."""
+    dec = D.decidir
+    # a. total puro: só `{ou}`, mesmo com o objeto em maioria
+    assert dec("basketball | total. com prorrogação", {"{ou} Pontos": 4, "{ou}": 1}) == ("{ou}", "a")
+    assert dec("mixed martial arts | total", {"{ou} Rounds": 3, "{ou} Total": 1}) == ("{ou}", "a")
+    assert dec("hóquei no gelo | total (incluindo prolongamento e penalties)",
+               {"{ou} Gols": 6, "{ou} Total": 1}) == ("{ou}", "a")
+    # … e só no total PURO (com objeto no mercado não é a)
+    assert dec("football | shots towards the goal total ({n})",
+               {"{ou} Chutes no Gol": 6, "{ou} Chutes": 4})[1] != "a"
+    # b. a palavra do Master vence a que não é dele (mesmo em minoria)
+    assert dec("baseball | total hits ({n})", {"{ou} Hits": 3, "{ou} Corridas": 1})         == ("{ou} Corridas", "b")
+    assert dec("baseball | most hits - team 2", {"{time} - Most Hits": 2, "{time} - Mais Hits": 1})         == ("{time} - Mais Hits", "b")
+    # … só entre formas do mesmo esqueleto: a que OMITE o minuto (1 voto, todas as palavras do
+    # Master) não derruba as 63 que o escrevem (Megapari, 14/10; foi a 1ª versão desta regra)
+    k = "football | team 1 total {n} in {n} minute"
+    assert dec(k, {"{time} {ou} Gols {n3}º Minuto": 19, "{time} - {ou} Gols {n3}min": 44,
+                   "{time} {ou} Gols": 1, "{time} {ou} Gols {n1}º Tempo": 1})[0]         == "{time} - {ou} Gols {n3}min"                 # a variante mais votada, no estilo único
+    # c. o mercado escrito vence o time sozinho; `VFL` não é mercado (não decide)
+    assert dec("football | ambas as equipes vão marcar", {"{ent}": 3, "Ambas Marcam - {ent}": 1})         == ("Ambas Marcam - {ent}", "c")
+    assert dec("baseball | most hits - team 2", {"{time} - Most Hits": 2, "{time}": 1})         == ("{time} - Most Hits", "c")
+    assert dec("football | escanteios. vencedor", {"{ent}": 1, "VFL {ent}": 1})[1] == "e-empate"
+    # d. o estilo (` - `, minuto, `Ressaltos`/`Rebounds`, `PRA`) é um voto só
+    assert dec("basketball | {jogador}. ressaltos. com prorrogação",
+               {"{jogador} - {ou} Rebotes": 5, "{jogador} - {ou} Rebounds": 4,
+                "{jogador} - {ou} Ressaltos": 14}) == ("{jogador} - {ou} Rebotes", "unico")
+    assert D.estilo("{jogador} - {ou} PRA") == D.estilo("{jogador} - {ou} Pontos+Rebotes+Assistências")         == "{jogador} - {ou} Pontos + Assistências + Rebotes"
+    # combinação que o Feca não decidiu fica como veio (só a grafia)
+    assert D.estilo("{ent} - {ou} Rebotes+Assistências") == "{ent} - {ou} Rebotes + Assistências"
+    # e. empate que nenhuma regra decide: a mais votada, para a revisão
+    assert dec("baseball | total hits ({n})", {"{ou} Hits": 1, "{ou} Rebatidas": 2})         == ("{ou} Rebatidas", "e")
 
 
 # ── s415 (T1): o jogador fora da chave ───────────────────────────────────────────────────
@@ -308,41 +400,27 @@ def test_dois_jogadores_no_mesmo_mercado_o_primeiro_ensina_o_segundo_sai_pela_fi
     assert dicionario.traduzir(confere, termos) == ("Basquete", "Player Props", [])
     assert D.montar(confere, termos, dicionario.descricao_perna) == (
         "Alec Peters - Over 5.5 Rebotes [BC Dubai v Crvena Zvezda]", [])
-    # o voto também fica na chave DESTE jogador, com o nome: se a de qualquer jogador ficar
-    # contradita (a IA escreve `Ressaltos`, `Rebotes` e `Rebounds`), ela ainda o descreve
-    assert termos[("descricao", "basketball | dwayne bacon. ressaltos. com prorrogação")] \
-        == "Dwayne Bacon - {ou} Rebotes"
 
 
-def test_jogador_contradito_cai_para_a_chave_do_proprio_jogador():
-    """Com a chave de qualquer jogador contradita, quem já foi visto ainda sai pela Ficha (a
-    chave dele vem PRIMEIRO); o jogador novo vai para a IA, como antes."""
+def test_d27_ressaltos_rebotes_e_rebounds_sao_um_mercado_so():
+    """D27 (s416): `Ressaltos`, `Rebotes` e `Rebounds` = `Rebotes`. Na s415 a chave de qualquer
+    jogador ficava contradita e o jogador novo ia para a IA; agora sai pela Ficha. A chave do
+    próprio jogador, com o nome, só vale quando é do Feca (a semente não vota mais nela)."""
     a, b = (_dex(f"{n}. Ressaltos. Com prorrogação", "Menos 3.5", n) for n in ("Joel Parra",
                                                                                  "Moses Wright"))
     termos, contra = _semente([
         ("DEXSPORT", a, "Basquete", "Player Props", "Joel Parra - Under 3.5 Rebotes [BC Dubai v Crvena Zvezda]"),
         ("DEXSPORT", b, "Basquete", "Player Props", "Moses Wright - Under 3.5 Ressaltos [BC Dubai v Crvena Zvezda]")])
-    assert ("DEXSPORT", "descricao", "basketball | {jogador}. ressaltos. com prorrogação") in contra
-    assert D.montar(_dex("Joel Parra. Ressaltos. Com prorrogação", "Mais 4.5", "x"), termos)[0] \
-        == "Joel Parra - Over 4.5 Rebotes [BC Dubai v Crvena Zvezda]"
+    assert contra == {}
+    assert ("descricao", "basketball | joel parra. ressaltos. com prorrogação") not in termos
     novo = _dex("Zach LeDay. Ressaltos. Com prorrogação", "Mais 4.5", "y")
-    assert D.montar(novo, termos) == (None, ["basketball | {jogador}. ressaltos. com prorrogação"])
-
-
-def test_a_chave_de_qualquer_jogador_vem_antes_da_do_proprio_jogador():
-    """A maioria (90%) decide a chave de qualquer jogador; o voto isolado de um jogador fica na
-    chave dele, mas não vale para ele enquanto a de qualquer um existir (P7)."""
-    jogs = [f"Jogador{c} Silva" for c in "ABCDEFGHIJ"]
-    pares = [("DEXSPORT", _dex(f"{j}. Ressaltos. Com prorrogação", "Menos 3.5", j), "Basquete",
-              "Player Props", f"{j} - Under 3.5 Rebotes [BC Dubai v Crvena Zvezda]") for j in jogs]
-    pares.append(("DEXSPORT", _dex("Joel Parra. Ressaltos. Com prorrogação", "Menos 3.5", "jp"),
-                  "Basquete", "Player Props",
-                  "Joel Parra - Under 3.5 Ressaltos [BC Dubai v Crvena Zvezda]"))
-    termos, _ = _semente(pares)
-    assert termos[("descricao", "basketball | joel parra. ressaltos. com prorrogação")] \
-        == "Joel Parra - {ou} Ressaltos"
-    assert D.montar(_dex("Joel Parra. Ressaltos. Com prorrogação", "Mais 4.5", "x"), termos)[0] \
-        == "Joel Parra - Over 4.5 Rebotes [BC Dubai v Crvena Zvezda]"
+    assert D.montar(novo, termos) == ("Zach LeDay - Over 4.5 Rebotes [BC Dubai v Crvena Zvezda]", [])
+    # a correção do Feca para UM jogador vence a de qualquer jogador? Não: a de qualquer um vem
+    # primeiro (é a regra do mercado); a do jogador só entra sem ela
+    so_dele = {("descricao", "basketball | zach leday. ressaltos. com prorrogação"): "{ou} X"}
+    assert D.montar(novo, so_dele)[0] == "Over 4.5 X [BC Dubai v Crvena Zvezda]"
+    assert D.montar(novo, {**so_dele, **termos})[0] == \
+        "Zach LeDay - Over 4.5 Rebotes [BC Dubai v Crvena Zvezda]"
 
 
 def test_jogador_nao_e_palavra_de_mercado_nem_time():
@@ -358,11 +436,36 @@ def test_jogador_nao_e_palavra_de_mercado_nem_time():
     for m in ("Match Winner", "Double Chance. 1st Half", "Handicap. Com prorrogação",
               "Total. 1ª metade", "Corners. Double chance", "Ambas as equipes vão marcar"):
         assert J(m) == "", m
+    # s416: o LADO do jogo não é jogador (MyStake: `Time de Fora total de escanteios` virava
+    # `{jogador} total de escanteios`, juntando o mercado da casa e o de fora)
+    for m in ("Time de Fora total de escanteios", "Time de Casa total de cartões",
+              "Home Team total corners", "Away Team total cards"):
+        assert J(m) == "", m
     assert J("Kaspiy Aktau total. 1-st half", ("Kaspiy Aktau", "Oulu")) == ""
     assert J("Kaspiy Aktau. Escanteios", ("Kaspiy Aktau", "Oulu")) == ""        # time do jogo
     # a chave de categoria troca o jogador também
     f = _dex("Alec Peters. Ressaltos. Com prorrogação", "Menos 3.5", "z")
     assert ("categoria", "{jogador}. ressaltos. com prorrogação") in dicionario.chaves(f)
+
+
+def test_jogador_depois_do_subjogo_da_megapari():
+    """s416: na Megapari o jogo é `Players' stats A - Players' stats B` e o prefixo entra no
+    mercado efetivo (`players' stats Breanna Stewart total assists`): o jogador vira
+    `{jogador}` também no meio da chave, e não só no começo."""
+    p = _p("Basketball", "Players' stats New York Liberty (Women) - Players' stats Atlanta Dream "
+           "(Women) (Including Overtime)", "Breanna Stewart Total Assists Over 3.5")
+    assert D.chave(p, jogador=True) == "basketball | players' stats {jogador} total assists {n}"
+    v = D.aprender(p, "Breanna Stewart - Over 3.5 Assistências [New York Liberty (Women) v "
+                      "Atlanta Dream (Women) (Including Overtime)]")
+    assert v == "{jogador} - {ou} Assistências"
+
+
+def test_vencedor_quarto_e_o_gemeo_do_winner_quarter():
+    """D27 (s416): `Vencedor. Quarto N` (DEX em português) segue o que o Feca decidiu para
+    `Winner. Quarter N`: ML, descrição `Time X - NQ [A v B]`."""
+    for merc in ("Winner. Quarter 1", "Vencedor. Quarto 1"):
+        p = _p("basketball", "BC Dubai vs Crvena Zvezda", merc, "BC Dubai")
+        assert dicionario.descricao_perna(p) == "BC Dubai - 1Q [BC Dubai v Crvena Zvezda]", merc
 
 
 def test_selecao_com_o_time_do_jogo_vira_ent_na_chave_de_categoria():
@@ -400,3 +503,28 @@ def test_handicap_da_1xbet_lado_e_sinal_sao_o_mesmo_mercado():
 
 def _aprende_termos(p, ia):
     return {("descricao", k): v for k, v in _aprende(p, ia)}
+
+
+def test_handicap_positivo_sem_sinal_da_1win():
+    """s416: a 1win escreve o handicap positivo sem sinal (`FC Slavia Mozyr 1.5`, real, 13/10).
+    A Ficha lia o nome com o número junto e descrevia `FC Slavia Mozyr 1.5`; a IA escreveu
+    `+1.5`. Só em mercado de handicap: fora dele o número é parte do nome. Mutação H1 (sem o
+    ramo): detectada."""
+    p = _p("Futebol", "Din Minsk - FC Slavia Mozyr", "Handicap", "FC Slavia Mozyr 1.5")
+    d = D.decompor(p)
+    assert (d["ent"], d["hc"]) == ("FC Slavia Mozyr", "+1.5")
+    assert D.aprender(p, "FC Slavia Mozyr +1.5 [Din Minsk v FC Slavia Mozyr]") == "{ent} {hc}"
+    assert D.montar_perna(p, "{ent} {hc}") == "FC Slavia Mozyr +1.5 [Din Minsk v FC Slavia Mozyr]"
+    assert D.decompor(_p("Futebol", "A - B", "Handicap", "B 0"))["hc"] == "0"
+    assert D.decompor(_p("Futebol", "A - B", "Handicap", "B -1.5"))["hc"] == "-1.5"
+    assert D.decompor(_p("Futebol", "A - B", "Vencedor", "Time 2"))["ent"] == "Time 2"
+
+
+def test_total_puro_da_1win_sai_com_v_no_jogo():
+    """s416: a forma própria do total puro (D24) só trocava `vs` por `v`; o jogo da 1win vem
+    com ` - ` e a descrição saía `Over 3 [FK Atyrau - Fc Yelimai]` (real, 13/10). Mutação H2
+    (volta o `_jogo_v` antigo): detectada."""
+    p = _p("Futebol", "FK Atyrau - Fc Yelimai", "Total", "Acima De 3")
+    assert dicionario.descricao_perna(p) == "Over 3 [FK Atyrau v Fc Yelimai]"
+    p = _p("soccer", "A vs. B", "Total", "Under 2.5")
+    assert dicionario.descricao_perna(p) == "Under 2.5 [A v B]"

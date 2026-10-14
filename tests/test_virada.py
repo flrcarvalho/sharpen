@@ -49,6 +49,8 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   s415 (o vigia; o resto no harness de banco):
   W1. o vigia ignora a stake                              → test_vigia_compara_o_dinheiro_nao_a_forma
   W2. o vigia compara a odd crua também na perdida        → test_vigia_compara_o_dinheiro_nao_a_forma
+  s416 (D28 e R32; o resto no harness de banco):
+  W9. a reserva da casa sempre livre                      → test_vigia_uma_chamada_por_casa…
 Inócua (registrada, não é buraco): `virada()` aceitar `*` — o `casas_viradas()` já tira o `*`
 da lista antes, então o código segue certo sem a linha.
 
@@ -370,6 +372,10 @@ class _Conn:
             return self.crus
         raise AssertionError(sql)
 
+    async def fetchval(self, sql, *a):
+        assert "virada_log" in sql                # R32: o último `/extrair` (o `fresco` do cru
+        return None                               # dublado já vem decidido)
+
     async def execute(self, sql, *a):
         assert "ficha_virada" in sql
         _, _, cod, imp, est, motivo = a
@@ -627,6 +633,20 @@ def test_vigia_compara_o_dinheiro_nao_a_forma():
     assert C({"stake": "10", "odd": "1,85", "resultado": ""},
              {"stake": "10", "odd": "1,90", "resultado": ""}) == ["odd"]
     assert C(ficha, None) == ["linha"]
+
+
+def test_vigia_uma_chamada_por_casa_mesmo_com_duas_capturas_ao_mesmo_tempo():
+    """D28 (s416): a reserva do dia é por casa (de qualquer dono) e só volta quando a chamada
+    não aconteceu. Duas capturas juntas (Feca e Gabriel) passariam as duas pelo banco antes de
+    a primeira gravar. Mutação W9 (reserva sempre livre): detectada."""
+    virada._vigia_reservas.clear()
+    assert virada.vigia_reservar("dexsport", "14/10/2026") is True
+    assert virada.vigia_reservar("DEXSPORT", "14/10/2026") is False      # a 2ª captura
+    assert virada.vigia_reservar("DEXSPORT", "15/10/2026") is True       # outro dia
+    assert virada.vigia_reservar("DUEL", "14/10/2026") is True           # outra casa
+    virada.vigia_soltar("DEXSPORT", "14/10/2026")                        # não chamou
+    assert virada.vigia_reservar("DEXSPORT", "14/10/2026") is True
+    virada._vigia_reservas.clear()
 
 
 def test_vigia_desligado_sem_a_variavel(monkeypatch):

@@ -80,14 +80,17 @@ def categoria_do_total(esporte: str | None, p: dict) -> str | None:
 
 
 def _jogo_v(ev: str) -> str:
-    """`A vs B` / `A vs. B` → `A v B` (o separador do `MASTER_OUTPUT`)."""
-    return re.sub(r"\s+vs\.?\s+", " v ", ev or "")
+    """`A vs B` / `A vs. B` / `A - B` (1xBet, 1win) → `A v B` (o separador do `MASTER_OUTPUT`),
+    pelo mesmo `descricao_ficha.jogo` da descrição; evento que não é confronto fica como veio.
+    s416: só trocava o `vs`, e o total puro da 1win saía `[FK Atyrau - Fc Yelimai]`."""
+    import descricao_ficha
+    return descricao_ficha.jogo(ev) or re.sub(r"\s+vs\.?\s+", " v ", ev or "")
 
 
 def descricao_perna(p: dict) -> str | None:
     """Descrição de perna com forma própria (s412, Feca). None = a forma geral da virada.
       • `Total` sem qualificador: `Over X.X [A v B]`;
-      • `Winner. Quarter N` (DEX): `Time X - NQ [A v B]` (é ML);
+      • `Winner. Quarter N` e `Vencedor. Quarto N` (DEX): `Time X - NQ [A v B]` (é ML);
       • volta mais rápida (`fastest lap`): `<piloto> volta mais rápida [<prova>]`."""
     merc = normalizar(p.get("mercado_casa"))
     sel, ev = _limpo(p.get("selecao_casa")), _limpo(p.get("evento"))
@@ -99,7 +102,7 @@ def descricao_perna(p: dict) -> str | None:
             if linha:
                 return f"{_LADO[m.group(1).lower()]} {linha}{fim}"
         return None
-    if merc == "winner. quarter {n}":
+    if merc in ("winner. quarter {n}", "vencedor. quarto {n}"):     # s416: o gêmeo em PT (D27)
         n = re.search(r"(\d+)", str(p.get("mercado_casa") or ""))
         return f"{sel} - {n.group(1)}Q{fim}" if sel and n else None
     if merc in ("fastest lap", "volta mais rápida"):
@@ -265,7 +268,9 @@ def votar(pares, votos_texto=()) -> tuple[dict, dict, list]:
 
     DESCRIÇÃO (s413): cada perna vota `chave do mercado → valor` (`descricao_ficha.votos`), e as
     variantes de escrita da IA para o mesmo mercado contam como um voto só (`canonico`); o valor
-    guardado é a variante mais votada."""
+    guardado é a variante mais votada. Desde o D29 (s416) a descrição NÃO usa a maioria de 90%
+    e nunca fica contradita: `descricao_ficha.decidir` (total puro, palavra do Master, mercado
+    escrito, estilo, mais votada), e só o último caso vai para a revisão."""
     from collections import Counter, defaultdict
 
     import descricao_ficha
@@ -299,6 +304,15 @@ def votar(pares, votos_texto=()) -> tuple[dict, dict, list]:
             votos[((casa or "").upper(), "esporte", next(iter(termos_esp)))][esp_ia] += 1
     unanimes, contraditos, revisao = {}, {}, []
     for k, c in votos.items():
+        if k[1] == "descricao":
+            # D29 (Feca, 14/10/2026): a descrição nunca fica contradita; a regra decide, e só
+            # o empate que sobra (a mais votada, `e`) vai para a revisão
+            termo, regra = descricao_ficha.decidir(k[2], c)
+            unanimes[k] = (termo, sum(c.values()))
+            if regra.startswith("e"):
+                revisao.append({"casa": k[0], "tipo": k[1], "termo": k[2], "fica": termo,
+                                "votos": dict(c), "empate": regra == "e-empate"})
+            continue
         grupo = Counter()
         for v, n in c.items():
             grupo[descricao_ficha.canonico(v) if k[1] == "descricao" else v] += n

@@ -38,9 +38,11 @@ s415 (T1): **o nome do jogador também sai da chave**, como o número virou `{n}
 jogador DENTRO do mercado (`Alec Peters. Ressaltos. Com prorrogação`), e cada jogador novo era
 uma chave nova, indo para a IA. `_jogador` acha o nome no começo do mercado; ele vira
 `{jogador}` na chave e no valor (`{jogador}. ressaltos. com prorrogação` → `{jogador} - {ou}
-Ressaltos`) quando a IA escreveu esse mesmo nome. O voto vale também na chave do próprio
-jogador (com o nome, como antes): a de qualquer jogador é consultada primeiro, e a dele só
-entra quando a de qualquer um está contradita.
+Rebotes`) quando a IA escreveu esse mesmo nome.
+
+s416 (D29, Feca, 14/10/2026): a contradição de DESCRIÇÃO se decide por regra (`decidir`) e
+nunca manda a aposta à IA; o estilo (minuto, `Ressaltos`/`Rebounds`, `PRA`) é um voto só
+(`estilo`, D27).
 E o handicap da 1xBet (`Handicap 1 (-1.5)`, `Handicap 2 (1.5)`) é um mercado só: o lado vira o
 `{time}` e o sinal com a linha vira `{hc}`.
 """
@@ -60,6 +62,9 @@ _SEL_LADO = re.compile(rf"^(?P<ent>.*?)\s*\b(?P<lado>{_PAL_LADO})\b(?:\s+de)?\s*
                        r"(?P<num>[+-]?\d+(?:[.,]\d+)*)?$", re.I)
 # seleção de handicap: `Peristeri (+6)`, `PSV U19 +0.5`, `Colorado Avalanche (-2.5)`
 _SEL_HC = re.compile(r"^(?P<ent>.+?)\s*\(?(?P<hc>[+-]\d+(?:\.\d+)?)\)?$")
+# s416: a 1win escreve o handicap POSITIVO sem sinal (`FC Slavia Mozyr 1.5`): só em mercado de
+# handicap, o número no fim da seleção é a linha, com `+`
+_SEL_HC_SEM_SINAL = re.compile(r"^(?P<ent>.+?)\s+\(?(?P<hc>\d+(?:\.\d+)?)\)?$")
 _SEL_MAIS = re.compile(r"^(?P<num>\d+)\+$")
 # o lado dentro do MERCADO (a 1xBet escreve a seleção ali): `Total acima de (2.5)`, `Total < (78.5)`
 _MERC_LADO = re.compile(rf"\b(?P<lado>{_PAL_LADO})\b(?:\s+de)?\s*\(?(?P<num>\d+(?:[.,]\d+)*)\)?|"
@@ -96,7 +101,10 @@ _NAO_NOME = frozenset({"total", "totals", "winner", "vencedor", "handicap", "mat
                        "player", "jogador", "goals", "gols", "points", "pontos", "first", "last",
                        "next", "to", "win", "over", "under", "mais", "menos", "yes", "no",
                        "sim", "não", "and", "or", "ou", "with", "com", "overtime",
-                       "prorrogação", "bookings", "booking", "offsides", "fouls", "shots"})
+                       "prorrogação", "bookings", "booking", "offsides", "fouls", "shots",
+                       # s416: o LADO do jogo não é jogador (`Time de Fora total de escanteios`)
+                       "time", "fora", "casa", "home", "away", "hometeam", "awayteam",
+                       "visitante", "mandante"})
 # Letra cirílica no lugar da latina (a Megapari escreve `Handiсap` com o `с` cirílico)
 _HOMOGLIFOS = str.maketrans({"с": "c", "а": "a", "е": "e", "о": "o", "р": "p", "х": "x"})
 _MARCA = re.compile(r"\{[a-z0-9]+\}")
@@ -207,7 +215,8 @@ def _jogador(merc: str, times=()) -> str:
     """O nome do jogador no começo do mercado, ou `""`. Time do jogo não é jogador (ele já vira
     `{time}`), nem trecho com palavra de mercado (`_NAO_NOME`)."""
     nome = ""
-    for m in _FIM_JOGADOR.finditer(merc or ""):
+    merc = merc or ""
+    for m in _FIM_JOGADOR.finditer(merc):
         antes = merc[:m.start()].split()
         if m.group(0).startswith(".") and antes and antes[-1].casefold() in _ABREV:
             continue                                   # o ponto é do nome
@@ -235,7 +244,8 @@ def mercado_com_jogador(p: dict) -> str | None:
     merc = _limpo(p.get("mercado_casa")).translate(_HOMOGLIFOS)
     t1, t2, _, _ = _times(p.get("evento"))
     nome = _jogador(merc, (t1, t2))
-    return "{jogador}" + merc[len(nome):] if nome else None
+    i = merc.find(nome) if nome else -1
+    return merc[:i] + "{jogador}" + merc[i + len(nome):] if i >= 0 else None
 
 
 def decompor(p: dict) -> dict:
@@ -256,12 +266,17 @@ def decompor(p: dict) -> dict:
             d["hc"] = _num(linha)
     elif sel:
         m, h, n = _SEL_LADO.match(sel), _SEL_HC.match(sel), _SEL_MAIS.match(sel)
+        hs = (_SEL_HC_SEM_SINAL.match(sel)
+              if not h and "handicap" in merc.casefold() else None)
         if m and (m.group("num") or linha):
             num = m.group("num") or linha
             d["ou"] = f"{_LADO[m.group('lado').lower()]} {_num(num.lstrip('+'))}"
             d["ent"] = _PARENS_COD.sub("", m.group("ent")).strip()
         elif h:
             d["ent"], d["hc"] = h.group("ent").strip(), _num(h.group("hc"))
+        elif hs:
+            n0 = _num(hs.group("hc"))
+            d["ent"], d["hc"] = hs.group("ent").strip(), n0 if float(n0) == 0 else "+" + n0
         elif n:
             d["mais"] = f"{n.group('num')}+"
         else:
@@ -312,8 +327,9 @@ def chave(p: dict, d: dict | None = None, jogador: bool = False) -> str:
     d = d or decompor(p)
     esporte = " ".join(str(p.get("esporte_casa") or "").casefold().split())
     s = d["efetivo"]
-    if jogador and d["jogador"] and s.startswith(d["jogador"]):
-        s = "{jogador}" + s[len(d["jogador"]):]
+    # o nome pode vir depois do subjogo da 1xBet (`players' stats Breanna Stewart total …`)
+    if jogador and d["jogador"] and (i := s.find(d["jogador"])) >= 0:
+        s = s[:i] + "{jogador}" + s[i + len(d["jogador"]):]
     if d["hc"] and not _limpo(p.get("selecao_casa")):
         s = _HC_MERC.sub("handicap {hc}", s, count=1)      # o lado e o sinal saem (s415)
     for t in (d["t1"], d["t2"]):
@@ -389,9 +405,143 @@ def aprender(p: dict, desc_perna: str, d: dict | None = None, k: str | None = No
 
 def canonico(valor: str) -> str:
     """As variantes que a IA escreve para o MESMO mercado viram um voto só: o ` - ` entre o
-    time e a linha, e `1ª Metade` × `1º Tempo` (`MASTER_DESCRICAO §12.10`)."""
-    s = _ENT_LINHA.sub(r"\1 \2", valor)
+    time e a linha, `1ª Metade` × `1º Tempo` (`MASTER_DESCRICAO §12.10`) e, desde o D29, o
+    ESTILO (`estilo`: minuto, nome da estatística do jogador)."""
+    s = _ENT_LINHA.sub(r"\1 \2", estilo(valor))
+    s = re.sub(r"(\{[a-z0-9]+\}) - ", r"\1 ", s)
     return re.sub(r"(\{n\d+\}|\d+)ª Metade", r"\1º Tempo", s)
+
+
+# ── D29 (Feca, 14/10/2026): a contradição de DESCRIÇÃO se decide por regra ─────────────────
+# Mercado de descrição nunca vai à IA por contradição. Ordem (`decidir`): a. total puro → só
+# `{ou}`; b. a forma escrita com palavras do Master; c. a forma que escreve o mercado vence a
+# que traz só o time; d. estilo não é voto diferente (`estilo`, já no agrupamento); e. a mais
+# votada, e o termo vai para a revisão. A categoria e o esporte seguem com a maioria de 90%.
+
+# d. o minuto: `{n}min`, `{n} Min`, `({n} min)`, `{n}º Minuto`, `no/até o {n}º Minuto`,
+# `até {n}'`, `(até Min {n})`, `In {n} Minute`, `{n} Minutos`, `Primeiros {n} Minutos` são o
+# mesmo recorte. O Master não tem forma para ele: fica `{n}min`.
+_MINUTO = (
+    (re.compile(r"\(\s*até\s+min\.?\s+(\{n\d+\})\s*\)", re.I), r"\1min"),
+    (re.compile(r"(?:\bprimeiros\s+)?(?:\b(?:até|no|in)\s+(?:o\s+)?)?(\{n\d+\})\s*(?:º\s*minuto|"
+                r"minutos|minute|min)\b\.?", re.I), r"\1min"),
+    (re.compile(r"\(\s*(\{n\d+\}min)\s*\)"), r"\1"),
+)
+_ATE_APOS = re.compile(r"\baté\s+(\{n\d+\})'", re.I)
+# d. (D27) as estatísticas do jogador: `Ressaltos` e `Rebounds` são `Rebotes`, `Assists` é
+# `Assistências`, e `PRA` (em qualquer ordem e grafia) é `Pontos + Assistências + Rebotes`.
+# Outra combinação (`Pontos + Rebotes`, `Rebotes + Assistências`) fica como veio: não decidida.
+_ESTAT = {"rebotes": "Rebotes", "ressaltos": "Rebotes", "rebounds": "Rebotes",
+          "assistências": "Assistências", "assistencias": "Assistências",
+          "assists": "Assistências", "pontos": "Pontos", "points": "Pontos"}
+_COMBO = re.compile(r"\b(pontos|points|rebotes|ressaltos|rebounds|assist[eê]ncias|assists)"
+                    r"(?:\s*\+\s*(pontos|points|rebotes|ressaltos|rebounds|assist[eê]ncias|"
+                    r"assists))+\b|\bPRA\b", re.I)
+_PRA = "Pontos + Assistências + Rebotes"
+_PA = "Pontos + Assistências"
+
+
+def _combo(m) -> str:
+    t = m.group(0)
+    if t.upper() == "PRA":
+        return _PRA
+    nomes = [_ESTAT[x.casefold()] for x in re.split(r"\s*\+\s*", t)]
+    if len(set(nomes)) != len(nomes):
+        return t
+    if set(nomes) == {"Pontos", "Assistências", "Rebotes"}:
+        return _PRA
+    if set(nomes) == {"Pontos", "Assistências"}:
+        return _PA
+    return " + ".join(nomes)                          # combinação não decidida: só a grafia
+
+
+def estilo(valor: str) -> str:
+    """A forma única do ESTILO (D29 d, D27): o minuto e o nome da estatística do jogador."""
+    s = _ATE_APOS.sub(r"\1min", valor or "")
+    for rx, novo in _MINUTO:
+        s = rx.sub(novo, s)
+    s = _COMBO.sub(_combo, s)
+    s = re.sub(r"\b(Ressaltos|Rebounds)\b", "Rebotes", s)
+    s = re.sub(r"\bAssists\b", "Assistências", s)
+    return " ".join(s.split())
+
+
+# a. o total PURO: sem objeto (D24), só `{ou}`
+_TOTAL_PURO = re.compile(r"^total(?: jogos)?(?:\.? com prorrogação| \(incl\. (?:ot|overtime|"
+                         r"prorrogação)\)| \(incluindo (?:prolongamento|prorrogação)"
+                         r"(?: e penalties)?\))?$")
+
+
+def _palavras(valor: str) -> list[str]:
+    s = _MARCA.sub(" ", re.sub(r"\{n\d+\}", " ", valor or "")).replace("º", " ").replace("ª", " ")
+    return re.findall(r"[^\W\d_]+", s)
+
+
+_VOCAB_MASTER: frozenset | None = None
+
+
+def vocab_master() -> frozenset:
+    """As palavras com que o Master escreve uma descrição: os exemplos (` ```text `) do
+    `MASTER_DESCRICAO`, mais os nomes das categorias e dos esportes. Lido, nunca copiado."""
+    global _VOCAB_MASTER
+    if _VOCAB_MASTER is None:
+        import taxonomia
+        t = taxonomia._ler("MASTER_DESCRICAO_2026.md")
+        txt = " ".join(re.sub(r"\[[^\]]*\]", " ", b) for b in re.findall(r"```text\n(.*?)```", t,
+                                                                          re.S))
+        txt += " " + " ".join(taxonomia.categorias_canonicas()) + " " + \
+            " ".join(taxonomia.esportes_canonicos())
+        _VOCAB_MASTER = frozenset(w.casefold() for w in re.findall(r"[^\W\d_]+", txt))
+    return _VOCAB_MASTER
+
+
+def decidir(chave_desc: str, votos) -> tuple[str, str]:
+    """(valor, regra) de uma chave de descrição com os votos `{valor: n}` (D29). `regra` =
+    `unico` (um grupo só), `a`, `b`, `c`, `e` (a mais votada; vai para a revisão) ou
+    `e-empate` (empate exato no topo, decidido pela ordem alfabética; revisão também). Nunca
+    devolve contradição: a descrição não vai à IA por isso."""
+    from collections import Counter
+    grupos: dict = {}
+    for v, n in votos.items():
+        grupos.setdefault(canonico(v), Counter())[v] += n
+
+    def forma(g):                                    # a variante mais votada, no estilo único
+        c = grupos[g]
+        return estilo(max(c, key=lambda v: (c[v], v)))
+
+    def peso(g):
+        return sum(grupos[g].values())
+    if len(grupos) == 1:
+        return forma(next(iter(grupos))), "unico"
+    merc = chave_desc.split(SEP, 1)[-1]
+    if _TOTAL_PURO.match(merc) and all("{ou}" in g for g in grupos):
+        return "{ou}", "a"
+    vocab = vocab_master()
+
+    def fora(g):                                     # palavras que o Master não usa
+        return sum(1 for w in _palavras(g) if w.casefold() not in vocab and w != "min")
+
+    def esqueleto(g):                                # as marcas e quantas palavras
+        return tuple(_MARCA.findall(re.sub(r"\{n\d+\}", "{n}", g))), len(_palavras(g))
+    # b. só entre formas do MESMO esqueleto (a IA TROCOU uma palavra: `Rebounds` × `Rebotes`,
+    # `Most Hits` × `Mais Hits`): fica a com menos palavras fora do Master. Forma que OMITE
+    # parte do mercado (`{time} {ou} Gols` sem o minuto) não é troca de palavra, e não ganha aqui.
+    restam = [g for g in grupos
+              if fora(g) == min(fora(h) for h in grupos if esqueleto(h) == esqueleto(g))]
+    if len(restam) == 1:
+        return forma(restam[0]), "b"
+    # c. escreve o mercado = tem palavra de verdade (do Master ou de 4 letras ou mais): `VFL`
+    # não é mercado
+    c = [g for g in restam if any(w.casefold() in vocab or len(w) >= 4 for w in _palavras(g))]
+    if len(c) == 1 and len(c) < len(restam):
+        return forma(c[0]), "c"
+    if c:
+        restam = c
+    topo = max(restam, key=lambda g: (peso(g), g))
+    # empate EXATO no topo: não há "mais votada", e quem decide é a ordem alfabética. Vai para
+    # a revisão marcado, para o consultor olhar primeiro
+    empate = sum(1 for g in restam if peso(g) == peso(topo)) > 1
+    return forma(topo), "e-empate" if empate else "e"
 
 
 def nome_do_mercado(valor: str) -> str:
@@ -439,8 +589,8 @@ def montar(f: dict, termos: dict, propria=None) -> tuple[str | None, list[str]]:
             partes.append(x)
             continue
         d = decompor(p)
-        # s415: o mercado de QUALQUER jogador vem primeiro (é o que a maioria decidiu; a chave
-        # deste jogador guarda só o voto dele, e entra quando a de qualquer um está contradita)
+        # s415: o mercado de QUALQUER jogador vem primeiro; a chave com o nome dele é a do
+        # Feca, se um dia ele corrigir um jogador só (a semente não vota mais nela, D29)
         ks = [chave(p, d, jogador=True)] if d["jogador"] else []
         ks.append(chave(p, d))
         valor = None
@@ -487,11 +637,9 @@ def votos(f: dict, descricao: str) -> list[tuple[str, str]]:
         if v is None or montar_perna(p, v, d) is None:
             continue
         if "{jogador}" in v:
-            # s415: a IA escreveu o jogador do cru. O voto vai para a chave de QUALQUER jogador
-            # e também para a deste jogador, com o nome no valor, como antes: a de qualquer
-            # jogador pode ficar contradita (a IA escreve `Ressaltos`, `Rebotes` e `Rebounds`
-            # para o mesmo mercado), e aí a deste jogador ainda o descreve.
-            out.append((k, v.replace("{jogador}", d["jogador"])))
+            # s415: a IA escreveu o jogador do cru, e o voto vai para a chave de QUALQUER
+            # jogador. (Na s415 ia também para a chave DESTE jogador, para quando a de qualquer
+            # um ficasse contradita; desde o D29, s416, a descrição nunca fica contradita.)
             k = chave(p, d, jogador=True)
         # mercado do LADO sem o time: errado (o do NOME do time já cai no `aprender`, que exige
         # o `{time}` que o cru tem)
