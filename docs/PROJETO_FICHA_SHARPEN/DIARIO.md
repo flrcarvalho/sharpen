@@ -5,6 +5,60 @@
 
 ---
 
+## 2026-10-14 (madrugada) · s416 · D27, D29, vigia ligado, R32 e a 1win virada
+
+**D27 (mercados de jogador).** 24 correções do Feca gravadas (`origem='feca'`) pelo
+`dicionario.corrigir_termo`: `Ressaltos`/`Rebounds`/`Rebotes` = `{jogador} - {ou} Rebotes`, as
+assistências = `Assistências`, PRA da Bet Panda = `Pontos + Assistências + Rebotes`, nas chaves
+`{jogador}` da DEX, Bet Panda e Megapari e no `{ent}` da BetMartini e da Vavada (hóquei), com a
+categoria `Player Props`; os gêmeos da DEX: `o empate anula a aposta` (futebol e handebol) =
+`DNB {ent}` e categoria DNB, `vencedor. quarto {n}` = ML com a forma do Feca (`Time X - NQ`).
+Nenhuma aposta da Ficha a regravar (essas tinham ido à IA). O estilo (`descricao_ficha.estilo`)
+também junta os nomes. Achados no levantamento: `Time de Fora total de escanteios` (MyStake) era
+lido como jogador desde a s415 (o lado do jogo saiu de `_jogador`), e na Megapari o jogador vem
+depois do subjogo (`players' stats {jogador} total assists {n}`). Combinações não decididas,
+para o consultor: nenhuma nos crus das casas da Ficha; nas descrições que a IA escreveu nas
+outras casas, `Rebotes + Assistências` (Betano 42, Bet365 26, Betfair 8, Superbet 2, Stake 2) e
+`Pontos + Rebotes` (Betano 13, Bet365 10, Betfair 6, Pinnacle 1).
+
+**D29 (contradição de descrição por regra).** A descrição não usa mais os 90% e nunca fica
+contradita: a. total puro → `{ou}`; b. só entre formas do mesmo esqueleto (troca de palavra),
+fica a com menos palavras fora do Master; c. a que escreve o mercado vence a do time sozinho
+(palavra de verdade: `VFL` não é mercado); d. estilo é um voto (minuto vira `{n}min`, `Ressaltos`,
+`PRA`); e. a mais votada, para a revisão (empate exato marcado). A 1ª versão da regra b comparava
+formas inteiras e deixava `{time} {ou} Gols` (1 voto, sem o minuto) derrubar 63 votos com o
+minuto: achado na medição, corrigido, com teste e mutação. Sobre as 46 da semente_log 17 (votos
+daquela rodada): a 6, c 8, estilo 4, e 28 (7 empates) → 28 na revisão; nas 55 chaves de hoje que
+vieram delas, 32 decididas, 21 na revisão, 2 sem voto. Semente de hoje: 658 termos de descrição,
+0 contraditos, 36 na revisão (7 empates). Megapari: o conserto do `Individual Total 1/2` e do
+handicap (s415) já resolvia 9 das 21 com `{t1}`/`{t2}` ou `{n1}`/`{n2}`; as outras o D29 decide.
+`medicoes/medir_d29_contradicoes.py`. Cobertura na captura de 13/10 (virada_log 14 a 29, 95
+códigos ainda identificáveis; as capturas seguintes regravam o `ficha_virada`): pela Ficha 55 →
+65 (DEX 6→8, Duel 9→10, Megapari 1→7, Vavada 3→4), `medir_jogador_chave.py --logs 14-29`.
+
+**D28 (vigia).** Uma chamada por casa virada por dia, de qualquer dono, com até 3 apostas
+(`VIGIA_POR_DIA=3`), reserva em memória contra duas capturas juntas. Ligado em 14/10, por 2
+semanas: rever em 27/10.
+
+**R32.** O cru vale para a captura se chegou depois do último `/extrair` da mesma casa e dono
+(`virada_log`), não mais na janela de 30 s. Duel do Feca, 14/10 (log 43): os 8 eram falsos (crus
+32 s antes). Gabriel, 13/10: logs 25 (5) e 28 (2) eram verdadeiros (crus anteriores ao `/extrair`
+passado, às 16:52:08 e 17:16:12).
+
+**1win.** Fiscal acha o retorno em 3 de 3 ganhas (todas as que ela tem) → `EXTRACAO_SEM_PENSAMENTO`.
+Backtest: 25 comparadas (10 liquidadas), nenhum dinheiro divergente, 25/25 traduzidas iguais à IA;
+descrição: 2 defeitos achados e corrigidos (handicap positivo sem sinal, `FC Slavia Mozyr 1.5`; o
+total puro com o jogo em ` - `), e então 20 de 25 descritas, 16 iguais, as 4 diferenças explicadas
+(2 pela regra do total puro do Feca, 1 de estilo do nome de dupla, 1 em que a IA omitiu `Games`).
+Virada.
+
+**Conferências.** DEX do Gabriel 16:53 (log 25): as 5 estão L hoje; a quinta é `12ca7bb3` (Sabah
+U19 + Chou Tien Chen, 120,53), a única criada naquela captura (16:53:36), editada (tipster) às
+17:01:10. Bet Panda 14/10 04:19: cru com status `canceled` (devolveu os 60 USDT), que o adaptador
+`jb` não mapeia; a IA leu e gravou V.
+
+Commit `5b8fdef`, deploy `3085492d (codigo) e 7a26b9fc (variaveis)`.
+
 ## 2026-10-13 (tarde) · s415 · o jogador fora da chave, o vigia e o N3 de verdade
 
 **T1.** A DEX escreve o jogador dentro do mercado (`Alec Peters. Ressaltos. Com prorrogação`) e a

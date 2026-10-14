@@ -32,6 +32,14 @@
 > depois em `correcoes` (`origem = 'ficha'`, que não conta como edição à mão). Termo já corrigido pelo
 > Feca não aparece mais na lista de contradições. Medição: `medicoes/medir_jogador_chave.py`; lista:
 > `medicoes/listar_contradicoes.py`.
+>
+> **s416 (14/10, D29 e D27):** a DESCRIÇÃO não usa mais a maioria de 90% e nunca vai à IA por
+> contradição (`descricao_ficha.decidir`): a. total puro → `{ou}`; b. entre formas do mesmo esqueleto,
+> a com menos palavras fora do Master; c. a que escreve o mercado vence a do time sozinho; d. estilo é
+> um voto só (`estilo`: minuto `{n}min`, `Ressaltos`/`Rebounds` = `Rebotes`, `PRA` = `Pontos +
+> Assistências + Rebotes`); e. a mais votada, e o termo vai para `semente_log.revisao` (`empate` quando
+> o topo empata). Categoria e esporte seguem com os 90%. A chave do próprio jogador não recebe mais
+> voto (só a correção do Feca a usa). Medição: `medicoes/medir_d29_contradicoes.py`.
 
 ## 1. O problema que ele resolve
 

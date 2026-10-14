@@ -80,22 +80,21 @@ o `docs/HISTORICO.md`. Este arquivo só guarda o que está **aberto**.
   simples, sistema, bônus, freebet, polybet, e os espelhos da 1win (só `1win.io` registrado no
   manifest e no `_HOSTS_POR_CASA`; espelho novo cai no popup e pede "abra o Histórico e rode de
   novo"). `casas/CASA_1WIN.md §5`.
-- **Ficha (s415): decisões do Feca e do consultor.** (1) As chaves de QUALQUER jogador ficaram
-  contraditas porque a IA escreve o mesmo mercado de jeitos diferentes: DEX `basketball | {jogador}.
-  ressaltos. com prorrogação` (`Ressaltos` 14, `Rebotes` 5, `Rebounds` 4), `{jogador}. total de
-  assistências. com prorrogação` (`Assistências` 8, `Assists` 1) e `{jogador} total de pontos. com
-  prorrogação`; Megapari `badminton | handicap {hc}` (`Pontos` 5 contra sem objeto 1). O
-  `MASTER_DESCRICAO` escreve `Rebotes`; decididas, a DEX vai de 6 para 18 de 27 na captura de 13/10.
-  O conserto é `scripts/corrigir_termo.py DEXSPORT descricao "basketball | {jogador}. ressaltos. com
-  prorrogação" "{jogador} - {ou} Rebotes" --aplicar` (idem as outras). (2) Gêmeos em português de
-  termos já decididos: DEX `football | o empate anula a aposta` e `handball | o empate anula a aposta`
-  (descrição `{ent}`; a de `draw no bet` virou `DNB {ent}`) e a categoria `vencedor. quarto {n}` (hoje
-  Player Props; a `winner. quarter {n}` do Feca é ML). (3) Vigia: ligar com `VIGIA_POR_DIA=3`
-  (proposta: 3 apostas por casa e dono por dia, ~US$ 0,05 por chamada, ~US$ 0,50/dia com ~10 pares
-  ativos; teto de 3 chamadas por par, ~US$ 1,50/dia). (4) O consultor revisa as contradições
-  (`docs/PROJETO_FICHA_SHARPEN/medicoes/contradicoes_semente_17.md`; a rodada atual sai com
-  `listar_contradicoes.py`) e o `semente_log.revisao`. Também do Feca: a ordem dos nomes
-  (`Leclerc, Charles`; a Ficha fica com o cru).
+- **Ficha (s416): para o consultor e o Feca.** (1) `semente_log.revisao`: 36 termos de descrição
+  que a regra D29 decidiu pela mais votada (7 por empate exato, decididos pela ordem alfabética:
+  olhar primeiro), lista em `medicoes/medir_d29_contradicoes.py`. Casos a olhar: Betrebels `1st half
+  - total bookings` (Cartões × Gols, 1 × 1, ficou Gols), Megapari `ice hockey | individual total 2`
+  (ficou `Pontos`; hóquei é Gols), 1win `total. {n} parte` (a mais votada omite o tempo), DEX
+  `escanteios. vencedor` (`{ent}` × `VFL {ent}`; pela família do Feca seria `{ent} - Mais Escanteios`).
+  (2) Combinações de jogador não decididas (D27): `Rebotes + Assistências` e `Pontos + Rebotes`, hoje
+  só nas descrições da IA de casas sem Ficha (Betano, Bet365, Betfair, Superbet, Stake, Pinnacle);
+  `descricao_ficha.estilo` só acerta a grafia delas. (3) `draw no bet` = `{ent}` (sem `DNB`) na
+  BetMartini, Duel e MyStake: o `DNB {ent}` do Feca vale só na DEX. (4) **Vigia (D28): ligado em
+  14/10/2026 com `VIGIA_POR_DIA=3` por 2 semanas; em 27/10, voltar a falar dele** (`vigia_ficha`,
+  `uso_tokens.caminho='vigia'`). (5) Bet Panda: status `canceled` não é mapeado pelo adaptador `jb`
+  (1 cru, 14/10 04:19, devolveu a stake inteira); proposta: V quando `result_sum` = `sum` (o dinheiro
+  prova), senão recusa como hoje. Também do Feca: a ordem dos nomes (`Leclerc, Charles`; a Ficha fica
+  com o cru).
 - **Ficha (s412): conferência da etapa 1.** O consultor confere no banco com o `virada_log` (colunas
   de motivo) e o `medicoes/medir_virada_custo.py`. O N3 já aconteceu em produção (s415: virada_log
   25 e 28, 7 códigos do Gabriel com texto mudado e cru anterior; a IA leu os 7). Recarregar a extensão

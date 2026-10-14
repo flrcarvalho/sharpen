@@ -8,8 +8,9 @@ com a decisão mais recente da IA em `sombra_rotulos`. Entra no dicionário só 
 fora, ou seja, vai para a IA.
 
 Desde a s413 também o dicionário de DESCRIÇÃO (`app/descricao_ficha.py`: o mercado da casa →
-o nome do mercado que a IA escreveu, perna a perna), e a maioria de 90% decide (o voto isolado
-vai para a revisão). Depois de gravar, a semente regrava a descrição das apostas da Ficha do
+o nome do mercado que a IA escreveu, perna a perna). Desde a s416 (D29) a descrição nunca fica
+contradita: a regra decide (`descricao_ficha.decidir`) e só a mais votada vai para a revisão;
+categoria e esporte seguem com a maioria de 90%. Depois de gravar, a semente regrava a descrição das apostas da Ficha do
 mês corrente (`dicionario.regravar_mes`).
 
 Idempotente: refaz a semente inteira a cada rodada. O servidor roda a mesma semente
