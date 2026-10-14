@@ -64,6 +64,7 @@ import cambio as _cambio
 from prompts import build_system
 import contrato_texto as _contrato
 from repository import (
+    alinhar_tsv, categorias_do_dono,
     analisar_extracao,
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
     casas_com_parceiros, contar_bilhetes, contar_incompletos, contar_pendencias,
@@ -627,6 +628,26 @@ async def _sombra_modelo(dono: str, casa: str, system: list[dict],
                 placar["cod_inventado"], f" ERRO={erro}" if erro else "")
 
 
+async def _leitor(tsv: str, texto: str | None, dono: str, casa: str, rotulo: str) -> tuple[str, dict]:
+    """O LEITOR (s417, parecer 020), antes de qualquer fiscal: cada campo no seu tipo
+    (`repository.conferir_linha`). A linha com o Tipster pulado é realinhada; a que não bate
+    SAI do lote, e a cobertura a pede de novo à IA (na casa virada, o código com Ficha já nem
+    chega aqui). Com gabarito de códigos no texto vale tudo: casa da captura, categoria
+    (Master ∪ base do dono), código obrigatório e odd obrigatória. Sem gabarito (print), só a
+    forma, porque ali não há repescagem: a linha recusada seria aposta perdida."""
+    gabarito = bool(codigos_do_texto(texto)) if texto else False
+    kw = {"exige_odd": False}
+    if gabarito:
+        kw = {"casa": casa or None, "categorias": await categorias_do_dono(dono),
+              "exige_codigo": True, "exige_odd": True}
+    tsv, st = alinhar_tsv(tsv, **kw)
+    if st["realinhadas"] or st["recusadas"]:
+        logger.warning("%s leitor: %d linha(s) realinhada(s) (Tipster pulado), %d recusada(s) "
+                       "fora do tipo: %s", rotulo, st["realinhadas"], st["recusadas"],
+                       st["exemplos"])
+    return tsv, st
+
+
 def _fiscais_da_sombra(tsv: str, texto: str | None, codigo_ocr: bool,
                        betfair_dates: dict | None) -> tuple[str, int]:
     """Os fiscais DETERMINÍSTICOS do titular, na MESMA ordem, aplicados ao candidato.
@@ -641,6 +662,7 @@ def _fiscais_da_sombra(tsv: str, texto: str | None, codigo_ocr: bool,
     múltipla → 12ª coluna. O sequencial difere só na inversão de linhas, que não muda
     nenhum número (a comparação é por código, não por posição).
     """
+    tsv, _ = alinhar_tsv(tsv, exige_odd=False)        # o leitor, só a forma (s417)
     tsv, _ = corrigir_codigos_tsv(tsv, texto)
     tsv, _ = _corrigir_codigos_fantasma(tsv, texto, codigo_ocr)
     tsv, _ = _reconciliar_orfas(tsv, texto)
@@ -2234,6 +2256,9 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         # Para a sombra de números (s407): o titular ANTES de qualquer fiscal e o custo
         # só da leitura principal, sem a repescagem que a sombra não faz.
         titular_bruto, tk_base = accumulated, dict(total_tokens)
+        # O leitor (s417): antes de tudo, cada campo no seu tipo. Antes da cobertura de
+        # propósito: a linha recusada vira código faltante, e a repescagem a pede de novo.
+        accumulated, leitor = await _leitor(accumulated, texto, dono, casa, "seq")
         # Correção determinística do ID contra o texto colado (o ID é a identidade;
         # a IA não copia números de 18 dígitos com fidelidade). No-op sem texto.
         accumulated, id_fix = corrigir_codigos_tsv(accumulated, texto)
@@ -2273,6 +2298,11 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         # Stake determinística (s311): a coluna 8 vem do bloco daquele código, não da IA.
         # Mesma posição da 12ª coluna e pelo mesmo motivo — depois da cobertura e da
         # fidelidade, para que linha nascida numa repescagem também passe por aqui.
+        # O leitor de novo, sobre o que a cobertura e a fidelidade trouxeram: a repescagem
+        # também pode pular coluna, e o conferidor abaixo só vê linha no lugar.
+        accumulated, leitor2 = await _leitor(accumulated, texto, dono, casa, "seq pós-repesca")
+        leitor = {k: leitor[k] + leitor2[k] for k in ("realinhadas", "recusadas")} | {
+            "exemplos": leitor["exemplos"] + leitor2["exemplos"]}
         accumulated, stake_fix = corrigir_stake_tsv(accumulated, texto)
         if stake_fix["stakes"]:
             logger.warning("seq stake: %d linha(s) com stake do bilhete errado — corrigidas "
@@ -2309,7 +2339,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
                                  titular_tk=tk_base, titular_tk_total=dict(total_tokens),
                                  codigo_ocr=codigo_ocr, betfair_dates=betfair_dates,
                                  continuou=part > 1))
-        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto), 'moedas': _cambio.moedas_do_texto(texto), 'freebets': freebets_do_texto(texto)})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': accumulated, 'stop_reason': msg.stop_reason, 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'id_fix': id_fix, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'leitor': leitor, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto), 'moedas': _cambio.moedas_do_texto(texto), 'freebets': freebets_do_texto(texto)})}\n\n"
     except Exception:
         logger.exception("Erro no stream sequencial")
         yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
@@ -2465,6 +2495,8 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
                     time.perf_counter() - t_start, n_chunks, total_tokens["output"])
         # Para a sombra de números (s407) — ver a nota no caminho sequencial.
         titular_bruto, tk_base = resultado, dict(total_tokens)
+        # O leitor (s417): ver a nota no seq.
+        resultado, leitor = await _leitor(resultado, texto, dono, casa, "par")
         # Correção determinística do ID contra o texto colado (ver nota no seq).
         resultado, id_fix = corrigir_codigos_tsv(resultado, texto)
         if id_fix["corrigidos"] or id_fix["incertos"]:
@@ -2500,6 +2532,9 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
             resultado = _apply_betfair_dates(resultado, betfair_dates)
         # Stake determinística (s311) — ver nota no caminho sequencial. Aqui é onde ela
         # mais importa: o carryover de stake nasce da vizinhança DENTRO de um chunk.
+        resultado, leitor2 = await _leitor(resultado, texto, dono, casa, "par pós-repesca")
+        leitor = {k: leitor[k] + leitor2[k] for k in ("realinhadas", "recusadas")} | {
+            "exemplos": leitor["exemplos"] + leitor2["exemplos"]}
         resultado, stake_fix = corrigir_stake_tsv(resultado, texto)
         if stake_fix["stakes"]:
             logger.warning("par stake: %d linha(s) com stake do bilhete errado — corrigidas "
@@ -2529,7 +2564,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
                                  titular_bruto=titular_bruto, titular_final=resultado,
                                  titular_tk=tk_base, titular_tk_total=dict(total_tokens),
                                  codigo_ocr=codigo_ocr, betfair_dates=betfair_dates))
-        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto), 'moedas': _cambio.moedas_do_texto(texto), 'freebets': freebets_do_texto(texto)})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'leitor': leitor, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto), 'moedas': _cambio.moedas_do_texto(texto), 'freebets': freebets_do_texto(texto)})}\n\n"
     except Exception:
         logger.exception("par-final error")
         yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"

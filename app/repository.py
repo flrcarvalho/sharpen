@@ -374,6 +374,163 @@ def data_valida(v) -> bool:
     return not s or _data_iso(s) is not None
 
 
+# ── O LEITOR confere o TIPO de cada campo, não só a contagem (s417, parecer 020) ──────────
+# Na BetMartini de 14/10 às 14:43 a IA pulou a coluna Tipster e, em duas linhas, pôs um campo
+# vazio a mais antes do código: a contagem deu 11, a descrição caiu em Aposta, a stake em
+# Descrição, a odd em Stake, e o conferidor de stake trocou a odd 4,761 pela stake 25,00. As
+# duas foram gravadas sem odd. A linha de 10 campos (só o Tipster pulado) também era lida
+# deslocada, com o código no Resultado, e o `validar_linhas` a recusava em silêncio.
+#
+# A regra: cada campo no seu tipo. Linha fora do tipo tem UMA hipótese de conserto, a do
+# defeito medido (Tipster pulado; o campo vazio que sobrar entre o Resultado e o Código
+# sai). Se a linha consertada bate em TODOS os campos, ela vale; senão é RECUSADA, nunca
+# gravada: no `/extrair` ela sai do lote e a cobertura a pede de novo à IA.
+# Código: só o que NÃO pode ser código (espaço, dinheiro com vírgula, data). O resto, código
+# curto ou trocado, é com o `corrigir_codigos_tsv`, que o confere contra o texto do robô.
+_CODIGO_RE = re.compile(r"^\S+$")
+_SO_NUMERO = re.compile(r"[\d.,]+")
+_PARECE_DESCRICAO = re.compile(r"\[[^\]]+\]|\s//\s")
+
+
+def _chave_casa(c) -> str:
+    return re.sub(r"[^0-9a-z]", "", str(c or "").casefold())
+
+
+def conferir_linha(parts: list[str], casa: str | None = None,
+                   categorias: set[str] | frozenset | None = None,
+                   exige_codigo: bool = False, exige_odd: bool = True) -> list[str]:
+    """Os campos fora do TIPO numa linha da planilha (Data … Código). `[]` = linha boa.
+
+    data no campo de data · número > 0 na stake e na odd (odd vazia é recusa, aberta ou
+    liquidada, com `exige_odd`) · resultado conhecido ou vazio · código com cara de código
+    (nunca dinheiro nem data; obrigatório com `exige_codigo`) · casa igual à da captura (com
+    `casa`) · Aposta é categoria (`categorias`), e nunca uma descrição · Descrição nunca é
+    só um número."""
+    if len(parts) < 10:
+        return ["colunas"]
+    p = [str(x).strip() for x in parts[:11]] + [""] * max(0, 11 - len(parts))
+    out = []
+    if p[0] and _data_iso(p[0]) is None:
+        out.append("data")
+    if not p[1] or _data_iso(p[1]) or _SO_NUMERO.fullmatch(p[1]) or _PARECE_DESCRICAO.search(p[1]):
+        out.append("esporte")
+    if (_num_or_none(p[7]) or 0) <= 0:
+        out.append("stake")
+    if p[8] or exige_odd:
+        if (_num_or_none(p[8]) or 0) <= 0:
+            out.append("odd")
+    if not resultado_valido(p[9]):
+        out.append("resultado")
+    if p[10]:
+        if not _CODIGO_RE.match(p[10]) or "," in p[10] or _data_iso(p[10]):
+            out.append("código")
+    elif exige_codigo:
+        out.append("código")
+    # A casa da captura e a que a IA escreve diferem em grafia (`Stake.com` × `Stake`): vale
+    # uma conter a outra. OUTRA casa (`SportingBet` numa captura da MyStake) não. Vazia passa:
+    # não é sinal de coluna trocada (medido: 3 linhas boas na sombra), e o `/salvar` grava a
+    # casa da conta de qualquer jeito; o deslocamento os outros campos pegam.
+    if casa is not None and p[3]:
+        a_, b_ = _chave_casa(p[3]), _chave_casa(casa)
+        if not a_ or not b_ or (a_ not in b_ and b_ not in a_):
+            out.append("casa")
+    # A casa no campo do Tipster é a assinatura do Tipster pulado (a extração da BetMartini).
+    if casa is not None and p[2] and _chave_casa(p[2]) == _chave_casa(casa):
+        out.append("tipster")
+    if casa is not None and p[4] and _chave_casa(p[4]) == _chave_casa(casa):
+        out.append("parceiro")
+    if not p[5] or _PARECE_DESCRICAO.search(p[5]) or _SO_NUMERO.fullmatch(p[5]) or (
+            categorias is not None and p[5] not in categorias):
+        out.append("aposta")
+    if not p[6] or _SO_NUMERO.fullmatch(p[6]):
+        out.append("descrição")
+    return out
+
+
+# As assinaturas de linha DESLOCADA que o `/salvar` barra em qualquer origem (bot, import,
+# extensão): descrição ou número no campo da Aposta, número sozinho no da Descrição. As outras
+# checagens são do leitor do `/extrair`, onde a casa e a categoria são conhecidas.
+def deslocada(parts: list[str]) -> bool:
+    if len(parts) < 10:
+        return False
+    import taxonomia
+    e, a, d = str(parts[1]).strip(), str(parts[5]).strip(), str(parts[6]).strip()
+    return bool(_PARECE_DESCRICAO.search(a) or _SO_NUMERO.fullmatch(a)
+                or (d and (_SO_NUMERO.fullmatch(d) or d in taxonomia.categorias_canonicas()))
+                or (e and (_data_iso(e) or _SO_NUMERO.fullmatch(e) or _PARECE_DESCRICAO.search(e))))
+
+
+_CATEGORIAS_DONO: dict = {}
+
+
+async def categorias_do_dono(dono: str) -> frozenset:
+    """As categorias que valem no leitor: o Master (`taxonomia`) unido às que a base do dono
+    já usa (Especiais, Aumentadas, Dupla, Defesas: ~500 das 14.962 linhas de 30 dias, fora do
+    Master até a etapa 2), sem as que têm cara de descrição. Cache de 10 min por dono."""
+    import time as _t
+    import taxonomia
+    agora = _t.monotonic()
+    c = _CATEGORIAS_DONO.get(dono)
+    if c and agora - c[0] < 600:
+        return c[1]
+    cats = set(taxonomia.categorias_canonicas())
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            for r in await conn.fetch("SELECT DISTINCT aposta FROM bilhetes WHERE dono = $1 "
+                                      "AND aposta IS NOT NULL AND aposta <> ''", dono):
+                if not _PARECE_DESCRICAO.search(r["aposta"]):
+                    cats.add(r["aposta"])
+    except Exception:  # noqa: BLE001 — sem a base, só o Master (mais recusa, nunca grava errado)
+        logger.warning("leitor: categorias da base de %s indisponíveis", dono, exc_info=True)
+    _CATEGORIAS_DONO[dono] = (agora, frozenset(cats))
+    return _CATEGORIAS_DONO[dono][1]
+
+
+def alinhar_linha(parts: list[str], **kw) -> tuple[list[str] | None, bool, list[str]]:
+    """(linha, realinhada?, motivos). A linha boa volta como veio. A fora do tipo tenta a
+    hipótese do Tipster pulado; se ainda não bate, volta `None` com os motivos da ORIGINAL."""
+    p = [str(x).strip() for x in parts]
+    extra = p[11:]                                   # 12ª coluna (sistema), do backend
+    motivos = conferir_linha(p[:11], **kw)
+    if not motivos:
+        return p[:11] + extra if len(p) >= 11 else p + [""] * (11 - len(p)), False, []
+    q = p[:2] + [""] + p[2:]
+    # o campo vazio que sobrou ENTRE o Resultado e o Código sai (5525074378, 5525070140)
+    while len(q) > 11 and q[10] == "" and q[11] != "":
+        del q[10]
+    while len(q) > 11 and q[-1] == "":
+        q.pop()
+    if len(q) == 10:
+        q.append("")
+    if len(q) == 11 and not conferir_linha(q, **kw):
+        return q, True, []
+    return None, False, motivos
+
+
+def alinhar_tsv(tsv: str, **kw) -> tuple[str, dict]:
+    """O leitor sobre o TSV inteiro: linha boa passa, realinhável é realinhada, e a fora do
+    tipo SAI (texto livre e cabeçalho passam intactos). Devolve (tsv, {realinhadas,
+    recusadas, exemplos})."""
+    out, realinhadas, recusadas, exemplos = [], 0, 0, []
+    for line in (tsv or "").split("\n"):
+        parts = line.rstrip("\r").split("\t")
+        if len(parts) < 10 or parts[0].strip().lower() in ("data", "date", "código"):
+            out.append(line)
+            continue
+        linha, re_, motivos = alinhar_linha(parts, **kw)
+        if linha is None:
+            recusadas += 1
+            if len(exemplos) < 5:
+                exemplos.append({"codigo": next((x.strip() for x in reversed(parts)
+                                                 if x.strip()), ""), "motivos": motivos})
+            continue
+        realinhadas += re_
+        out.append("\t".join(linha))
+    return "\n".join(out), {"realinhadas": realinhadas, "recusadas": recusadas,
+                            "exemplos": exemplos}
+
+
 def parse_tsv(tsv: str) -> list[dict]:
     """Converte bloco TSV em lista de dicts. Ignora linhas vazias e cabeçalho.
 
@@ -394,7 +551,19 @@ def parse_tsv(tsv: str) -> list[dict]:
         parts = [p.strip() for p in line.split("\t")]
         if len(parts) < 10:
             continue
+        # Leitor (s417, parecer 020): a linha DESLOCADA (Tipster pulado) é realinhada se a
+        # hipótese bate em todos os campos; se não, segue na MESMA posição (o front casa as
+        # recusas pela posição) marcada, e o `validar_linhas` a recusa. Nunca grava.
+        desloc = False
+        if deslocada(parts) or (len(parts) == 10 and not resultado_valido(parts[9])):
+            linha, _re, _m = alinhar_linha(parts, exige_odd=False)
+            if linha is not None:
+                parts = linha
+            else:
+                desloc = True
         row = dict(zip(_COLS, parts[:10]))
+        if desloc:
+            row["_deslocada"] = True
         # Ignora linha de cabeçalho se presente
         if row["data"].lower() in ("data", "date", "código"):
             continue
@@ -761,6 +930,13 @@ def corrigir_stake_tsv(tsv: str, texto: str | None) -> tuple[str, dict]:
         codigo = parts[10].strip() if len(parts) > 10 else ""
         info = mapa.get(codigo)
         if not codigo or not info:
+            continue
+        # O conferidor não corrige valor em linha DESALINHADA (s417, parecer 020): a coluna 8
+        # dela não é a stake, e foi assim que a odd 4,761 virou 25,00.
+        # Stake, odd e resultado fora do tipo são o trabalho dele; o que trava é o sinal de
+        # COLUNA trocada (Aposta, Descrição, Data ou Código no lugar errado).
+        if deslocada(parts) or {"aposta", "descrição", "data", "código"} & set(
+                conferir_linha(parts, exige_odd=False)):
             continue
         mexeu = False
         stake_bloco, stake_ia = info["stake"], parts[7].strip()
@@ -1356,7 +1532,10 @@ def validar_linhas(rows: list[dict]) -> tuple[list[dict], list[dict]]:
     rejeitadas: list[dict] = []
     for i, row in enumerate(rows, 1):
         problema = None
-        for campo in ("stake", "odd"):
+        if row.get("_deslocada"):
+            problema = ("aposta", row.get("aposta"), "linha desalinhada — as colunas não "
+                        "batem com o tipo de cada campo (a IA pulou ou somou uma coluna)")
+        for campo in (("stake", "odd") if problema is None else ()):
             if not valor_monetario_valido(row.get(campo)):
                 problema = (campo, row.get(campo), f"{campo} inválido — não é um número maior que zero")
                 break
