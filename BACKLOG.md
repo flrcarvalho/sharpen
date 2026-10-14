@@ -81,21 +81,17 @@ o `docs/HISTORICO.md`. Este arquivo só guarda o que está **aberto**.
   desde a 0.7.54 de 14/10, `1win.com`, que fala com o mesmo gateway; espelho fora da lista é
   barrado pelo popup como "outra casa" e precisa entrar no manifest, no `CASA_HOSTS` do popup e
   no `_HOSTS_POR_CASA`). `casas/CASA_1WIN.md §5`.
-- **Ficha (s416): para o consultor e o Feca.** (1) `semente_log.revisao`: 36 termos de descrição
-  que a regra D29 decidiu pela mais votada (7 por empate exato, decididos pela ordem alfabética:
-  olhar primeiro), lista em `medicoes/medir_d29_contradicoes.py`. Casos a olhar: Betrebels `1st half
-  - total bookings` (Cartões × Gols, 1 × 1, ficou Gols), Megapari `ice hockey | individual total 2`
-  (ficou `Pontos`; hóquei é Gols), 1win `total. {n} parte` (a mais votada omite o tempo), DEX
-  `escanteios. vencedor` (`{ent}` × `VFL {ent}`; pela família do Feca seria `{ent} - Mais Escanteios`).
-  (2) Combinações de jogador não decididas (D27): `Rebotes + Assistências` e `Pontos + Rebotes`, hoje
-  só nas descrições da IA de casas sem Ficha (Betano, Bet365, Betfair, Superbet, Stake, Pinnacle);
-  `descricao_ficha.estilo` só acerta a grafia delas. (3) `draw no bet` = `{ent}` (sem `DNB`) na
-  BetMartini, Duel e MyStake: o `DNB {ent}` do Feca vale só na DEX. (4) **Vigia (D28): ligado em
-  14/10/2026 com `VIGIA_POR_DIA=3` por 2 semanas; em 27/10, voltar a falar dele** (`vigia_ficha`,
-  `uso_tokens.caminho='vigia'`). (5) Bet Panda: status `canceled` não é mapeado pelo adaptador `jb`
-  (1 cru, 14/10 04:19, devolveu a stake inteira); proposta: V quando `result_sum` = `sum` (o dinheiro
-  prova), senão recusa como hoje. Também do Feca: a ordem dos nomes (`Leclerc, Charles`; a Ficha fica
-  com o cru).
+- **Ficha (s417): para o consultor e o Feca.** (1) `semente_log.revisao`: 36 termos de descrição
+  decididos pela mais votada (7 por empate exato: olhar primeiro), lista em
+  `medicoes/medir_d29_contradicoes.py`. A olhar: Betrebels `1st half - total bookings` (Cartões ×
+  Gols), 1win `total. {n} parte`, DEX `escanteios. vencedor` (`{ent}` × `VFL {ent}`). (2) **Vigia
+  (D28): ligado em 14/10/2026 por 2 semanas; em 27/10, voltar a falar dele.** Duel e BetMartini já
+  deram `linha` (a IA do vigia não devolveu a aposta): olhar junto. (3) D31: `empate devolve aposta`
+  (Vavada, Betrebels) entrou como gêmeo do `empate anula` = DNB; confirmar. (4) `alerta_moeda` não
+  tem tela: hoje só o aviso do `/salvar` e o log. (5) Leitor (parecer 020): no print (sem gabarito de
+  códigos) ele só confere a forma, porque ali não há repescagem e a linha recusada seria aposta
+  perdida; e o `/salvar` aceita odd e stake vazias (bot, s318). Também do Feca: a ordem dos nomes
+  (`Leclerc, Charles`; a Ficha fica com o cru).
 - **Ficha (s412): conferência da etapa 1.** O consultor confere no banco com o `virada_log` (colunas
   de motivo) e o `medicoes/medir_virada_custo.py`. O N3 já aconteceu em produção (s415: virada_log
   25 e 28, 7 códigos do Gabriel com texto mudado e cru anterior; a IA leu os 7). Recarregar a extensão

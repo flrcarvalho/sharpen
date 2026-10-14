@@ -5,6 +5,29 @@
 
 ---
 
+## 2026-10-14 (tarde) · s417 · moeda do cru (D30), D31 e o leitor por tipo (parecer 020)
+
+**D30 (moeda).** O vigia achou: LavaPessoal na Megapari, cru `CurrencyCode: BRL`, banco com stake
+377,98 em USDT (75 × 5,0397). A conversão usava só a moeda da conta, e a do cru só avisava. Agora a
+moeda do cru (`captura_crua`, pelo adaptador) vence: a linha vai na moeda do cru, com alerta e linha
+em `alerta_moeda`; a da conta vale só com a moeda ausente (5A). Real numa conta em dólar grava a
+origem explícita (`BRL`, ×1). Levantamento (`scratchpad/moeda_lev.py`): só esse caso, 52 apostas
+(27 IA, 25 Ficha), todas de 14/10; a conta já estava em BRL quando olhei. Regravadas depois do
+deploy: soma R$ 21.733,51 → R$ 4.320,00 (ex.: 88715070881, L, 501,63 → 100,00), rastro em
+`correcoes` (`origem='d30'`, 156 linhas). Sem cru: nenhuma. Vigia: as duas pontas na moeda da
+casa; das 21 linhas de `vigia_ficha` até hoje, as de stake em conta USD/USDT eram falso alarme.
+
+**D31.** 32 correções do Feca no dicionário (`scratchpad/s417_d31.py`); 4 apostas da Ficha do mês
+regravadas (BetMartini 3, Vavada 1). Incluí `empate devolve aposta` (Vavada, Betrebels) como gêmeo
+do `empate anula`: a categoria dela na Vavada era ML. `canceled` da BetBy com retorno = stake é V.
+
+**Parecer 020 (leitor).** Na `sombra_tsv` (992 linhas da IA): 126 tinham o Tipster pulado (Shuffle,
+MyStake, Duel, BetMartini) e eram lidas deslocadas; as de 10 campos o `validar_linhas` recusava em
+silêncio e a captura seguinte recuperava. O leitor novo as realinha; 18 recusadas, todas erradas
+(outra casa no campo, "A conferir" no resultado, linha entre crases). As 2 da BetMartini regravadas
+pelo cru. Mutação de colunas (tirar uma, somar outra em todas as posições, 770 linhas) achou 5
+furos antes do commit (Esporte, casa no Tipster/Parceiro, categoria na Descrição).
+
 ## 2026-10-14 (madrugada) · s416 · D27, D29, vigia ligado, R32 e a 1win virada
 
 **D27 (mercados de jogador).** 24 correções do Feca gravadas (`origem='feca'`) pelo
