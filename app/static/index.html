@@ -8855,9 +8855,27 @@ function resPill(res) {
   return `<span class="bet-res-pill bet-res-${cls}">${esc(RES_LABEL[r] || res)}</span>`;
 }
 
-// Stake no componente money (R$ neutro + valor). Mostra a string como veio (vírgula/precisão preservadas).
+// Stake no componente money (R$ neutro + valor), SEMPRE com 2 casas (UI_REFERENCE §5.1).
+// A coluna `stake` é TEXTO e cada escritor grava de um jeito: a Ficha sai `100` (`_odd_br`),
+// o câmbio `100,00` (`_fmt_money`) e a IA copia o que o bloco trouxer. Mostrar a string crua
+// punha `R$ 100` e `R$ 100,00` lado a lado na mesma conta (s417). O parse espelha o
+// `repository._num_or_none`, que é a régua do P/L: a tela mostra o número com que o servidor
+// calcula. Texto ilegível aparece como veio, para o defeito não sumir atrás da máscara.
+function _stakeNum(v) {
+  let s = (v ?? '').toString().trim().replace(/\.+$/, '');
+  if (!s) return null;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  if (!/^-?\d+(\.\d+)?$/.test(s)) return null;
+  const n = parseFloat(s);
+  return isFinite(n) ? n : null;
+}
+function _stakeBR(v) {
+  const n = _stakeNum(v);
+  if (n == null) return (v ?? '').toString().trim();
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 function moneyStake(v) {
-  const s = (v ?? '').toString().trim();
+  const s = _stakeBR(v);
   if (!s) return '';
   return `<span class="money"><span class="money-sign">R$</span><span class="money-val">${esc(s)}</span></span>`;
 }
@@ -8942,7 +8960,7 @@ function _subMoeda(b) {
     const cot = Number(b.cotacao);
     const dica = `Valor original na moeda da conta (${b.moeda})` +
       (isFinite(cot) && cot > 0 ? `, convertido a ${cot.toLocaleString('pt-BR', { maximumFractionDigits: 4 })}` : '');
-    const txt = _grVer === 'orig' ? (b.stake ? 'R$ ' + b.stake : '') : fmtMoedaOrig(b.stake_orig, b.moeda);
+    const txt = _grVer === 'orig' ? (b.stake ? 'R$ ' + _stakeBR(b.stake) : '') : fmtMoedaOrig(b.stake_orig, b.moeda);
     return txt ? `<span class="btbl-stake-usd" title="${esc(dica)}">${esc(txt)}</span>` : '';
   }
   return b.stake_usd != null ? `<span class="btbl-stake-usd" title="Valor original que saiu da conta (USD)">${fmtUSD(b.stake_usd)}</span>` : '';

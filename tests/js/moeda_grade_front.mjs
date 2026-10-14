@@ -12,7 +12,8 @@
 //    moeda embaixo, neutra e com sinal, como a stake (pedido do Feca, 03/10/2026);
 // E. o seletor só aparece em conta USD/USDT, volta a R$ em conta BRL e põe a moeda nos
 //    cabeçalhos;
-// F. a Base Completa (`apostas.js`) desenha a sub-linha com o helper do dashboard.
+// F. a Base Completa (`apostas.js`) desenha a sub-linha com o helper do dashboard;
+// G. a stake sai sempre com 2 casas (`R$ 100` e `R$ 100,00` eram a mesma aposta, s417).
 //
 // O que NÃO está coberto: o visual e o clique real (é a medição no navegador), e o
 // `renderGrade` inteiro (só as células que ele chama).
@@ -72,10 +73,10 @@ function montarGrade() {
     function _faltando() { return '[faltando]'; }
   `;
   const codigo = [recorteConst(INDEX, '_MOEDA_ORIG'), 'let _grVer = \'BRL\';',
-    ...['_num2BR', 'fmtMoedaOrig', 'moneyOrig', '_temOrig', '_subMoeda', '_grMoedaSync',
+    ...['_stakeNum', '_stakeBR', '_num2BR', 'fmtMoedaOrig', 'moneyOrig', '_temOrig', '_subMoeda', '_grMoedaSync',
         '_celStake', '_subPL', '_celPL'].map(n => recorteFn(INDEX, n))].join('\n');
   vm.runInContext(dubles + codigo + `
-    this.api = { fmtMoedaOrig, moneyOrig, _subMoeda, _grMoedaSync, _celStake, _celPL,
+    this.api = { _stakeBR, fmtMoedaOrig, moneyOrig, _subMoeda, _grMoedaSync, _celStake, _celPL,
       ver: v => { _grVer = v; }, verAtual: () => _grVer, conta: p => { parceiroSelecionado = p; } };`, ctx);
   return ctx;
 }
@@ -132,6 +133,30 @@ A.ver('orig');
   ok(c.includes('>R$ 130,00<'), 'C: e o R$ desce para a sub-linha: ' + c);
   ok(A._celStake(real).includes('data-field="stake"') && A._celStake(real).includes('[R$ 50,00]'),
      'C: linha sem origem segue em R$ e editável');
+  ok(A._celStake({ ...conv, stake: '130' }).includes('>R$ 130,00<'),
+     'C: a sub-linha em R$ também sai com 2 casas quando a stake foi gravada sem centavos');
+}
+
+// ── G. a stake sai com 2 casas, venha como vier (s417) ────────────────────────
+// Cada escritor grava a coluna de um jeito (`100` da Ficha, `100,00` do câmbio, o que a IA
+// copiar), e a grade mostrava a string crua: `R$ 100` ao lado de `R$ 100,00` na mesma conta.
+// O parse é o do `repository._num_or_none` (régua do P/L); ilegível aparece como veio.
+eq(A._stakeBR('100'), '100,00', 'G: inteiro ganha os centavos');
+eq(A._stakeBR('100,00'), '100,00', 'G: já com centavos fica igual');
+eq(A._stakeBR('1.234,5'), '1.234,50', 'G: vírgula manda, ponto é milhar');
+eq(A._stakeBR('75.26'), '75,26', 'G: sem vírgula o ponto é decimal, como no servidor');
+eq(A._stakeBR('1000'), '1.000,00', 'G: milhar pt-BR');
+eq(A._stakeBR('abc'), 'abc', 'G: ilegível aparece como veio, não vira zero');
+eq(A._stakeBR(''), '', 'G: vazio fica vazio');
+{
+  // O moneyStake de verdade (o desta suíte é dublê): recortado e rodado à parte.
+  const ctx = {};
+  vm.createContext(ctx);
+  vm.runInContext('const esc = s => String(s);\n' + ['_stakeNum', '_stakeBR', 'moneyStake'].map(n => recorteFn(INDEX, n)).join('\n') +
+    '\nthis.m = moneyStake;', ctx);
+  eq(ctx.m('100'), ctx.m('100,00'), 'G: R$ 100 e R$ 100,00 desenham a MESMA célula');
+  ok(ctx.m('45').includes('<span class="money-val">45,00</span>'), 'G: a stake usa o .money com 2 casas: ' + ctx.m('45'));
+  eq(ctx.m(null), '', 'G: sem stake, sem célula');
 }
 
 // ── D. célula de P/L ─────────────────────────────────────────────────────────
