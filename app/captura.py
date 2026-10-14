@@ -237,9 +237,10 @@ _HOSTS_POR_CASA = {
     # Plataforma própria, GraphQL no host da casa (s401).
     "SHUFFLE":    ("shuffle.com",),
     # Plataforma própria `top-parser` (s413). A API sai de `api-gateway.top-parser.com`; a ABA
-    # é o site da casa. Só o domínio medido no recon: espelho novo passa (`casa_de_host` só
-    # barra domínio de OUTRA casa conhecida).
-    "1WIN":       ("1win.io",),
+    # é o site da casa. Só domínios medidos (`1win.com`, 14/10: o mesmo gateway): espelho novo
+    # passa aqui (`casa_de_host` só barra domínio de OUTRA casa conhecida), mas o popup e o
+    # manifest precisam dele.
+    "1WIN":       ("1win.io", "1win.com"),
 }
 
 

@@ -12,7 +12,8 @@
 
 ## 1. Identidade
 
-- Casa canônica: `1win` · site: `1win.io` · esportes em `/betting`, histórico em
+- Casa canônica: `1win` · sites: `1win.io` e o espelho `1win.com` (mesmo gateway, medido em
+  14/10; SharpenUp 0.7.54) · esportes em `/betting`, histórico em
   `/betting/bets-history`
 - Locale: `pt` (`x-lang`), texto dos mercados em pt-BR com caixa de título (`Acima De 2.5`,
   `Empate Ou Fulham U-21`). Moeda: a da **conta** (`currencyCode: "USDT"` na amostra); o card

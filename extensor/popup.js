@@ -78,8 +78,9 @@ const CASA_HOSTS = {
   // Plataforma própria, GraphQL (s401). O histórico: Esportes → Minhas Apostas.
   "Shuffle":    ["shuffle.com"],
   // Plataforma própria `top-parser` (s413). O histórico: Esportes → Histórico de apostas. A
-  // API sai de `api-gateway.top-parser.com`; a ABA é o site da casa.
-  "1win":       ["1win.io"],
+  // API sai de `api-gateway.top-parser.com`; a ABA é o site da casa. `1win.com` (s413, 14/10) é
+  // espelho com o MESMO gateway, medido no Chrome do Feca: fora daqui o popup barra a aba.
+  "1win":       ["1win.io", "1win.com"],
   // Antiga "Rei do Pitaco" (grafia unificada no banco na s270). Plataforma própria,
   // gRPC-Web/protobuf — inject próprio.
   "Pitaco":     ["pitaco.bet.br"],

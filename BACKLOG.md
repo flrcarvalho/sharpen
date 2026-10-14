@@ -77,9 +77,10 @@ o `docs/HISTORICO.md`. Este arquivo só guarda o que está **aberto**.
   Ficha (recusa com motivo); (3) backtest, dicionário e virada (D22): só com o histórico
   capturado, porque o backtest compara contra o banco e hoje a 1win tem 0 cru e 0 bilhete. **Não validado:** status 2/3/4 (ganha, anulada, cashout: hoje só o
   dinheiro decide e o resto sobe a conferir), que `profitAmount` siga sendo retorno na ganha,
-  simples, sistema, bônus, freebet, polybet, e os espelhos da 1win (só `1win.io` registrado no
-  manifest e no `_HOSTS_POR_CASA`; espelho novo cai no popup e pede "abra o Histórico e rode de
-  novo"). `casas/CASA_1WIN.md §5`.
+  simples, sistema, bônus, freebet, polybet, e outros espelhos da 1win (registrados `1win.io` e,
+  desde a 0.7.54 de 14/10, `1win.com`, que fala com o mesmo gateway; espelho fora da lista é
+  barrado pelo popup como "outra casa" e precisa entrar no manifest, no `CASA_HOSTS` do popup e
+  no `_HOSTS_POR_CASA`). `casas/CASA_1WIN.md §5`.
 - **Ficha (s416): para o consultor e o Feca.** (1) `semente_log.revisao`: 36 termos de descrição
   que a regra D29 decidiu pela mais votada (7 por empate exato, decididos pela ordem alfabética:
   olhar primeiro), lista em `medicoes/medir_d29_contradicoes.py`. Casos a olhar: Betrebels `1st half
