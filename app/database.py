@@ -962,6 +962,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS captura_crua_unica
 CREATE INDEX IF NOT EXISTS captura_crua_casa ON captura_crua (casa, recebido_em);
 -- A Ficha montada aponta o cru de onde saiu.
 ALTER TABLE ficha_sombra ADD COLUMN IF NOT EXISTS cru_id BIGINT;
+-- Moeda do cru × moeda da conta (s417, D30): o `/salvar` grava a stake na moeda que o CRU
+-- disse e anota aqui cada código em que ela não cabe na moeda cadastrada da conta.
+CREATE TABLE IF NOT EXISTS alerta_moeda (
+    dono        TEXT NOT NULL,
+    casa        TEXT NOT NULL,
+    parceiro    TEXT NOT NULL,
+    codigo      TEXT NOT NULL,
+    moeda_conta TEXT NOT NULL,
+    moeda_cru   TEXT NOT NULL,
+    primeiro_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ultimo_em   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (dono, casa, parceiro, codigo)
+);
 
 -- Dicionário de termos da casa (`04_DICIONARIO.md`; s411, 12/10/2026): o termo como a casa o
 -- escreve (normalizado, `app/dicionario.normalizar`) → o esporte ou a categoria do Sharpen.

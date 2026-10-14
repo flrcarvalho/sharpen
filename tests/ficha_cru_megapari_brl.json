@@ -1,0 +1,223 @@
+{
+ "Coef": 12.627892,
+ "BetId": 88778671191,
+ "BetSum": 75,
+ "Events": [
+  {
+   "Coef": 2.487,
+   "Param": 2.5,
+   "Sport": 1,
+   "GameId": 760839035,
+   "Opp1Id": 61959,
+   "Opp2Id": 4932,
+   "Params": [
+    "(2.5)"
+   ],
+   "StatId": "69232d436d807ed026d9655f",
+   "ChampId": 828065,
+   "GroupId": 62,
+   "CoefView": "2.487",
+   "GameKind": 3,
+   "GameName": "Corners Nashville - Corners Sporting Kansas City",
+   "Opp1Info": {
+    "Opps": [
+     {
+      "Id": 61959,
+      "Name": "Nashville",
+      "Image": "c43c354d71b962c8399ea9b5bbe5699e.png"
+     }
+    ],
+    "FullName": "Nashville",
+    "CountryId": 153
+   },
+   "Opp1Name": "Nashville",
+   "Opp2Info": {
+    "Opps": [
+     {
+      "Id": 4932,
+      "Name": "Sporting Kansas City",
+      "Image": "4932.png"
+     }
+    ],
+    "FullName": "Sporting Kansas City",
+    "CountryId": 153
+   },
+   "Opp2Name": "Sporting Kansas City",
+   "ChampName": "USA. MLS",
+   "SportName": "Football",
+   "StartDate": 1792024200,
+   "GameStatus": 1,
+   "MainGameId": 758563844,
+   "Opp1Images": [
+    "c43c354d71b962c8399ea9b5bbe5699e.png"
+   ],
+   "Opp2Images": [
+    "4932.png"
+   ],
+   "PeriodName": "",
+   "ConstGameId": 378415350,
+   "EventResult": 0,
+   "EventTypeId": 14,
+   "GameVidName": "",
+   "GroupIdName": "Total 2",
+   "Broadcasting": "",
+   "ChampCountry": 153,
+   "GameTypeName": "Corners",
+   "EventTypeName": "Individual Total 2 Under (2.5)",
+   "ShortGameNumber": 322204,
+   "AdditionalGameInfo": "",
+   "EventTypeSmallGroupId": 6,
+   "EventTypeSmallGroupName": "Total 2"
+  },
+  {
+   "Coef": 2.227,
+   "Param": 5.5,
+   "Sport": 1,
+   "GameId": 761142260,
+   "Opp1Id": 4914,
+   "Opp2Id": 4922,
+   "Params": [
+    "(5.5)"
+   ],
+   "StatId": "69232d446d807ed026d9c8b8",
+   "ChampId": 828065,
+   "GroupId": 17,
+   "CoefView": "2.227",
+   "GameKind": 3,
+   "GameName": "Corners Los Angeles Galaxy - Corners Portland Timbers 2nd half",
+   "Opp1Info": {
+    "Opps": [
+     {
+      "Id": 4914,
+      "Name": "Los Angeles Galaxy",
+      "Image": "4914.png"
+     }
+    ],
+    "FullName": "Los Angeles Galaxy",
+    "CountryId": 153
+   },
+   "Opp1Name": "Los Angeles Galaxy",
+   "Opp2Info": {
+    "Opps": [
+     {
+      "Id": 4922,
+      "Name": "Portland Timbers",
+      "Image": "b8b250b2ab8127d30e736446f642b6d9.png"
+     }
+    ],
+    "FullName": "Portland Timbers",
+    "CountryId": 153
+   },
+   "Opp2Name": "Portland Timbers",
+   "ChampName": "USA. MLS",
+   "SportName": "Football",
+   "StartDate": 1792031400,
+   "GameStatus": 1,
+   "MainGameId": 758557901,
+   "Opp1Images": [
+    "4914.png"
+   ],
+   "Opp2Images": [
+    "b8b250b2ab8127d30e736446f642b6d9.png"
+   ],
+   "PeriodName": "2nd half",
+   "ConstGameId": 379256730,
+   "EventResult": 0,
+   "EventTypeId": 9,
+   "GameVidName": "",
+   "GroupIdName": "Total",
+   "Broadcasting": "",
+   "ChampCountry": 153,
+   "GameTypeName": "Corners",
+   "EventTypeName": "Total Over (5.5)",
+   "ShortGameNumber": 201797,
+   "AdditionalGameInfo": "",
+   "EventTypeSmallGroupId": 4,
+   "EventTypeSmallGroupName": "Total"
+  },
+  {
+   "Coef": 2.28,
+   "Param": -2.5,
+   "Score": "0:1 (2:6) (22211222)",
+   "Sport": 4,
+   "GameId": 761417556,
+   "Opp1Id": 1408,
+   "Opp2Id": 1706817,
+   "Params": [
+    "(-2.5)"
+   ],
+   "Result": 1,
+   "StatId": "6acdef677762417de8839eb1",
+   "ChampId": 887517,
+   "GroupId": 2,
+   "CoefView": "2.28",
+   "GameKind": 3,
+   "GameName": "Yulia Putintseva - Diana Shnaider 1st set",
+   "Opp1Info": {
+    "Opps": [
+     {
+      "Id": 1408,
+      "Name": "Yulia Putintseva",
+      "Image": "18870e78e1539d9ca30f888f958d4046.png"
+     }
+    ],
+    "FullName": "Yulia Putintseva",
+    "CountryId": 82
+   },
+   "Opp1Name": "Yulia Putintseva",
+   "Opp2Info": {
+    "Opps": [
+     {
+      "Id": 1706817,
+      "Name": "Diana Shnaider",
+      "Image": "c4cd3d59afc84050f821d4095642c0f1.png"
+     }
+    ],
+    "FullName": "Diana Shnaider",
+    "CountryId": 1
+   },
+   "Opp2Name": "Diana Shnaider",
+   "ChampName": "WTA. Wuhan",
+   "SportName": "Tennis",
+   "StartDate": 1791954000,
+   "GameStatus": 4,
+   "IsFinished": true,
+   "MainGameId": 761417538,
+   "Opp1Images": [
+    "18870e78e1539d9ca30f888f958d4046.png"
+   ],
+   "Opp2Images": [
+    "c4cd3d59afc84050f821d4095642c0f1.png"
+   ],
+   "PeriodName": "1st set",
+   "ConstGameId": 379334858,
+   "EventResult": 0,
+   "EventStatus": "Win",
+   "EventTypeId": 8,
+   "GameVidName": "",
+   "GroupIdName": "Handicap",
+   "ChampCountry": 90,
+   "GameTypeName": "",
+   "EventTypeName": "Handicap 2 (-2.5)",
+   "ShortGameNumber": 198613,
+   "AdditionalGameInfo": "",
+   "BetEventSettlingDate": 1791957768,
+   "EventTypeSmallGroupId": 3,
+   "EventTypeSmallGroupName": "Handicap"
+  }
+ ],
+ "BetDate": 1791949172,
+ "CanPrint": true,
+ "CoefType": 1,
+ "CoefView": "12.627",
+ "BetStatus": 1,
+ "BetTypeId": 1,
+ "BetTypeName": "Accumulator",
+ "CurrencyCode": "BRL",
+ "BetSystemType": 3,
+ "CurrencySymbol": "R$",
+ "PossibleWinSum": 947.09,
+ "BetSumAfterSale": 75,
+ "PossiblePayoutSum": 947.09,
+ "UnixGameStartDate": 1792031400
+}

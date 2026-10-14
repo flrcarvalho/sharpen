@@ -732,7 +732,8 @@ async def _vigia_rodar(dono: str, casa_key: str, casa: str, parceiro: str, texto
         _fire(registrar_uso(dono, casa, DEFAULT_MODEL, 1, len(amostra), tk, caminho="vigia"))
         tsv, _ = _fiscais_da_sombra("\n".join(linhas), recorte, False, None)
         async with pool.acquire() as conn:
-            div = await _virada.vigia_registrar(conn, dono, casa_key, amostra, tsv)
+            div = await _virada.vigia_registrar(conn, dono, casa_key, amostra, tsv,
+                                                    parceiro or "")
         logger.info("vigia: %s/%s · %d aposta(s) da Ficha lida(s) pela IA, %d divergente(s), "
                     "US$ %.4f", dono, casa_key, len(amostra), div,
                     custo_usd_chamada(DEFAULT_MODEL, tk))
@@ -805,6 +806,7 @@ app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), na
 # gravação moram em `app/ficha.py` (decisão do Feca, 11/10). A isenção de CSRF dela está
 # em `_CAPTURA_ISENTAS`, como a das outras rotas da extensão.
 from ficha import router as _ficha_router  # noqa: E402
+from ficha import moedas_do_cru, registrar_alerta_moeda  # noqa: E402
 app.include_router(_ficha_router)
 
 
@@ -4411,10 +4413,39 @@ async def gravar_tsv(body: SalvarRequest, dono: str, dono_view: str,
     # Sem cotação a linha é recusada pelo mesmo caminho das malformadas: gravar USDT como
     # se fosse R$ é o erro caro, e a recaptura seguinte grava o que faltou.
     alertas_cambio: list[str] = []
+    # MOEDA DO CRU VENCE A DA CONTA (s417, D30). O cru guardado de cada código (`captura_crua`,
+    # pelo adaptador da família) diz a moeda em que a casa mostrou a aposta; a da conta só
+    # vale quando o cru não diz (regra 5A). Vale para a IA e para a Ficha: as duas passam
+    # aqui. Onde as duas discordam, a linha vai na moeda do cru e o alerta aponta a conta.
+    moedas_linha: dict = {}
+    if casa_key and parceiro_txt and rows:
+        do_cru = await moedas_do_cru(
+            dono, casa_key, parceiro_txt,
+            [(r.get("codigo_bilhete") or "").strip() for r in rows])
+        for cod, mc in do_cru.items():
+            if (m := _cambio.moeda_do_cru(moeda, mc)):
+                moedas_linha[cod] = m
+    if moedas_linha:
+        casa_nome = rows[0].get("casa") or casa_txt or ""
+        for m in sorted(set(moedas_linha.values())):
+            n = sum(1 for v in moedas_linha.values() if v == m)
+            alertas_cambio.append(
+                f"A casa mostrou {m} em {n} aposta(s) desta captura, mas a conta "
+                f"{parceiro_txt} ({casa_nome}) está cadastrada em {moeda}. Essas stakes foram "
+                f"gravadas em {m}, como a casa mostrou. Se a conta é em {m}, ajuste no Painel "
+                "de Contas."
+            )
+        logger.warning("salvar: %s %s/%s · moeda do cru diverge da conta (%s): %s",
+                       dono, casa_key, parceiro_txt, moeda, moedas_linha)
+        _fire(registrar_alerta_moeda(dono, casa_key, parceiro_txt, moeda, moedas_linha))
     # A casa disse uma moeda que não cabe na da conta: AVISA apontando a conta e grava
     # assim mesmo, pela moeda cadastrada. Bloquear deixaria a captura parada por uma
     # divergência que só o dono resolve; calar deixaria USDT gravado como R$ sem rastro.
-    contra = _cambio.moedas_contraditorias(moeda, body.moedas)
+    # A que o cru já resolveu (acima) não repete o aviso: ali ela NÃO foi gravada como a
+    # da conta.
+    resolvidas = set(moedas_linha.values())
+    contra = [v for v in _cambio.moedas_contraditorias(moeda, body.moedas)
+              if _cambio.moeda_do_cru(moeda, v) not in resolvidas]
     if contra and parceiro_txt:
         casa_nome = rows[0].get("casa") or casa_txt or ""
         alertas_cambio.append(
@@ -4423,13 +4454,14 @@ async def gravar_tsv(body: SalvarRequest, dono: str, dono_view: str,
             f"gravadas como {moeda}. Se a conta é em outra moeda, ajuste no Painel de "
             "Contas: a troca vale para as próximas capturas."
         )
-    if moeda != _cambio.BRL and rows:
-        try:
-            await _cambio.carregar(moeda, _cambio.datas_do_lote(rows, body.carimbos))
-        except CambioIndisponivel as exc:
-            alertas_cambio.append(str(exc))
+    if (moeda != _cambio.BRL or moedas_linha) and rows:
+        for m in sorted(({moeda} | set(moedas_linha.values())) - {_cambio.BRL}):
+            try:
+                await _cambio.carregar(m, _cambio.datas_do_lote(rows, body.carimbos))
+            except CambioIndisponivel as exc:
+                alertas_cambio.append(str(exc))
         rows, recusadas_cambio = _cambio.converter_linhas(
-            rows, moeda, body.carimbos, _num_or_none)
+            rows, moeda, body.carimbos, _num_or_none, moedas_linha)
         if recusadas_cambio:
             rejeitadas = sorted(rejeitadas + recusadas_cambio, key=lambda r: r["linha"])
     for row in rows:

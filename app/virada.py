@@ -55,6 +55,7 @@ import os
 import re
 import time
 
+import cambio as _cambio
 import descricao_ficha as _desc
 import dicionario as _dic
 import ficha as _ficha
@@ -512,12 +513,17 @@ def _pl(stake, odd, res) -> float | None:
 
 def vigia_comparar(ficha: dict, ia: dict | None) -> list[str]:
     """Os campos de DINHEIRO em que a IA diverge da linha que a Ficha gravou. `ficha` e `ia` =
-    {stake, odd, resultado} como a planilha guarda. Sem linha da IA para o código: `["linha"]`.
+    {stake, odd, resultado, moeda} NA MOEDA DA CASA (s417): a da Ficha é a `stake_orig` com a
+    `moeda` gravada; a da IA é o que ela leu, na moeda que o cru disse (ou a da conta). Moeda
+    que não é a mesma (`cambio.mesma_moeda`; USD e USDT são) é divergência própria: foi assim
+    que a stake em real gravada como USDT apareceu. Sem linha da IA para o código: `["linha"]`.
     A odd só conta onde muda o dinheiro: na liquidada compara o P/L (a IA escreve a odd da W
     como retorno ÷ stake, e as duas pagam o mesmo); na aberta, a própria odd."""
     if not ia:
         return ["linha"]
     out = []
+    if not _cambio.mesma_moeda(ficha.get("moeda"), ia.get("moeda")):
+        out.append("moeda")
     sf, si = _f(ficha.get("stake")), _f(ia.get("stake"))
     if sf is None or si is None or abs(sf - si) > 0.005:
         out.append("stake")
@@ -544,19 +550,42 @@ def _linhas_por_codigo(tsv: str) -> dict:
     return out
 
 
-async def vigia_registrar(conn, dono: str, casa_key: str, codigos: list[str], tsv: str) -> int:
+def _na_moeda_da_casa(b) -> dict:
+    """A linha gravada pela Ficha como a casa a mostrou: a stake ORIGINAL e a moeda dela.
+    Linha sem origem (conta em real) já está na moeda da casa."""
+    f = {k: b[k] for k in ("stake", "odd", "resultado", "descricao")}
+    if b["moeda"] and b["stake_orig"] is not None:
+        f["stake"] = f"{float(b['stake_orig']):.2f}".replace(".", ",")
+        f["moeda"] = str(b["moeda"]).upper()
+    else:
+        f["moeda"] = _cambio.BRL
+    return f
+
+
+async def vigia_registrar(conn, dono: str, casa_key: str, codigos: list[str], tsv: str,
+                          parceiro: str = "") -> int:
     """Compara a resposta da IA (`tsv`, já pelos fiscais determinísticos) com a linha que a
-    Ficha gravou e grava uma linha por código em `vigia_ficha`. Devolve as divergentes."""
+    Ficha gravou e grava uma linha por código em `vigia_ficha`. Devolve as divergentes.
+
+    As duas pontas vão na moeda da CASA (s417): a IA lê a stake do bloco, antes da conversão
+    do `/salvar`, e a Ficha gravou em R$; comparar R$ com USDT dava falso alarme em toda
+    conta em dólar. A moeda da IA é a que o cru disse para o código, senão a da conta."""
     ia = _linhas_por_codigo(tsv)
+    conta = await conn.fetchval(
+        "SELECT moeda FROM parceiros WHERE dono = $1 AND upper(replace(casa, ' ', '')) = $2 "
+        "AND nome = $3 LIMIT 1", dono, (casa_key or "").upper(), parceiro or "") or _cambio.BRL
+    do_cru = await _ficha.moedas_do_cru_conn(conn, dono, casa_key, parceiro, list(codigos))
+    for cod, linha in ia.items():
+        linha["moeda"] = _cambio.moeda_do_cru(conta, do_cru.get(cod)) or conta
     div = 0
     for cod in codigos:
         b = await conn.fetchrow(
-            "SELECT stake, odd, resultado, descricao FROM bilhetes WHERE dono = $1 "
-            "AND codigo_bilhete = $2 AND upper(replace(casa, ' ', '')) = $3 "
+            "SELECT stake, odd, resultado, descricao, moeda, stake_orig FROM bilhetes "
+            "WHERE dono = $1 AND codigo_bilhete = $2 AND upper(replace(casa, ' ', '')) = $3 "
             "ORDER BY id DESC LIMIT 1", dono, cod, (casa_key or "").upper())
         if not b:
             continue
-        f = {k: b[k] for k in ("stake", "odd", "resultado", "descricao")}
+        f = _na_moeda_da_casa(b)
         campos = vigia_comparar(f, ia.get(cod))
         div += bool(campos)
         await conn.execute(

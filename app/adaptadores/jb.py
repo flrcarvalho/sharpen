@@ -6,7 +6,7 @@ A leitura de cada campo é a do `formatTicketJB` do `content.js`:
   • `sum` é a stake (não existe `stake`). `result_sum` é o retorno LIQUIDADO (0 na perdida,
     ausente na aberta); `potential_win` é só potencial e nunca vira retorno.
   • `status` do bilhete: `open` aberta · `lost` perdida (só com retorno zero) · `won` ganha
-    (só com retorno acima da stake) · `refund` anulada (só com retorno = stake) ·
+    (só com retorno acima da stake) · `refund` e `canceled` anulada (só com retorno = stake) ·
     `cashed out` cashout (o dinheiro decide W/V no `derivar`). Qualquer outro enum, ou um
     enum conhecido com o dinheiro dizendo outra coisa, RECUSA: nunca chute.
   • odd da casa: **o produto das pernas**, não o `k`/`total_k`. Medido nos 232 crus de
@@ -33,7 +33,7 @@ from decimal import Decimal
 from . import Recusa, iso_de_epoch, numero
 
 _PERNA = {"open": "aberta", "won": "ganha", "lost": "perdida", "refund": "anulada",
-          "useless": None}
+          "canceled": "anulada", "useless": None}
 _SEM_MOEDA = {"$", ""}
 _CENTAVO = Decimal("0.005")
 
@@ -60,13 +60,15 @@ def _status(t: dict) -> str:
         if ret is None:
             raise Recusa("cashed out sem result_sum")
         return "cashout"
-    if st not in ("lost", "won", "refund"):
+    if st not in ("lost", "won", "refund", "canceled"):
         raise Recusa(f"status {st!r} não mapeado (a conferir)")
     if ret is None or stake is None:
         raise Recusa(f"status {st!r} sem result_sum ou sem sum")
     if st == "lost" and ret == 0:
         return "perdida"
-    if st == "refund" and abs(ret - stake) <= _CENTAVO:
+    # `canceled` (D31, s417): a casa cancelou e DEVOLVEU. Só é anulada com o dinheiro dizendo
+    # isso (retorno = stake, como o `refund`); cancelada com outro retorno segue recusada.
+    if st in ("refund", "canceled") and abs(ret - stake) <= _CENTAVO:
         return "anulada"
     if st == "won" and ret > stake:
         return "ganha"
@@ -94,7 +96,8 @@ def _odd_casa(t: dict, status: str, sels: list, sistema: bool) -> tuple[str | No
             linhas.append(_produto([odds[i - 1] for i in idx]))
         return numero(str(sum(linhas) / len(linhas))), True
     if status in ("aberta", "ganha", "cashout"):
-        odds = [Decimal(1) if s.get("status") == "refund" else o for s, o in zip(sels, odds)]
+        odds = [Decimal(1) if s.get("status") in ("refund", "canceled") else o
+                for s, o in zip(sels, odds)]
     bonus = t.get("bonus") or {}
     mult = _d(bonus.get("total_multiplier")) if isinstance(bonus, dict) else None
     mult = mult if mult and mult > 0 else Decimal(1)

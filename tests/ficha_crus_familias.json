@@ -1108,5 +1108,68 @@
   "cashOutValue": 0,
   "partialCashOut": 0,
   "partialCashouts": []
+ },
+ "2721578984155521117": {
+  "k": "1",
+  "id": "2721578984155521117",
+  "sum": "60",
+  "type": "1/1",
+  "status": "canceled",
+  "total_k": "1",
+  "currency": "$",
+  "result_k": "1",
+  "timestamp": 1791849261.9097776,
+  "result_sum": "60",
+  "selections": [
+   {
+    "k": "1.9",
+    "id": "2721578984155521118",
+    "desc": {
+     "id": "2721401105136357391",
+     "type": "match",
+     "sport": {
+      "id": "31",
+      "name": "badminton"
+     },
+     "virtual": false,
+     "category": {
+      "id": "1669817297256189952",
+      "name": "Internacional"
+     },
+     "scheduled": 1791893700,
+     "tournament": {
+      "id": "2457618630771351569",
+      "name": "Malaysia Super 100, XD"
+     },
+     "competitors": [
+      {
+       "id": "2632179011295518759",
+       "name": "Kanapuram S R / Sharma R"
+      },
+      {
+       "id": "2696177132706603054",
+       "name": "Park S / Lee H W"
+      }
+     ]
+    },
+    "live": false,
+    "boost": false,
+    "status": "canceled",
+    "virtual": false,
+    "event_id": "2721401105136357391",
+    "sport_id": "31",
+    "market_id": "238",
+    "outcome_id": "13",
+    "specifiers": "total=76.5",
+    "market_name": "Total pontos",
+    "outcome_name": "menos de 76.5",
+    "is_bet_builder": false
+   }
+  ],
+  "is_bet_builder": false,
+  "currency_details": {
+   "cents": 2,
+   "sign_before_value": false
+  }
  }
 }

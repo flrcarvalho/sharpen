@@ -430,7 +430,8 @@ _MINUTO = (
 _ATE_APOS = re.compile(r"\baté\s+(\{n\d+\})'", re.I)
 # d. (D27) as estatísticas do jogador: `Ressaltos` e `Rebounds` são `Rebotes`, `Assists` é
 # `Assistências`, e `PRA` (em qualquer ordem e grafia) é `Pontos + Assistências + Rebotes`.
-# Outra combinação (`Pontos + Rebotes`, `Rebotes + Assistências`) fica como veio: não decidida.
+# D31 (s417): `Pontos + Rebotes` e `Rebotes + Assistências`, nessa ordem, em qualquer ordem e
+# grafia de entrada. Outra combinação fica como veio (só a grafia): não decidida.
 _ESTAT = {"rebotes": "Rebotes", "ressaltos": "Rebotes", "rebounds": "Rebotes",
           "assistências": "Assistências", "assistencias": "Assistências",
           "assists": "Assistências", "pontos": "Pontos", "points": "Pontos"}
@@ -439,6 +440,8 @@ _COMBO = re.compile(r"\b(pontos|points|rebotes|ressaltos|rebounds|assist[eê]nci
                     r"assists))+\b|\bPRA\b", re.I)
 _PRA = "Pontos + Assistências + Rebotes"
 _PA = "Pontos + Assistências"
+_PR = "Pontos + Rebotes"
+_RA = "Rebotes + Assistências"
 
 
 def _combo(m) -> str:
@@ -452,6 +455,10 @@ def _combo(m) -> str:
         return _PRA
     if set(nomes) == {"Pontos", "Assistências"}:
         return _PA
+    if set(nomes) == {"Pontos", "Rebotes"}:
+        return _PR
+    if set(nomes) == {"Rebotes", "Assistências"}:
+        return _RA
     return " + ".join(nomes)                          # combinação não decidida: só a grafia
 
 

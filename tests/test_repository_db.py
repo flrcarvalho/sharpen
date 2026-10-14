@@ -1481,6 +1481,11 @@ def _virada_cenario(monkeypatch, chave, sombra="", termos=True, aberta=False):
     monkeypatch.setenv("FICHA_SOMBRA_CASAS", sombra)
     monkeypatch.delenv("CRU_CAPTURA_DESLIGADA", raising=False)
     monkeypatch.setenv("FICHA_CASAS_VIRADAS", chave)
+    # s417 (D30): o cru da Vavada diz USD, e a moeda do cru vence a da conta; a cotação é fixa
+    # (5,0) para o cenário não depender da rede: a stake 25 USD grava R$ 125,00.
+    from unittest.mock import AsyncMock
+    monkeypatch.setattr(main._cambio, "carregar", AsyncMock(return_value=None))
+    monkeypatch.setattr(main._cambio, "cotacao", lambda m, iso: 1.0 if m == "BRL" else 5.0)
     aceita, recusada, _ = _VIRADA
     cru_aceita = dict(crus[aceita], status=0) if aberta else crus[aceita]
     payload = {"token": "t", "versao": "0.7.51", "familia": "vb", "itens": [
@@ -2070,7 +2075,7 @@ def test_vigia_le_pela_ia_compara_e_nao_grava(monkeypatch):
     # e o resultado do `Status:` dele (o texto do cenário diz 10 e Perdido; a Ficha, 25 e W)
     assert vig == [{"codigo": aceita, "divergente": True, "campos": ["stake", "resultado"],
                     "ia_stake": "10"}]
-    assert uso == 1 and linha == ("25", "W")             # a IA não gravou nada
+    assert uso == 1 and linha == ("125,00", "W")         # a IA não gravou nada (25 USD × 5)
     assert vagas == 0 and ja == [] and aberta == [aceita]
 
 

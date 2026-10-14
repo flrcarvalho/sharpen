@@ -21,6 +21,9 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
  13. vb: sistema combina duas pernas do mesmo jogo          → test_vb_sistema_nao_combina_pernas…
  14. vb: sistema que pagou abaixo da stake volta a recusar  → test_vb_sistema_ganho_abaixo_da_stake…
  15. vb: "abaixo da stake = ganha" vale fora do sistema     → test_vb_sistema_ganho_abaixo_da_stake…
+ 16. jb: `canceled` volta a recusar (D31, s417)              → test_jb_cancelada_com_devolucao…
+ 17. jb: `canceled` vira anulada com qualquer retorno        → test_jb_cancelada_com_devolucao…
+ 18. jb: perna `canceled` não mapeada                        → test_jb_cancelada_com_devolucao…
 
 O QUE NÃO COBRE: sistema em meia vitória (sem amostra; fica com a odd da casa, §7.1), bet
 builder da Altenar e odd oferecida da Tivo (recusados por falta de amostra), e qualquer cru
@@ -63,6 +66,19 @@ def test_jb_perna_devolvida_vale_1_na_ganha_e_fica_cheia_na_perdida():
     # perdida com perna refund: odd ORIGINAL, sem tirar a perna (MASTER_RESULTADO §5.5.1)
     f, d = _montar(jb, "2719374078761902184")
     assert f["odd"] == "5.671" and d["resultado"] == "L"
+
+
+def test_jb_cancelada_com_devolucao_igual_a_stake_e_anulada():
+    """D31 (s417): a Bet Panda de 14/10 04:19 (`2721578984155521117`): `status` e perna
+    `canceled`, `sum` 60 e `result_sum` 60. O dinheiro prova a devolução: V. Era recusada."""
+    f, d = _montar(jb, "2721578984155521117")
+    assert f["status"] == "anulada" and d["resultado"] == "V" and d["stake"] == "60"
+    assert f["pernas"][0]["status_perna"] == "anulada"
+    # cancelada com outro retorno: o dinheiro não diz devolução, recusa
+    cru = json.loads(json.dumps(CRUS["2721578984155521117"]))
+    cru["result_sum"] = "30"
+    with pytest.raises(Recusa):
+        jb.adaptar(cru, "BETPANDA")
 
 
 def test_jb_comboboost_multiplica():

@@ -260,19 +260,26 @@ def _fmt_money(x: float) -> str:
 
 
 def converter_linhas(rows: list[dict], moeda: str, carimbos: dict | None,
-                     num) -> tuple[list[dict], list[dict]]:
+                     num, moedas_linha: dict | None = None) -> tuple[list[dict], list[dict]]:
     """Converte a stake de cada linha da moeda da conta para BRL.
 
     Devolve (linhas_ok, rejeitadas) no formato do `validar_linhas`, para o `/salvar`
     tratar as duas recusas pelo mesmo caminho. `num` é o parser de número do sistema
     (`repository._num_or_none`), passado de fora para não haver uma segunda régua.
 
-    - Conta em BRL: no-op, nada muda e nenhuma coluna nova é preenchida.
+    `moedas_linha` (s417, D30) = {código: moeda} das linhas em que o CRU da casa trouxe uma
+    moeda que não cabe na da conta (`moeda_do_cru`). Nelas manda a do cru; nas outras, a da
+    conta (regra 5A: só vale quando a moeda está ausente).
+
+    - Linha em BRL numa conta em BRL: no-op, nada muda e nenhuma coluna nova é preenchida.
+    - Linha em BRL numa conta em outra moeda (o cru disse real): a stake fica como veio, e a
+      origem é gravada explícita (`BRL`, ×1), para a Caixa da conta não a somar como dólar.
     - Stake vazia (aposta aberta lida pela metade): passa sem conversão e sem moeda —
       ausência viaja como ausência, e o `validar_linhas` já a trata como aviso.
     - Sem cotação para a data: a linha é RECUSADA. Nunca grava a moeda como se fosse R$.
     """
-    if moeda == BRL:
+    moedas_linha = moedas_linha or {}
+    if moeda == BRL and not moedas_linha:
         return rows, []
     carimbos = carimbos or {}
     ok: list[dict] = []
@@ -283,8 +290,17 @@ def converter_linhas(rows: list[dict], moeda: str, carimbos: dict | None,
         if valor is None:
             ok.append(row)
             continue
+        m = moedas_linha.get((row.get("codigo_bilhete") or "").strip()) or moeda
+        if m == BRL:
+            if moeda != BRL:
+                row["moeda"] = BRL
+                row["stake_orig"] = round(valor, 2)
+                row["cotacao"] = 1.0
+                row["stake"] = _fmt_money(valor)
+            ok.append(row)
+            continue
         iso = _iso_da_linha(row, carimbos.get((row.get("codigo_bilhete") or "").strip()))
-        taxa = cotacao(moeda, iso)
+        taxa = cotacao(m, iso)
         if not taxa:
             # `linha` é a posição 1-based no TSV PARSEADO (a mesma do `validar_linhas`),
             # que o `/salvar` marca em `_linha` antes de validar: o front remonta o mapa
@@ -293,12 +309,12 @@ def converter_linhas(rows: list[dict], moeda: str, carimbos: dict | None,
                 "linha": row.get("_linha", i + 1),
                 "campo": "stake",
                 "valor": bruto,
-                "erro": f"sem cotação {moeda}→BRL para {iso or 'data ausente'}",
+                "erro": f"sem cotação {m}→BRL para {iso or 'data ausente'}",
                 "resumo": " · ".join(x for x in [row.get("data"), row.get("aposta"),
                                                  row.get("descricao")] if x)[:80],
             })
             continue
-        row["moeda"] = moeda
+        row["moeda"] = m
         row["stake_orig"] = round(valor, 2)
         row["cotacao"] = taxa
         row["stake"] = _fmt_money(valor * taxa)
@@ -342,6 +358,38 @@ def moedas_do_texto(texto: str | None) -> list[str]:
         if v and v not in vistas:
             vistas.append(v)
     return vistas
+
+
+# ── A moeda do CRU vence a da conta (s417, D30) ──────────────────────────────────
+#
+# O caso: a conta da LavaPessoal na Megapari estava cadastrada em USDT, o cru de 52 apostas
+# dizia `CurrencyCode: BRL`, e a stake de R$ 75 foi gravada como 75 USDT × 5,04 = R$ 377,98.
+# A moeda da conta (regra 5A) só vale quando a casa NÃO diz a moeda. O símbolo solto `$`
+# continua ausente (não distingue USD de USDT), e USD × USDT continua sem diferença (Feca,
+# 04/10/2026).
+_SIMBOLO = {"R$": "BRL", "US$": "USD", "€": "EUR", "A$": "AUD", "AU$": "AUD", "AR$": "ARS"}
+
+
+def moeda_do_cru(moeda_conta: str, moeda_cru: str | None) -> str | None:
+    """A moeda que a linha usa quando o cru diz uma que NÃO cabe na da conta, em código ISO.
+    `None` = vale a da conta: cru sem moeda, moeda compatível com a da conta, ou moeda que o
+    sistema não sabe converter (sem cotação; o aviso fica com quem chamou)."""
+    m = str(moeda_cru or "").strip().upper()
+    ok = _COMPATIVEIS.get(moeda_conta, {moeda_conta})
+    if not m:
+        return None
+    m = _SIMBOLO.get(m, m)
+    if m in ok or m not in _COMPATIVEIS:
+        return None
+    return m
+
+
+def mesma_moeda(a: str | None, b: str | None) -> bool:
+    """As duas moedas são a mesma para efeito de dinheiro (USD e USDT são, `$` cabe nas duas).
+    Vazio = real: é o que a linha sem origem gravada guarda."""
+    a = _SIMBOLO.get(str(a or "BRL").strip().upper(), str(a or "BRL").strip().upper())
+    b = _SIMBOLO.get(str(b or "BRL").strip().upper(), str(b or "BRL").strip().upper())
+    return a == b or b in _COMPATIVEIS.get(a, {a})
 
 
 def moedas_contraditorias(moeda_conta: str, vistas: list[str] | None) -> list[str]:

@@ -67,6 +67,8 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   J19. `Vencedor. Quarto` sem a forma do Feca            → test_vencedor_quarto_e_o_gemeo…
   H1. handicap positivo sem sinal (1win)                 → test_handicap_positivo_sem_sinal…
   H2. o total puro com o jogo em ` - ` (1win)            → test_total_puro_da_1win…
+  s417 (D31; 14/10/2026): N1 `Pontos + Rebotes` sem nome e N2 `Rebotes + Assistências` sem
+  nome → test_d29_a_ordem_das_regras, 2 de 2 detectadas (`scratchpad/mutar7.py`).
   (bateria: `scratchpad/mutar6.py` da s416; W3, W9, R1 e R2 no harness de banco e em
   `test_virada.py`)
 
@@ -363,8 +365,13 @@ def test_d29_a_ordem_das_regras():
                {"{jogador} - {ou} Rebotes": 5, "{jogador} - {ou} Rebounds": 4,
                 "{jogador} - {ou} Ressaltos": 14}) == ("{jogador} - {ou} Rebotes", "unico")
     assert D.estilo("{jogador} - {ou} PRA") == D.estilo("{jogador} - {ou} Pontos+Rebotes+Assistências")         == "{jogador} - {ou} Pontos + Assistências + Rebotes"
-    # combinação que o Feca não decidiu fica como veio (só a grafia)
+    # D31 (s417): `Rebotes + Assistências` e `Pontos + Rebotes`, em qualquer ordem e grafia
     assert D.estilo("{ent} - {ou} Rebotes+Assistências") == "{ent} - {ou} Rebotes + Assistências"
+    assert D.estilo("{jogador} - {ou} Assists + Rebounds") == "{jogador} - {ou} Rebotes + Assistências"
+    assert D.estilo("{jogador} - {ou} Rebotes + Pontos") == "{jogador} - {ou} Pontos + Rebotes"
+    assert D.estilo("{jogador} - {ou} Points+Ressaltos") == "{jogador} - {ou} Pontos + Rebotes"
+    # combinação que o Feca não decidiu fica como veio (só a grafia)
+    assert D.estilo("{ent} - {ou} Rebotes+Rebotes") == "{ent} - {ou} Rebotes+Rebotes"
     # e. empate que nenhuma regra decide: a mais votada, para a revisão
     assert dec("baseball | total hits ({n})", {"{ou} Hits": 1, "{ou} Rebatidas": 2})         == ("{ou} Rebatidas", "e")
 

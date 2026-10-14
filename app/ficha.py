@@ -307,6 +307,62 @@ async def gravar_cru(dono: str, casa_key: str, parceiro: str, familia: str, vers
     return ids
 
 
+async def moedas_do_cru_conn(conn, dono: str, casa_key: str, parceiro: str,
+                             codigos: list[str]) -> dict:
+    """{código: moeda} que o CRU guardado mais recente de cada código diz, pelo adaptador da
+    família (s417, D30). Código sem cru, sem adaptador ou cru sem moeda fica de fora. É o que
+    deixa o caminho da IA usar a moeda da casa: o texto só escreve `Moeda:` quando ela não é
+    real, e a ausência ali não distingue real de extensão antiga."""
+    codigos = sorted({c for c in codigos if c})
+    if not codigos or not casa_key:
+        return {}
+    rows = await conn.fetch(
+        "SELECT DISTINCT ON (codigo) codigo, familia, cru FROM captura_crua "
+        "WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND codigo = ANY($4::text[]) "
+        "ORDER BY codigo, recebido_em DESC, id DESC",
+        dono, casa_key.upper(), parceiro or "", codigos)
+    out = {}
+    for r in rows:
+        cru = r["cru"] if isinstance(r["cru"], dict) else json.loads(r["cru"])
+        f, _motivos = montar_ficha(r["familia"], cru, casa_key.upper())
+        if f and f.get("moeda"):
+            out[r["codigo"]] = str(f["moeda"]).upper()
+    return out
+
+
+async def moedas_do_cru(dono: str, casa_key: str, parceiro: str, codigos: list[str]) -> dict:
+    """`moedas_do_cru_conn` com conexão própria. Nunca levanta: sem banco, vale a da conta."""
+    try:
+        from database import get_pool
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            return await moedas_do_cru_conn(conn, dono, casa_key, parceiro, codigos)
+    except Exception:  # noqa: BLE001 — a moeda do cru é melhoria; sem ela vale a da conta
+        logger.warning("ficha: moeda do cru indisponível para %s/%s", dono, casa_key,
+                       exc_info=True)
+        return {}
+
+
+async def registrar_alerta_moeda(dono: str, casa_key: str, parceiro: str, moeda_conta: str,
+                                 por_codigo: dict) -> None:
+    """Grava em `alerta_moeda` cada código em que o cru disse uma moeda diferente da conta
+    (s417, D30). Uma linha por código; a captura seguinte só renova `ultimo_em`."""
+    try:
+        from database import get_pool
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            for cod, m in por_codigo.items():
+                await conn.execute(
+                    "INSERT INTO alerta_moeda (dono, casa, parceiro, codigo, moeda_conta, moeda_cru) "
+                    "VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (dono, casa, parceiro, codigo) "
+                    "DO UPDATE SET moeda_conta = EXCLUDED.moeda_conta, "
+                    "moeda_cru = EXCLUDED.moeda_cru, ultimo_em = NOW()",
+                    dono, casa_key.upper(), parceiro or "", cod, moeda_conta, m)
+    except Exception:  # noqa: BLE001 — o alerta nunca derruba o /salvar
+        logger.warning("ficha: alerta de moeda não gravado para %s/%s", dono, casa_key,
+                       exc_info=True)
+
+
 def _codigo_recusa(mod, cru) -> str:
     """O código da Ficha recusada. A família que não guarda o código em `cru.id` (a 1win, em
     `cru.bet.id`) diz onde ele mora pelo `codigo(cru)` do adaptador."""
