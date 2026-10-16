@@ -1625,6 +1625,9 @@ host delas (Betpanda e Estrela Bet), e `CODIGO_EXEMPLO` também emprestado.
   (`CASA_BETREBELS §2.1`, medido ao vivo pelo Feca em 08/10: 730 → 0, 365/90/30 → 7). Falta
   a captura pela extensão trazer as 7, incluindo 5497736946, 5497732293, 5497640668 e
   5497621320.
+- **Betrebels `.com`:** registrada na 0.7.55 (s418, 16/10) porque o popup barrava a aba do Lava
+  em `www.betrebels.com`. Motor não medido ali: se a captura vier "hook ativo, 0 respostas",
+  o `.com` não é o mesmo Altenar e precisa de recon no F12.
 - **Betcoin:** 1ª captura ao vivo.
 - Trocar fixture e `CODIGO_EXEMPLO` das duas pelos da conta real, e provar o botão Conectar em
   produção (`_casaConectavel`).

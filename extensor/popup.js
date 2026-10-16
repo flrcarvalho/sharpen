@@ -44,8 +44,9 @@ const CASA_HOSTS = {
   // 5ª casa Altenar (s303) · a tela cheia do histórico já dispara o expandido sozinha; o que
   // ela tem de próprio é o gateway recusar `credentials:"include"` (tratado no vb_inject).
   "Estrela Bet": ["estrelabet.bet.br"],
-  // 6ª casa Altenar (s395), grega · `integration=betrebels`, SDK em `/sports`.
-  "Betrebels":  ["betrebels.gr"],
+  // 6ª casa Altenar (s395), grega · `integration=betrebels`, SDK em `/sports`. O `.com` (s418)
+  // é o domínio que o Lava usa (`/pt/sports?page=betHistory`); sem ele o popup barrava a aba.
+  "Betrebels":  ["betrebels.gr", "betrebels.com"],
   // 7ª casa Altenar (s402) · `integration=betmartini`, SDK em `/en-gb/sports`.
   "BetMartini": ["betmartini.com"],
   // 8ª casa Altenar (s403) · `integration=vavada`, SDK em `/pt-br/sports`.

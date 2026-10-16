@@ -182,7 +182,8 @@ _HOSTS_POR_CASA = {
     "ESTRELABET": ("estrelabet.bet.br",),
     # 6ª casa Altenar (s395), grega. O SDK monta na própria página `betrebels.gr/sports`
     # (`integration=betrebels`, cluster `altenar2`). Moeda é da CONTA: há conta em real e em USDT.
-    "BETREBELS":  ("betrebels.gr",),
+    # `betrebels.com` (s418, 16/10): o domínio do Lava; o popup barrava a aba como outra casa.
+    "BETREBELS":  ("betrebels.gr", "betrebels.com"),
     # 7ª casa Altenar (s402). SDK na própria página `betmartini.com/en-gb/sports`
     # (`integration=betmartini`, cluster `altenar2`). Site internacional: abre em inglês.
     "BETMARTINI": ("betmartini.com",),

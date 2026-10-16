@@ -13,6 +13,10 @@
 ## 1. Identidade
 
 - Casa canônica: `Betrebels` · site: `betrebels.gr` (grega) · sportsbook em `/sports`
+- Também `betrebels.com` (s418, 16/10/2026): o domínio do Lava, histórico em
+  `/pt/sports?page=betHistory`. Registrado no popup, no manifest e no `_HOSTS_POR_CASA` pelo
+  ID de 10 dígitos do print (padrão Altenar); **o motor no `.com` não foi medido**: a 1ª
+  captura dele é a prova.
 - Motor: **Altenar / BIA**, cluster `altenar2`. O `altenarWSDK` monta na própria página (window
   de topo, sem iframe), com `integration=betrebels`.
 - Moeda: **da conta.** Medido em 05/10/2026: há conta em **real** (Feca) e em **USDT**
