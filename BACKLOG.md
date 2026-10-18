@@ -1658,6 +1658,18 @@ estão registrados. Entrou sem conta de teste: fixture da Estrela Bet e `CODIGO_
   `_HOSTS_POR_CASA`, com versão nova. Decidir se vale um registro por família de domínio.
 - Mercados provavelmente em inglês (`culture=en-GB`), moeda da conta não medida.
 
+### 4.0l MelBet: validar ao vivo e trocar a fixture emprestada (s420). **VIVA, só no harness**
+
+A MelBet entrou na 0.7.57 como 6ª espelho da 1xBet (`CASA_MELBET.md`), **sem recon de conta**:
+ninguém aqui tinha conta e o Claude in Chrome barra o domínio. Medido por fora: mesmo
+`sys-v3-host-app` das espelho (`Desktop/Melbet`), e o único código da base (`88772424445`,
+print do Jaao26) é da série de 11 dígitos. O harness serve a fixture da PariPesa no endereço da
+MelBet, com teto de `Count` 500 e 3.
+
+- 1ª captura ao vivo de um tester: o roteiro do que conferir está no `CASA_MELBET §16`.
+- Se o popup disser "hook ATIVO · respostas 0" com o histórico aberto, o caminho da API é outro.
+- Trocar fixture e `CODIGO_EXEMPLO` pelos da conta real, e provar o botão Conectar em produção.
+
 ### 4.0h Shuffle: validar ao vivo a 1ª captura e decidir o aviso (s401). **VIVA, só no harness**
 
 A Shuffle entrou no SharpenUp 0.7.47 (`shf_inject.js`, `CASA_SHUFFLE.md`) com o harness verde

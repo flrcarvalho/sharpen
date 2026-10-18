@@ -92,6 +92,7 @@ const CASA_ICONS={
   'PariPesa':'https://www.google.com/s2/favicons?sz=128&domain=paripesa.com',
   'Megapari':'https://www.google.com/s2/favicons?sz=128&domain=megapari.com',
   '1xBit':'https://www.google.com/s2/favicons?sz=128&domain=1xbit.com',
+  'MelBet':'https://www.google.com/s2/favicons?sz=128&domain=melbet.com',
   // Faltavam SÓ aqui (os outros dois mapas já tinham) — o dash caía no fallback.
   'Aposta Ganha':'https://www.google.com/s2/favicons?sz=128&domain=apostaganha.bet.br',
   'Pagol':'https://www.google.com/s2/favicons?sz=128&domain=pagol.bet.br',
@@ -199,6 +200,7 @@ const HOUSE_DOMAIN={
   'PariPesa':'paripesa.com',
   'Megapari':'megapari.com',
   '1xBit':'1xbit.com',
+  'MelBet':'melbet.com',
   'Aposta Ganha':'apostaganha.bet.br','Pagol':'pagol.bet.br',   // faltavam só aqui
   'Pinnacle':'pinnacle.com',
   'PixBet':'pix.bet.br',

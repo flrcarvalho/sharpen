@@ -136,7 +136,7 @@ const TAB = { id: 7 };
   ok(await api.x1RecarregarSeAtrasado(TAB, 'qualquer.com', '1xBet') === false, '1xBet não entra no desvio');
   ok(st.execs.length === 0 && st.reloads.length === 0, '1xBet não consulta nem recarrega');
 }
-for (const casa of ['SapphireBet', '1xBit']) {
+for (const casa of ['SapphireBet', '1xBit', 'MelBet']) {
   const { api, st } = popup({ cedo: false });
   ok(await api.x1RecarregarSeAtrasado(TAB, 'novo-' + casa.toLowerCase() + '.com', casa) === true, casa + ' entra no desvio');
   ok(st.reloads.length === 1, casa + ' recarrega');

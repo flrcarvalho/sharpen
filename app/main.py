@@ -350,6 +350,9 @@ _CASA_DISPLAY: dict[str, str] = {
     # 1xBit (s399): 4ª espelho, mesmo caminho `/bethistory-api/Web/`, conta em USDT. A base
     # não tinha a casa em grafia nenhuma (medido em 06/10/2026), então vale a da marca.
     "1XBIT":          "1xBit",
+    # MelBet (s420): 5ª espelho. A grafia é a da BASE (`MelBet`, 1 conta de tester por print,
+    # medido em 18/10/2026), não a da marca no site (`Melbet`).
+    "MELBET":         "MelBet",
     "POLYMARKET":     "Polymarket",
     # 2ª e 3ª casas do motor Rogue (s335), espelho do Betão acima.
     #
@@ -1140,7 +1143,7 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     "LOTTU",
     "1XBET",
     # Espelhos da 1xBet (s391): o mesmo `BetId` numérico que o card estampa.
-    "SAPPHIREBET", "PARIPESA", "MEGAPARI", "1XBIT",
+    "SAPPHIREBET", "PARIPESA", "MEGAPARI", "1XBIT", "MELBET",
     # Bolsa de Aposta (s299) — vale para os DOIS ambientes: o Exchange emite
     # `[Código: 119530135]` (9 dígitos) e o Sportsbook `[Código: 867908924308574209]`
     # (18). Séries distintas, sem risco de colisão, e o marcador é o mesmo — então uma

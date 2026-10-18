@@ -66,6 +66,8 @@ MUTACOES = [
      "[...(atual.matches || []), ...novos]", "[...novos]"),
     ("popup.js", "ALVO_POPUP", "1xBit sai da lista",
      '"Megapari", "SapphireBet", "1xBit"', '"Megapari", "SapphireBet"'),
+    ("popup.js", "ALVO_POPUP", "MelBet sai da lista",
+     '"1xBit", "MelBet"]', '"1xBit"]'),
     ("popup.js", "ALVO_POPUP", "capturar() deixa de chamar o desvio",
      "      if (await x1RecarregarSeAtrasado(tab, host, casa)) { window.close(); return; }\n", ""),
     ("popup.js", "ALVO_POPUP", "sem pendência para o background",

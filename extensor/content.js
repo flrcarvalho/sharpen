@@ -1310,8 +1310,8 @@
       // entre bilhetes, então o roboScroll genérico viraria um bloco só e a IA perderia o
       // resto em silêncio (lição da KTO, s192).
       blocos = await roboRGPassive(ctx);
-    } else if (casa === "1xbet" || casa === "sapphirebet" || casa === "paripesa" || casa === "megapari" || casa === "1xbit") {
-      // As espelho (s391; 1xBit na s399) caem aqui: MESMO endpoint e MESMO JSON da 1xBet, só o
+    } else if (casa === "1xbet" || casa === "sapphirebet" || casa === "paripesa" || casa === "megapari" || casa === "1xbit" || casa === "melbet") {
+      // As espelho (s391; 1xBit na s399; MelBet na s420) caem aqui: MESMO endpoint e MESMO JSON da 1xBet, só o
       // caminho muda (`/bethistory-api/Web/`), e o `RX` do x1_inject casa os dois.
       // PASSIVO + REPLAY (x1_inject). Plataforma própria da casa (app Vue, API em
       // `/service/`), sem parentesco com Altenar/BetBy/Kambi/BetConstruct/BlueBrown.
@@ -1571,6 +1571,11 @@
         // contornou se mostraria, em vez de faltar bilhete calado.
         "1xbit":    { nome: "1xBit",      hook: x1HookVivo, resp: x1Respostas, vistos: x1ById.size,
                       extra: x1Erro ? " · " + x1Erro : "" },
+        // MelBet (s420): ligada SEM recon de conta. Com 0 respostas o motivo mais provável é a
+        // página de histórico não ter sido aberta; o `erro` diz o resto (teto de `Count`, auth).
+        melbet:     { nome: "MelBet",     hook: x1HookVivo, resp: x1Respostas, vistos: x1ById.size,
+                      extra: x1Erro ? " · " + x1Erro
+                           : (x1Respostas === 0 ? " · abra o Histórico de apostas e rode de novo" : "") },
         "1xbet":    { nome: "1xBet",      hook: x1HookVivo, resp: x1Respostas, vistos: x1ById.size,
                       extra: x1Erro ? " · " + x1Erro
                            : (x1Respostas === 0 ? " · abra Minhas apostas (Histórico de apostas) e rode de novo" : "") },

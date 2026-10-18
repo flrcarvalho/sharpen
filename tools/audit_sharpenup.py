@@ -178,6 +178,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     "PARIPESA":   "88194577145",
     "MEGAPARI":   "88192410319",
     "1XBIT":      "88342462855",
+    # MelBet (s420): o único código da base, lido de PRINT (`codigo_ocr`). Mesma série de 11
+    # dígitos das outras espelho.
+    "MELBET":     "88772424445",
     # Bolsa de Aposta: o Exchange usa 9 dígitos e o Sportsbook 18. Séries distintas na mesma
     # casa — o gabarito aqui é o do Exchange, que é onde estão 418 dos 435 bilhetes.
     "BOLSADEAPOSTA": "119530135",
@@ -315,7 +318,10 @@ def tuplas_backend_com(chave: str) -> tuple[bool, bool]:
 def injects_popup() -> dict[str, str]:
     """Dispatch do popup: Nome Canônico -> arquivo de inject."""
     src = _txt(POPUP_JS)
-    trecho = src[src.find("const inj ="):src.find("const inj =") + 900]
+    # O mapa vai até o `: null;` final. Até a s420 o recorte era de 900 caracteres fixos e lia
+    # 10 das 45 casas: a conferência do manifest abaixo ficava cega para as outras 35.
+    i = src.find("const inj =")
+    trecho = src[i:src.find(": null;", i)]
     return dict(re.findall(r'casa === "([^"]+)"\s*\?\s*"([\w.]+)"', trecho))
 
 

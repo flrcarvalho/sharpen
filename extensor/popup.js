@@ -92,7 +92,8 @@ const CASA_HOSTS = {
   // FICAM FORA de propósito: trocam de domínio (Megapari → `2479527mp.pro`), e casa sem
   // domínio listado não é checada aqui — senão o espelho novo travaria a captura. A
   // amarração casa↔site continua no servidor (`casa_de_host`). A 1xBit (s399) fica fora pelo
-  // mesmo motivo: roda em espelho numerado (`1xbit1.com`, `1xbit2.com`…).
+  // mesmo motivo: roda em espelho numerado (`1xbit1.com`, `1xbit2.com`…). A MelBet (s420)
+  // também: a marca é conhecida por rodar em espelhos, e ninguém aqui mediu o domínio logado.
   "PariPesa":   ["paripesa.com"],
   "SportingBet": ["sportingbet.bet.br"],  // motor bwin/Entain (s289) · inject próprio
   // Betboo (s372) — 2ª casa bwin/Entain, ESPELHO da SportingBet (reusa o spb_inject).
@@ -132,7 +133,7 @@ function hostBate(host, casa) {
 // histórico, e o replay não tem o que copiar: "hook ATIVO · respostas 0", sem erro. Em vez
 // de esperar alguém pôr o domínio no manifest, o popup registra o domínio para o inject
 // entrar no CARREGAMENTO (`document_start`), recarrega a aba e o background retoma o robô.
-const X1_ESPELHOS_MOVEIS = new Set(["Megapari", "SapphireBet", "1xBit"]);
+const X1_ESPELHOS_MOVEIS = new Set(["Megapari", "SapphireBet", "1xBit", "MelBet"]);
 const X1_DINAMICO_ID = "x1-espelho-dinamico";
 
 // O host já está nos `matches` do `x1_inject` no manifest? (mesma semântica do Chrome:
@@ -378,6 +379,7 @@ async function capturar() {
                 : casa === "PariPesa" ? "x1_inject.js"
                 : casa === "Megapari" ? "x1_inject.js"
                 : casa === "1xBit" ? "x1_inject.js"
+                : casa === "MelBet" ? "x1_inject.js"
                 // SportingBet: 1º motor bwin/Entain do Sharpen — inject próprio.
                 // `spb_`, e não `sb_`, porque `sb_inject.js` já é da Superbet.
                 : casa === "SportingBet" ? "spb_inject.js"
