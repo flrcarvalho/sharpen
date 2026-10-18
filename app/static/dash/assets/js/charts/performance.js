@@ -701,11 +701,18 @@ function openCasaDrill(nome){
   const chipEl=document.getElementById('casaDrillChip');
   if(chipEl)chipEl.innerHTML=mkHouseChip(nome);
 
-  const sp=msGet('sp_casas');
+  // Base do drill = os MESMOS eixos da lista atrás dele (esporte, tipster, operador);
+  // só o período fica de fora, porque o drill tem chips próprios. Até a s421 só o
+  // esporte entrava: com um tipster filtrado, o card mostrava as apostas dele e o popup
+  // da mesma casa somava as de todos, enquanto o custo (`calcCasaCost(…,'casas')`) e o
+  // rótulo "do tipster" já recortavam. P/L de todos contra custo de um.
+  const sp=msGet('sp_casas'),ti=msGet('ti_casas'),op=msGet('op_casas');
   _casaDrillBaseName=nome;
   _casaDrillBaseRows=DADOS.filter(r=>{
     if(r.casa!==nome)return false;
     if(sp.size>0&&!sp.has(r.esporte))return false;
+    if(ti.size>0&&!ti.has(r.tipster))return false;
+    if(op.size>0&&!op.has(r.operador))return false;
     return true;
   });
   _casaDrillPeriodSt=_seedDrillFromPage('casas');

@@ -1523,6 +1523,15 @@ Os dois saíram do replay do fiscal que passou a ler a linha `Retorno:`
 
 > Achado, com arquivo e linha, e não corrigido. Aqui a referência é pista, não endereço.
 
+### 4.17 O popup do tipster ignora o filtro de Operador (s421). **VIVA, lida no código, não medida na tela**
+Mesma família do popup da casa consertado na s421 (`openCasaDrill` passou a aplicar `sp_`,
+`ti_` e `op_casas`). O `openTipsterDrill` (`charts/performance.js`) monta a base com Esporte e
+Casa da aba Tipsters e deixa o `op_tipsters` de fora: com um operador filtrado, o card do
+tipster recorta e o popup soma os de todos. Só aparece para quem tem mais de um operador (o
+grupo nem é pintado com um só). Consertar é uma linha no `filter`; confira na tela, no demo,
+se o custo do popup já recorta por operador antes de mexer, senão o conserto troca um
+descompasso por outro.
+
 ### 4.16 Bet365: resolvedor de abertas depende do fuso (s409). **VIVA, medida — falha CONHECIDA no harness**
 O caso `extensor/harness/casos/bet365.mjs` (`resolverAbertas`) falha nas **11 checagens do
 resolvedor** quando o harness roda em UTC, que é o fuso do CI, e passa no fuso de Brasília.
