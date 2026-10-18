@@ -90,7 +90,7 @@ botão `Cash out de USDT 24,46` na aberta.
 | `bet.cf` | odd do bilhete, ⚠️ **cortada em 2 casas** e é a que paga (§11) |
 | `bet.profitAmount` | ⚠️ **RETORNO, não lucro**: na aberta é o potencial (25 × 5,73 = 143,25), na perdida 0 |
 | `bet.possibleProfitAmount` | retorno potencial (= `profitAmount` na aberta) |
-| `bet.status` | `0` aberta · `1` perdida (vistos) · `2`, `3`, `4` sem amostra (§5) |
+| `bet.status` | `0` aberta · `1` perdida · `2` ganha (cheia ou com perna anulada) · `3` anulada (medidos, s419) · `4` sem amostra (§5) |
 | `bet.betType` | `express` (múltipla, visto) |
 | `bet.createdAt` | colocação, ISO **UTC** |
 | `bet.closeAt` | liquidação, ISO **UTC** (só na liquidada) |
@@ -98,7 +98,7 @@ botão `Cash out de USDT 24,46` na aberta.
 | `bet.freebetAmount` | `0` em toda a amostra |
 | `bet.wallet` | `real` em toda a amostra |
 | `bet.refundInfo.refundAmount` | **oferta** de cashout da aberta — não é retorno; o inject ignora |
-| `selections[].status` | `0` pendente · `1` perdida (vistos) |
+| `selections[].status` | `0` pendente · `1` perdida · `2` ganha · `3` anulada, não entra no retorno (medidos, s419) |
 | `selections[].isHalfReturn` | `false` em toda a amostra (meio retorno, asiática) |
 | `selections[].odd.cf` | odd **apostada** da perna |
 | `selections[].odd.groupName` · `odd.name` | mercado (`Total. 2 Parte`) e seleção (`Acima De 2.5`) |
@@ -148,14 +148,20 @@ Só o **dinheiro** decide onde a amostra não alcança. Retorno = `profitAmount`
 | `1` · retorno 0 | Perdeu | `L` |
 | qualquer · retorno = stake | P/L zero | `V` |
 | `2` · retorno = stake × `cf` (ao centavo) | Ganhou | `W` |
-| `1` com retorno > 0, `2` que não fecha com a odd, `3`, `4`, enum novo | sobe cru | *(a conferir)* |
+| `2` · perna `3` (anulada) e retorno = stake × produto das pernas `2` (exato ou cortado em 2 casas) | Ganhou com perna anulada | `W`, odd = retorno ÷ stake |
+| `1` com retorno > 0, `2` que não fecha com nenhuma das duas, `3` com retorno ≠ stake, `4`, enum novo | sobe cru | *(a conferir)* |
 
 Medido: `0` 4 · `1` 1 em 5.
 
-> ⚠️ **NÃO VALIDADO AO VIVO:** os status `2`, `3` e `4`. Pela ordem da aba `Liquidadas`
-> (`[1,2,4,3]`) o `2` deve ser ganha e `3`/`4` anulada/cashout, mas isso é palpite e não entra
-> no código: quem decide é o número. A 1ª ganha que aparecer confirma também que
-> `profitAmount` segue sendo o retorno (e não o lucro) depois de liquidar.
+> **Medido na s419 (conta do Feca, 18/10/2026):** status `2` é ganha e `profitAmount` segue
+> sendo o RETORNO depois de liquidar; status `3` é anulada (6 bilhetes de outro dono, todos com
+> retorno = stake). Múltipla ganha com perna anulada paga pelo produto das pernas ganhas:
+> 344388133 = 25 × 1,54 = 38,50 (tênis `Abandonado`, perna `3`) e 344381942 = 25 × 3,15 = 78,75
+> (handicap +4 exato). Antes deste registro as duas subiam "a conferir" e ficavam ABERTAS no
+> Sharpen para sempre (o bloco não mudava, a recaptura não relia), com 117,25 USDT fora da
+> Caixa. O status `4` continua sem amostra. Gates: `extensor/harness/casos/1win.mjs`
+> (`pernaAnulada`) e `tests/test_adaptador_tp.py`, sobre os crus reais em
+> `extensor/harness/fixtures/1win.perna_anulada.json`.
 
 ---
 

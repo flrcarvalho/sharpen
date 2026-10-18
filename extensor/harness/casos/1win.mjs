@@ -27,8 +27,9 @@
 //     `offset >= meta.total`. `sportType` só aceita `sport`, `all` e `polybet` — o replay
 //     pede `all` para nada ficar de fora.
 //
-// NÃO COBERTO pela fixture (a conta não tinha): ganha, simples, cashout, anulada, sistema,
-// bônus de múltipla, freebet, polybet e os status 2, 3 e 4. Os casos de dinheiro estão
+// NÃO COBERTO pela fixture (a conta não tinha): ganha cheia, simples, cashout, anulada,
+// sistema, bônus de múltipla, freebet, polybet e o status 4. A ganha com perna ANULADA tem
+// fixture real desde a s419 (`1win.perna_anulada.json`, ver `pernaAnulada` abaixo). Os casos de dinheiro estão
 // travados abaixo por CLONE da liquidada (subir "a conferir" quando o número não prova), não
 // por amostra real. Também não cobre a corrida "liquidada vence aberta" (o sandbox entrega
 // as respostas em ordem fixa, como na Shuffle).
@@ -217,9 +218,56 @@ export async function rodar() {
     }
   }
 
+  testes += await pernaAnulada(falhas);
   testes += await partidaAFrio(itens, falhas);
   testes += await semToken(falhas);
   return { falhas, testes };
+}
+
+// s419: múltipla GANHA com uma perna ANULADA (crus reais, conta do Feca, `1win.perna_anulada.json`).
+// A casa pagou pelo produto das pernas ganhas: 344388133 = 25 × 1,54 = 38,50 (tênis abandonado,
+// perna status 3) e 344381942 = 25 × 3,15 = 78,75 (handicap +4 exato). Antes subiam "a conferir"
+// e ficavam ABERTAS no Sharpen para sempre, com 117,25 USDT fora da Caixa.
+async function pernaAnulada(falhas) {
+  const itens = JSON.parse(fixture("1win.perna_anulada.json")).result.items;
+  const { ultima } = await rodarInject({
+    inject: "tp_inject.js",
+    href: "https://1win.com/betting/bets-history",
+    urlInicial: API + "/bets/history/get-many",
+    optsInicial: { method: "POST", headers: HDRS, body: JSON.stringify({ limit: 150, offset: 0, sportType: "sport" }) },
+    pedido: "__sharpenupTPReq",
+    responder: casaTP(itens, []),
+    ms: 600,
+  });
+  const fmt = carregarContent().pegar("formatTicketTP");
+  const porId = new Map(((ultima && ultima.bilhetes) || []).map((b) => [b.id, b]));
+  const ESP = {
+    "344388133": { ret: "38,50", odd: "1,54", col: "3,23", anulada: /Vladislav Stukalov \[perna anulada/ },
+    "344381942": { ret: "78,75", odd: "3,15", col: "6,02", anulada: /Indiana Hoosiers 4 \[perna anulada/ },
+  };
+  let n = 0;
+  for (const [idb, e] of Object.entries(ESP)) {
+    const b = porId.get(idb);
+    if (!b) { falhas.push(`perna anulada ${idb}: não chegou ao lote`); continue; }
+    n++;
+    const txt = fmt(b);
+    const st = linha(txt, "Status:"), odd = linha(txt, "Odd:");
+    if (!new RegExp(`^Ganhou → W \\(retorno ${e.ret} USDT; perna anulada`).test(st)) falhas.push(`perna anulada ${idb}: status "${st}"`);
+    if (!odd.startsWith(e.odd + " (= Retorno ÷ Stake")) falhas.push(`perna anulada ${idb}: odd esperada ${e.odd} (retorno ÷ stake), veio "${odd}"`);
+    if (!odd.includes("era " + e.col)) falhas.push(`perna anulada ${idb}: a odd da colocação (${e.col}) não está dita`);
+    if (!e.anulada.test(txt)) falhas.push(`perna anulada ${idb}: a perna anulada não está dita como anulada`);
+    if (!/\[perna ganha\]/.test(txt)) falhas.push(`perna anulada ${idb}: a perna ganha não está dita como ganha`);
+    if (/a conferir/.test(txt)) falhas.push(`perna anulada ${idb}: ainda sobe "a conferir"`);
+    // O número tem de PROVAR: retorno que não fecha com as ganhas continua a conferir.
+    const torto = linha(fmt(Object.assign({}, b, { retorno: 40 })), "Status:");
+    if (!/a conferir — não liquidar automaticamente/.test(torto)) falhas.push(`perna anulada ${idb}: retorno 40 virou "${torto}"`);
+    const st4 = linha(fmt(Object.assign({}, b, { status: 4 })), "Status:");
+    if (!/a conferir — não liquidar automaticamente/.test(st4)) falhas.push(`perna anulada ${idb}: status 4 virou "${st4}"`);
+    // Ganha + anulada continuam ali; só a 3ª perna, num enum sem amostra, tem de barrar.
+    const p4 = linha(fmt(Object.assign({}, b, { pernas: b.pernas.concat([Object.assign({}, b.pernas[0], { status: 4 })]) })), "Status:");
+    if (!/a conferir — não liquidar automaticamente/.test(p4)) falhas.push(`perna anulada ${idb}: perna status 4 virou "${p4}"`);
+  }
+  return n;
 }
 
 // A página nunca abriu o histórico: o token vem de outra chamada autenticada de Esportes

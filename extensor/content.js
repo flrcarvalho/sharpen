@@ -5001,11 +5001,31 @@
   //   • a odd do bilhete (`cf`) é CORTADA em 2 casas e é ela que paga: pernas 1,79 × 2,75 =
   //     4,9225, card e retorno em 4,92. Nunca o produto das pernas.
   //   • a perdida pode ter perna ainda pendente: a casa liquida pela perna que perdeu.
-  // O que NÃO se decide aqui: os status 2, 3 e 4 não têm amostra. Só o DINHEIRO decide (retorno
-  // = stake → V; = stake × odd → W); o resto sobe cru, "a conferir". O de-para vive na
-  // CASA_1WIN.md §5.
-  const _PERNA_TP = { 0: "em aberto", 1: "perdida" };
+  // Só o DINHEIRO decide os status 2, 3 e 4 (retorno = stake → V; = stake × odd → W; status 2 com
+  // perna anulada = stake × produto das pernas ganhas → W, s419); o resto sobe cru, "a
+  // conferir". O de-para vive na CASA_1WIN.md §5.
+  // Perna 2 = ganha e 3 = anulada medidos na s419 (344388133 e 344381942, conta do Feca).
+  const _PERNA_TP = { 0: "em aberto", 1: "perdida", 2: "ganha", 3: "anulada (não entra no retorno)" };
   const _abertaTP = (b) => b.status === 0;
+
+  // Múltipla ganha com perna ANULADA (s419): a casa paga pelo produto das pernas GANHAS (25 ×
+  // 1,54 = 38,50 com o tênis abandonado), não pela `cf` da colocação. Só com toda perna ganha
+  // ou anulada, pelo menos uma de cada, e o retorno fechando ao centavo com o produto exato ou
+  // cortado em 2 casas. Mesma régua do `app/adaptadores/tp.py`.
+  function _pagaSemAnuladasTP(b) {
+    const ps = b.pernas || [], st = b.stake, ret = b.retorno;
+    if (!ps.length || !(st > 0) || !(ret > 0)) return false;
+    if (ps.some((p) => p.status !== 2 && p.status !== 3)) return false;
+    if (!ps.some((p) => p.status === 2) || !ps.some((p) => p.status === 3)) return false;
+    let prod = 1;
+    for (const p of ps) {
+      if (p.status !== 2) continue;
+      if (!(p.odd > 1)) return false;
+      prod *= p.odd;
+    }
+    const cortado = Math.floor(prod * 100 + 1e-9) / 100;
+    return [prod, cortado].some((o) => Math.abs(ret - st * o) < 0.005);
+  }
 
   function _dataEventoTP(b) {
     let max = null;
@@ -5028,6 +5048,9 @@
     // Status 2 com retorno = stake × odd ao centavo: ganhou cheio. Qualquer outro número (perna
     // anulada, cashout, ou `profitAmount` que fosse lucro) não está provado.
     if (b.status === 2 && b.odd > 0 && Math.abs(ret - st * b.odd) < 0.005) return "Ganhou → W (" + txt + ")";
+    if (b.status === 2 && _pagaSemAnuladasTP(b)) {
+      return "Ganhou → W (" + txt + "; perna anulada: a casa pagou pelas pernas ganhas, odd = retorno ÷ stake)";
+    }
     return cru + " com " + txt + " (a conferir — não liquidar automaticamente)";
   }
 
@@ -5056,7 +5079,11 @@
       L.push("Tipo: Múltipla (" + n + " seleções)");
     }
 
-    if (b.odd > 0) {
+    if (b.status === 2 && _pagaSemAnuladasTP(b) && !(b.odd > 0 && Math.abs(b.retorno - b.stake * b.odd) < 0.005)) {
+      // Perna anulada: a `cf` da colocação não pagou; a odd é a do dinheiro (MASTER_RESULTADO).
+      L.push("Odd: " + _oddTxtKTO(b.retorno / b.stake) + " (= Retorno ÷ Stake; perna anulada, a odd da colocação era " +
+             (b.odd > 0 ? _oddTxtKTO(b.odd) : "?") + ")");
+    } else if (b.odd > 0) {
       L.push("Odd: " + _oddTxtKTO(b.odd) + (n > 1 ? " (a da casa, cortada em 2 casas — é a que paga)" : ""));
     } else {
       L.push("Odd: (a casa não informou — deixe a odd VAZIA; não use o produto das pernas nem zero)");

@@ -14,10 +14,20 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   6. freebet deixa de recusar                            → test_sem_amostra_recusa
   7. perna pendente vira "perdida" (data errada)         → test_perdida_data_pela_perna_perdida
   8. recusa volta a ler `cru.id` (código vazio)          → test_recusa_grava_o_codigo_de_bet_id
+  s419, perna anulada (crus REAIS em `1win.perna_anulada.json`, 344388133 e 344381942):
+  9. sem o ramo da perna anulada                         → test_status_2_com_perna_anulada_e_ganha_pelo_dinheiro
+ 10. produto de TODAS as pernas, não só as ganhas        → idem
+ 11. perna 3 sem rótulo `anulada`                        → idem
+ 12. perna fora de 2/3 aceita                            → test_perna_anulada_so_prova_quando_o_dinheiro_fecha
+ 13. qualquer status de bilhete, não só o 2              → idem
+  INÓCUA: tirar a exigência de "pelo menos uma ganha e uma anulada". Sem anulada o produto
+  das ganhas é a própria odd do bilhete (ganha cheia, o ramo de cima); só anuladas dá retorno
+  = stake (anulada, também de cima). A trava fica por restringir ao formato medido.
 
 O QUE NÃO COBRE: simples, sistema, bônus, freebet, polybet, carteira de bônus e meio retorno
-(todos RECUSADOS por falta de amostra, o texto continua levando à IA), e os rótulos reais dos
-status 2, 3 e 4, que só a 1ª ganha/anulada da conta vai mostrar.
+(todos RECUSADOS por falta de amostra, o texto continua levando à IA), e o status 4 de
+bilhete. Medido na s419: status 2 = ganha (cheia ou com perna anulada), 3 = anulada (retorno =
+stake); perna 2 = ganha, 3 = anulada.
 """
 import copy
 import json
@@ -112,6 +122,42 @@ def test_perdida_com_retorno_recusa():
 def test_sem_amostra_recusa(mexer):
     c = copy.deepcopy(CRUS[PERDIDA])
     mexer(c["bet"], c["selections"])
+    with pytest.raises(Recusa):
+        tp.adaptar(c, "1WIN")
+
+
+ANULADA = {it["bet"]["id"]: it for it in tp.bilhetes_da_resposta(
+    json.loads((_FIX / "1win.perna_anulada.json").read_text(encoding="utf-8")))}
+
+
+@pytest.mark.parametrize("cod, retorno, odd, anulada", [
+    ("344388133", "38.5", "1,54", 1),     # tênis abandonado: 25 × 1,54 (a outra perna)
+    ("344381942", "78.75", "3,15", 1),    # handicap +4 exato (push): 25 × 3,15
+])
+def test_status_2_com_perna_anulada_e_ganha_pelo_dinheiro(cod, retorno, odd, anulada):
+    """s419: as duas ficaram ABERTAS no Sharpen com a casa já tendo pago (117,25 USDT fora da
+    Caixa do Feca). A casa paga pelo produto das pernas ganhas; a odd é retorno ÷ stake, nunca
+    o `cf` da colocação (3,23 e 6,02), que pagaria o dobro."""
+    f, d = _montar(ANULADA[cod])
+    assert (f["status"], f["retorno"]) == ("ganha", retorno)
+    assert [p["status_perna"] for p in f["pernas"]].count("anulada") == anulada
+    assert "ganha" in [p["status_perna"] for p in f["pernas"]]
+    assert (d["resultado"], d["odd"]) == ("W", odd)
+
+
+def test_perna_anulada_so_prova_quando_o_dinheiro_fecha():
+    c = copy.deepcopy(ANULADA["344388133"])
+    c["bet"]["profitAmount"] = 40                          # não é 25 × 1,54: a conferir
+    with pytest.raises(Recusa):
+        tp.adaptar(c, "1WIN")
+    c = copy.deepcopy(ANULADA["344388133"])
+    extra = copy.deepcopy(c["selections"][1])               # ganha + anulada continuam ali:
+    extra["status"] = 4                                     # só a perna sem amostra recusa
+    c["selections"].append(extra)
+    with pytest.raises(Recusa):
+        tp.adaptar(c, "1WIN")
+    c = copy.deepcopy(ANULADA["344388133"])
+    c["bet"]["status"] = 4                                 # só o status 2 é ganha
     with pytest.raises(Recusa):
         tp.adaptar(c, "1WIN")
 

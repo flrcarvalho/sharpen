@@ -75,9 +75,8 @@ o `docs/HISTORICO.md`. Este arquivo só guarda o que está **aberto**.
   detectadas, as 5 fixtures viram Ficha aceita); `FICHA_SOMBRA_CASAS` + 1WIN; depois da 1ª
   captura, `scripts/reprocessar_ficha_cru.py --casa 1WIN --aplicar` e conferir que todo cru tem
   Ficha (recusa com motivo); (3) backtest, dicionário e virada (D22): só com o histórico
-  capturado, porque o backtest compara contra o banco e hoje a 1win tem 0 cru e 0 bilhete. **Não validado:** status 2/3/4 (ganha, anulada, cashout: hoje só o
-  dinheiro decide e o resto sobe a conferir), que `profitAmount` siga sendo retorno na ganha,
-  simples, sistema, bônus, freebet, polybet, e outros espelhos da 1win (registrados `1win.io` e,
+  capturado, porque o backtest compara contra o banco e hoje a 1win tem 0 cru e 0 bilhete. **Não validado:** status 4 (cashout? hoje sobe a conferir; 2 = ganha
+  e 3 = anulada medidos na s419, com a ganha de perna anulada), simples, sistema, bônus, freebet, polybet, e outros espelhos da 1win (registrados `1win.io` e,
   desde a 0.7.54 de 14/10, `1win.com`, que fala com o mesmo gateway; espelho fora da lista é
   barrado pelo popup como "outra casa" e precisa entrar no manifest, no `CASA_HOSTS` do popup e
   no `_HOSTS_POR_CASA`). `casas/CASA_1WIN.md §5`.
