@@ -41,8 +41,12 @@ MULTIPLA = "Múltipla"
 SEP = " | "                      # chave mercado + seleção
 
 # Termos VAGOS (s412): nunca entram no dicionário e sempre vão para a IA. `especiais` virou
-# `Futebol` para todas as casas com 1 voto (7Games, bet de Futebol e Tênis juntos).
-VAGOS = frozenset({"especiais"})
+# `Futebol` para todas as casas com 1 voto (7Games, bet de Futebol e Tênis juntos). D36 (Feca,
+# 19/10): `sporttypeid 300` é a gaveta de especiais da Altenar, não um esporte (`content.js`,
+# `CASA_ESPORTIVA §12.2`); tinha virado `E-Sports` com 1 voto no `*` e na ESPORTIVA. D37 (Feca,
+# 18/10): `sporttypeid 34` e `31` também não são esporte (o bilhete diz Tênis de Mesa e Críquete,
+# mas o id não é a fonte); o esporte sai do evento, pela IA.
+VAGOS = frozenset({"especiais", "sporttypeid 300", "sporttypeid 34", "sporttypeid 31"})
 
 # `Total` SEM qualificador (s412, Feca): a categoria principal do esporte. Esporte fora daqui:
 # a IA decide. Tênis e Vôlei dependem da linha: até 4,5 é Sets.

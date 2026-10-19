@@ -470,6 +470,8 @@ def estilo(valor: str) -> str:
     s = _COMBO.sub(_combo, s)
     s = re.sub(r"\b(Ressaltos|Rebounds)\b", "Rebotes", s)
     s = re.sub(r"\bAssists\b", "Assistências", s)
+    # D35 (Feca, 19/10): `Mortes`, `kills` e `Abates` são `Kills`, em todas as casas
+    s = re.sub(r"\b(?:mortes|kills|abates)\b", "Kills", s, flags=re.I)
     return " ".join(s.split())
 
 

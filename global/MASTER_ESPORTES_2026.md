@@ -1267,6 +1267,8 @@ Sinônimos:
 - BELLATOR
 - PFL
 - ONE CHAMPIONSHIP
+- MARTIAL ARTS
+- ARTES MARCIAIS
 
 ---
 
@@ -1422,6 +1424,116 @@ Sinônimos:
 - ATHLETICS
 - ATLETISMO
 - TRACK AND FIELD
+
+---
+
+> D33 (Feca, 19/10/2026): Boxe, Críquete, Futsal, Polo Aquático, Futebol Australiano, Bandy e Floorball
+> têm valor próprio. Antes caíam em `Outro` (e o futsal, às vezes, em `Futebol`).
+
+## Boxe
+
+Valor oficial:
+
+```text
+Boxe
+```
+
+Sinônimos:
+- BOXE
+- BOXING
+- BOXEO
+- PUGILISMO
+
+---
+
+## Críquete
+
+Valor oficial:
+
+```text
+Críquete
+```
+
+Sinônimos:
+- CRÍQUETE
+- CRIQUETE
+- CRICKET
+- IPL
+- BIG BASH
+- T20
+
+---
+
+## Futsal
+
+Valor oficial:
+
+```text
+Futsal
+```
+
+Sinônimos:
+- FUTSAL
+- FUTEBOL DE SALÃO
+
+---
+
+## Polo Aquático
+
+Valor oficial:
+
+```text
+Polo Aquático
+```
+
+Sinônimos:
+- POLO AQUÁTICO
+- POLO AQUATICO
+- WATER POLO
+- WATERPOLO
+
+---
+
+## Futebol Australiano
+
+Valor oficial:
+
+```text
+Futebol Australiano
+```
+
+Sinônimos:
+- FUTEBOL AUSTRALIANO
+- AUSTRALIAN FOOTBALL
+- AUSSIE RULES
+- REGRAS AUSTRALIANAS
+- AFL
+
+---
+
+## Bandy
+
+Valor oficial:
+
+```text
+Bandy
+```
+
+Sinônimos:
+- BANDY
+
+---
+
+## Floorball
+
+Valor oficial:
+
+```text
+Floorball
+```
+
+Sinônimos:
+- FLOORBALL
 
 ---
 
