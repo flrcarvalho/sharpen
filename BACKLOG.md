@@ -49,12 +49,6 @@ o `docs/HISTORICO.md`. Este arquivo só guarda o que está **aberto**.
 
 ### Bloqueado por ação humana (não é bilhete)
 
-- **Ficha (s409): apagar as cópias com dado pessoal em 19/10/2026.** `captura_crua_copia_filtro`
-  (192 linhas, todas ainda com `Player` da MyStake ou `nickname` da DEX) e
-  `ficha_sombra_copia_filtro` (55) são o seguro da limpeza de 12/10 (`scripts/limpar_cru_filtro.py`).
-  Decisão do Feca (12/10): em 19/10, se nada tiver dado errado, `DROP TABLE` nas duas. Antes,
-  conferir que `captura_crua` segue sem `Player`/`nickname` e com o hash igual a
-  `cru.impressao(cru)`.
 - **Ficha (s409): 1xBit e Kikobet fora da `EXTRACAO_SEM_PENSAMENTO`.** Sem amostra para provar o
   fiscal: a 1xBit tem 8 apostas, todas perdidas; a Kikobet tem 3 ganhas, sem bloco na
   `sombra_rotulos`. Quando houver ganha com bloco, rodar

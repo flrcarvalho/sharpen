@@ -5,6 +5,10 @@
 
 ---
 
+## 2026-10-19 · s423 · Parte B: as cópias com dado pessoal apagadas
+
+`scripts/apagar_copias_filtro_s423.py --aplicar` (decisão do Feca de 12/10, BACKLOG §1). Antes: `captura_crua_copia_filtro` 192, `ficha_sombra_copia_filtro` 55; as 6.841 linhas da `captura_crua` com 0 a cortar pelo filtro de hoje (`limpar_cru_filtro.plano`) e 0 com hash diferente de `cru.impressao`. `DROP TABLE` nas duas, numa transação. Depois (consulta só leitura, `to_regclass`): as duas não existem; `captura_crua` 6.841 e `ficha_sombra` 6.124, intactas.
+
 ## 2026-10-19 · s423 · Parte A, passo 1: nenhuma aposta é descartada em silêncio
 
 **Pedido do Feca (pós-parecer 021).** Ensaio da Parte A aprovado; ordem: (1) a aposta que some sem
