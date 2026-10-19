@@ -5375,10 +5375,24 @@
     return max;
   }
 
+  // Bônus de odd (`RiskBonusPercent`, s422, MyStake): "+5%" ao lado da Quantia no card. A casa
+  // paga o percentual sobre o LUCRO PAGO da ganha e o `WinAmount` vem sem ele. Provado pelo
+  // dinheiro (conta Ellen [Eu]): 4 ganhas somam R$ 248,04 fora da API, e com a ativação de
+  // bônus a Caixa fecha os R$ 297,75 ao centavo. Arredonda ao centavo com a metade para cima
+  // (1.149,50 × 5% = 57,475 → 57,48: só assim a soma fecha). Lucro PAGO, nunca o do Koef: com
+  // perna anulada (307310722) os 3% saem de 310,40. Perdida, void e cashout: zero (sem amostra).
+  function _bonusOddTV(t) {
+    const st = t.stake || 0, ret = t.retorno || 0, p = t.bonusOdd || 0;
+    if (_abertaTV(t) || t.cashout || t.resultado !== 2 || !(p > 0) || ret - st < 0.005) return 0;
+    return Math.round((ret - st) * p * 100 + 1e-6) / 100;
+  }
+  const _retornoTV = (t) => Math.round(((t.retorno || 0) + _bonusOddTV(t)) * 100) / 100;
+
   // Odd efetiva. O `Koef` é a fonte; o dinheiro só entra se o Koef NÃO explicar o retorno até
-  // o centavo (é onde um boost futuro apareceria inteiro). Nunca trunca — só escolhe a fonte.
+  // o centavo (é onde um boost apareceria inteiro — e é por aqui que o bônus de odd entra).
+  // Nunca trunca — só escolhe a fonte.
   function _oddTV(t) {
-    const st = t.stake || 0, ret = t.retorno || 0;
+    const st = t.stake || 0, ret = _retornoTV(t);
     if (!_abertaTV(t) && st > 0 && ret > 0 && Math.abs(ret - st) >= 0.005) {
       if (t.koef != null && Math.abs(ret - t.koef * st) <= 0.01) return t.koef;
       return ret / st;
@@ -5392,7 +5406,7 @@
     if (t.resultado !== 2 && t.resultado !== 3) {
       return "Result " + t.resultado + " (a conferir — não liquidar automaticamente)";
     }
-    const st = t.stake || 0, ret = t.retorno || 0;
+    const st = t.stake || 0, ret = _retornoTV(t);
     const pre = t.cashout ? "Cash Out · " : "";
     if (t.resultado === 3 || ret === 0) return pre + "Perdeu → L";
     if (Math.abs(ret - st) < 0.005) return pre + "Devolvida/void (retorno = stake) → V";
@@ -5467,6 +5481,11 @@
     if (tipo) L.push("Tipo: " + tipo);
     if (_abertaTV(t) && t.potencial != null) L.push("Retorno potencial: R$ " + _brl(t.potencial));
     if (t.bonus) L.push("Marcação da casa: aposta com bônus (IsBonus)");
+    const bo = _bonusOddTV(t);
+    if (bo > 0) {
+      L.push("Bônus de odd da casa: +" + _numTxtTV(Math.round(t.bonusOdd * 10000) / 100) + "% sobre o lucro = R$ " +
+             _brl(bo) + " (já somado ao retorno do Status; a odd é retorno ÷ stake)");
+    }
     // FREEBET (`TicketType 3`, s392): a aposta INTEIRA foi com dinheiro da casa. O rótulo é o
     // mesmo que a Superbet já emite para freebet parcial, para a regra global de freebet ler
     // UM rótulo só. O `Stake:` acima continua cheio — quem desconta é a regra, nunca a IA.

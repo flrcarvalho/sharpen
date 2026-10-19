@@ -123,9 +123,38 @@ O P/L vem do **bilhete** (múltipla perdida), então o `6` mexe só na descriç�
 
 ---
 
-## 6. Boost / promoção
+## 6. Boost / promoção ⭐ — o bônus de odd fica FORA do `WinAmount` (s422)
 
-Sem amostra. Nenhum `W`, nenhum `ItemType 6`.
+O card mostra **"+5%"** (ou "+3%") vermelho ao lado da Quantia. É **bônus de odd da múltipla**,
+e a API traz o percentual em **`RiskBonusPercent`** (`0.05`, `0.03`; `0` sem bônus). A casa paga
+o percentual sobre o **LUCRO** da ganha, e o **`WinAmount` vem SEM ele**:
+
+```
+retorno = WinAmount + (WinAmount − Amount) × RiskBonusPercent     (ao centavo, metade para cima)
+odd     = retorno ÷ Amount                                        (régua da W com boost)
+```
+
+| bilhete | API (`WinAmount`) | bônus | card | odd gravada |
+|---|---|---|---|---|
+| `308194559` | 1.249,50 | 5% → 57,48 | 1.306,97 | 13,0698 |
+| `308368220` | 2.416,80 | 5% → 115,84 | 2.532,64 | 25,3264 |
+| `307478724` | 1.408,11 | 5% → 65,41 | 1.473,51 | 14,7352 |
+| `307310722` | 410,40 | 3% → 9,31 | — | 4,1971 |
+
+**Provado pelo dinheiro**, na Caixa da conta Ellen [Eu] (18/10/2026): as quatro somam 248,04 e,
+com a `Bonus Activation` de 11/10 (49,71, extrato da casa), fecham **ao centavo** a divergência
+de 297,75. Por isso o arredondamento é **metade para cima**: o card TRUNCA (1.306,97), mas
+truncando a soma dá 296,73 e não fecha.
+
+- O lucro é o **PAGO**, nunca o do `Koef`: na `307310722` uma perna anulou (`WinKoef` 4,104) e os
+  3% saíram de 310,40, não de 802,88.
+- Perdida com o campo (147 bilhetes de 1.208 crus o trazem) não ganha nada. Cashout e anulada com
+  o campo: sem amostra, ficam sem bônus.
+- Onde mora: `adaptadores/tv.py` (`_bonus_odd`) e `content.js` (`_bonusOddTV`), harness
+  `mystake_bonus`, gate `test_adaptadores_familias.py`. As irmãs (Tivo, Betfast, Faz1bet) não
+  trouxeram o campo preenchido em nenhum cru medido.
+- **Não confundir com `IsBonus`** (11 apostas de 11-12/10): ali a aposta saiu do saldo real
+  (a Caixa fecha contando-as assim).
 
 ---
 
@@ -210,6 +239,7 @@ Mesmo conjunto das irmãs (`CASA_BETFAST §12`): placeholder `{p1_r}` (resolver 
 - **`Result 6` = meia derrota**, pintada de vermelho como derrota cheia.
 - `hisminus: true` → sinal da linha invertido na tela (§12).
 - Odd: a tela trunca → sempre `Koef`.
+- **"+5%" na Quantia = `RiskBonusPercent`**, fora do `WinAmount`: o retorno soma o bônus (§6).
 - Data: todos os 9 mudam de dia entre colocação e evento.
 - `messagetosport` de 0,7 kB a cada ~5 s é polling, não histórico.
 - **MyStake ≠ Stake.**

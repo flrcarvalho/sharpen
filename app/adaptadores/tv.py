@@ -18,13 +18,20 @@ leitura de cada campo é a do `formatTicketTV` do `content.js` e da `CASA_TIVO.m
   • perna (`Items[]`): `Result` 0 aberta · 1 anulada (provado pelo dinheiro, s211) · 2 ganha
     · 3 perdida · 6 meia derrota (s392). Mercado pode trazer `{p1_r}`, preenchido pelo
     `FinalPosition.p1` como o content faz; placeholder desconhecido fica como veio.
+  • `RiskBonusPercent` (s422, MyStake) = BÔNUS DE ODD da múltipla ("+5%" vermelho ao lado da
+    Quantia no card). A casa paga o percentual sobre o LUCRO da ganha, e o `WinAmount` vem SEM
+    ele: o retorno é `WinAmount + (WinAmount − Amount) × pct`, ao centavo, arredondado para
+    cima no meio. Provado pelo dinheiro na conta Ellen [Eu]: 4 ganhas com o campo somam
+    R$ 248,04 que só a Caixa via, e com a ativação de bônus fecham os R$ 297,75 ao centavo. O
+    lucro é o PAGO, nunca o do `Koef`: na 307310722 uma perna anulou e o bônus de 3% saiu sobre
+    310,40, não sobre 802,88. Perdida, anulada e cashout não ganham nada (sem amostra).
   • Sistema (`IsSystem`) e odd oferecida (`ItemType` 6, `OfferedOddObject`) não estão nos
     137 crus medidos (12/10): RECUSA com o motivo até haver amostra.
 """
 from __future__ import annotations
 
 import re
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from . import Recusa, iso_de_epoch, numero
 
@@ -72,6 +79,15 @@ def _status(t: dict) -> str:
     if res == 2 and ret > stake:
         return "ganha"
     raise Recusa(f"{cru}: retorno {ret} sobre stake {stake} (a conferir)")
+
+
+def _bonus_odd(t: dict, status: str) -> Decimal:
+    """O bônus de odd (`RiskBonusPercent`) que a casa creditou além do `WinAmount`."""
+    pct = _d(t.get("RiskBonusPercent"))
+    if status != "ganha" or not pct or pct <= 0:
+        return Decimal(0)
+    lucro = _d(t.get("WinAmount")) - _d(t.get("Amount"))
+    return (lucro * pct).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def _mercado(it: dict) -> str:
@@ -130,6 +146,11 @@ def adaptar(t: dict, casa_key: str) -> dict:
             "inicio": inicio,
             "status_perna": _PERNA[it.get("Result")],
         })
+    # Com bônus de odd, a odd da casa não fecha o retorno e o `ficha.derivar` grava
+    # Retorno ÷ Stake, a régua global da W com boost.
+    retorno = None
+    if status != "aberta":
+        retorno = numero(_d(t.get("WinAmount")) + _bonus_odd(t, status))
     win = _d(t.get("WinKoef"))
     odd = numero(t.get("WinKoef")) if status in ("ganha", "cashout") and win else numero(t.get("Koef"))
     return {
@@ -145,7 +166,7 @@ def adaptar(t: dict, casa_key: str) -> dict:
         "stake_freebet": numero(t.get("Amount")) if tt == 3 else None,
         "odd": odd,
         "odd_calculada": False,
-        "retorno": numero(t.get("WinAmount")) if status != "aberta" else None,
+        "retorno": retorno,
         "tipo": "multipla" if len(pernas) > 1 else "simples",
         "sistema": None,
         "pernas": pernas,

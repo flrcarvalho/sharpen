@@ -203,6 +203,9 @@
       cashoutPossivel: _n(t.PossibleCashout),
       sistema: !!t.IsSystem,
       bonus: !!t.IsBonus,
+      // `RiskBonusPercent` (s422, MyStake): o "+5%" ao lado da Quantia no card. É bônus de ODD
+      // sobre o LUCRO da ganha, e o `WinAmount` vem SEM ele — quem soma é o content.
+      bonusOdd: _n(t.RiskBonusPercent),
       // `TicketType` cru: 0 = normal · 3 = FREEBET (badge "F" no card da MyStake, s392 —
       // confirmado pelo dono). Outros valores sobem como vieram; quem decide é o content.
       tipoBilhete: t.TicketType != null ? t.TicketType : null,

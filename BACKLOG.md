@@ -883,6 +883,17 @@ vinculante é do Feca, e a sugestão veio de outra sessão.
 - **A casca `/app` carrega 3 iframes e os 3 puxam `/dashboard/data`. ✅ VIVA (s261)** — as 3 chamadas conferidas: `inicio.html:483`, `index.html:3504` e `dash/assets/js/data.js:4`. `/inicio`, `/` (Extração) e `/dashboard/`, cada um montando o feed inteiro no servidor (3 × 11,6 MB por abertura). Um cache compartilhado entre os frames (ou o feed servido uma vez pela casca) cortaria 2/3 do trabalho.
 - **Deep-link a frio monta a tela vazia. ✅ VIVA (s261).** Abrir `/app#dash/metrics` sem cache local: a casca chama `showPage('metrics')` antes de o `buildHTML` existir, `_lastPage`/`_lastPageSig` já ficam marcados (`app.js:459`), e o **caminho frio** do `loadData` (`app.js:1233-1250`) chama `buildHTML()` + `applyAparencia()` e **nunca** `renderPage` — o `showPage` seguinte volta cedo pelo `if(id===_lastPage&&sig===_lastPageSig)return` (`:458`). A tela fica com os `—` do markup. **O caminho quente já faz certo** (`:1225`, `if(_lastPage)renderPage(_lastPage)`), o que dá o formato do conserto: espelhar essa linha no ramo frio. **Pré-existente**, não veio da s217.
 
+### 3.11 MyStake: corrigir ou não o bônus de odd do Gabriel (s422). **VIVA, medida**
+
+O bônus de odd da MyStake (`RiskBonusPercent`, `CASA_MYSTAKE §6`) ficava fora da odd. A conta
+Ellen [Eu] do Feca foi corrigida (4 ganhas). A `gfatuch [Fatuch]` do Gabriel tem **8 ganhas** com
+o campo (12 a 18/10, USDT, bônus de 14,91 a 26,80 cada) e ficou de fora: a conferência dele de
+13/10 acusou +51,97 e ele lançou o Ajuste de 51,97, que já absorveu o bônus da 307606028
+(22,78, de 12/10). Corrigir a odd sem baixar esse Ajuste conta os 22,78 duas vezes.
+**Decisão:** aplicar (`python scripts/corrigir_bonus_odd_mystake_s422.py --dono Gabriel`,
+ensaio primeiro) e baixar o Ajuste em 22,78, ou deixar e o Gabriel reconfere. As capturas novas já
+vêm certas para todos.
+
 ### 3.1 Solidez — o redesenho do KPI. `TURBO 19/07 #15/#16`. **Já tentado e revertido.**
 
 O gate de rentabilidade e a separação "força do sinal × tamanho de amostra" foram

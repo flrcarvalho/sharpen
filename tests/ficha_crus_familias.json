@@ -1171,5 +1171,101 @@
    "cents": 2,
    "sign_before_value": false
   }
+ },
+ "308194559": {
+  "ID": 308194559,
+  "Koef": 12.495,
+  "Amount": 100,
+  "Result": 2,
+  "Status": 10,
+  "CashOut": false,
+  "WinKoef": 12.495,
+  "WinAmount": 1249.5,
+  "ActionTime": 1792231970653,
+  "TicketType": 0,
+  "CurrencySTR": "BRL",
+  "IsSystem": false,
+  "RiskBonusPercent": 0.05,
+  "Items": [
+   {
+    "Value": 1.7,
+    "Result": 2,
+    "ItemType": 0,
+    "Game": {
+     "Team1": {
+      "Name": "FC Schalke 04"
+     },
+     "Team2": {
+      "Name": "FSV Mainz"
+     },
+     "StartTime": 1792243800000
+    },
+    "Market": {
+     "Name": "Chutes a gol total"
+    },
+    "Position": {
+     "Name": "Abaixo"
+    },
+    "Sport": {
+     "Name": "Futebol"
+    },
+    "FinalPosition": {
+     "h": 10.5
+    }
+   },
+   {
+    "Value": 2.1,
+    "Result": 2,
+    "ItemType": 0,
+    "Game": {
+     "Team1": {
+      "Name": "Brentford FC"
+     },
+     "Team2": {
+      "Name": "Liverpool"
+     },
+     "StartTime": 1792245600000
+    },
+    "Market": {
+     "Name": "Chutes a gol total"
+    },
+    "Position": {
+     "Name": "Abaixo"
+    },
+    "Sport": {
+     "Name": "Futebol"
+    },
+    "FinalPosition": {
+     "h": 9.5
+    }
+   },
+   {
+    "Value": 3.5,
+    "Result": 2,
+    "ItemType": 0,
+    "Game": {
+     "Team1": {
+      "Name": "Olympique de Lyon"
+     },
+     "Team2": {
+      "Name": "Nice"
+     },
+     "StartTime": 1792349100000
+    },
+    "Market": {
+     "Name": "Handicap de cartões"
+    },
+    "Position": {
+     "Name": "2"
+    },
+    "Sport": {
+     "Name": "Futebol"
+    },
+    "FinalPosition": {
+     "h": 1.5,
+     "hisminus": true
+    }
+   }
+  ]
  }
 }

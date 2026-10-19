@@ -24,6 +24,11 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
  16. jb: `canceled` volta a recusar (D31, s417)              → test_jb_cancelada_com_devolucao…
  17. jb: `canceled` vira anulada com qualquer retorno        → test_jb_cancelada_com_devolucao…
  18. jb: perna `canceled` não mapeada                        → test_jb_cancelada_com_devolucao…
+ 19. tv: bônus de odd fora do retorno (s422)                → test_tv_bonus_de_odd…
+ 20. tv: bônus sobre o RETORNO, não o lucro                  → test_tv_bonus_de_odd…
+ 21. tv: bônus sobre o lucro do `Koef` (perna anulada)       → test_tv_bonus_de_odd_sai_do_lucro_pago
+ 22. tv: bônus também na perdida                             → test_tv_bonus_de_odd_so_na_ganha
+ 23. tv: arredonda o bônus pela metade para baixo            → test_tv_bonus_de_odd…
 
 O QUE NÃO COBRE: sistema em meia vitória (sem amostra; fica com a odd da casa, §7.1), bet
 builder da Altenar e odd oferecida da Tivo (recusados por falta de amostra), e qualquer cru
@@ -147,6 +152,32 @@ def test_tv_freebet_e_dinheiro_da_casa():
     assert tv.adaptar(t, "CASA")["stake_freebet"] == "100"
     with pytest.raises(Recusa, match="TicketType"):
         tv.adaptar(dict(t, TicketType=7), "CASA")
+
+
+def test_tv_bonus_de_odd_entra_no_retorno_e_na_odd():
+    """s422: o "+5%" da MyStake (`RiskBonusPercent`) incide sobre o LUCRO e o `WinAmount` vem
+    sem ele. 100 @ 12,495 pagou 1.249,50 na API e 1.306,98 na conta: 1.149,50 × 5% = 57,475,
+    que a casa creditou como 57,48 (a soma das 4 ganhas só fecha a Caixa assim)."""
+    f, d = _montar(tv, "308194559")
+    assert f["retorno"] == "1306.98"
+    assert (d["resultado"], d["odd"]) == ("W", "13,0698")
+
+
+def test_tv_bonus_de_odd_sai_do_lucro_pago():
+    """Com perna anulada o lucro é o PAGO (310,40), não o do `Koef` 9,0288: 3% = 9,31."""
+    f, d = _montar(tv, "307310722")  # sem o campo: nada muda
+    assert f["retorno"] == "410.4"
+    t = dict(CRUS["307310722"], RiskBonusPercent=0.03)
+    f = dict(tv.adaptar(t, "CASA"), impressao="x")
+    assert f["retorno"] == "419.71"
+    assert ficha.derivar(f)["odd"] == "4,1971"
+
+
+def test_tv_bonus_de_odd_so_na_ganha():
+    perdida = dict(CRUS["308194559"], Result=3, WinAmount=0, WinKoef=0)
+    assert tv.adaptar(perdida, "CASA")["retorno"] == "0"
+    anulada = dict(CRUS["308194559"], WinAmount=100, WinKoef=1)
+    assert tv.adaptar(anulada, "CASA")["retorno"] == "100"
 
 
 def test_vb_sistema_e_a_media_exata():
