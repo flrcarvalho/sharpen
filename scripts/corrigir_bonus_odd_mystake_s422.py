@@ -30,10 +30,17 @@ registro em `correcoes` também (correção humana manda). Cashout e não-ganha:
     python scripts/corrigir_bonus_odd_mystake_s422.py            # ensaio
     python scripts/corrigir_bonus_odd_mystake_s422.py --aplicar --dono Feca
 
-`--dono` restringe a um dono. Aplicado na s422 só ao Feca (Ellen [Eu], a conta onde o
-dinheiro provou a regra). O Gabriel (gfatuch [Fatuch], 8 ganhas, USDT) ficou de fora: a
-conferência dele de 13/10 já absorveu o bônus de 12/10 num Ajuste de 51,97, e corrigir a
-odd sem baixar esse Ajuste contaria 22,78 duas vezes. Decisão do dono.
+`--dono` restringe a um dono. Aplicado na s422 aos dois donos com ganha bonificada:
+Feca (Ellen [Eu], 4 odds) e Gabriel (gfatuch [Fatuch], 8 odds, USDT). As outras contas
+MyStake medidas (LavaPessoal, WilliamOliveira) só têm o campo em perdida; Tivo, Betfast e
+Faz1bet não têm cru nenhum. Ensaio depois disso: nada a corrigir.
+
+⚠️ CONFERÊNCIA QUE JÁ ABSORVEU O BÔNUS. A Caixa do Gabriel tinha conferido em 13/10 com
++51,97 e um Ajuste do mesmo valor, que já continha o bônus da 307606028 (22,78, liquidada
+em 12/10, antes da conferência). Corrigir a odd sem mexer no Ajuste contaria os 22,78 duas
+vezes, e por isso o Ajuste baixou para 29,19 (`caixa_editar_mov`, valor antigo em
+`Backups/s422_bonus_odd_mystake_gabriel/`). Antes de rodar em conta com Caixa, compare o
+instante de cada ganha bonificada com as conferências que têm Ajuste depois.
 """
 import argparse
 import asyncio
