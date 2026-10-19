@@ -226,12 +226,15 @@ def no_master(esporte: str | None, categoria: str | None) -> bool:
         categoria in taxonomia.categorias_canonicas()
 
 
-async def _liquidados(conn, dono: str, codigos: list[str]) -> set[str]:
-    """Códigos já LIQUIDADOS no banco, de qualquer origem: a Ficha não os reescreve (D10)."""
+async def _liquidados(conn, dono: str, casa_key: str, codigos: list[str]) -> set[str]:
+    """Códigos já LIQUIDADOS no banco NESTA casa, de qualquer origem: a Ficha não os reescreve
+    (D10). O mesmo código noutra casa do dono é outra aposta (s423, BACKLOG §4.18): sem a casa,
+    a Ficha nem a decidia, e ela não gravava, não ficava `ia` nem virava pendente."""
     rows = await conn.fetch(
         "SELECT DISTINCT codigo_bilhete FROM bilhetes WHERE dono = $1 "
-        "AND codigo_bilhete = ANY($2::text[]) AND extraction_state = 'resolvida'",
-        dono, codigos)
+        "AND codigo_bilhete = ANY($2::text[]) AND extraction_state = 'resolvida' "
+        "AND upper(replace(casa, ' ', '')) = $3",
+        dono, codigos, casa_key)
     return {r["codigo_bilhete"] for r in rows}
 
 
@@ -244,7 +247,7 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
     cods = [c for c in candidatas if c]
     if not cods:
         return set(), {}
-    liquidados = await _liquidados(conn, dono, cods)
+    liquidados = await _liquidados(conn, dono, casa_key, cods)
     termos = await _dic.carregar(conn, casa_key)
     estado = {r["codigo"]: (r["impressao"], r["estado"]) for r in await conn.fetch(
         "SELECT codigo, impressao, estado FROM ficha_virada WHERE dono = $1 AND casa = $2 "

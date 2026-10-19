@@ -1529,16 +1529,6 @@ conta (`lixeira_contas`, 7 dias, CLAUDE.md "Excluir dado: mova para tabela isola
 `remover_lote_conta_errada.py`, `excluir_historico_fora_do_corte.py`), nunca a rota. Ver também a memória "Desfazer análise apaga de
 verdade" (s266).
 
-### 4.18 A Ficha pula aposta cujo código está liquidado noutra casa do mesmo dono (s423). **VIVA, provada em teste, não vista no banco**
-`virada._liquidados` (chamado pelo `aplicar`) confere "liquidada no banco" só por `dono` e
-`codigo_bilhete`, sem a casa. Com o mesmo código liquidado noutra casa, a Ficha nem decide a
-aposta: ela não grava, não fica `ia` e não vira pendente (s423). Se o texto da captura a trouxer, a
-IA a lê (o pré-dedup do texto é por conta); se não trouxer, ela some sem erro. Provado no teste
-`test_s423_codigo_igual_noutra_casa_nao_tira_a_pendencia`, que por isso grava a linha da outra casa
-DEPOIS da rota do cru; é também o que torna inócua a mutação N5.1. Formatos de código variam por
-casa, então a colisão é rara; medir no banco antes de mexer (códigos iguais em casas diferentes do
-mesmo dono). O conserto é a mesma régua do `_pendentes`: `upper(replace(b.casa,' ','')) = casa`.
-
 ### 4.17 O popup do tipster ignora o filtro de Operador (s421). **VIVA, lida no código, não medida na tela**
 Mesma família do popup da casa consertado na s421 (`openCasaDrill` passou a aplicar `sp_`,
 `ti_` e `op_casas`). O `openTipsterDrill` (`charts/performance.js`) monta a base com Esporte e

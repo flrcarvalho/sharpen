@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-10-19 · s423 · Parte C: a carga do dicionário (parecer 021, D33 a D37) e o §4.18
+
+**Código e Master (commit `cfc38fd`, deploy `bbb2c0e0`).** `MASTER_ESPORTES §7` ganhou Boxe, Críquete,
+Futsal, Polo Aquático, Futebol Australiano, Bandy e Floorball (D33), e MMA ganhou os sinônimos de artes
+marciais. `descricao_ficha.estilo`: `Mortes`, `kills` e `Abates` viram `Kills` (D35, todas as casas).
+`dicionario.VAGOS`: `sporttypeid 300` (D36) e `sporttypeid 34` e `31` (D37, Feca 18/10: o bilhete dizia
+Tênis de Mesa e Críquete, mas o id não é esporte; o esporte sai do evento, pela IA). Os dois da D37
+não tinham linha no banco. Gate: `tests/test_dicionario_d33_d36.py`, 6 mutações, 6 detectadas.
+
+**Carga (`scripts/carga_dicionario_s423.py --aplicar`, depois do deploy).** 36 correções `origem=feca`
+e o 300 apagado do `*` e da ESPORTIVA. Teste antes e depois:
+- a. dicionário: `*` esporte de 57 semente para 28 feca + 50 semente; DEX descrição feca 7 → 10;
+  MyStake descrição feca 1 → 3 e categoria 1 → 2; BetMartini descrição feca 5 → 6; ESPORTIVA 6 → 5.
+- b. último `semente_log`: 178 nos dois (nenhuma semente rodou no meio).
+- c. cobertura das 9 casas: 2.292 → 2.398 de 3.042 (75,3% → 78,8%); termo fora 244 → 95, descrição
+  fora 504 → 547 (apostas que passaram do termo e param agora na descrição), Ficha recusada 2.
+- d. agosto e setembro por casa: idêntico antes e depois (D10).
+- Regravadas 3 apostas da Ficha, todas de outubro, todas do Gabriel, só a descrição, com rastro em
+  `correcoes` (`origem=ficha`): 383276, 384179 e 385618, `Pontos 1º Quarto` → `Pontos 1ª Metade` na
+  perna `total. half` (a perna `total. quarter` da 384179 segue `1º Quarto`).
+- `novos` da próxima semente (a conta do `semear`, sem gravar): 0. Antes da carga eram 2, os dois Kills
+  da MyStake, que a carga cobriu pela origem feca.
+
+**§4.18 fechado.** `virada._liquidados` passou a conferir a casa (`upper(replace(casa,' ','')) = chave`,
+a régua do `_pendentes`): o código liquidado noutra casa do dono não tira mais a aposta da Ficha. A chave
+bate com `bilhetes.casa` nas 9 casas viradas; no banco, 0 códigos repetidos entre casas do mesmo dono
+(nenhuma aposta se perdeu por isso). Gates: `test_s423_liquidada_noutra_casa_nao_tira_a_aposta_da_ficha`
+e `test_s423_pendente_com_codigo_noutra_casa_e_tentado_de_novo`; mutações L1 (sem a casa), L2 (grafia de
+exibição no lugar da chave) e N5.1 (a nova tentativa do `_pendentes` sem a casa, antes inócua), 3
+detectadas.
+
+**Próximo passo:** etapa 3 do anexo, o histórico como voto da semente, com ensaio próprio.
+
 ## 2026-10-19 · s423 · Parte A, passos 2 e 4: o rastro da Ficha em `correcoes` e a D30
 
 **A3.** DEX Sport 850e48f2 (id 383282, Gabriel): a Ficha a gravou ABERTA com odd 6,05 (`coefficient`

@@ -2108,8 +2108,11 @@ def test_virada_desligada_e_o_caminho_de_hoje(monkeypatch, sombra):
 #   N3. marca também o `ia` de antes do último `/extrair`     → decidida_antes vermelho
 #   N4. não solta o pendente que veio no texto                → pendente_que_volta_no_texto vermelho
 #   N5. "tem linha no banco" sem a casa, nas 3 consultas de `_pendentes`, uma por vez: a da
-#       marca e a que solta → codigo_igual_noutra_casa vermelho. A da nova tentativa é INÓCUA
-#       hoje: o `aplicar` descarta o código pelo `_liquidados`, que filtra só dono e código.
+#       marca e a que solta → codigo_igual_noutra_casa vermelho; a da nova tentativa →
+#       pendente_com_codigo_noutra_casa vermelho (até o §4.18 ela era inócua: o `_liquidados`
+#       do `aplicar` filtrava só dono e código e descartava o código antes).
+#   L1. `_liquidados` sem a casa                              → liquidada_noutra_casa vermelho
+#   L2. o `aplicar` passa a grafia de exibição, não a chave   → virada_d10_liquidada vermelho
 _SHF_TEXTO = ("CfzyExJmdtCXqiXvmoX1M", "CftTxAri7pJ7srmpPvcLb")
 _SHF_FORA = "CfaTsJtwJCTPAfcRqRKLF"
 
@@ -2254,8 +2257,8 @@ def test_s423_pendente_que_volta_no_texto_sai_da_conta(monkeypatch):
 
 def test_s423_codigo_igual_noutra_casa_nao_tira_a_pendencia(monkeypatch):
     """O mesmo código numa OUTRA casa do mesmo dono não é esta aposta: segue não lida.
-    A linha da outra casa entra DEPOIS da rota do cru: antes dela, quem a veria é o
-    `_liquidados` do `aplicar`, que também não filtra a casa (achado da s423, sem conserto)."""
+    A linha da outra casa entra DEPOIS da rota do cru, para provar só o `_pendentes`; antes dela,
+    é o `_liquidados` do `aplicar` (teste seguinte)."""
     import ficha
     import main
     sess, payload, texto, crus = _shuffle_cenario(monkeypatch)
@@ -2269,6 +2272,63 @@ def test_s423_codigo_igual_noutra_casa_nao_tira_a_pendencia(monkeypatch):
         _, n = await _shuffle_captura(sess, texto)
         return n
     assert _run(body()) == 1
+
+
+async def _banco_casa(pool, dono, codigo):
+    async with pool.acquire() as conn:
+        return {r["casa"]: (r["origem"], r["resultado"]) for r in await conn.fetch(
+            "SELECT casa, origem, resultado FROM bilhetes WHERE dono = $1 AND codigo_bilhete = $2",
+            dono, codigo)}
+
+
+def test_s423_liquidada_noutra_casa_nao_tira_a_aposta_da_ficha(monkeypatch):
+    """BACKLOG §4.18: o código já LIQUIDADO noutra casa do dono (aqui a Betano, antes da rota do
+    cru) não é esta aposta. A Ficha a decide e a grava na Shuffle; a linha da Betano fica igual.
+    E na casa dela a linha da Betano segue contando como liquidada (D10)."""
+    import virada
+    sess, payload, texto, crus = _shuffle_cenario(monkeypatch)
+    monkeypatch.setattr(virada, "descricao", lambda f, termos: "Time A [A v B]")
+
+    async def body():
+        pool = await _shuffle_reset()
+        await main_gravar(sess, f"30/09/2026\tFutebol\t\tBetano\tconta\tML\tTime A [A v B]\t10\t2"
+                                f"\tL\t{_SHF_FORA}", "Betano", "conta")
+        await _shuffle_aprende(pool, crus, _SHF_FORA)
+        _, n = await _shuffle_captura(sess, texto, payload)
+        noutra = await _banco_casa(pool, sess.dono, _SHF_FORA)
+        async with pool.acquire() as conn:      # na casa dela, a da Betano segue liquidada
+            liq = await virada._liquidados(conn, sess.dono, "BETANO", [_SHF_FORA])
+        return n, noutra, liq
+    n, noutra, liq = _run(body())
+    assert n == 0
+    assert noutra["Betano"] == ("extracao", "L") and noutra[sess.casa][0] == "ficha"
+    assert liq == {_SHF_FORA}
+
+
+def test_s423_pendente_com_codigo_noutra_casa_e_tentado_de_novo(monkeypatch):
+    """O pendente cujo código aparece LIQUIDADO noutra casa entre uma captura e a seguinte
+    continua sendo tentado (passo 1 do `_pendentes`, na mesma casa) e sai pela Ficha."""
+    import virada
+    sess, payload, texto, crus = _shuffle_cenario(monkeypatch)
+    monkeypatch.setattr(virada, "descricao", lambda f, termos: "Time A [A v B]")
+
+    async def body():
+        pool = await _shuffle_reset()
+        _, n = await _shuffle_captura(sess, texto, payload)
+        await main_gravar(sess, f"30/09/2026\tFutebol\t\tBetano\tconta\tML\tTime A [A v B]\t10\t2"
+                                f"\tL\t{_SHF_FORA}", "Betano", "conta")
+        await _shuffle_aprende(pool, crus, _SHF_FORA)
+        _, n2 = await _shuffle_captura(sess, texto)
+        return n, n2, await _banco_casa(pool, sess.dono, _SHF_FORA)
+    n, n2, banco = _run(body())
+    assert n == 1 and n2 == 0
+    assert banco[sess.casa][0] == "ficha" and banco["Betano"] == ("extracao", "L")
+
+
+async def main_gravar(sess, tsv, casa, parceiro):
+    import main
+    await main.gravar_tsv(main.SalvarRequest(tsv=tsv, casa=casa, parceiro=parceiro),
+                          sess.dono, sess.dono)
 
 
 # ── s423, A3: o rastro da Ficha em `correcoes` ───────────────────────────────────────────────
