@@ -342,8 +342,82 @@ async def ultimo_extrair(conn, dono: str, casa_key: str):
                                "casa = $2", dono, (casa_key or "").upper())
 
 
+async def _pendentes(conn, dono: str, casa_key: str, casa: str, no_texto: list[str],
+                     ultimo, janela: float) -> tuple[set[str], int]:
+    """A aposta que ninguém lê (s423; Feca: "nenhuma aposta é descartada em silêncio").
+
+    A rota do cru decide TODO código que a casa mandou; o texto da mesma captura pode trazer
+    menos (Jaao26, Shuffle, 14/10: 43 crus, 9 códigos no texto). O código que a Ficha recusou
+    e que o texto não trouxe não chega à IA, e some sem erro. Aqui, em ordem:
+
+      1. **tenta de novo** os já pendentes que o texto também não trouxe, pelo cru guardado
+         mais recente (o dicionário pode ter aprendido o termo desde então), na conta do cru;
+      2. **marca** os novos: `ia` decididos NESTA captura (depois do último `/extrair`, a
+         régua do R32; sem nenhum, a `JANELA_CRU`), fora do texto e sem linha no banco. Os
+         decididos antes do último `/extrair` NUNCA entram: é o que deixa os 16 de 14/10 do
+         Jaao26 de fora (ele refez o histórico à mão por print; recuperá-los duplicaria);
+      3. **solta** o que deixou de ser pendente: virou Ficha, veio no texto (a IA lê), ou já
+         tem linha no banco.
+
+    "Tem linha no banco" é na MESMA casa (`bilhetes.casa` é o nome de exibição; a régua é a do
+    dicionário, sem espaço e em maiúsculas): código igual noutra casa não é esta aposta.
+
+    Devolve (códigos que a Ficha resolveu agora, quantos seguem pendentes nesta casa)."""
+    ck = (casa_key or "").upper()
+    resolvidos: set[str] = set()
+    velhos = await conn.fetch(
+        "SELECT DISTINCT ON (c.codigo) c.codigo, c.familia, c.parceiro, c.cru::text AS cru "
+        "FROM ficha_virada f JOIN captura_crua c ON c.dono = f.dono AND c.casa = f.casa "
+        "AND c.codigo = f.codigo WHERE f.dono = $1 AND f.casa = $2 AND f.estado = 'ia' "
+        "AND f.pendente_desde IS NOT NULL AND NOT (f.codigo = ANY($3::text[])) "
+        "AND NOT EXISTS (SELECT 1 FROM bilhetes b WHERE b.dono = f.dono "
+        "                AND b.codigo_bilhete = f.codigo AND upper(replace(b.casa, ' ', '')) = f.casa) "
+        "ORDER BY c.codigo, c.id DESC", dono, ck, list(no_texto))
+    por_conta: dict[str, dict] = {}
+    for c in velhos:
+        por_conta.setdefault(c["parceiro"] or "", {})[c["codigo"]] = _ficha.montar_ficha(
+            c["familia"], json.loads(c["cru"]), ck)
+    for conta, cands in por_conta.items():
+        feitos, _ = await aplicar(conn, dono, ck, casa, conta, cands)
+        resolvidos |= feitos
+    await conn.execute(
+        "UPDATE ficha_virada f SET pendente_desde = NOW() WHERE f.dono = $1 AND f.casa = $2 "
+        "AND f.estado = 'ia' AND f.pendente_desde IS NULL AND NOT (f.codigo = ANY($3::text[])) "
+        "AND (CASE WHEN $4::timestamptz IS NULL "
+        "          THEN f.atualizado_em >= NOW() - make_interval(secs => $5) "
+        "          ELSE f.atualizado_em > $4::timestamptz END) "
+        "AND NOT EXISTS (SELECT 1 FROM bilhetes b WHERE b.dono = f.dono "
+        "                AND b.codigo_bilhete = f.codigo AND upper(replace(b.casa, ' ', '')) = f.casa)",
+        dono, ck, list(no_texto), ultimo, float(janela))
+    await conn.execute(
+        "UPDATE ficha_virada f SET pendente_desde = NULL WHERE f.dono = $1 AND f.casa = $2 "
+        "AND f.pendente_desde IS NOT NULL AND (f.estado <> 'ia' OR f.codigo = ANY($3::text[]) "
+        "OR EXISTS (SELECT 1 FROM bilhetes b WHERE b.dono = f.dono "
+        "           AND b.codigo_bilhete = f.codigo AND upper(replace(b.casa, ' ', '')) = f.casa))",
+        dono, ck, list(no_texto))
+    n = await conn.fetchval(
+        "SELECT count(*) FROM ficha_virada WHERE dono = $1 AND casa = $2 "
+        "AND pendente_desde IS NOT NULL", dono, ck)
+    if n:
+        logger.warning("virada: %s %s · %d aposta(s) não lida(s): a Ficha recusou e o texto "
+                       "da captura não as trouxe", dono, ck, n)
+    return resolvidos, int(n or 0)
+
+
+async def nao_lidas(dono: str, casa_key: str) -> int:
+    """Quantas apostas desta casa estão pendentes (`_pendentes`), para o aviso da tela."""
+    if not virada(casa_key):
+        return 0
+    pool = await _pool_conn()
+    async with pool.acquire() as conn:
+        return int(await conn.fetchval(
+            "SELECT count(*) FROM ficha_virada WHERE dono = $1 AND casa = $2 "
+            "AND pendente_desde IS NOT NULL", dono, (casa_key or "").upper()) or 0)
+
+
 async def resolver_no_extrair(dono: str, casa_key: str, casa: str, parceiro: str,
-                              codigos: list[str], inalterados=frozenset()
+                              codigos: list[str], inalterados=frozenset(),
+                              no_texto: list[str] | None = None, info: dict | None = None
                               ) -> tuple[set[str], float, dict]:
     """`/extrair` da casa virada: espera o cru, monta a Ficha do cru GUARDADO mais recente de
     cada código e devolve (os que a Ficha resolveu, que saem do lote da IA; segundos de
@@ -353,37 +427,49 @@ async def resolver_no_extrair(dono: str, casa_key: str, casa: str, parceiro: str
     só o cru desta captura vale (N3): cru anterior com texto mudado é a liquidação que o cru
     velho esconderia, e o código vai para a IA. Desta captura = chegou depois do último
     `/extrair` desta casa e dono (`virada_log`; R32), ou, sem nenhum, na `JANELA_CRU`."""
-    if not virada(casa_key) or not codigos:
+    if not virada(casa_key):
         return set(), 0.0, {}
     espera = 0.0
+    resolvidos, fica = set(), {}
     try:
         espera = await esperar_cru(dono, casa_key)
         pool = await _pool_conn()
         async with pool.acquire() as conn:
             ultimo = await ultimo_extrair(conn, dono, casa_key)
-            crus = await conn.fetch(
-                "SELECT DISTINCT ON (codigo) codigo, familia, cru::text AS cru, "
-                "(CASE WHEN $5::timestamptz IS NULL "
-                "      THEN recebido_em >= NOW() - make_interval(secs => $4) "
-                "      ELSE recebido_em > $5::timestamptz END) AS fresco FROM captura_crua "
-                "WHERE dono = $1 AND casa = $2 AND codigo = ANY($3::text[]) "
-                "ORDER BY codigo, id DESC", dono, casa_key.upper(), list(codigos),
-                float(JANELA_CRU + espera), ultimo)
-            candidatas, fica, velhos = {}, {}, {}
-            for c in crus:
-                if not c["fresco"] and c["codigo"] not in inalterados:
-                    fica[c["codigo"]] = "texto mudou sem cru novo"
-                    velhos[c["codigo"]] = ("", "ia", "texto mudou sem cru novo")
-                    continue
-                candidatas[c["codigo"]] = _ficha.montar_ficha(c["familia"], json.loads(c["cru"]),
-                                                              casa_key.upper())
-            for cod in codigos:
-                if cod not in candidatas and cod not in fica:
-                    fica[cod] = "cru não chegou"
-            await _gravar_estados(conn, dono, casa_key.upper(), velhos)
-            resolvidos, fica_ficha = await aplicar(conn, dono, casa_key, casa, parceiro,
-                                                   candidatas)
-        fica.update(fica_ficha)
+            if codigos:
+                crus = await conn.fetch(
+                    "SELECT DISTINCT ON (codigo) codigo, familia, cru::text AS cru, "
+                    "(CASE WHEN $5::timestamptz IS NULL "
+                    "      THEN recebido_em >= NOW() - make_interval(secs => $4) "
+                    "      ELSE recebido_em > $5::timestamptz END) AS fresco FROM captura_crua "
+                    "WHERE dono = $1 AND casa = $2 AND codigo = ANY($3::text[]) "
+                    "ORDER BY codigo, id DESC", dono, casa_key.upper(), list(codigos),
+                    float(JANELA_CRU + espera), ultimo)
+                candidatas, velhos = {}, {}
+                for c in crus:
+                    if not c["fresco"] and c["codigo"] not in inalterados:
+                        fica[c["codigo"]] = "texto mudou sem cru novo"
+                        velhos[c["codigo"]] = ("", "ia", "texto mudou sem cru novo")
+                        continue
+                    candidatas[c["codigo"]] = _ficha.montar_ficha(
+                        c["familia"], json.loads(c["cru"]), casa_key.upper())
+                for cod in codigos:
+                    if cod not in candidatas and cod not in fica:
+                        fica[cod] = "cru não chegou"
+                await _gravar_estados(conn, dono, casa_key.upper(), velhos)
+                resolvidos, fica_ficha = await aplicar(conn, dono, casa_key, casa, parceiro,
+                                                       candidatas)
+                fica.update(fica_ficha)
+            # Depois de decidir os do texto: a aposta que o texto não trouxe (s423). Falha aqui
+            # não tira nada do lote da IA: só deixa de avisar e de tentar de novo.
+            try:
+                _, n = await _pendentes(conn, dono, casa_key, casa,
+                                        list(no_texto if no_texto is not None else codigos),
+                                        ultimo, JANELA_CRU + espera)
+                if info is not None:
+                    info["nao_lidas"] = n
+            except Exception:  # noqa: BLE001
+                logger.exception("virada: pendentes de %s/%s não conferidos", dono, casa_key)
         return resolvidos, espera, fica
     except Exception:  # noqa: BLE001 — na dúvida, a IA lê tudo, como antes da virada
         logger.exception("virada: falha no /extrair de %s/%s; o lote vai inteiro à IA",

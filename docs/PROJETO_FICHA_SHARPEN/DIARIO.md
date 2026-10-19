@@ -5,6 +5,43 @@
 
 ---
 
+## 2026-10-19 · s423 · Parte A, passo 1: nenhuma aposta é descartada em silêncio
+
+**Pedido do Feca (pós-parecer 021).** Ensaio da Parte A aprovado; ordem: (1) a aposta que some sem
+erro, (2) rastro da Ficha em `correcoes` (A3), (3) as 8 odds vazias ficam como estão, (4) D30 no
+diário e lixeira no BACKLOG.
+
+**O caso.** Jaao26, Shuffle, 14/10 07:26:52: 43 crus (apostas de 29/09 a 13/10). A Ficha resolveu 25 e
+mandou 18 à IA; o texto da captura trazia 9 códigos (`virada_log` 49: capturadas 9). Os 25 e os 2 que a
+IA leu foram gravados (ids 382997 a 383023) e **o usuário os apagou um a um** pela grade entre 07:27 e
+07:28 (`DELETE /bilhetes/{id}` no log do Railway, deploy `53567226`); às 07:28 lançou 7 por print, sem
+código. Os outros **16 nunca chegaram à IA**: perda do sistema, sem erro. Não regravados (decisão do
+Feca: ele refez o histórico à mão e parte é de setembro, D10).
+
+**Conserto.** `ficha_virada.pendente_desde` + `virada._pendentes`, chamado no `/extrair` da casa
+virada: tenta de novo os pendentes pela Ficha (cru guardado mais recente, conta do cru), marca o `ia`
+decidido DEPOIS do último `/extrair` que o texto não trouxe e sem linha no banco (na mesma casa), e
+solta o que virou Ficha, veio no texto ou ganhou linha. Tela: `GET /ficha/nao_lidas` e o card soma
+`⚠️ N aposta(s) não lida(s) nesta casa, capture de novo`. O furo do A1 no leitor (e36745b): o bloco que
+manda deixar a odd VAZIA passa (`conferir_linha(odd_vazia=)`); a passada final (`_leitor(final=True)`)
+nunca derruba por odd; W/HW sem odd grava aberta e avisa o admin (`disparar_aviso`); linha recusada
+na passada final volta como faltante da cobertura.
+
+**Casos parecidos desde 12/10** (`ficha_virada` `ia` sem bilhete do dono; a tabela guarda só a última
+decisão, então é piso): Shuffle/Jaao26 16 (+2 que a IA leu e o usuário apagou); MyStake/LavaPessoal 1
+(307046481, 18/10, cru sem texto). A 1win 338677290 do Jaao26 **não é perda**: a rota do cru a gravou
+em 14/10 06:41 (id 382913), o usuário pôs tipster às 06:44 e a apagou às 06:46; em 16/10 12:38 a conta
+`Old` recebeu 116 linhas, 47 com gêmea na conta `1win`, e o usuário apagou os 48 ids 386190-386237,
+ela inclusive (log do deploy `777c160d`).
+
+**Achado sem conserto.** `virada._liquidados` filtra só dono e código (BACKLOG §4.18).
+
+**Gates.** `tests/test_aposta_nao_some_s423.py` (bloco real da SapphireBet 88092600919) e 4 testes de
+banco com 3 crus reais da Shuffle de 14/10 (`tests/ficha_crus_shuffle_s423.json`). Mutações: N1 a N5 e
+M1 a M5, 11 detectadas e 1 inócua registrada (N5.1, mascarada pelo `_liquidados`). Suíte pura: 1943
+verdes e 1 vermelha (`test_auth::fail_closed`), que falha igual na main limpa (worktree temporária,
+`2939590`); banco 77 verdes. Tela aberta no demo, headless: sem erro de script, aviso no card.
+
 ## 2026-10-14 (tarde) · s417 · moeda do cru (D30), D31 e o leitor por tipo (parecer 020)
 
 **D30 (moeda).** O vigia achou: LavaPessoal na Megapari, cru `CurrencyCode: BRL`, banco com stake

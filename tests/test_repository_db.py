@@ -2095,3 +2095,177 @@ def test_virada_desligada_e_o_caminho_de_hoje(monkeypatch, sombra):
     assert resp["fichas"]["aceitas"] == (1 if sombra else 0) and resp["na_planilha"] == 0
     assert (lidos, cortados) == (sorted(_VIRADA), 0)
     assert {o for o, _ in banco.values()} == {"extracao"} and len(banco) == 3
+
+
+# ── s423: a aposta que ninguém lê (Feca, 19/10: nenhuma aposta é descartada em silêncio) ─────
+# O caso real: Jaao26, Shuffle, 14/10. 43 crus chegaram; a Ficha recusou 18 (termo fora do
+# dicionário) e o texto da captura trazia 9 códigos. Os 16 que a Ficha recusou e que o texto
+# não trouxe nunca chegaram à IA. Os 3 crus da fixture são dessa captura
+# (`tests/ficha_crus_shuffle_s423.json`): 2 vieram no texto, 1 só no cru.
+# Mutações provadas no Postgres local (19/10/2026):
+#   N1. `_pendentes` não marca                                → nao_lida_vira_pendente vermelho
+#   N2. sem a nova tentativa pela Ficha                       → nao_lida_vira_pendente vermelho
+#   N3. marca também o `ia` de antes do último `/extrair`     → decidida_antes vermelho
+#   N4. não solta o pendente que veio no texto                → pendente_que_volta_no_texto vermelho
+#   N5. "tem linha no banco" sem a casa, nas 3 consultas de `_pendentes`, uma por vez: a da
+#       marca e a que solta → codigo_igual_noutra_casa vermelho. A da nova tentativa é INÓCUA
+#       hoje: o `aplicar` descarta o código pelo `_liquidados`, que filtra só dono e código.
+_SHF_TEXTO = ("CfzyExJmdtCXqiXvmoX1M", "CftTxAri7pJ7srmpPvcLb")
+_SHF_FORA = "CfaTsJtwJCTPAfcRqRKLF"
+
+
+def _shuffle_cenario(monkeypatch):
+    import json as _json
+    from pathlib import Path
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    import ficha
+    import main
+    crus = _json.loads((Path(__file__).resolve().parent / "ficha_crus_shuffle_s423.json")
+                       .read_text(encoding="utf-8"))
+    sess = SimpleNamespace(dono="TDonoS", casa_key="SHUFFLE", casa=main._casa_display("SHUFFLE"),
+                           parceiro="Shuffle")
+    monkeypatch.setattr(ficha._captura, "sessao_por_token", lambda t: sess)
+    monkeypatch.setattr(ficha._captura, "registrar_versao", lambda s, v: None)
+    monkeypatch.setenv("FICHA_SOMBRA_CASAS", "")
+    monkeypatch.delenv("CRU_CAPTURA_DESLIGADA", raising=False)
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "SHUFFLE")
+    monkeypatch.setattr(main._cambio, "carregar", AsyncMock(return_value=None))
+    monkeypatch.setattr(main._cambio, "cotacao", lambda m, iso: 1.0 if m == "BRL" else 5.0)
+    payload = {"token": "t", "versao": "0.7.53", "familia": "shf",
+               "itens": [{"codigo": c, "cru": crus[c]} for c in crus]}
+    texto = "\n\n".join(f"[Código: {c}]\nStake: 20\nStatus: Ganho\n" for c in _SHF_TEXTO)
+    return sess, payload, texto, crus
+
+
+async def _shuffle_captura(sess, texto, payload=None):
+    """Rota do cru (quando há cru) → `/extrair` → IA dublê → `/salvar`. Devolve o que foi à IA e
+    quantas ficaram não lidas."""
+    import ficha
+    import main
+    if payload:
+        await ficha.receber(payload)
+    info = {}
+    para_ia, _ = await main._dedup_superbet_text(texto, sess.dono, sess.casa, sess.parceiro,
+                                                 info=info)
+    lidos = repository.codigos_do_texto(para_ia)
+    if lidos:
+        tsv = "\n".join(f"13/10/2026\tHóquei\t\t{sess.casa}\t{sess.parceiro}\tML\t"
+                        f"Time A [A v B]\t20\t2,5\tW\t{c}" for c in lidos)
+        await main.gravar_tsv(main.SalvarRequest(tsv=tsv, casa=sess.casa,
+                                                 parceiro=sess.parceiro), sess.dono, sess.dono)
+    await asyncio.sleep(0.1)          # o `virada_log` vai por `_fire`
+    return sorted(lidos), info.get("nao_lidas")
+
+
+async def _shuffle_reset():
+    await _reset()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        for t in ("captura_crua", "ficha_sombra", "bloco_visto", "dicionario_termos",
+                  "ficha_virada", "virada_log", "sombra_rotulos"):
+            await conn.execute(f"TRUNCATE {t}")
+    return pool
+
+
+async def _shuffle_aprende(pool, crus, codigo):
+    """O dicionário aprende o termo da aposta pendente (o que a semente faria depois de a IA
+    ler outra aposta do mesmo mercado)."""
+    import dicionario
+    import ficha
+    f, _ = ficha.montar_ficha("shf", crus[codigo], "SHUFFLE")
+    async with pool.acquire() as conn:
+        for t, k in dicionario.chaves(f):
+            await conn.execute("INSERT INTO dicionario_termos (casa, tipo, termo_casa, "
+                               "termo_sharpen) VALUES ('SHUFFLE', $1, $2, $3) "
+                               "ON CONFLICT DO NOTHING", t, k,
+                               "Hóquei" if t == "esporte" else "ML")
+
+
+async def _banco_shf(pool, dono):
+    async with pool.acquire() as conn:
+        return {r["codigo_bilhete"]: r["origem"] for r in await conn.fetch(
+            "SELECT codigo_bilhete, origem FROM bilhetes WHERE dono = $1", dono)}
+
+
+def test_s423_nao_lida_vira_pendente_e_a_proxima_captura_a_grava(monkeypatch):
+    """O cru que a Ficha recusou e que o texto não trouxe vira pendente (a tela avisa), e a
+    captura seguinte, com o termo já aprendido, a grava pela Ficha sem nenhum texto dela."""
+    import virada
+    sess, payload, texto, crus = _shuffle_cenario(monkeypatch)
+    monkeypatch.setattr(virada, "descricao", lambda f, termos: "Time A [A v B]")
+
+    async def body():
+        pool = await _shuffle_reset()
+        lidos, n = await _shuffle_captura(sess, texto, payload)
+        n_tela = await virada.nao_lidas(sess.dono, "SHUFFLE")
+        banco1 = await _banco_shf(pool, sess.dono)
+        await _shuffle_aprende(pool, crus, _SHF_FORA)
+        lidos2, n2 = await _shuffle_captura(sess, texto)
+        return (lidos, n, n_tela, banco1, lidos2, n2, await _banco_shf(pool, sess.dono),
+                await virada.nao_lidas(sess.dono, "SHUFFLE"))
+    lidos, n, n_tela, banco1, lidos2, n2, banco2, n_fim = _run(body())
+    assert lidos == sorted(_SHF_TEXTO) and n == 1 and n_tela == 1
+    assert _SHF_FORA not in banco1 and set(banco1) == set(_SHF_TEXTO)
+    assert lidos2 == [] and n2 == 0 and n_fim == 0
+    assert banco2[_SHF_FORA] == "ficha"
+
+
+def test_s423_decidida_antes_do_ultimo_extrair_nao_volta(monkeypatch):
+    """Os 16 de 14/10 do Jaao26 não voltam: ele refez o histórico à mão por print, e
+    recuperá-los duplicaria. Só conta o `ia` decidido DEPOIS do último `/extrair`."""
+    import ficha
+    import virada
+    sess, payload, texto, crus = _shuffle_cenario(monkeypatch)
+    monkeypatch.setattr(virada, "descricao", lambda f, termos: "Time A [A v B]")
+
+    async def body():
+        pool = await _shuffle_reset()
+        await ficha.receber(payload)
+        async with pool.acquire() as conn:
+            # a decisão é de antes de uma extração que já passou (o cenário de 14/10)
+            await conn.execute("UPDATE ficha_virada SET atualizado_em = NOW() - interval '2 hours'")
+            await conn.execute("INSERT INTO virada_log (dono, casa, capturadas, ja_no_banco, "
+                               "pela_ficha, inalterados, para_ia, criado_em) VALUES "
+                               "($1, 'SHUFFLE', 9, 0, 0, 0, 2, NOW() - interval '1 hour')",
+                               sess.dono)
+        await _shuffle_aprende(pool, crus, _SHF_FORA)
+        _, n = await _shuffle_captura(sess, texto)
+        return n, await _banco_shf(pool, sess.dono)
+    n, banco = _run(body())
+    assert n == 0 and _SHF_FORA not in banco
+
+
+def test_s423_pendente_que_volta_no_texto_sai_da_conta(monkeypatch):
+    """O pendente que a captura seguinte traz no texto vai à IA pelo caminho de sempre e deixa
+    de contar como não lido."""
+    sess, payload, texto, crus = _shuffle_cenario(monkeypatch)
+
+    async def body():
+        pool = await _shuffle_reset()
+        _, n = await _shuffle_captura(sess, texto, payload)
+        com = texto + f"\n\n[Código: {_SHF_FORA}]\nStake: 20\nStatus: Ganho\n"
+        lidos2, n2 = await _shuffle_captura(sess, com)
+        return n, lidos2, n2, await _banco_shf(pool, sess.dono)
+    n, lidos2, n2, banco = _run(body())
+    assert n == 1 and lidos2 == [_SHF_FORA] and n2 == 0 and banco[_SHF_FORA] == "extracao"
+
+
+def test_s423_codigo_igual_noutra_casa_nao_tira_a_pendencia(monkeypatch):
+    """O mesmo código numa OUTRA casa do mesmo dono não é esta aposta: segue não lida.
+    A linha da outra casa entra DEPOIS da rota do cru: antes dela, quem a veria é o
+    `_liquidados` do `aplicar`, que também não filtra a casa (achado da s423, sem conserto)."""
+    import ficha
+    import main
+    sess, payload, texto, crus = _shuffle_cenario(monkeypatch)
+
+    async def body():
+        await _shuffle_reset()
+        await ficha.receber(payload)
+        await main.gravar_tsv(main.SalvarRequest(
+            tsv=f"30/09/2026\tFutebol\t\tBetano\tconta\tML\tTime A [A v B]\t10\t2\tL\t{_SHF_FORA}",
+            casa="Betano", parceiro="conta"), sess.dono, sess.dono)
+        _, n = await _shuffle_captura(sess, texto)
+        return n
+    assert _run(body()) == 1

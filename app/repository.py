@@ -398,11 +398,13 @@ def _chave_casa(c) -> str:
 
 def conferir_linha(parts: list[str], casa: str | None = None,
                    categorias: set[str] | frozenset | None = None,
-                   exige_codigo: bool = False, exige_odd: bool = True) -> list[str]:
+                   exige_codigo: bool = False, exige_odd: bool = True,
+                   odd_vazia: set[str] | frozenset | None = None) -> list[str]:
     """Os campos fora do TIPO numa linha da planilha (Data … Código). `[]` = linha boa.
 
     data no campo de data · número > 0 na stake e na odd (odd vazia é recusa, aberta ou
-    liquidada, com `exige_odd`) · resultado conhecido ou vazio · código com cara de código
+    liquidada, com `exige_odd`, MENOS no código cujo bloco manda deixá-la vazia: `odd_vazia`,
+    s423) · resultado conhecido ou vazio · código com cara de código
     (nunca dinheiro nem data; obrigatório com `exige_codigo`) · casa igual à da captura (com
     `casa`) · Aposta é categoria (`categorias`), e nunca uma descrição · Descrição nunca é
     só um número."""
@@ -416,7 +418,10 @@ def conferir_linha(parts: list[str], casa: str | None = None,
         out.append("esporte")
     if (_num_or_none(p[7]) or 0) <= 0:
         out.append("stake")
-    if p[8] or exige_odd:
+    # s423: a extensão ESCREVE no bloco "deixe a odd VAZIA" quando a casa não manda a cotação
+    # (sistema da 1xBet sem `Coef`, `content.js`). Exigir a odd ali recusava a linha que a IA
+    # escreveu certa, e a repescagem devolvia a mesma: a aposta sumia sem erro.
+    if p[8] or (exige_odd and not (odd_vazia and p[10] in odd_vazia)):
         if (_num_or_none(p[8]) or 0) <= 0:
             out.append("odd")
     if not resultado_valido(p[9]):
@@ -506,6 +511,28 @@ def alinhar_linha(parts: list[str], **kw) -> tuple[list[str] | None, bool, list[
     if len(q) == 11 and not conferir_linha(q, **kw):
         return q, True, []
     return None, False, motivos
+
+
+_ODD_VAZIA_RE = re.compile(r"deixe a odd vazia", re.I)
+
+
+def codigos_odd_vazia(texto: str | None) -> frozenset:
+    """Códigos cujo bloco cru manda deixar a odd VAZIA (a casa não informou a cotação; a
+    instrução é da extensão, `content.js`). Função PURA, pelo mesmo recorte da cobertura."""
+    return frozenset(c for c, b in blocos_por_codigo(texto).items() if _ODD_VAZIA_RE.search(b))
+
+
+def odd_vazia_ganha(tsv: str) -> list[str]:
+    """Códigos (ou a descrição, sem código) das linhas W/HW sem odd: P/L incalculável, a linha
+    fica `aberta` (`estado_extracao`) e o Feca é avisado (s423)."""
+    out = []
+    for line in (tsv or "").split("\n"):
+        p = line.rstrip("\r").split("\t")
+        if len(p) < 10 or p[0].strip().lower() in ("data", "date"):
+            continue
+        if not p[8].strip() and p[9].strip().upper() in _RESULTADOS_ODD_OBRIGATORIA:
+            out.append((p[10].strip() if len(p) > 10 else "") or p[6].strip()[:60])
+    return out
 
 
 def alinhar_tsv(tsv: str, **kw) -> tuple[str, dict]:

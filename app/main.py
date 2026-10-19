@@ -64,7 +64,7 @@ import cambio as _cambio
 from prompts import build_system
 import contrato_texto as _contrato
 from repository import (
-    alinhar_tsv, categorias_do_dono,
+    alinhar_tsv, categorias_do_dono, codigos_odd_vazia, odd_vazia_ganha,
     analisar_extracao,
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
     casas_com_parceiros, contar_bilhetes, contar_incompletos, contar_pendencias,
@@ -631,7 +631,8 @@ async def _sombra_modelo(dono: str, casa: str, system: list[dict],
                 placar["cod_inventado"], f" ERRO={erro}" if erro else "")
 
 
-async def _leitor(tsv: str, texto: str | None, dono: str, casa: str, rotulo: str) -> tuple[str, dict]:
+async def _leitor(tsv: str, texto: str | None, dono: str, casa: str, rotulo: str,
+                  final: bool = False) -> tuple[str, dict]:
     """O LEITOR (s417, parecer 020), antes de qualquer fiscal: cada campo no seu tipo
     (`repository.conferir_linha`). A linha com o Tipster pulado é realinhada; a que não bate
     SAI do lote, e a cobertura a pede de novo à IA (na casa virada, o código com Ficha já nem
@@ -641,13 +642,26 @@ async def _leitor(tsv: str, texto: str | None, dono: str, casa: str, rotulo: str
     gabarito = bool(codigos_do_texto(texto)) if texto else False
     kw = {"exige_odd": False}
     if gabarito:
+        # s423 (Feca: nenhuma aposta é descartada em silêncio). A odd vazia não derruba a linha
+        # quando o bloco daquele código MANDA deixá-la vazia (`codigos_odd_vazia`), nem na
+        # passada FINAL, a de depois da repescagem: ali uma recusa por odd seria a aposta
+        # sumindo, porque não há outra chance. A 1ª passada segue exigindo a odd fora disso:
+        # a recusa vira código faltante e a repescagem pede a odd de novo.
         kw = {"casa": casa or None, "categorias": await categorias_do_dono(dono),
-              "exige_codigo": True, "exige_odd": True}
+              "exige_codigo": True, "exige_odd": not final,
+              "odd_vazia": codigos_odd_vazia(texto)}
     tsv, st = alinhar_tsv(tsv, **kw)
     if st["realinhadas"] or st["recusadas"]:
         logger.warning("%s leitor: %d linha(s) realinhada(s) (Tipster pulado), %d recusada(s) "
                        "fora do tipo: %s", rotulo, st["realinhadas"], st["recusadas"],
                        st["exemplos"])
+    # W/HW sem odd: o P/L não se calcula e a linha fica `aberta` (`estado_extracao`). Grava,
+    # e o Feca é avisado; só na passada final, para avisar uma vez por extração.
+    if final and (ganhas := odd_vazia_ganha(tsv)):
+        logger.warning("%s leitor: %d ganha(s) sem odd em %s/%s, gravada(s) aberta(s): %s",
+                       rotulo, len(ganhas), dono, casa, ganhas[:5])
+        disparar_aviso(f"⚠️ Sharpen: {len(ganhas)} aposta(s) ganha(s) sem odd na extração de "
+                       f"{casa} ({dono}), gravada(s) como aberta(s): {', '.join(ganhas[:5])}")
     return tsv, st
 
 
@@ -1308,7 +1322,8 @@ def _split_betfair_bilhetes(text: str) -> list[str]:
 
 
 async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
-                               parceiro: str = "", casa_key: str = "") -> tuple[str, int]:
+                               parceiro: str = "", casa_key: str = "",
+                               info: dict | None = None) -> tuple[str, int]:
     """Espelha `_dedup_betano_text` para a Superbet.
 
     Remove bilhetes já liquidados no banco + duplicatas dentro do colar. A chave é o
@@ -1366,9 +1381,12 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
         # não mudou desde a última leitura. Texto mudado com cru velho vai para a IA.
         iguais = {c for c in codigos if por_codigo.get(c) is not None
                   and conhecidos.get(c) == por_codigo[c]}
+        # `no_texto` + `info` (s423): o código que a Ficha recusou e que ESTE texto não traz
+        # vira pendente, e `info["nao_lidas"]` volta para o aviso da tela.
         pela_ficha, espera, fica_ia = await _virada.resolver_no_extrair(
             dono, casa_key, casa, parceiro, [c for c in dict.fromkeys(codigos)
-                                             if c not in ja_resolvidos], iguais)
+                                             if c not in ja_resolvidos], iguais,
+            no_texto=list(dict.fromkeys(codigos)), info=info)
 
     mantidos: list[str] = []
     vistos: set[str] = set()
@@ -2303,7 +2321,13 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         # fidelidade, para que linha nascida numa repescagem também passe por aqui.
         # O leitor de novo, sobre o que a cobertura e a fidelidade trouxeram: a repescagem
         # também pode pular coluna, e o conferidor abaixo só vê linha no lugar.
-        accumulated, leitor2 = await _leitor(accumulated, texto, dono, casa, "seq pós-repesca")
+        accumulated, leitor2 = await _leitor(accumulated, texto, dono, casa, "seq pós-repesca",
+                                      final=True)
+        # s423: a linha que a passada final ainda recusa sai do lote; ela tem de
+        # aparecer na tela como faltante (o "REPROCESSE"), nunca sumir em silêncio.
+        if leitor2["recusadas"] and texto:
+            cobertura = {**cobertura,
+                         "faltantes": conferir_cobertura(accumulated, texto)["faltantes"]}
         leitor = {k: leitor[k] + leitor2[k] for k in ("realinhadas", "recusadas")} | {
             "exemplos": leitor["exemplos"] + leitor2["exemplos"]}
         accumulated, stake_fix = corrigir_stake_tsv(accumulated, texto)
@@ -2535,7 +2559,13 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
             resultado = _apply_betfair_dates(resultado, betfair_dates)
         # Stake determinística (s311) — ver nota no caminho sequencial. Aqui é onde ela
         # mais importa: o carryover de stake nasce da vizinhança DENTRO de um chunk.
-        resultado, leitor2 = await _leitor(resultado, texto, dono, casa, "par pós-repesca")
+        resultado, leitor2 = await _leitor(resultado, texto, dono, casa, "par pós-repesca",
+                                      final=True)
+        # s423: a linha que a passada final ainda recusa sai do lote; ela tem de
+        # aparecer na tela como faltante (o "REPROCESSE"), nunca sumir em silêncio.
+        if leitor2["recusadas"] and texto:
+            cobertura = {**cobertura,
+                         "faltantes": conferir_cobertura(resultado, texto)["faltantes"]}
         leitor = {k: leitor[k] + leitor2[k] for k in ("realinhadas", "recusadas")} | {
             "exemplos": leitor["exemplos"] + leitor2["exemplos"]}
         resultado, stake_fix = corrigir_stake_tsv(resultado, texto)
@@ -4890,6 +4920,14 @@ async def resumo_da_conta(
     extrator: P/L, turnover, apostas, ROI, win rate, duração e dias ativos.
     Números batem com o card da casa no Dashboard (mesmos filtros)."""
     return await resumo_conta(dono, casa, parceiro)
+
+
+@app.get("/ficha/nao_lidas")
+async def ficha_nao_lidas(casa: str, dono: str = Depends(dono_leitura)):
+    """Apostas desta casa que a Ficha recusou e que o texto da captura não trouxe (s423,
+    `virada._pendentes`): a tela avisa "capture de novo". Casa não virada = 0."""
+    import virada as _virada
+    return {"nao_lidas": await _virada.nao_lidas(dono, _virada.chave_da_casa(casa))}
 
 
 # ── Bloco de tipster na sidebar: perfil + logo da conta (s362) ────────────────

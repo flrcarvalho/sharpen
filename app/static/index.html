@@ -7031,7 +7031,31 @@ function createExtractionCard(parceiro, thumbUrls = [], fileNames = []) {
       card.querySelector('.ec-cancel').style.display = 'none';
       _activeStreams.delete(id);
     },
+    // s423: aviso que chega DEPOIS do resultado (a conferência das não lidas é outra rota).
+    // Soma ao texto do card e o rebaixa para `warn`; nunca rebaixa um `err`.
+    acrescentar(msg) {
+      progEl.textContent += msg;
+      if (!card.classList.contains('extract-card--err')) {
+        card.classList.remove('extract-card--ok');
+        card.classList.add('extract-card--warn');
+        progEl.className = 'ec-prog warn';
+      }
+    },
   };
+}
+
+// s423 (Feca: nenhuma aposta é descartada em silêncio): na casa virada, a aposta que a Ficha
+// recusou e que o texto da captura não trouxe não chega à IA. O servidor a guarda como
+// pendente e a tenta de novo a cada captura; a tela diz quantas são. Falha aqui não muda o
+// resultado da extração: só deixa de avisar.
+async function _avisarNaoLidas(card, casa) {
+  if (!casa) return;
+  try {
+    const r = await fetch('/ficha/nao_lidas?casa=' + encodeURIComponent(casa));
+    if (!r.ok) return;
+    const n = (await r.json()).nao_lidas || 0;
+    if (n > 0) card.acrescentar(` · ⚠️ ${n} aposta(s) não lida(s) nesta casa, capture de novo`);
+  } catch (_) {}
 }
 
 async function runExtractionCard(form, card, parceiro, estadoSnapshot, submittedAt) {
@@ -7197,6 +7221,7 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
     } else {
       markDone('⚠️ Nenhum bilhete extraído — veja Notas acima', 'warn');
     }
+    await _avisarNaoLidas(card, parceiro.casa);
 
   } catch (e) {
     if (e.name === 'AbortError') {

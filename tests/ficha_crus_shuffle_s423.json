@@ -1,0 +1,498 @@
+{
+ "CfaTsJtwJCTPAfcRqRKLF": {
+  "id": "CfaTsJtwJCTPAfcRqRKLF",
+  "legs": [
+   {
+    "id": "01a0f492-9305-7186-9af0-8db3440eee50",
+    "type": "REGULAR",
+    "createdAt": "2026-09-30T23:07:21.731Z",
+    "updatedAt": "2026-09-30T23:07:21.731Z",
+    "selections": [
+     {
+      "id": "01a0f492-9305-7186-9af0-97b34c5487e6",
+      "inPlay": false,
+      "market": {
+       "id": "90c074d1-44b5-4355-aefd-999958c1aff5",
+       "name": "1x2",
+       "isOtc": false,
+       "inPlay": true,
+       "status": "RESULTED",
+       "fullName": "1x2",
+       "provider": "BETRADAR",
+       "lineValue": null,
+       "productId": "1",
+       "expiryTime": null
+      },
+      "sports": "SOCCER",
+      "status": "WON",
+      "fixture": {
+       "id": "c2a067db-2ac3-4eba-925a-350f0a5ef158",
+       "name": "DC United vs SC Paderborn",
+       "slug": "74345574-dc-united-vs-sc-paderborn-07",
+       "status": "ENDED",
+       "provider": "BETRADAR",
+       "shortName": "DC vs. PAD",
+       "startTime": "2026-09-30T23:30:00.000Z",
+       "bannerType": "SINGLE_ELIMINATION",
+       "inPlayAllowed": true
+      },
+      "category": {
+       "id": "29ae58f9-1f78-4370-8ec5-dd357497205b",
+       "slug": "393-international-clubs"
+      },
+      "createdAt": "2026-09-30T23:07:21.731Z",
+      "updatedAt": "2026-10-01T01:29:52.640Z",
+      "matchState": {
+       "matchSummary": {
+        "phases": [
+         {
+          "phase": 1,
+          "awayScore": "1",
+          "homeScore": "0"
+         },
+         {
+          "phase": 2,
+          "awayScore": "0",
+          "homeScore": "0"
+         }
+        ],
+        "awayScore": "1",
+        "homeScore": "0",
+        "possession": null,
+        "statistics": {
+         "corners": {
+          "away": 10,
+          "home": 1
+         },
+         "redCards": {
+          "away": 0,
+          "home": 0
+         },
+         "yellowCards": {
+          "away": 3,
+          "home": 1
+         },
+         "yellowRedCards": {
+          "away": 0,
+          "home": 0
+         }
+        },
+        "currentOver": null,
+        "timeElapsed": null,
+        "clockRunning": null,
+        "currentPhase": null,
+        "stoppageTime": null,
+        "timeRemaining": null,
+        "matchStatusDisplay": [
+         {
+          "freeText": "Finalizado",
+          "freeTextLocalization": {
+           "ar": "انتهت",
+           "de": "Beendet",
+           "en": "Ended",
+           "es": "Finalizado",
+           "fr": "Terminé",
+           "hu": "Vége",
+           "id": "Berakhir",
+           "it": "Finita",
+           "ja": "終了",
+           "ko": "경기 종료",
+           "no": "Slutt",
+           "pl": "Zakończone",
+           "pt": "Finalizado",
+           "ru": "Закончен",
+           "sr": "Завршено",
+           "sv": "Avslutad",
+           "tr": "Maç Sonucu",
+           "vi": "Kết thúc",
+           "zh": "完场"
+          }
+         }
+        ],
+        "stoppageTimeAnnounced": null,
+        "providerMessageTimestamp": "2026-10-01T01:28:46.375Z"
+       }
+      },
+      "competition": {
+       "id": "9729defb-8f9c-4274-a74d-b7fd3eed453d",
+       "name": "Jogos Amigáveis de Clubes",
+       "slug": "853-club-friendly-games"
+      },
+      "competitors": [
+       {
+        "isHome": true,
+        "iconPath": "/main-api/bp-storage/public-assets/sports/team-logo/181e710f-effa-4797-805b-e1ea74d60dbe.png",
+        "countryCode": "USA",
+        "displayName": "DC United",
+        "abbreviation": "DC"
+       },
+       {
+        "isHome": false,
+        "iconPath": "/main-api/bp-storage/public-assets/sports/team-logo/ac5bb9ef-dafa-4414-883d-00475768d048.png",
+        "countryCode": "DEU",
+        "displayName": "SC Paderborn",
+        "abbreviation": "PAD"
+       }
+      ],
+      "streamExists": false,
+      "displayStatus": "WON",
+      "oddsNumerator": "104",
+      "marketSelection": {
+       "id": "81801280-7c34-4beb-9359-4fdc42413090",
+       "status": "RESULTED",
+       "resultStatus": "WINNER",
+       "formattedName": "SC Paderborn",
+       "oddsNumerator": "2",
+       "oddsDenominator": "100"
+      },
+      "oddsDenominator": "100",
+      "unboostedOddsDecimal": null
+     }
+    ],
+    "oddsDecimal": "2.04",
+    "displayStatus": "WON"
+   }
+  ],
+  "type": "REGULAR",
+  "isOtc": false,
+  "amount": "19.30067568",
+  "status": "WON",
+  "currency": "USDT",
+  "createdAt": "2026-09-30T23:07:21.653Z",
+  "updatedAt": "2026-10-01T01:29:52.790Z",
+  "settlement": {
+   "id": "01a0f515-0d11-74dd-aae0-66a7e794378a",
+   "payout": "39.37337838",
+   "createdAt": "2026-10-01T01:29:52.657Z",
+   "payoutOddsDecimal": "2.04"
+  },
+  "cashoutInfo": {
+   "cashoutOddsDecimal": null,
+   "playerCashoutEnabled": "HIDDEN"
+  },
+  "systemBetType": null,
+  "originalAmount": null,
+  "cashoutAvailable": {
+   "reason": "SPORTS_BET_IS_CLOSED",
+   "canCashout": false
+  },
+  "totalOddsDecimal": "2.04",
+  "actualOddsDecimal": "2.04",
+  "partialCashoutBps": null,
+  "cashoutOddsDecimal": null,
+  "partialCashoutPayout": null,
+  "providerCashoutDisabled": false
+ },
+ "CftTxAri7pJ7srmpPvcLb": {
+  "id": "CftTxAri7pJ7srmpPvcLb",
+  "legs": [
+   {
+    "id": "01a12589-c93e-727f-a76b-0318eb26df9e",
+    "type": "REGULAR",
+    "createdAt": "2026-10-10T11:19:09.373Z",
+    "updatedAt": "2026-10-10T11:19:09.373Z",
+    "selections": [
+     {
+      "id": "01a12589-c93e-727f-a76b-0be2d2881659",
+      "inPlay": false,
+      "market": {
+       "id": "622e51f9-b135-4561-954b-07c3c751fbe7",
+       "name": "Handicap",
+       "isOtc": false,
+       "inPlay": false,
+       "status": "RESULTED",
+       "fullName": "Handicap",
+       "provider": "BETRADAR",
+       "lineValue": "2",
+       "productId": "3",
+       "expiryTime": null
+      },
+      "sports": "SOCCER",
+      "status": "WON",
+      "fixture": {
+       "id": "365468ed-6c10-4151-a61f-361dab75455a",
+       "name": "JS Hercules vs TP-47",
+       "slug": "74078164-js-hercules-vs-tp-47",
+       "status": "ENDED",
+       "provider": "BETRADAR",
+       "shortName": "HER vs. TP-",
+       "startTime": "2026-10-10T12:00:00.000Z",
+       "bannerType": "SINGLE_ELIMINATION",
+       "inPlayAllowed": false
+      },
+      "category": {
+       "id": "c8144fec-dac1-4cbf-84b3-51cdf75daede",
+       "slug": "19-finland"
+      },
+      "createdAt": "2026-10-10T11:19:09.373Z",
+      "updatedAt": "2026-10-10T17:32:17.803Z",
+      "matchState": {
+       "matchSummary": {
+        "phases": [],
+        "awayScore": "0",
+        "homeScore": "0",
+        "possession": null,
+        "statistics": null,
+        "currentOver": null,
+        "timeElapsed": null,
+        "clockRunning": null,
+        "currentPhase": null,
+        "stoppageTime": null,
+        "timeRemaining": null,
+        "matchStatusDisplay": [
+         {
+          "freeText": "Por iniciar",
+          "freeTextLocalization": {
+           "ar": "لم تبدأ بعد",
+           "de": "Nicht gestartet",
+           "en": "Not started",
+           "es": "No Iniciado",
+           "fr": "Non commencé",
+           "hu": "Nem kezdődött el",
+           "id": "Belum mulai",
+           "it": "Non iniziata",
+           "ja": "開始前",
+           "ko": "경기시작전",
+           "no": "Ikke startet",
+           "pl": "Nierozpoczęte",
+           "pt": "Por iniciar",
+           "ru": "Не начался",
+           "sr": "Није почело",
+           "sv": "Inte startat",
+           "tr": "Başlamadı",
+           "vi": "Chưa bắt đầu",
+           "zh": "未开始"
+          }
+         }
+        ],
+        "stoppageTimeAnnounced": null,
+        "providerMessageTimestamp": "2026-10-10T11:57:20.839Z"
+       }
+      },
+      "competition": {
+       "id": "979c72f1-a2c3-4b9d-9047-10087d334770",
+       "name": "Kakkonen",
+       "slug": "26910-kakkonen"
+      },
+      "competitors": [
+       {
+        "isHome": true,
+        "iconPath": "/main-api/bp-storage/public-assets/sports/team-logo/1e85614e-dbf6-4436-b14a-32b00b5a0125.png",
+        "countryCode": "FIN",
+        "displayName": "JS Hercules",
+        "abbreviation": "HER"
+       },
+       {
+        "isHome": false,
+        "iconPath": "/main-api/bp-storage/public-assets/sports/team-logo/6bbb19f6-b780-4efb-8a02-aeaa641242be.png",
+        "countryCode": "FIN",
+        "displayName": "TP-47",
+        "abbreviation": "TP-"
+       }
+      ],
+      "streamExists": false,
+      "displayStatus": "WON",
+      "oddsNumerator": "105",
+      "marketSelection": {
+       "id": "029c055c-905d-4322-a6c2-f96479c6d1de",
+       "status": "RESULTED",
+       "resultStatus": "WINNER",
+       "formattedName": "JS Hercules (-2)",
+       "oddsNumerator": "119",
+       "oddsDenominator": "100"
+      },
+      "oddsDenominator": "100",
+      "unboostedOddsDecimal": null
+     }
+    ],
+    "oddsDecimal": "2.05",
+    "displayStatus": "WON"
+   }
+  ],
+  "type": "REGULAR",
+  "isOtc": false,
+  "amount": "30",
+  "status": "WON",
+  "currency": "USDT",
+  "createdAt": "2026-10-10T11:19:09.284Z",
+  "updatedAt": "2026-10-10T17:32:17.880Z",
+  "settlement": {
+   "id": "01a126df-6825-73ec-a4ed-dee7bbd7be6a",
+   "payout": "61.5",
+   "createdAt": "2026-10-10T17:32:17.829Z",
+   "payoutOddsDecimal": "2.05"
+  },
+  "cashoutInfo": {
+   "cashoutOddsDecimal": null,
+   "playerCashoutEnabled": "HIDDEN"
+  },
+  "systemBetType": null,
+  "originalAmount": null,
+  "cashoutAvailable": {
+   "reason": "SPORTS_BET_IS_CLOSED",
+   "canCashout": false
+  },
+  "totalOddsDecimal": "2.05",
+  "actualOddsDecimal": "2.05",
+  "partialCashoutBps": null,
+  "cashoutOddsDecimal": null,
+  "partialCashoutPayout": null,
+  "providerCashoutDisabled": false
+ },
+ "CfzyExJmdtCXqiXvmoX1M": {
+  "id": "CfzyExJmdtCXqiXvmoX1M",
+  "legs": [
+   {
+    "id": "01a1373b-8048-7609-9c0d-900f029e10a1",
+    "type": "REGULAR",
+    "createdAt": "2026-10-13T21:46:48.775Z",
+    "updatedAt": "2026-10-13T21:46:48.775Z",
+    "selections": [
+     {
+      "id": "01a1373b-8048-7609-9c0d-98dc5a05754c",
+      "inPlay": false,
+      "market": {
+       "id": "a47d8cac-ed67-414c-8d4c-0c1ea67ef44b",
+       "name": "Vencedor (incluindo prolongamento e penalties)",
+       "isOtc": false,
+       "inPlay": false,
+       "status": "CLOSED",
+       "fullName": "Vencedor (incluindo prolongamento e penalties)",
+       "provider": "BETRADAR",
+       "lineValue": null,
+       "productId": "3",
+       "expiryTime": null
+      },
+      "sports": "ICE_HOCKEY",
+      "status": "WON",
+      "fixture": {
+       "id": "752d0cb9-65e2-43f3-bb60-3626a8bcd738",
+       "name": "Seattle Thunderbirds vs Vancouver Giants",
+       "slug": "72712242-seattle-thunderbirds-vs-vancouver-giants",
+       "status": "PREMATCH",
+       "provider": "BETRADAR",
+       "shortName": "SET vs. VAG",
+       "startTime": "2026-10-14T02:05:00.000Z",
+       "bannerType": "SINGLE_ELIMINATION",
+       "inPlayAllowed": false
+      },
+      "category": {
+       "id": "e740dd56-5b19-450c-afb5-af334c5f1202",
+       "slug": "176-canada"
+      },
+      "createdAt": "2026-10-13T21:46:48.775Z",
+      "updatedAt": "2026-10-14T05:10:08.280Z",
+      "matchState": {
+       "matchSummary": {
+        "phases": [],
+        "awayScore": "0",
+        "homeScore": "0",
+        "possession": null,
+        "statistics": null,
+        "currentOver": null,
+        "timeElapsed": null,
+        "clockRunning": null,
+        "currentPhase": null,
+        "stoppageTime": null,
+        "timeRemaining": null,
+        "matchStatusDisplay": [
+         {
+          "freeText": "Por iniciar",
+          "freeTextLocalization": {
+           "ar": "لم تبدأ بعد",
+           "de": "Nicht gestartet",
+           "en": "Not started",
+           "es": "No Iniciado",
+           "fr": "Non commencé",
+           "hu": "Nem kezdődött el",
+           "id": "Belum mulai",
+           "it": "Non iniziata",
+           "ja": "開始前",
+           "ko": "경기시작전",
+           "no": "Ikke startet",
+           "pl": "Nierozpoczęte",
+           "pt": "Por iniciar",
+           "ru": "Не начался",
+           "sr": "Није почело",
+           "sv": "Inte startat",
+           "tr": "Başlamadı",
+           "vi": "Chưa bắt đầu",
+           "zh": "未开始"
+          }
+         }
+        ],
+        "stoppageTimeAnnounced": null,
+        "providerMessageTimestamp": "2026-10-13T23:27:05.949Z"
+       }
+      },
+      "competition": {
+       "id": "2531db78-1e32-4c76-976b-04f5f5435b90",
+       "name": "WHL",
+       "slug": "14361-whl"
+      },
+      "competitors": [
+       {
+        "isHome": true,
+        "iconPath": "/main-api/bp-storage/public-assets/sports/team-logo/4ce815d8-149b-4bc4-a67b-e19dfc028bc7.png",
+        "countryCode": "CAN",
+        "displayName": "Seattle Thunderbirds",
+        "abbreviation": "SET"
+       },
+       {
+        "isHome": false,
+        "iconPath": "/main-api/bp-storage/public-assets/sports/team-logo/8ec10ea7-02ca-4341-8193-2f1c66bb1a16.png",
+        "countryCode": "CAN",
+        "displayName": "Vancouver Giants",
+        "abbreviation": "VAG"
+       }
+      ],
+      "streamExists": false,
+      "displayStatus": "WON",
+      "oddsNumerator": "155",
+      "marketSelection": {
+       "id": "70184446-84d9-4a8f-b5bf-d74c38a6a879",
+       "status": "RESULTED",
+       "resultStatus": "WINNER",
+       "formattedName": "Vancouver Giants",
+       "oddsNumerator": "126",
+       "oddsDenominator": "100"
+      },
+      "oddsDenominator": "100",
+      "unboostedOddsDecimal": null
+     }
+    ],
+    "oddsDecimal": "2.55",
+    "displayStatus": "WON"
+   }
+  ],
+  "type": "REGULAR",
+  "isOtc": false,
+  "amount": "20",
+  "status": "WON",
+  "currency": "USDT",
+  "createdAt": "2026-10-13T21:46:48.687Z",
+  "updatedAt": "2026-10-14T05:10:08.317Z",
+  "settlement": {
+   "id": "01a138d1-60b4-7299-989b-b5a60b4f08c2",
+   "payout": "51",
+   "createdAt": "2026-10-14T05:10:08.308Z",
+   "payoutOddsDecimal": "2.55"
+  },
+  "cashoutInfo": {
+   "cashoutOddsDecimal": null,
+   "playerCashoutEnabled": "HIDDEN"
+  },
+  "systemBetType": null,
+  "originalAmount": null,
+  "cashoutAvailable": {
+   "reason": "SPORTS_BET_IS_CLOSED",
+   "canCashout": false
+  },
+  "totalOddsDecimal": "2.55",
+  "actualOddsDecimal": "2.55",
+  "partialCashoutBps": null,
+  "cashoutOddsDecimal": null,
+  "partialCashoutPayout": null,
+  "providerCashoutDisabled": false
+ }
+}

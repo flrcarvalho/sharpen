@@ -1009,6 +1009,11 @@ CREATE TABLE IF NOT EXISTS ficha_virada (
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (dono, casa, codigo)
 );
+-- s423 (Feca: nenhuma aposta é descartada em silêncio): `ia` cujo código NÃO veio no texto da
+-- captura e não tem linha no banco = aposta que ninguém lê. A Ficha a recusou e a IA nunca a
+-- recebeu (Jaao26, Shuffle, 14/10: 16 de 43). `pendente_desde` a marca; a tela avisa e cada
+-- `/extrair` seguinte da casa a tenta de novo pela Ficha (`virada._pendentes`). NULL = não pendente.
+ALTER TABLE ficha_virada ADD COLUMN IF NOT EXISTS pendente_desde TIMESTAMPTZ;
 
 -- Uma linha por `/extrair` de casa virada (s411): a métrica de cada virada, antes × depois
 -- (`docs/PROJETO_FICHA_SHARPEN/medicoes/medir_virada_custo.py`). `capturadas` = códigos
