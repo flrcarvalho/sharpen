@@ -2269,3 +2269,95 @@ def test_s423_codigo_igual_noutra_casa_nao_tira_a_pendencia(monkeypatch):
         _, n = await _shuffle_captura(sess, texto)
         return n
     assert _run(body()) == 1
+
+
+# ── s423, A3: o rastro da Ficha em `correcoes` ───────────────────────────────────────────────
+# O caso real: DEX Sport, Gabriel, 850e48f2-34ef-412b-80df-cd2ae6899b79 (id 383282), 14/10. A Ficha
+# a gravou ABERTA com odd 6,05; a perna DNB anulou, e a captura das 23:40 a liquidou W com 2,48.
+# A mudança estava certa e não deixou rastro: o UPSERT nunca grava em `correcoes`.
+# Mutações provadas no Postgres local (19/10/2026):
+#   R1. sem o `_rastro_ficha` depois do UPSERT                 → a3_odd_da_ficha vermelho
+#   R2. o rastro grava em qualquer origem                      → a3_so_a_ficha vermelho
+#   R3. `campos_corrigidos` volta a contar a origem `ficha`    → a3_rastro_nao_e_humano vermelho
+#   R4. sem a stake/moeda/cotação no rastro (só a odd)         → a3_stake_e_moeda vermelho
+# O que NÃO está coberto: o caminho de fallback do `UniqueViolationError` (corrida de dois
+# `/salvar`), que este harness não provoca; ele chama o mesmo `_rastro_ficha`.
+_DEX_A3 = "850e48f2-34ef-412b-80df-cd2ae6899b79"
+
+
+async def _reset_a3():
+    """`_reset` não limpa `correcoes`, e o id do bilhete recomeça em 1: sobra de outro teste
+    apareceria como rastro deste."""
+    await _reset()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("TRUNCATE correcoes")
+
+
+def _linha_dex(odd, res, stake="251,98"):
+    return (f"14/10/2026\tMúltiplos\t\tDEX Sport\tDEX Sport\tMúltipla\t"
+            f"DNB Decic [Sutjeska Niksic v Decic] // Jared Rhoden - Under 3.5 Rebotes "
+            f"[Paris Basketball v Virtus Bologna]\t{stake}\t{odd}\t{res}\t{_DEX_A3}")
+
+
+async def _gravar_dex(dono, tsv, origem):
+    import main
+    return await main.gravar_tsv(main.SalvarRequest(tsv=tsv, casa="DEX Sport",
+                                                    parceiro="DEX Sport"),
+                                 dono, dono, origem=origem)
+
+
+async def _correcoes_de(dono):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return [(r["campo"], r["valor_anterior"], r["valor_novo"], r["origem"]) for r in
+                await conn.fetch("SELECT c.campo, c.valor_anterior, c.valor_novo, c.origem "
+                                 "FROM correcoes c JOIN bilhetes b ON b.id = c.bilhete_id "
+                                 "WHERE b.dono = $1 ORDER BY c.id", dono)]
+
+
+def test_a3_odd_da_ficha_que_muda_deixa_linha_em_correcoes():
+    async def body():
+        await _reset_a3()
+        await _gravar_dex("TDonoA3", _linha_dex("6,05", ""), "ficha")
+        await _gravar_dex("TDonoA3", _linha_dex("2,48", "W"), "ficha")
+        # já resolvida: a releitura não muda nada, e nada vai ao rastro
+        await _gravar_dex("TDonoA3", _linha_dex("2,48", "W"), "ficha")
+        return await _correcoes_de("TDonoA3")
+    assert _run(body()) == [("odd", "6,05", "2,48", "ficha")]
+
+
+def test_a3_so_a_ficha_deixa_rastro():
+    async def body():
+        await _reset_a3()
+        await _gravar_dex("TDonoA3", _linha_dex("6,05", ""), "extracao")
+        await _gravar_dex("TDonoA3", _linha_dex("2,48", "W"), "extracao")
+        return await _correcoes_de("TDonoA3")
+    assert _run(body()) == []
+
+
+def test_a3_stake_e_moeda_andam_no_rastro():
+    async def body():
+        await _reset_a3()
+        await _gravar_dex("TDonoA3", _linha_dex("6,05", "", stake="377,98"), "ficha")
+        await _gravar_dex("TDonoA3", _linha_dex("6,05", "", stake="75,00"), "ficha")
+        return await _correcoes_de("TDonoA3")
+    assert ("stake", "377,98", "75,00", "ficha") in _run(body())
+
+
+def test_a3_rastro_nao_e_correcao_humana():
+    """`campos_corrigidos` é o "correção humana manda" dos scripts de reparo: o rastro da Ficha é
+    robô e não trava nada; a edição à mão continua travando."""
+    async def body():
+        await _reset_a3()
+        await _gravar_dex("TDonoA3", _linha_dex("6,05", ""), "ficha")
+        await _gravar_dex("TDonoA3", _linha_dex("2,48", "W"), "ficha")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            bid = await conn.fetchval("SELECT id FROM bilhetes WHERE dono = 'TDonoA3'")
+        so_ficha = await repository.campos_corrigidos([bid], ("odd",))
+        await repository.atualizar_bilhete(bid, {"odd": "2,50"}, "TDonoA3")
+        com_humana = await repository.campos_corrigidos([bid], ("odd",))
+        return bid, so_ficha, com_humana
+    bid, so_ficha, com_humana = _run(body())
+    assert so_ficha == set() and com_humana == {bid}

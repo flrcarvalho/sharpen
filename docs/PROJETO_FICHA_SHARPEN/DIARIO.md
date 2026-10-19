@@ -5,6 +5,35 @@
 
 ---
 
+## 2026-10-19 · s423 · Parte A, passos 2 e 4: o rastro da Ficha em `correcoes` e a D30
+
+**A3.** DEX Sport 850e48f2 (id 383282, Gabriel): a Ficha a gravou ABERTA com odd 6,05 (`coefficient`
+nos três crus de 14/10); a perna DNB anulou e a captura das 23:40 a liquidou W com 2,48 (payout 124 ÷
+50). A mudança está certa e não deixou rastro: o UPSERT nunca gravou em `correcoes`, só a regravação
+do dicionário (e só descrição). Agora `repository._rastro_ficha`: com `origem='ficha'`, o
+`upsert_bilhetes` lê a linha antes, o `RETURNING` devolve odd/stake/moeda/cotação, e cada campo que
+mudou vira linha em `correcoes` com `origem='ficha'` (nos dois caminhos, ON CONFLICT e fallback do
+`UniqueViolationError`). `campos_corrigidos` (o "correção humana manda" dos scripts de reparo) ignora
+`origem='ficha'`; a edição à mão continua travando. Linha retroativa da 383282:
+`scripts/rastro_retroativo_383282_s423.py`, no instante da mudança (14/10 23:41:21 UTC), aplicada
+depois do deploy. Atenção para quem escrever script de reparo: os que leem `correcoes` sem filtro
+de origem (`corrigir_*_s3xx`, `corrigir_bonus_odd_mystake_s422`) contariam o rastro da Ficha como
+humano; o novo tem de filtrar como o `campos_corrigidos`. Gates: 4 testes de banco com o caso real;
+mutações R1 a R4, 4 detectadas.
+
+**A4 (D30, registro, sem refazer).** A regravação da D30 deixou rastro: 156 linhas em `correcoes`
+(`origem='d30'`: 52 `moeda`, 52 `stake`, 52 `cotacao`), todas às 15:26:10 UTC de 14/10, nos ids
+daquela data. Esses 52 ids não existem mais: o usuário apagou as apostas num `DELETE /bilhetes` em
+lote pela tela da conta Megapari · Lava em 17/10 por volta de 04:37 UTC (log do deploy `0cca1a35`), e
+às 04:38 a casa foi recapturada (87 capturadas, 87 à IA: 58 `texto mudou sem cru novo`, 17
+`descrição fora`, 12 `termo fora`). As 52 renasceram com ids 388621 a 388672, `origem=extracao`,
+moeda vazia (R$). O rastro existe e ficou órfão. Daqui para frente, regravação passa por
+`correcoes`: o dicionário (`regravar_mes`) e os scripts de dados já passavam; o UPSERT da Ficha
+passa a passar (A3). A lixeira do `DELETE /bilhetes` ficou no BACKLOG (§4.19), por decisão do Feca.
+
+**A1.** As 8 apostas com odd vazia e resultado (4casterss 6, CopaWin 1, SapphireBet 1) ficam como
+estão: nenhuma tem odd na fonte e o P/L de todas está certo (L, V, HL). Vão como informação ao Feca.
+
 ## 2026-10-19 · s423 · Parte B: as cópias com dado pessoal apagadas
 
 `scripts/apagar_copias_filtro_s423.py --aplicar` (decisão do Feca de 12/10, BACKLOG §1). Antes: `captura_crua_copia_filtro` 192, `ficha_sombra_copia_filtro` 55; as 6.841 linhas da `captura_crua` com 0 a cortar pelo filtro de hoje (`limpar_cru_filtro.plano`) e 0 com hash diferente de `cru.impressao`. `DROP TABLE` nas duas, numa transação. Depois (consulta só leitura, `to_regclass`): as duas não existem; `captura_crua` 6.841 e `ficha_sombra` 6.124, intactas.

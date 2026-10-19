@@ -1517,6 +1517,18 @@ Os dois saíram do replay do fiscal que passou a ler a linha `Retorno:`
 
 > Achado, com arquivo e linha, e não corrigido. Aqui a referência é pista, não endereço.
 
+### 4.19 `DELETE /bilhetes` apaga sem lixeira, e foram dois lotes em 4 dias (s423). **VIVA, medida — decisão do Feca: fica para depois**
+`deletar_bilhetes` (`repository.py`) faz `DELETE … RETURNING` direto: o undo é só o toast de 7 s,
+no navegador. Fora dele, nada volta pelo banco, e o rastro em `correcoes` passa a apontar para id
+que não existe. Medido nos logs do Railway: Jaao26, Shuffle, 14/10 07:27 (27 apostas, uma a uma,
+ids 382997 a 383023, 25 da Ficha) e LavaPessoal, Megapari, 17/10 ~04:37 UTC (`DELETE /bilhetes` em
+lote: as 52 regravadas pela D30, cujo rastro de 14/10 ficou órfão; recapturadas pela IA às 04:38,
+ids 388621 a 388672). Mais: Jaao26, 1win, 16/10 (48 ids, 386190 a 386237). O desenho já existe para
+conta (`lixeira_contas`, 7 dias, CLAUDE.md "Excluir dado: mova para tabela isolada"); a
+`lixeira_bilhetes` existe, mas só os scripts de reparo a alimentam (`reparar_duplicatas_*`,
+`remover_lote_conta_errada.py`, `excluir_historico_fora_do_corte.py`), nunca a rota. Ver também a memória "Desfazer análise apaga de
+verdade" (s266).
+
 ### 4.18 A Ficha pula aposta cujo código está liquidado noutra casa do mesmo dono (s423). **VIVA, provada em teste, não vista no banco**
 `virada._liquidados` (chamado pelo `aplicar`) confere "liquidada no banco" só por `dono` e
 `codigo_bilhete`, sem a casa. Com o mesmo código liquidado noutra casa, a Ficha nem decide a

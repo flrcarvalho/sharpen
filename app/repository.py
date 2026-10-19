@@ -1446,7 +1446,9 @@ async def campos_corrigidos(ids: list[int], campos: tuple[str, ...]) -> set[int]
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             "SELECT DISTINCT bilhete_id FROM correcoes "
-            "WHERE bilhete_id = ANY($1) AND campo = ANY($2)", list(ids), list(campos))
+            "WHERE bilhete_id = ANY($1) AND campo = ANY($2) "
+            # s423: o rastro da Ficha (`_rastro_ficha`) é robô, não decisão do dono
+            "AND origem IS DISTINCT FROM 'ficha'", list(ids), list(campos))
     return {r["bilhete_id"] for r in rows}
 
 
@@ -1793,6 +1795,34 @@ def _freebet_da_linha(row: dict, codigo: str, freebets: dict | None) -> Decimal 
     return _dec(round(fb, 2))
 
 
+# Rastro da Ficha (s423, A3; Feca: "toda mudança de odd ou stake feita pela Ficha deixa linha em
+# correcoes"). A origem da stake anda com ela (`moeda`, `cotacao`): sem as duas, a D30 não teria
+# deixado rastro de moeda. `origem='ficha'` em `correcoes` NÃO é correção humana
+# (`campos_corrigidos` a ignora), e o dicionário só lê esporte/aposta/descrição.
+_ORIGEM_FICHA = "ficha"
+_RASTRO_FICHA = ("odd", "stake", "moeda", "cotacao")
+
+
+def _txt(v) -> str:
+    return "" if v is None else str(v)
+
+
+async def _rastro_ficha(conn, dono: str, antes, depois) -> None:
+    """Uma linha em `correcoes` (`origem='ficha'`) por campo de `_RASTRO_FICHA` que o UPSERT da
+    Ficha mudou. Nunca derruba o `/salvar`: falha aqui é logada."""
+    try:
+        for campo in _RASTRO_FICHA:
+            a, d = _txt(antes[campo]), _txt(depois[campo])
+            if a != d:
+                await conn.execute(
+                    "INSERT INTO correcoes (bilhete_id, dono, casa, campo, valor_anterior, "
+                    "valor_novo, descricao, origem) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                    antes["id"], dono, antes["casa"], campo, a or None, d or None,
+                    antes["descricao"], _ORIGEM_FICHA)
+    except Exception:  # noqa: BLE001
+        logger.exception("rastro da Ficha não gravado em correcoes (bilhete %s)", antes["id"])
+
+
 async def upsert_bilhetes(
     rows: list[dict], dono: str, confianca: float | None = None,
     origem: str = "extracao", criado_base: datetime | None = None,
@@ -2080,6 +2110,15 @@ async def upsert_bilhetes(
             # manter a ordem interna do lote estritamente crescente — espelha o NOW()-por-
             # linha antigo. None → COALESCE cai no DEFAULT NOW() (sync/import/extensão).
             criado_em_val = criado_base + timedelta(microseconds=i) if criado_base else None
+            # Rastro da Ficha (s423, A3): o que a linha tinha ANTES, para gravar em `correcoes`
+            # o que o UPSERT mudar. Só na origem `ficha`, a única que reescreve a linha por robô
+            # sem passar pela edição à mão (DEX 850e48f2: odd 6,05 → 2,48 sem rastro).
+            antes_ficha = None
+            if origem == _ORIGEM_FICHA:
+                antes_ficha = await conn.fetchrow(
+                    "SELECT id, casa, descricao, " + ", ".join(_RASTRO_FICHA) + " FROM bilhetes "
+                    "WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND assinatura = $4",
+                    dono, row.get("casa", ""), row.get("parceiro", ""), sig)
             try:
                 rec = await conn.fetchrow(
                     """
@@ -2182,7 +2221,7 @@ async def upsert_bilhetes(
                         -- então só PREENCHE, como o carimbo — e vale em linha resolvida.
                         stake_freebet    = COALESCE(bilhetes.stake_freebet, EXCLUDED.stake_freebet),
                         atualizado_em    = NOW()
-                    RETURNING id, (xmax = 0) AS was_inserted
+                    RETURNING id, (xmax = 0) AS was_inserted, odd, stake, moeda, cotacao
                     """,
                     dono, row.get("casa", ""), row.get("parceiro", ""), sig,
                     codigo or None,
@@ -2247,7 +2286,7 @@ async def upsert_bilhetes(
                         stake_freebet    = COALESCE(stake_freebet, $23),
                         atualizado_em    = NOW()
                     WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND assinatura = $4
-                    RETURNING id, FALSE AS was_inserted
+                    RETURNING id, FALSE AS was_inserted, odd, stake, moeda, cotacao
                     """,
                     dono, row.get("casa", ""), row.get("parceiro", ""), sig,
                     row.get("tipster"), codigo or None, resultado, extraction_state,
@@ -2276,6 +2315,8 @@ async def upsert_bilhetes(
                         ))
                 else:
                     atualizados += 1
+                    if antes_ficha is not None and antes_ficha["id"] == db_id:
+                        await _rastro_ficha(conn, dono, antes_ficha, rec)
             else:
                 id_per_row.append(None)
 
