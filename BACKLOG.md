@@ -1685,6 +1685,20 @@ MelBet, com teto de `Count` 500 e 3.
 - Se o popup disser "hook ATIVO · respostas 0" com o histórico aberto, o caminho da API é outro.
 - Trocar fixture e `CODIGO_EXEMPLO` pelos da conta real, e provar o botão Conectar em produção.
 
+### 4.0m Jack: validar ao vivo e trocar a fixture emprestada (s424). **VIVA, só no harness**
+
+A Jack (`jack.com`) entrou na 0.7.59 como 5ª casa BetConstruct, espelho da MyStake
+(`CASA_JACK.md`), **sem conta**. Medido por fora, na aba de `jack.com`: `messagetosport` 401
+contra 404 numa rota falsa (a prova da s392) e o sportsbook em `/br/sportsbook`. A base já tinha
+a casa como `Jack` (1 conta do Gabriel, nenhum bilhete). O harness serve a fixture da MyStake no
+endereço da Jack e compara os blocos byte a byte.
+
+- 1ª captura ao vivo (o Gabriel tem a conta): o roteiro está no `CASA_JACK §16`.
+- Se o popup disser "hook ATIVO · respostas 0" com o histórico aberto, o caminho da API é outro.
+- Trocar fixture e `CODIGO_EXEMPLO` (hoje emprestado da MyStake) pelos da conta real, e provar
+  o botão Conectar em produção.
+- A Jack não está em `FICHA_CASAS_VIRADAS`: vai pela IA até a 1ª captura provar o cru.
+
 ### 4.0h Shuffle: validar ao vivo a 1ª captura e decidir o aviso (s401). **VIVA, só no harness**
 
 A Shuffle entrou no SharpenUp 0.7.47 (`shf_inject.js`, `CASA_SHUFFLE.md`) com o harness verde

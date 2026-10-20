@@ -1352,7 +1352,7 @@
       // então o roboScroll genérico viraria um bloco só e a IA perderia o resto em silêncio
       // (lição da KTO, s192).
       blocos = await roboBNCPassive(ctx);
-    } else if (casa === "tivo" || casa === "betfast" || casa === "faz1bet" || casa === "mystake") {
+    } else if (casa === "tivo" || casa === "betfast" || casa === "faz1bet" || casa === "mystake" || casa === "jack") {
       // Passivo + replay de UMA chamada (tv_inject). O histórico não tem paginação: a casa
       // devolve a conta inteira com `Count`. SEM fallback de texto — a lista da Tivo é uma
       // tabela sem linha em branco entre bilhetes, então o roboScroll genérico viraria um
@@ -1608,6 +1608,9 @@
         // casa em que o operador está, não o da primeira que usou o inject.
         faz1bet:    { nome: "Faz1bet",    hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
         mystake:    { nome: "MyStake",    hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
+        // 5ª casa do mesmo motor (s424), espelho da MyStake: o toast diz a casa em que o
+        // operador está.
+        jack:       { nome: "Jack",       hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
         vaidebet:   { nome: "VaideBet",   hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size },
         // Espelho da VaideBet: mesmo inject, mesmos contadores. Só o nome muda, para o
         // operador não ler "VaideBet: 0 bilhetes" estando na Esportiva.

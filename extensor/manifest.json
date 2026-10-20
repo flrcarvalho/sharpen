@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SharpenUp",
-  "version": "0.7.58",
+  "version": "0.7.59",
   "description": "A perninha do Sharpen: captura seus bilhetes na casa e sobe pro painel do sharpen.bet via pareamento por código.",
   "action": {
     "default_popup": "popup.html",
@@ -106,6 +106,13 @@
     },
     {
       "matches": ["*://*.mystake.bet/*", "*://mystake.bet/*", "*://*.mystake.com/*", "*://mystake.com/*", "*://*.mystake2.com/*", "*://mystake2.com/*"],
+      "js": ["tv_inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": ["*://*.jack.com/*", "*://jack.com/*"],
       "js": ["tv_inject.js"],
       "run_at": "document_start",
       "world": "MAIN",

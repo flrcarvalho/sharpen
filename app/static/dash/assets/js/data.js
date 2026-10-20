@@ -58,6 +58,7 @@ const CASA_ICONS={
   '1win':'https://www.google.com/s2/favicons?sz=128&domain=1win.io',
   'Faz1bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
   'MyStake':'https://www.google.com/s2/favicons?sz=128&domain=mystake.bet',
+  'Jack':'https://www.google.com/s2/favicons?sz=128&domain=jack.com',
   'Polymarket':'https://www.google.com/s2/favicons?sz=128&domain=polymarket.com',
   // s372: `betboo.com` → `betboo.bet.br` (operação regulada), ao entrar na captura. Os dois
   // devolvem o MESMO ícone (sha256 idêntico, 791 bytes) — o visual não muda.
@@ -171,6 +172,7 @@ const HOUSE_DOMAIN={
   'Faz1bet':'faz1.bet.br',   // grafia unificada no banco (s284); a s204 elegera 'Faz1Bet',
                              // mas imports posteriores viraram a maioria e a marca escreve minúsculo
   'MyStake':'mystake.bet',     // 4ª casa BetConstruct (s392)
+  'Jack':'jack.com',           // 5ª casa BetConstruct, espelho da MyStake (s424)
   'Polymarket':'polymarket.com',
   'Betboo':'betboo.bet.br',   // s372 — regulada, ao entrar na captura (era betboo.com)
   'Betbra':'betbra.bet.br',
