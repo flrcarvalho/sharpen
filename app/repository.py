@@ -6149,7 +6149,8 @@ def hash_bloco(bruto: str | None) -> str:
     return hashlib.sha1((bruto or "").strip().encode("utf-8", "replace")).hexdigest()
 
 
-async def blocos_conhecidos(dono: str, casa: str, codigos, parceiro: str | None = None) -> dict[str, str]:
+async def blocos_conhecidos(dono: str, casa: str, codigos, parceiro: str | None = None,
+                            gravados: bool = False) -> dict[str, str]:
     """`{código: hash}` do que a barreira pode pular. Falha devolve `{}` — sem memória
     ela não pula nada, que é o lado seguro.
 
@@ -6158,6 +6159,19 @@ async def blocos_conhecidos(dono: str, casa: str, codigos, parceiro: str | None 
     `/salvar` depois. O hash é gravado no fim da extração, então ele pode existir para
     um bilhete que **nunca chegou ao banco** (aba fechada, erro de rede, linha recusada
     por `validar_linhas`). Sem o JOIN, esse bilhete ficaria invisível para sempre.
+
+    ⚠️ **`gravados=True`: existir no banco não basta, a LEITURA tem de ter chegado lá**
+    (s424). O JOIN só prova que há uma linha, e a aposta ABERTA tem linha desde a 1ª
+    captura. Quando ela liquida, o bloco muda, a IA lê o novo e o hash novo é gravado; se
+    o `/salvar` dessa leitura não acontece, a captura seguinte achava o bloco "conhecido"
+    e pulava, e a aposta ficava aberta PARA SEMPRE, sem erro (MyStake 308613169, ganha
+    R$ 912,38 na casa, aberta no Sharpen, 20/10/2026). Com `gravados`, o hash só vale
+    quando o bilhete foi gravado DEPOIS dele (`b.atualizado_em >= v.atualizado_em`): todo
+    UPSERT do `/salvar` carimba `atualizado_em = NOW()`. É o que a barreira usa para
+    PULAR. A comparação solta (sem o carimbo) fica para quem só pergunta "o texto mudou?"
+    (o `iguais` da Ficha), onde quem escreve é a própria Ficha, antes do hash.
+    Não cobre: edição à mão (ou tipster sugerido) na linha aberta DEPOIS de uma leitura
+    não salva também carimba o bilhete e libera o salto.
 
     De quebra o JOIN cobre bilhete apagado pelo usuário, conta movida de casa e base
     restaurada de backup: em todos, a barreira volta a processar sozinha.
@@ -6176,6 +6190,8 @@ async def blocos_conhecidos(dono: str, casa: str, codigos, parceiro: str | None 
                      ON v.dono = b.dono AND v.casa = b.casa AND v.codigo = b.codigo_bilhete
                   WHERE b.codigo_bilhete = ANY($1::text[])
                     AND b.dono = $2"""
+        if gravados:
+            sql += " AND b.atualizado_em >= v.atualizado_em"
         # `tabela="b"` é obrigatório aqui: as DUAS tabelas do JOIN têm `casa`. Ver o
         # aviso no `_filtro_conta` e `test_blocos_conhecidos_filtra_por_conta_no_banco`.
         sql += _filtro_conta(params, casa, parceiro, tabela="b")

@@ -1371,16 +1371,22 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     # Escopado na CONTA: bilhete que já existe em OUTRA conta do mesmo dono não pode
     # sumir do lote desta aqui (ver a nota em `repository.py`).
     ja_resolvidos = await get_codigos_resolvidos(codigos, dono, casa, parceiro)
-    conhecidos = await blocos_conhecidos(dono, casa, codigos, parceiro)
+    # Para PULAR, a leitura anterior tem de ter chegado ao banco (`gravados`, s424): sem
+    # isso, a aposta aberta que liquidou e cuja leitura não foi salva era pulada para
+    # sempre como "sem mudança" (MyStake 308613169). Ver `blocos_conhecidos`.
+    conhecidos = await blocos_conhecidos(dono, casa, codigos, parceiro, gravados=True)
     # O de-para de hash usa o MESMO recorte do gravador. Ver o aviso do docstring.
     por_codigo = {k: hash_bloco(v) for k, v in blocos_por_codigo(text).items()}
     pela_ficha: set[str] = set()
     espera, fica_ia = 0.0, {}
     if virou:
         # N3 (parecer 012): a Ficha só tira o código se o cru é desta captura OU se o bloco
-        # não mudou desde a última leitura. Texto mudado com cru velho vai para a IA.
+        # não mudou desde a última leitura. Texto mudado com cru velho vai para a IA. Aqui
+        # a pergunta é só "o texto mudou?", e a régua é a solta: o bilhete que a Ficha
+        # resolve foi ela quem gravou, ANTES de o hash ser lembrado.
+        vistos_hash = await blocos_conhecidos(dono, casa, codigos, parceiro)
         iguais = {c for c in codigos if por_codigo.get(c) is not None
-                  and conhecidos.get(c) == por_codigo[c]}
+                  and vistos_hash.get(c) == por_codigo[c]}
         # `no_texto` + `info` (s423): o código que a Ficha recusou e que ESTE texto não traz
         # vira pendente, e `info["nao_lidas"]` volta para o aviso da tela.
         pela_ficha, espera, fica_ia = await _virada.resolver_no_extrair(

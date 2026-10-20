@@ -78,8 +78,12 @@ def _hashes(texto):
             for c, b in repository.blocos_por_codigo(texto).items()}
 
 
-def _rodar(texto, *, resolvidos=(), memoria=None):
-    """Roda o `_dedup_superbet_text` real com as duas idas ao banco dubladas."""
+def _rodar(texto, *, resolvidos=(), memoria=None, nao_salvos=()):
+    """Roda o `_dedup_superbet_text` real com as duas idas ao banco dubladas.
+
+    `nao_salvos`: códigos cujo hash está na memória mas cuja leitura NÃO chegou ao banco
+    (o bilhete é mais velho que o hash). O dublê imita o SQL de `blocos_conhecidos`: com
+    `gravados=True` eles somem do retorno; sem, aparecem (s424)."""
     memoria = memoria or {}
     orig_res = main.get_codigos_resolvidos
     orig_con = main.blocos_conhecidos
@@ -87,8 +91,9 @@ def _rodar(texto, *, resolvidos=(), memoria=None):
     async def _fake_resolvidos(codigos, dono, casa=None, parceiro=None):
         return {c for c in codigos if c in set(resolvidos)}
 
-    async def _fake_conhecidos(dono, casa, codigos, parceiro=None):
-        return {c: memoria[c] for c in codigos if c in memoria}
+    async def _fake_conhecidos(dono, casa, codigos, parceiro=None, gravados=False):
+        return {c: memoria[c] for c in codigos
+                if c in memoria and not (gravados and c in set(nao_salvos))}
 
     main.get_codigos_resolvidos = _fake_resolvidos
     main.blocos_conhecidos = _fake_conhecidos
@@ -175,6 +180,21 @@ def test_memoria_de_bilhete_que_nao_esta_no_banco_nao_pula():
     saida, skipped = _rodar(NOVIBET_ABERTA, memoria={})
     assert skipped == 0
     assert _codigos(saida) == {"475962111", "475962999"}
+
+
+def test_leitura_que_nao_foi_salva_nao_pula_a_aposta_que_liquidou():
+    """O caso da MyStake 308613169 (s424, 20/10/2026). A aposta estava aberta no banco
+    desde a 1ª captura. Ela liquidou, a IA leu o bloco novo (o hash dele foi gravado no
+    fim da extração), e o `/salvar` dessa leitura nunca aconteceu. Na captura seguinte o
+    bloco é byte a byte o lido, e a barreira o pulava como "sem mudança": a aposta ganha
+    ficava aberta para sempre, com R$ 912,38 fora da Caixa.
+
+    O hash existe, mas a leitura não chegou ao banco: tem de voltar para a IA. E o
+    vizinho, cuja leitura foi salva, continua pulando (a economia da barreira fica)."""
+    saida, skipped = _rodar(NOVIBET_UMA_LIQUIDOU, memoria=_hashes(NOVIBET_UMA_LIQUIDOU),
+                            nao_salvos=["475962111"])
+    assert _codigos(saida) == {"475962111"}, "a liquidação não salva tem de ser relida"
+    assert skipped == 1, "o vizinho salvo e igual continua pulando"
 
 
 def test_um_byte_diferente_ja_reprocessa():

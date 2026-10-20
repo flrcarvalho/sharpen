@@ -875,6 +875,31 @@ def test_hash_sem_bilhete_no_banco_nao_e_conhecido():
     _run(body())
 
 
+def test_hash_de_leitura_nao_salva_nao_vale_para_pular():
+    """s424 (MyStake 308613169): a aposta ABERTA já tem linha no banco, então o JOIN
+    sozinho não distingue "li e salvei" de "li e não salvei". A barreira (`gravados=True`)
+    só aceita o hash quando o bilhete foi gravado DEPOIS dele; a régua solta (o `iguais`
+    da Ficha) continua vendo o hash. Depois do `/salvar` (outro UPSERT), os dois veem."""
+    async def body():
+        await _reset_barreira()
+        texto = "[Código: ABERTA1]\nStake: R$ 10,00\nStatus: Ganhou → W\n"
+        await repository.upsert_bilhetes(
+            [_row(casa="Bet365", parceiro="Feca [Eu]", codigo_bilhete="ABERTA1")], "TDonoA")
+        # a IA leu o bloco novo DEPOIS de a linha existir, e ninguém salvou
+        assert await repository.registrar_blocos_vistos("TDonoA", "Bet365", texto) == 1
+        esperado = repository.hash_bloco(repository.blocos_por_codigo(texto)["ABERTA1"])
+        assert await repository.blocos_conhecidos(
+            "TDonoA", "Bet365", ["ABERTA1"], "Feca [Eu]", gravados=True) == {}
+        assert await repository.blocos_conhecidos(
+            "TDonoA", "Bet365", ["ABERTA1"], "Feca [Eu]") == {"ABERTA1": esperado}
+        # o `/salvar` da leitura chega: agora pode pular
+        await repository.upsert_bilhetes(
+            [_row(casa="Bet365", parceiro="Feca [Eu]", codigo_bilhete="ABERTA1")], "TDonoA")
+        assert await repository.blocos_conhecidos(
+            "TDonoA", "Bet365", ["ABERTA1"], "Feca [Eu]", gravados=True) == {"ABERTA1": esperado}
+    _run(body())
+
+
 # ── Janela de vida da conta (s322/s323) ──────────────────────────────────────
 # Estes três exercem o SCHEMA_SQL de verdade. Sem eles o job de banco só provava que a
 # migração NÃO EXPLODE: o backfill roda dentro de um `DO ... EXCEPTION WHEN others` (um erro
