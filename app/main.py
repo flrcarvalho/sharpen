@@ -262,6 +262,10 @@ _CASA_DISPLAY: dict[str, str] = {
     # Plataforma PRÓPRIA `top-parser` (s413). A base não tinha a casa em grafia nenhuma
     # (medido em 12/10/2026, `audit_grafias`), então vale a da marca, em caixa baixa.
     "1WIN":           "1win",
+    # Plataforma PRÓPRIA `softlabs` (s425). A grafia é a da BASE: `Vave` em `parceiros`,
+    # `bilhetes`, `casas_meta` e `correcoes` (1 conta do Gabriel, 6 bilhetes de print, medido
+    # em 21/10/2026). ⚠ Vizinha de VAVADA, que é outra casa.
+    "VAVE":           "Vave",
     "BETESPORTE":     "BETesporte",
     "BETFAIR":        "Betfair",
     "BETFAST":        "Betfast",
@@ -1138,6 +1142,9 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # 1win (s413) — plataforma própria `top-parser`. ID = numérico de 9 dígitos, o mesmo
     # número que o card estampa como "ID".
     "1WIN",
+    # Vave (s425) — plataforma própria `softlabs`. ID = numérico de 7 dígitos, o "#5435097"
+    # que o card estampa.
+    "VAVE",
     "BETPIX365",
     # Estrela Bet (s303) — 5ª casa Altenar. Mesmo espaço de IDs do motor: numérico de 10
     # dígitos, o mesmo número que o rodapé do card estampa como `ID:`.

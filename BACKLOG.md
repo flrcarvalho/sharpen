@@ -1699,6 +1699,24 @@ endereço da Jack e compara os blocos byte a byte.
   o botão Conectar em produção.
 - A Jack não está em `FICHA_CASAS_VIRADAS`: vai pela IA até a 1ª captura provar o cru.
 
+### 4.0n Vave: medir ganha, aberta, devolvida e cashout; adaptador `vv` (s425). **VIVA, amostra só de perdidas**
+
+A Vave entrou na 0.7.60 com recon na conta do Feca (`CASA_VAVE.md`, `vv_inject.js`, plataforma
+própria `softlabs`). A conta tinha **11 bilhetes, todos perdidos**: `win`/`winFull` em ganha,
+`betCashoutAmount`, os status `0`/`2`/`3`/`8`, freebet, bônus, bet builder e sistema nunca
+foram vistos. Hoje só o dinheiro decide (`CASA_VAVE §5`): `W` exige `winFull` = stake × odd ou
+`win` = stake × (odd − 1); o resto sobe "a conferir" e **fica aberto até alguém medir**.
+
+- 1ª ganha: conferir `win`/`winFull` contra o card, registrar na §5, trocar o clone do harness
+  pela fixture real.
+- 1ª aberta: provar no harness que a liquidada vence a aberta (hoje sem cobertura) e que o
+  potencial é o `taxesData.potentialWinAmount`.
+- Fuso do `finishedAt` não provado; está fora do bloco.
+- Família `vv` sem adaptador da Ficha: o cru (com as tabelas irmãs, sem `userId`) só é guardado.
+- O domínio troca (`34evav91.com`): o manifest tem esse e `vave.com`; outro número cai no inject
+  tardio do popup, que parte do token do `localStorage` (provado ao vivo colando o inject depois
+  do load). Ainda não provado pela extensão instalada.
+
 ### 4.0h Shuffle: validar ao vivo a 1ª captura e decidir o aviso (s401). **VIVA, só no harness**
 
 A Shuffle entrou no SharpenUp 0.7.47 (`shf_inject.js`, `CASA_SHUFFLE.md`) com o harness verde

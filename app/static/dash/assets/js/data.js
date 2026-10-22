@@ -56,6 +56,7 @@ const CASA_ICONS={
   'DEX Sport':'https://www.google.com/s2/favicons?sz=128&domain=dexsport.io',
   'Shuffle':'https://www.google.com/s2/favicons?sz=128&domain=shuffle.com',
   '1win':'https://www.google.com/s2/favicons?sz=128&domain=1win.io',
+  'Vave':'https://www.google.com/s2/favicons?sz=128&domain=vave.com',
   'Faz1bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
   'MyStake':'https://www.google.com/s2/favicons?sz=128&domain=mystake.bet',
   'Jack':'https://www.google.com/s2/favicons?sz=128&domain=jack.com',
@@ -169,6 +170,7 @@ const HOUSE_DOMAIN={
   'DEX Sport':'dexsport.io',
   'Shuffle':'shuffle.com',
   '1win':'1win.io',
+  'Vave':'vave.com',
   'Faz1bet':'faz1.bet.br',   // grafia unificada no banco (s284); a s204 elegera 'Faz1Bet',
                              // mas imports posteriores viraram a maioria e a marca escreve minúsculo
   'MyStake':'mystake.bet',     // 4ª casa BetConstruct (s392)

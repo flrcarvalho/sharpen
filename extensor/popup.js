@@ -83,6 +83,11 @@ const CASA_HOSTS = {
   // API sai de `api-gateway.top-parser.com`; a ABA é o site da casa. `1win.com` (s413, 14/10) é
   // espelho com o MESMO gateway, medido no Chrome do Feca: fora daqui o popup barra a aba.
   "1win":       ["1win.io", "1win.com"],
+  // Vave (s425) FICA FORA de propósito: roda em domínio NUMERADO (`34evav91.com` no recon) e
+  // casa sem domínio listado não é checada aqui, senão o endereço novo travaria a captura. A
+  // amarração casa↔site segue no servidor (`casa_de_host`). O `vv_inject` não precisa do
+  // desvio da 1xBet (`X1_ESPELHOS_MOVEIS`): injetado tarde pelo popup, ele parte do token do
+  // `localStorage` e busca o histórico sozinho.
   // Antiga "Rei do Pitaco" (grafia unificada no banco na s270). Plataforma própria,
   // gRPC-Web/protobuf — inject próprio.
   "Pitaco":     ["pitaco.bet.br"],
@@ -367,6 +372,8 @@ async function capturar() {
                 // 1win: plataforma `top-parser`. `tp_`, e não `1w_`, para o nome não começar
                 // por dígito (mesmo motivo do `x1_` da 1xBet).
                 : casa === "1win" ? "tp_inject.js"
+                // Vave: plataforma própria `softlabs` (s425).
+                : casa === "Vave" ? "vv_inject.js"
                 : casa === "Pitaco" ? "pt_inject.js"
                 : casa === "Novibet" ? "nv_inject.js"
                 // Motor Rogue: TRES casas espelho, MESMO inject — como Tivo/Betfast/Faz1bet.
