@@ -159,7 +159,8 @@ Os dois pontos que mais somem, ambos silenciosos:
 | Gate | Comando | Exige |
 |---|---|---|
 | Regressão da captura | `node extensor/harness/run.mjs` | verde |
-| Registro completo | `python tools/audit_sharpenup.py` | sem FAIL |
+| Registro completo + adaptador da Ficha | `python tools/audit_sharpenup.py` | sem FAIL |
+| Adaptador da Ficha | `pytest tests/test_adaptador_<xx>.py tests/test_cru.py` | verde, com mutações |
 | Camada fina | `python tools/audit_casas.py` | sem FAIL |
 | Sintaxe JS | `node --check extensor/<arquivos>.js` | verde |
 | Manifest | `node -e "JSON.parse(require('fs').readFileSync('extensor/manifest.json'))"` | verde |
@@ -167,6 +168,20 @@ Os dois pontos que mais somem, ambos silenciosos:
 | Marca (se tocou UI) | `node scripts/tokens/check-tokens.mjs` | verde |
 
 Backup dos arquivos que serão editados em `Backups/<nome-descritivo>/` **antes** de editar.
+
+---
+
+## Fase 6b — Ficha Sharpen: a casa nasce fora da IA
+
+Casa de captura sem adaptador da Ficha manda cada bilhete à IA: exportação lenta e cara
+(Thunderpick s426, Vave s425; o Feca: *"TODAS AS CASAS PRECISAM ESTAR ASSIM"*). Por isso a casa
+nova só está pronta com: o cru bastando sozinho para a Ficha (travado no harness), o adaptador
+da família em `app/adaptadores/<xx>.py` registrado em `ADAPTADORES`, `tests/test_adaptador_<xx>.py`
+provado por mutação, a medição nos crus reais (Ficha × IA) e a virada nas três listas da Railway
+(`FICHA_SOMBRA_CASAS`, `FICHA_CASAS_VIRADAS`, `EXTRACAO_SEM_PENSAMENTO`), seguida da semente do
+dicionário. Gate: o `audit_sharpenup` dá FAIL em família sem adaptador fora de
+`FAMILIAS_SEM_ADAPTADOR` (hoje só as .bet.br em banho-maria, decisão do Feca de 23/10/2026).
+Roteiro passo a passo: `/sharpenup-casa` Fase 6b.
 
 ---
 

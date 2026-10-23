@@ -72,5 +72,10 @@ Feche com um plano curto: modo escolhido, inject espelho (qual arquivo copiar),
 chave de dedup, fim autoritativo, freio do popup (dias+ID / quantidade / nenhum), e as
 armadilhas ja identificadas.
 
+**E o plano da Ficha** (obrigatorio desde a s427): qual familia de adaptador
+(`app/adaptadores/`) a casa usa ou se precisa de uma nova, e se o bilhete da API basta
+sozinho para montar a Ficha (nomes de mercado, time e esporte no proprio bilhete, ou em
+tabela/dicionario a parte que o cru tera de levar). Casa de captura nasce fora da IA.
+
 **Nao avance para a implementacao nesta sessao.** Ao final, diga que o proximo passo e
 `/sharpenup-casa <Casa>` e aguarde o Feca confirmar.

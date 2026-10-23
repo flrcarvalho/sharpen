@@ -204,6 +204,29 @@ CODIGO_EXEMPLO: dict[str, str] = {
 # fluxo legado, sem marcador) — não exigimos presença literal nas tuplas do main.py.
 CONDICIONAIS_NO_BACKEND = {"BETFAIR"}
 
+# ── Ficha Sharpen: TODA casa de captura sai da IA pelo adaptador da família (s427) ──
+# A Thunderpick (s426) e a Vave (s425) entraram com inject, formatador e cru, e SEM adaptador:
+# o cru chegava, nenhum virava Ficha e cada bilhete ia à IA (exportação lenta). O Feca: "TODAS
+# AS CASAS PRECISAM ESTAR ASSIM". A família é o prefixo do inject (`vv_inject.js` → `vv`) e o
+# adaptador mora em `app/adaptadores/<família>.py`, registrado em `ADAPTADORES`.
+#
+# Famílias sem adaptador POR DECISÃO, com data e cenário (regra de morte §2). Fora desta lista,
+# casa de captura sem adaptador é FAIL.
+FAMILIAS_SEM_ADAPTADOR = {
+    # Feca, 23/10/2026: as casas .bet.br "não estão sendo usadas por ninguém no momento,
+    # precisa aguardar a legislação liberar. Deixar tudo pronto, porém em banho maria".
+    # Nenhuma delas gravou cru até hoje (BACKLOG §4.0p).
+    "b3": "banho-maria .bet.br (Bet365)", "bda": "banho-maria .bet.br (Bolsa de Aposta, Betbra)",
+    "be": "banho-maria .bet.br (BetEsporte)", "bf": "banho-maria .bet.br (Betfair)",
+    "bn": "banho-maria .bet.br (Betano)", "bnc": "banho-maria .bet.br (Betnacional)",
+    "kto": "banho-maria .bet.br (KTO)", "lt": "banho-maria .bet.br (Lottu)",
+    "nv": "banho-maria .bet.br (Novibet)", "pn": "banho-maria .bet.br (Pinnacle)",
+    "pt": "banho-maria .bet.br (Pitaco)", "rg": "banho-maria .bet.br (7Games, Betão, R7)",
+    "sb": "banho-maria .bet.br (Superbet)", "spb": "banho-maria .bet.br (Sportingbet, Betboo)",
+    "stk": "banho-maria .bet.br (Stake)",
+}
+ADAPTADORES_PY = APP / "adaptadores" / "__init__.py"
+
 
 # ── leitura das listas reais ──────────────────────────────────────────────────
 
@@ -395,6 +418,23 @@ def codigo_reconhecido(exemplo: str) -> bool:
 
 # ── auditoria por casa ────────────────────────────────────────────────────────
 
+def adaptadores_registrados() -> set[str]:
+    """As famílias do dict `ADAPTADORES` (lido do texto, sem importar o app) que têm o .py."""
+    m = re.search(r"^ADAPTADORES\s*=\s*\{([^}]*)\}", _txt(ADAPTADORES_PY), re.M)
+    fams = set(re.findall(r"[\"']([a-z0-9]+)[\"']\s*:", m.group(1))) if m else set()
+    return {f for f in fams if (APP / "adaptadores" / f"{f}.py").exists()}
+
+
+def familia_da_casa(chave: str, display: str, ctx: dict) -> str | None:
+    """O prefixo do inject que escuta a casa: pelo popup, senão pelo host no manifest."""
+    inj = ctx["inj_popup"].get(display)
+    if not inj:
+        hb = ctx["hosts_back"].get(chave, set())
+        inj = next((f for f, ms in ctx["inj_manifest"].items()
+                    if any(h in m for h in hb for m in ms)), None)
+    return inj[: -len("_inject.js")] if inj and inj.endswith("_inject.js") else None
+
+
 def auditar(chave: str, display: str, ctx: dict) -> list[tuple[str, str]]:
     a: list[tuple[str, str]] = []
     modo = ctx["modos"].get(chave, "print")
@@ -474,6 +514,17 @@ def auditar(chave: str, display: str, ctx: dict) -> list[tuple[str, str]]:
             a.append(("FAIL", "ausente na tupla do pré-dedup (main.py) → paga IA de novo "
                               "por TODO bilhete já resolvido no banco a cada recaptura"))
 
+    if modo == "texto":
+        fam = familia_da_casa(chave, display, ctx)
+        if fam is None:
+            a.append(("WARN", "não achei o inject da casa (popup nem manifest): a família da "
+                              "Ficha não pôde ser conferida"))
+        elif fam not in ctx["adaptadores"] and fam not in FAMILIAS_SEM_ADAPTADOR:
+            a.append(("FAIL", f"família `{fam}` sem adaptador da Ficha (app/adaptadores/{fam}.py "
+                              "+ ADAPTADORES) → todo bilhete desta casa vai à IA, lento e caro. "
+                              "Casa nova entra com adaptador, testes, backtest e virada "
+                              "(/sharpenup-casa Fase 6b)"))
+
     ex = CODIGO_EXEMPLO.get(chave)
     if not ex:
         a.append(("WARN", "sem exemplo de código em tools/audit_sharpenup.py CODIGO_EXEMPLO "
@@ -501,6 +552,7 @@ def main(argv: list[str]) -> int:
         "inj_popup": injects_popup(),
         "inj_manifest": manifest_injects(),
         "tuplas": tuplas_backend_com,
+        "adaptadores": adaptadores_registrados(),
     }
 
     alvos = [c.upper() for c in argv] if argv else sorted(display)

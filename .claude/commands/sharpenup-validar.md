@@ -37,6 +37,11 @@ Leia o diff (`git diff`) e confira item a item:
 - [ ] **Nota da versao nova no changelog da home** — `python scripts/avisar_testers.py --versao <X.Y.Z> ...`
       publica no grupo E grava em `app/changelog.json` no mesmo ato. O `audit_changelog` acima
       fica vermelho enquanto a versao publicada nao tiver nota.
+- [ ] **A casa sai da IA pela Ficha** (s427): familia com adaptador em `app/adaptadores/`
+      (o `audit_sharpenup` da FAIL sem ele), `tests/test_adaptador_<xx>.py` com mutacoes, o cru
+      basta sozinho para a Ficha (travado no harness), medido nos crus reais, e a virada
+      (`FICHA_SOMBRA_CASAS`, `FICHA_CASAS_VIRADAS`, `EXTRACAO_SEM_PENSAMENTO`) entregue ao Feca
+      como comando completo. → `/sharpenup-casa` Fase 6b
 - [ ] Inject emite `hook:true` + `respostas` **mesmo com 0 bilhetes** (senao falha vira silencio).
 - [ ] Inject **re-envia sob demanda** (`__sharpenupXXReq`) — a 1a pagina chega antes do content ouvir.
 - [ ] Replay usa o `fetch` **original** guardado, nao o wrapper.

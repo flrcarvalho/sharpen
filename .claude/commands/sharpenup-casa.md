@@ -71,6 +71,40 @@ nasce morto) e a regex de codigo em `repository.py` (perda silenciosa de chunk).
 Backup em `Backups/<nome-descritivo>/` **so dos arquivos que serao editados** (nunca
 `docs/HISTORICO.md`, nunca diretorio inteiro) ANTES de editar. Depois rode `/sharpenup-validar`.
 
+## Fase 6b — Ficha Sharpen: a casa NASCE fora da IA (obrigatorio, s427)
+
+**Casa de captura sem adaptador da Ficha e casa pela metade.** O cru chega, nenhum vira Ficha e
+cada bilhete vai a IA: exportacao lenta e cara. Foi assim com a Thunderpick (s426) e a Vave
+(s425), e o Feca: *"TODAS AS CASAS PRECISAM ESTAR ASSIM"*. O `audit_sharpenup` da **FAIL** em
+casa de captura cuja familia nao tem adaptador (lista de excecao com data:
+`FAMILIAS_SEM_ADAPTADOR`, hoje so as .bet.br em banho-maria).
+
+1. **O inject manda o cru** (`_montarCru` / `_crus`, campo `cru` da mensagem), e o cru precisa
+   bastar sozinho para montar a Ficha. Se a casa normaliza (ids + tabelas irmas, dicionario de
+   mercado a parte, como a Vave), o cru leva as linhas que o bilhete usa, **verbatim**. Trave no
+   harness que o cru tem tudo (Vave: o dicionario de cada perna, igual ao da casa).
+2. **Familia ja tem adaptador** (espelho: `jb`, `tv`, `vb`, `x1`...)? Rode o adaptador nos crus
+   da fixture e confira contra o card. **Familia nova:** `app/adaptadores/<xx>.py` no molde do
+   `thp.py`/`vv.py` (`adaptar`, `bilhetes_da_resposta`, `codigo` se o id nao mora em `cru.id`),
+   registrado em `ADAPTADORES`, fixture em `tests/test_cru.py::FIXTURES_POR_FAMILIA`.
+   - **O adaptador COPIA.** Status pelo DINHEIRO (retorno = stake → anulada; ganha so se o
+     retorno fecha com stake × odd); o que nao tem amostra, `Recusa` (o texto leva a IA).
+   - **Codigo IGUAL ao do `[Codigo: …]` do texto**, senao Ficha e IA gravam dois bilhetes.
+   - **Nome dentro do mercado** (jogador, time) atrapalha a chave do dicionario: confira que
+     `dicionario.chaves(f)` generaliza (`{jogador}` s415, `{time}` s427).
+3. **Testes** `tests/test_adaptador_<xx>.py`: valor esperado do CARD, nunca do codigo; prove por
+   mutacao (liste no cabecalho, e o que NAO cobre).
+4. **Medir nos crus reais** (banco, so leitura): quantos aceitos/recusados e por que; e,
+   quando ja ha linha da IA, resultado, data e odd Ficha × IA. Divergencia se explica caso a
+   caso antes de virar (data: a Ficha segue o MASTER; odd: a da casa).
+5. **Virada** (depois do deploy): a casa entra em `FICHA_SOMBRA_CASAS`, `FICHA_CASAS_VIRADAS` e
+   `EXTRACAO_SEM_PENSAMENTO` (Railway, servico `extrator`). A CLI e bloqueada para o Claude:
+   entregue ao Feca o comando COMPLETO, numa linha, com os valores atuais + a casa
+   (`railway variables --service extrator --kv` para ler). Depois do redeploy,
+   `python scripts/semear_dicionario.py --aplicar`.
+6. **1a captura virada** conferida no `virada_log` (pela_ficha × para_ia). `DIARIO.md` do
+   projeto Ficha com a entrada da etapa.
+
 ## Fase 7 — Soltar
 
 - **Bump da `version` no `manifest.json`** (obrigatorio: e o sinal de versao nova).
@@ -117,4 +151,5 @@ existe porque ele foi esquecido vezes suficientes para o Feca pedir que virasse 
 ## Ao final
 
 Uma linha: casa X no modo Y, harness com N bilhetes verdes, audit sem FAIL,
+adaptador <xx> (N testes, M mutacoes, crus reais aceitos), virada pedida ao Feca,
 manifest 0.a.b -> 0.a.c, commit <hash> enviado, pendente = validacao ao vivo.
