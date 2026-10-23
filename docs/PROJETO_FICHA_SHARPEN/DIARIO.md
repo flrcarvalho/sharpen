@@ -5,6 +5,44 @@
 
 ---
 
+## 2026-10-23 · s426 · Thunderpick: o adaptador `thp` (a casa tinha entrado só pela IA)
+
+**Onde está:** adaptador escrito e testado; **falta `THUNDERPICK` em `FICHA_CASAS_VIRADAS`** (a
+CLI da Railway está deslogada nesta máquina) e a 1ª captura virada conferida no `virada_log`.
+
+**O que aconteceu.** A Thunderpick entrou no SharpenUp 0.7.61 (s426, 22/10) com inject, formatador
+e cru, mas sem adaptador: os 180 crus da família `thp` chegavam e nenhum virava Ficha, e cada
+bilhete ia à IA. O Feca: "as exportações estão demorando eternidades … TODAS AS CASAS PRECISAM
+ESTAR ASSIM". Erro de quem criou a casa; a Vave (s425) tem o mesmo buraco.
+
+**Adaptador** (`app/adaptadores/thp.py`): código `C`/`S` + `wagerId` (o mesmo do texto), centavos
+de euro ÷ 100, moeda `EUR`, ganha com tolerância de 1 centavo (a casa arredonda sem regra fixa),
+retorno = stake é anulada, `cancelReason`/`cashOutOdds`/`freeBet` recusam, esporte pelo `gameId`
+(mapa medido; 43 = Badminton somado hoje; 23 e 31 sem prova, ficam vazios). Mercado de jogador:
+a casa escreve `Player <Sobrenome> <Nome> - …`, e o ` - ` escondia o jogador do
+`descricao_ficha._jogador` (chave por jogador = todo jogador novo à IA); a Ficha leva `<Nome>
+<Sobrenome> …`, a ordem que a IA escreve (conferido contra a descrição da IA em 11 crus reais).
+
+**Medido (banco de produção, só leitura):**
+- 152 crus distintos: 147 Fichas aceitas, 5 recusadas (3 "Cancelled by player", 1 perna
+  "Technical lose", 1 `cashOutOdds 1.86`). Filtro de pessoa: nenhum campo removido; nomes de
+  campo varridos (topo e perna), nenhum de pessoa.
+- Nas 43 com linha no banco: resultado, data e odd iguais aos da IA; nas ganhas, a odd da IA fecha
+  o retorno em EUR. A stake difere só pela conversão (o banco guarda R$; a Ficha, EUR).
+- "Deixa um de fora" nos 43 pares: 26 resolveriam esporte, categoria e descrição sem a IA; nenhuma
+  diferiu da IA. O resto é mercado visto uma vez só.
+- Semente em ensaio: 26 categorias, 98 descrições e 4 esportes para a THUNDERPICK.
+- 98 crus do Gabriel e 6 do Feca sem linha em `bilhetes` (captura sem `/salvar`).
+
+**Gates:** `tests/test_adaptador_thp.py` (16, 11 mutações detectadas), `test_cru` com a família
+`thp`, harness verde. SharpenUp 0.7.62 (só o badminton no texto).
+
+**Próxima ação:** `FICHA_CASAS_VIRADAS` += `THUNDERPICK`; semente na hora
+(`scripts/semear_dicionario.py --aplicar`); 1ª captura conferida no `virada_log`. Depois, a
+varredura das casas em uso pedida pelo Feca (adaptador e virada de cada uma).
+
+---
+
 ## 2026-10-19 · s423 · Parte C: a carga do dicionário (parecer 021, D33 a D37) e o §4.18
 
 **Código e Master (commit `cfc38fd`, deploy `bbb2c0e0`).** `MASTER_ESPORTES §7` ganhou Boxe, Críquete,

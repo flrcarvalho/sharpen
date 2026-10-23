@@ -5416,7 +5416,8 @@
   // NÃO MEDIDO (a conta não tinha): devolvida/cancelada, cashout, freebet e boost. Só o
   // DINHEIRO decide: retorno = stake prova V; o resto sobe cru, "a conferir". O de-para vive
   // na CASA_THUNDERPICK.md §5.
-  const _ESPORTE_THP = { 6: "E-Sports (CS2)", 10: "Futebol", 11: "Basquete", 14: "Hóquei", 15: "Tênis" };
+  // 43 = badminton (s426, 23/10: BWF World Tour). 23 e 31 só vieram em múltipla, sem prova.
+  const _ESPORTE_THP = { 6: "E-Sports (CS2)", 10: "Futebol", 11: "Basquete", 14: "Hóquei", 15: "Tênis", 43: "Badminton" };
   const _PERNA_THP = { won: "ganha", lost: "perdida" };
   const _abertaTHP = (b) => b.estado === "open";
   const _quaseTHP = (a, b, tol) => typeof a === "number" && typeof b === "number" && Math.abs(a - b) < tol;

@@ -56,6 +56,10 @@ dele sobe cru no bloco (`gameId N, sem nome`) e a IA deduz pela liga.
 | 11 | Basquete | NBA, Euroleague |
 | 14 | Hóquei | Alps Hockey League |
 | 15 | Tênis | ATP / WTA |
+| 43 | Badminton | BWF World Tour (23/10/2026) |
+
+`23` ("Challenger League - 2026", FaZe vs Lucky Five) e `31` ("Liga Pro") só apareceram dentro
+de múltipla, sem prova do esporte: ficam fora do mapa e vão à IA.
 
 ---
 
@@ -120,8 +124,12 @@ paginação é por botões e não há prova de linha em branco entre os cards no
 | `cancelReason` · `cashOutOdds` · `freeBet` | `null` em toda a amostra (§5, §7, §8) |
 | `cashOutStatus` · `cashOutAmountThc` | só nas abertas (`3`, `0`): oferta, não dinheiro |
 
-**Ficha:** a família `thp` ainda **não tem adaptador** (`app/adaptadores/`). O cru (o wager
-inteiro) é só guardado; o bilhete vai pela IA.
+**Ficha (s426, 23/10/2026):** adaptador `app/adaptadores/thp.py`, gate
+`tests/test_adaptador_thp.py`. Na casa virada a aposta sai da IA: o servidor monta a Ficha do
+cru e só manda à IA o que a Ficha recusa (`cancelReason`, `cashOutOdds`, `freeBet`) ou o termo
+que o dicionário ainda não conhece. O mercado de jogador vai à Ficha com o nome na ordem de
+leitura e sem o ` - ` (`Player Doncic Luka - total points` → `Luka Doncic total points`), para
+a chave do dicionário valer para qualquer jogador.
 
 ---
 

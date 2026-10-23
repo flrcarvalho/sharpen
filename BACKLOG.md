@@ -1733,9 +1733,12 @@ mostrar outra moeda, convertida pelo câmbio do DIA (`CASA_THUNDERPICK §1.1`).
   a ideia de deixar o usuário escolher outra moeda NA CONTA: o `/salvar` grava pela moeda
   cadastrada e EUR lido como USD erra ~12%, e a Caixa divergiria todo dia só de câmbio.
 - 1ª devolvida/cancelada/cashout/freebet/boost: salvar o JSON como fixture e trocar o clone.
-- `gameId` fora do mapa (6, 10, 11, 14, 15): medir pela liga e somar ao `_ESPORTE_THP`.
+- `gameId` fora do mapa (6, 10, 11, 14, 15, 43): medir pela liga e somar ao `_ESPORTE_THP`
+  (`content.js`) E ao `_ESPORTE` (`app/adaptadores/thp.py`). 23 e 31 vistos só em múltipla.
 - Teto do `take` não medido: com mais de 100 liquidadas, conferir a contagem contra a casa.
-- Família `thp` sem adaptador da Ficha: o cru (o wager inteiro) só é guardado.
+- Virada da Ficha (s426): adaptador `thp` no ar; falta `THUNDERPICK` em `FICHA_CASAS_VIRADAS`
+  (Railway) e a 1ª captura virada conferida no `virada_log`.
+- 98 crus do Gabriel (e 6 do Feca) chegaram sem linha no banco: a captura não foi salva.
 - Captura pela extensão instalada e botão Conectar em produção: não provados.
 
 ### 4.0h Shuffle: validar ao vivo a 1ª captura e decidir o aviso (s401). **VIVA, só no harness**
