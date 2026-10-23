@@ -1,0 +1,3169 @@
+{
+ "statusCode": 200,
+ "ok": true,
+ "data": {
+  "wagers": [
+   {
+    "finishTime": "2026-10-22T20:17:40.762415+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": 32239,
+    "winningSelectionId": null,
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "Combo",
+    "eventName": "Maccabi Tel Aviv vs Real Madrid, Partizan NIS vs Crvena zvezda, Panathinaikos vs Baskonia",
+    "selectionId": 0,
+    "selectionName": "Combo (3)",
+    "selectionTotal": null,
+    "competitorId": null,
+    "marketId": 0,
+    "marketName": "Combo",
+    "marketBaseLine": null,
+    "homeCompetitor": null,
+    "awayCompetitor": null,
+    "competition": null,
+    "wagerId": 2227671,
+    "gameId": 11,
+    "eventId": null,
+    "eventStartTime": "2026-10-22T18:45:00+00:00",
+    "amount": 2228,
+    "odds": 14.47,
+    "subWagers": [
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Under"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3564,
+       "name": "Maccabi Tel Aviv",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3557,
+       "name": "Real Madrid",
+       "hasImage": true
+      },
+      "selectionId": 596447448,
+      "selectionName": "Under",
+      "selectionTotal": "3.5",
+      "gameId": 11,
+      "eventId": 2826612,
+      "eventName": "Maccabi Tel Aviv vs Real Madrid",
+      "marketBaseLine": "3.5",
+      "eventStartTime": "2026-10-22T18:05:00+00:00",
+      "odds": 2.62,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239017434,
+      "marketName": "Player Clark Jimmy - total assists (incl. overtime)",
+      "winningSelectionId": [
+       596447448
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "won",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826612,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Under"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3561,
+       "name": "Panathinaikos",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3567,
+       "name": "Baskonia",
+       "hasImage": true
+      },
+      "selectionId": 597026528,
+      "selectionName": "Over",
+      "selectionTotal": "11.5",
+      "gameId": 11,
+      "eventId": 2826619,
+      "eventName": "Panathinaikos vs Baskonia",
+      "marketBaseLine": "11.5",
+      "eventStartTime": "2026-10-22T18:15:00+00:00",
+      "odds": 2.21,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239261064,
+      "marketName": "Player Hernangomez Juancho - total points and rebounds (incl. overtime)",
+      "winningSelectionId": [
+       597026529
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826619,
+      "period": null
+     },
+     {
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 12236,
+       "name": "Partizan NIS",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 6745,
+       "name": "Crvena zvezda",
+       "hasImage": true
+      },
+      "selectionId": 596677203,
+      "selectionName": "Over",
+      "selectionTotal": "4.5",
+      "gameId": 11,
+      "eventId": 2826616,
+      "eventName": "Partizan NIS vs Crvena zvezda",
+      "marketBaseLine": "4.5",
+      "eventStartTime": "2026-10-22T18:45:00+00:00",
+      "odds": 2.5,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239113676,
+      "marketName": "Player Pajola Alessandro - total assists (incl. overtime)",
+      "winningSelectionId": [],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "open",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826616,
+      "period": null
+     }
+    ],
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-22T17:53:21.857262+00:00",
+    "isLive": false,
+    "matchId": 0,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T20:17:40.503637+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": 37542,
+    "winningSelectionId": null,
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "Combo",
+    "eventName": "Maccabi Tel Aviv vs Real Madrid, Partizan NIS vs Crvena zvezda, Panathinaikos vs Baskonia",
+    "selectionId": 0,
+    "selectionName": "Combo (3)",
+    "selectionTotal": null,
+    "competitorId": null,
+    "marketId": 0,
+    "marketName": "Combo",
+    "marketBaseLine": null,
+    "homeCompetitor": null,
+    "awayCompetitor": null,
+    "competition": null,
+    "wagerId": 2227645,
+    "gameId": 11,
+    "eventId": null,
+    "eventStartTime": "2026-10-22T18:45:00+00:00",
+    "amount": 2228,
+    "odds": 16.85,
+    "subWagers": [
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Over"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3564,
+       "name": "Maccabi Tel Aviv",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3557,
+       "name": "Real Madrid",
+       "hasImage": true
+      },
+      "selectionId": 596447129,
+      "selectionName": "Over",
+      "selectionTotal": "12.5",
+      "gameId": 11,
+      "eventId": 2826612,
+      "eventName": "Maccabi Tel Aviv vs Real Madrid",
+      "marketBaseLine": "12.5",
+      "eventStartTime": "2026-10-22T18:05:00+00:00",
+      "odds": 2.37,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239017275,
+      "marketName": "Player Clark Jimmy - total points (incl. overtime)",
+      "winningSelectionId": [
+       596447129
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "won",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826612,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Over"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3561,
+       "name": "Panathinaikos",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3567,
+       "name": "Baskonia",
+       "hasImage": true
+      },
+      "selectionId": 597026565,
+      "selectionName": "Under",
+      "selectionTotal": "6.5",
+      "gameId": 11,
+      "eventId": 2826619,
+      "eventName": "Panathinaikos vs Baskonia",
+      "marketBaseLine": "6.5",
+      "eventStartTime": "2026-10-22T18:15:00+00:00",
+      "odds": 2.47,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239261081,
+      "marketName": "Player Lessort Mathias - total assists and rebounds (incl. overtime)",
+      "winningSelectionId": [
+       597026564
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826619,
+      "period": null
+     },
+     {
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 12236,
+       "name": "Partizan NIS",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 6745,
+       "name": "Crvena zvezda",
+       "hasImage": true
+      },
+      "selectionId": 596677179,
+      "selectionName": "Over",
+      "selectionTotal": "5.5",
+      "gameId": 11,
+      "eventId": 2826616,
+      "eventName": "Partizan NIS vs Crvena zvezda",
+      "marketBaseLine": "5.5",
+      "eventStartTime": "2026-10-22T18:45:00+00:00",
+      "odds": 2.88,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239113662,
+      "marketName": "Player Ojeleye Semi - total rebounds (incl. overtime)",
+      "winningSelectionId": [],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "open",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826616,
+      "period": null
+     }
+    ],
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-22T17:47:21.29912+00:00",
+    "isLive": false,
+    "matchId": 0,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T20:17:39.745559+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": 27748,
+    "winningSelectionId": null,
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "Combo",
+    "eventName": "Maccabi Tel Aviv vs Real Madrid, Bayern vs Dubai Basketball Club, Panathinaikos vs Baskonia",
+    "selectionId": 0,
+    "selectionName": "Combo (3)",
+    "selectionTotal": null,
+    "competitorId": null,
+    "marketId": 0,
+    "marketName": "Combo",
+    "marketBaseLine": null,
+    "homeCompetitor": null,
+    "awayCompetitor": null,
+    "competition": null,
+    "wagerId": 2227615,
+    "gameId": 11,
+    "eventId": null,
+    "eventStartTime": "2026-10-22T18:15:00+00:00",
+    "amount": 2227,
+    "odds": 12.46,
+    "subWagers": [
+     {
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3568,
+       "name": "Bayern",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 50256,
+       "name": "Dubai Basketball Club",
+       "hasImage": false
+      },
+      "selectionId": 596534380,
+      "selectionName": "Under",
+      "selectionTotal": "2.5",
+      "gameId": 11,
+      "eventId": 2826618,
+      "eventName": "Bayern vs Dubai Basketball Club",
+      "marketBaseLine": "2.5",
+      "eventStartTime": "2026-10-22T18:00:00+00:00",
+      "odds": 2.56,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239053881,
+      "marketName": "Player Bacon Dwayne - total rebounds (incl. overtime)",
+      "winningSelectionId": [],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "open",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826618,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Under"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3564,
+       "name": "Maccabi Tel Aviv",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3557,
+       "name": "Real Madrid",
+       "hasImage": true
+      },
+      "selectionId": 596447621,
+      "selectionName": "Over",
+      "selectionTotal": "3.5",
+      "gameId": 11,
+      "eventId": 2826612,
+      "eventName": "Maccabi Tel Aviv vs Real Madrid",
+      "marketBaseLine": "3.5",
+      "eventStartTime": "2026-10-22T18:05:00+00:00",
+      "odds": 2.75,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239017522,
+      "marketName": "Player Jantunen Mikael - total rebounds (incl. overtime)",
+      "winningSelectionId": [
+       596447622
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826612,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Over"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3561,
+       "name": "Panathinaikos",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3567,
+       "name": "Baskonia",
+       "hasImage": true
+      },
+      "selectionId": 597026016,
+      "selectionName": "Over",
+      "selectionTotal": "0.5",
+      "gameId": 11,
+      "eventId": 2826619,
+      "eventName": "Panathinaikos vs Baskonia",
+      "marketBaseLine": "0.5",
+      "eventStartTime": "2026-10-22T18:15:00+00:00",
+      "odds": 1.77,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239260807,
+      "marketName": "Player Francisco Sylvain - Total Steals (Incl. Overtime)",
+      "winningSelectionId": [
+       597026016
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "won",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826619,
+      "period": null
+     }
+    ],
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-22T17:39:07.767794+00:00",
+    "isLive": false,
+    "matchId": 0,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T20:17:39.458579+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": null,
+    "winningSelectionId": [
+     597026127
+    ],
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "PreMatch",
+    "eventName": "Panathinaikos vs Baskonia",
+    "selectionId": 597026126,
+    "selectionName": "Over",
+    "selectionTotal": "2.5",
+    "competitorId": null,
+    "marketId": 239260863,
+    "marketName": "Player Lawson A.J. - total 3 points made (incl. overtime)",
+    "marketBaseLine": "2.5",
+    "homeCompetitor": {
+     "id": 3561,
+     "name": "Panathinaikos",
+     "hasImage": true
+    },
+    "awayCompetitor": {
+     "id": 3567,
+     "name": "Baskonia",
+     "hasImage": true
+    },
+    "competition": {
+     "id": 418,
+     "name": "Euroleague",
+     "shortName": "Euroleague",
+     "countryCode": null
+    },
+    "wagerId": 10286602,
+    "gameId": 11,
+    "eventId": 2826619,
+    "eventStartTime": "2026-10-22T18:15:00+00:00",
+    "amount": 2227,
+    "odds": 2.24,
+    "subWagers": null,
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-22T17:35:32.695704+00:00",
+    "isLive": false,
+    "matchId": 2826619,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T20:17:39.264556+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": null,
+    "winningSelectionId": [
+     597026183
+    ],
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "PreMatch",
+    "eventName": "Panathinaikos vs Baskonia",
+    "selectionId": 597026182,
+    "selectionName": "Over",
+    "selectionTotal": "5.5",
+    "competitorId": null,
+    "marketId": 239260890,
+    "marketName": "Player Yabusele Guerschon - total rebounds (incl. overtime)",
+    "marketBaseLine": "5.5",
+    "homeCompetitor": {
+     "id": 3561,
+     "name": "Panathinaikos",
+     "hasImage": true
+    },
+    "awayCompetitor": {
+     "id": 3567,
+     "name": "Baskonia",
+     "hasImage": true
+    },
+    "competition": {
+     "id": 418,
+     "name": "Euroleague",
+     "shortName": "Euroleague",
+     "countryCode": null
+    },
+    "wagerId": 10286582,
+    "gameId": 11,
+    "eventId": 2826619,
+    "eventStartTime": "2026-10-22T18:15:00+00:00",
+    "amount": 2226,
+    "odds": 2.5,
+    "subWagers": null,
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-22T17:34:06.842458+00:00",
+    "isLive": false,
+    "matchId": 2826619,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T20:17:39.13127+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": 18559,
+    "winningSelectionId": null,
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "Combo",
+    "eventName": "Philadelphia 76ers vs Cleveland Cavaliers, Partizan NIS vs Crvena zvezda, Panathinaikos vs Baskonia",
+    "selectionId": 0,
+    "selectionName": "Combo (3)",
+    "selectionTotal": null,
+    "competitorId": null,
+    "marketId": 0,
+    "marketName": "Combo",
+    "marketBaseLine": null,
+    "homeCompetitor": null,
+    "awayCompetitor": null,
+    "competition": null,
+    "wagerId": 2227694,
+    "gameId": 11,
+    "eventId": null,
+    "eventStartTime": "2026-10-22T23:00:00+00:00",
+    "amount": 2228,
+    "odds": 8.33,
+    "subWagers": [
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Under"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3561,
+       "name": "Panathinaikos",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3567,
+       "name": "Baskonia",
+       "hasImage": true
+      },
+      "selectionId": 597025902,
+      "selectionName": "Over",
+      "selectionTotal": "5.5",
+      "gameId": 11,
+      "eventId": 2826619,
+      "eventName": "Panathinaikos vs Baskonia",
+      "marketBaseLine": "5.5",
+      "eventStartTime": "2026-10-22T18:15:00+00:00",
+      "odds": 1.89,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239260750,
+      "marketName": "Player Bonga Isaac - total points (incl. overtime)",
+      "winningSelectionId": [
+       597025903
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826619,
+      "period": null
+     },
+     {
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 12236,
+       "name": "Partizan NIS",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 6745,
+       "name": "Crvena zvezda",
+       "hasImage": true
+      },
+      "selectionId": 596677341,
+      "selectionName": "Over",
+      "selectionTotal": "1.5",
+      "gameId": 11,
+      "eventId": 2826616,
+      "eventName": "Partizan NIS vs Crvena zvezda",
+      "marketBaseLine": "1.5",
+      "eventStartTime": "2026-10-22T18:45:00+00:00",
+      "odds": 1.83,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239113743,
+      "marketName": "Player Butler Jared - total 3 points made (incl. overtime)",
+      "winningSelectionId": [],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "open",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826616,
+      "period": null
+     },
+     {
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1838,
+       "name": "Philadelphia 76ers",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1832,
+       "name": "Cleveland Cavaliers",
+       "hasImage": true
+      },
+      "selectionId": 598762166,
+      "selectionName": "Under",
+      "selectionTotal": "3.5",
+      "gameId": 11,
+      "eventId": 2510538,
+      "eventName": "Philadelphia 76ers vs Cleveland Cavaliers",
+      "marketBaseLine": "3.5",
+      "eventStartTime": "2026-10-22T23:00:00+00:00",
+      "odds": 2.41,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": null
+      },
+      "marketId": 239972914,
+      "marketName": "Player Tyson Jaylon - total rebounds (incl. overtime)",
+      "winningSelectionId": [],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "open",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2510538,
+      "period": null
+     }
+    ],
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-22T17:58:26.006311+00:00",
+    "isLive": false,
+    "matchId": 0,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T20:17:39.060209+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": 33873,
+    "winningSelectionId": null,
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "Combo",
+    "eventName": "Maccabi Tel Aviv vs Real Madrid, Bayern vs Dubai Basketball Club, Panathinaikos vs Baskonia",
+    "selectionId": 0,
+    "selectionName": "Combo (3)",
+    "selectionTotal": null,
+    "competitorId": null,
+    "marketId": 0,
+    "marketName": "Combo",
+    "marketBaseLine": null,
+    "homeCompetitor": null,
+    "awayCompetitor": null,
+    "competition": null,
+    "wagerId": 2227610,
+    "gameId": 11,
+    "eventId": null,
+    "eventStartTime": "2026-10-22T18:15:00+00:00",
+    "amount": 2227,
+    "odds": 15.21,
+    "subWagers": [
+     {
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3568,
+       "name": "Bayern",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 50256,
+       "name": "Dubai Basketball Club",
+       "hasImage": false
+      },
+      "selectionId": 596534279,
+      "selectionName": "Over",
+      "selectionTotal": "14.5",
+      "gameId": 11,
+      "eventId": 2826618,
+      "eventName": "Bayern vs Dubai Basketball Club",
+      "marketBaseLine": "14.5",
+      "eventStartTime": "2026-10-22T18:00:00+00:00",
+      "odds": 2.25,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239053829,
+      "marketName": "Player Kabengele Mfiondu - total points (incl. overtime)",
+      "winningSelectionId": [],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "open",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826618,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Over"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3564,
+       "name": "Maccabi Tel Aviv",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3557,
+       "name": "Real Madrid",
+       "hasImage": true
+      },
+      "selectionId": 596447508,
+      "selectionName": "Under",
+      "selectionTotal": "0.5",
+      "gameId": 11,
+      "eventId": 2826612,
+      "eventName": "Maccabi Tel Aviv vs Real Madrid",
+      "marketBaseLine": "0.5",
+      "eventStartTime": "2026-10-22T18:05:00+00:00",
+      "odds": 2.89,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239017465,
+      "marketName": "Player Wallace Keaton - total 3 points made (incl. overtime)",
+      "winningSelectionId": [
+       596447507
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826612,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Over"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3561,
+       "name": "Panathinaikos",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3567,
+       "name": "Baskonia",
+       "hasImage": true
+      },
+      "selectionId": 597025892,
+      "selectionName": "Over",
+      "selectionTotal": "13.5",
+      "gameId": 11,
+      "eventId": 2826619,
+      "eventName": "Panathinaikos vs Baskonia",
+      "marketBaseLine": "13.5",
+      "eventStartTime": "2026-10-22T18:15:00+00:00",
+      "odds": 2.34,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239260745,
+      "marketName": "Player Lessort Mathias - total points (incl. overtime)",
+      "winningSelectionId": [
+       597025892
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "won",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826619,
+      "period": null
+     }
+    ],
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-22T17:38:06.632885+00:00",
+    "isLive": false,
+    "matchId": 0,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T20:17:39.004059+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": 37814,
+    "winningSelectionId": null,
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "Combo",
+    "eventName": "Maccabi Tel Aviv vs Real Madrid, Bayern vs Dubai Basketball Club, Panathinaikos vs Baskonia",
+    "selectionId": 0,
+    "selectionName": "Combo (3)",
+    "selectionTotal": null,
+    "competitorId": null,
+    "marketId": 0,
+    "marketName": "Combo",
+    "marketBaseLine": null,
+    "homeCompetitor": null,
+    "awayCompetitor": null,
+    "competition": null,
+    "wagerId": 2227619,
+    "gameId": 11,
+    "eventId": null,
+    "eventStartTime": "2026-10-22T18:15:00+00:00",
+    "amount": 2227,
+    "odds": 16.98,
+    "subWagers": [
+     {
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3568,
+       "name": "Bayern",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 50256,
+       "name": "Dubai Basketball Club",
+       "hasImage": false
+      },
+      "selectionId": 596534062,
+      "selectionName": "Under",
+      "selectionTotal": "4.5",
+      "gameId": 11,
+      "eventId": 2826618,
+      "eventName": "Bayern vs Dubai Basketball Club",
+      "marketBaseLine": "4.5",
+      "eventStartTime": "2026-10-22T18:00:00+00:00",
+      "odds": 2.34,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239053720,
+      "marketName": "Player Blossomgame Jaron - total points (incl. overtime)",
+      "winningSelectionId": [],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "open",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826618,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Over"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3564,
+       "name": "Maccabi Tel Aviv",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3557,
+       "name": "Real Madrid",
+       "hasImage": true
+      },
+      "selectionId": 596447871,
+      "selectionName": "Over",
+      "selectionTotal": "15.5",
+      "gameId": 11,
+      "eventId": 2826612,
+      "eventName": "Maccabi Tel Aviv vs Real Madrid",
+      "marketBaseLine": "15.5",
+      "eventStartTime": "2026-10-22T18:05:00+00:00",
+      "odds": 2.52,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239017646,
+      "marketName": "Player Clark Jimmy - total points and rebounds (incl. overtime)",
+      "winningSelectionId": [
+       596447871
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "won",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826612,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Under"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3561,
+       "name": "Panathinaikos",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3567,
+       "name": "Baskonia",
+       "hasImage": true
+      },
+      "selectionId": 597025878,
+      "selectionName": "Over",
+      "selectionTotal": "7.5",
+      "gameId": 11,
+      "eventId": 2826619,
+      "eventName": "Panathinaikos vs Baskonia",
+      "marketBaseLine": "7.5",
+      "eventStartTime": "2026-10-22T18:15:00+00:00",
+      "odds": 2.88,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239260738,
+      "marketName": "Player Grant Jerian - total points (incl. overtime)",
+      "winningSelectionId": [
+       597025879
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826619,
+      "period": null
+     }
+    ],
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-22T17:40:13.634206+00:00",
+    "isLive": false,
+    "matchId": 0,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T20:17:38.851808+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": 19517,
+    "winningSelectionId": null,
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "Combo",
+    "eventName": "Olimpia Milano vs Barcelona, Partizan NIS vs Crvena zvezda, Panathinaikos vs Baskonia",
+    "selectionId": 0,
+    "selectionName": "Combo (3)",
+    "selectionTotal": null,
+    "competitorId": null,
+    "marketId": 0,
+    "marketName": "Combo",
+    "marketBaseLine": null,
+    "homeCompetitor": null,
+    "awayCompetitor": null,
+    "competition": null,
+    "wagerId": 2227717,
+    "gameId": 11,
+    "eventId": null,
+    "eventStartTime": "2026-10-22T18:45:00+00:00",
+    "amount": 2228,
+    "odds": 8.76,
+    "subWagers": [
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Under"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3561,
+       "name": "Panathinaikos",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3567,
+       "name": "Baskonia",
+       "hasImage": true
+      },
+      "selectionId": 597025818,
+      "selectionName": "Over",
+      "selectionTotal": "5.5",
+      "gameId": 11,
+      "eventId": 2826619,
+      "eventName": "Panathinaikos vs Baskonia",
+      "marketBaseLine": "5.5",
+      "eventStartTime": "2026-10-22T18:15:00+00:00",
+      "odds": 2.04,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239260708,
+      "marketName": "Player Grant Jerian - total points (incl. overtime)",
+      "winningSelectionId": [
+       597025819
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826619,
+      "period": null
+     },
+     {
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 35425,
+       "name": "Olimpia Milano",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3565,
+       "name": "Barcelona",
+       "hasImage": true
+      },
+      "selectionId": 596738307,
+      "selectionName": "Over",
+      "selectionTotal": "6.5",
+      "gameId": 11,
+      "eventId": 2826610,
+      "eventName": "Olimpia Milano vs Barcelona",
+      "marketBaseLine": "6.5",
+      "eventStartTime": "2026-10-22T18:30:00+00:00",
+      "odds": 2.18,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239139051,
+      "marketName": "Player Evbuomwan Tosan - total points (incl. overtime)",
+      "winningSelectionId": [],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "open",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826610,
+      "period": null
+     },
+     {
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 12236,
+       "name": "Partizan NIS",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 6745,
+       "name": "Crvena zvezda",
+       "hasImage": true
+      },
+      "selectionId": 596677325,
+      "selectionName": "Over",
+      "selectionTotal": "0.5",
+      "gameId": 11,
+      "eventId": 2826616,
+      "eventName": "Partizan NIS vs Crvena zvezda",
+      "marketBaseLine": "0.5",
+      "eventStartTime": "2026-10-22T18:45:00+00:00",
+      "odds": 1.97,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239113735,
+      "marketName": "Player Pajola Alessandro - total 3 points made (incl. overtime)",
+      "winningSelectionId": [],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "open",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826616,
+      "period": null
+     }
+    ],
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-22T18:04:13.349627+00:00",
+    "isLive": false,
+    "matchId": 0,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T20:17:38.813872+00:00",
+    "state": "resolved",
+    "outcome": 4988,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": null,
+    "winningSelectionId": [
+     597025862
+    ],
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "PreMatch",
+    "eventName": "Panathinaikos vs Baskonia",
+    "selectionId": 597025862,
+    "selectionName": "Over",
+    "selectionTotal": "14.5",
+    "competitorId": null,
+    "marketId": 239260730,
+    "marketName": "Player Hayes Nigel - total points (incl. overtime)",
+    "marketBaseLine": "14.5",
+    "homeCompetitor": {
+     "id": 3561,
+     "name": "Panathinaikos",
+     "hasImage": true
+    },
+    "awayCompetitor": {
+     "id": 3567,
+     "name": "Baskonia",
+     "hasImage": true
+    },
+    "competition": {
+     "id": 418,
+     "name": "Euroleague",
+     "shortName": "Euroleague",
+     "countryCode": null
+    },
+    "wagerId": 10286618,
+    "gameId": 11,
+    "eventId": 2826619,
+    "eventStartTime": "2026-10-22T18:15:00+00:00",
+    "amount": 2227,
+    "odds": 2.24,
+    "subWagers": null,
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "won",
+    "createTime": "2026-10-22T17:36:29.37081+00:00",
+    "isLive": false,
+    "matchId": 2826619,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T20:16:31.236805+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": 24029,
+    "winningSelectionId": null,
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "Combo",
+    "eventName": "Olimpia Milano vs Barcelona, Maccabi Tel Aviv vs Real Madrid, Partizan NIS vs Crvena zvezda",
+    "selectionId": 0,
+    "selectionName": "Combo (3)",
+    "selectionTotal": null,
+    "competitorId": null,
+    "marketId": 0,
+    "marketName": "Combo",
+    "marketBaseLine": null,
+    "homeCompetitor": null,
+    "awayCompetitor": null,
+    "competition": null,
+    "wagerId": 2227629,
+    "gameId": 11,
+    "eventId": null,
+    "eventStartTime": "2026-10-22T18:45:00+00:00",
+    "amount": 2227,
+    "odds": 10.79,
+    "subWagers": [
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Under"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 3564,
+       "name": "Maccabi Tel Aviv",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3557,
+       "name": "Real Madrid",
+       "hasImage": true
+      },
+      "selectionId": 596447773,
+      "selectionName": "Over",
+      "selectionTotal": "8.5",
+      "gameId": 11,
+      "eventId": 2826612,
+      "eventName": "Maccabi Tel Aviv vs Real Madrid",
+      "marketBaseLine": "8.5",
+      "eventStartTime": "2026-10-22T18:05:00+00:00",
+      "odds": 2.52,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239017597,
+      "marketName": "Player Madar Yam - total assists and rebounds (incl. overtime)",
+      "winningSelectionId": [
+       596447774
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826612,
+      "period": null
+     },
+     {
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 35425,
+       "name": "Olimpia Milano",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3565,
+       "name": "Barcelona",
+       "hasImage": true
+      },
+      "selectionId": 596738590,
+      "selectionName": "Under",
+      "selectionTotal": "1.5",
+      "gameId": 11,
+      "eventId": 2826610,
+      "eventName": "Olimpia Milano vs Barcelona",
+      "marketBaseLine": "1.5",
+      "eventStartTime": "2026-10-22T18:30:00+00:00",
+      "odds": 2.09,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239139192,
+      "marketName": "Player Punter Kevin - Total Turnovers (Incl. Overtime)",
+      "winningSelectionId": [],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "open",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826610,
+      "period": null
+     },
+     {
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 12236,
+       "name": "Partizan NIS",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 6745,
+       "name": "Crvena zvezda",
+       "hasImage": true
+      },
+      "selectionId": 596677481,
+      "selectionName": "Over",
+      "selectionTotal": "1.5",
+      "gameId": 11,
+      "eventId": 2826616,
+      "eventName": "Partizan NIS vs Crvena zvezda",
+      "marketBaseLine": "1.5",
+      "eventStartTime": "2026-10-22T18:45:00+00:00",
+      "odds": 2.05,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239113813,
+      "marketName": "Player Moneke Chima - total 3 points made (incl. overtime)",
+      "winningSelectionId": [],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "open",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826616,
+      "period": null
+     }
+    ],
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-22T17:43:08.181335+00:00",
+    "isLive": false,
+    "matchId": 0,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T20:16:29.40056+00:00",
+    "state": "resolved",
+    "outcome": 4652,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": null,
+    "winningSelectionId": [
+     596447403
+    ],
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "PreMatch",
+    "eventName": "Maccabi Tel Aviv vs Real Madrid",
+    "selectionId": 596447403,
+    "selectionName": "Over",
+    "selectionTotal": "3.5",
+    "competitorId": null,
+    "marketId": 239017412,
+    "marketName": "Player Feliz Andres - total assists (incl. overtime)",
+    "marketBaseLine": "3.5",
+    "homeCompetitor": {
+     "id": 3564,
+     "name": "Maccabi Tel Aviv",
+     "hasImage": true
+    },
+    "awayCompetitor": {
+     "id": 3557,
+     "name": "Real Madrid",
+     "hasImage": true
+    },
+    "competition": {
+     "id": 418,
+     "name": "Euroleague",
+     "shortName": "Euroleague",
+     "countryCode": null
+    },
+    "wagerId": 10286581,
+    "gameId": 11,
+    "eventId": 2826612,
+    "eventStartTime": "2026-10-22T18:05:00+00:00",
+    "amount": 2226,
+    "odds": 2.09,
+    "subWagers": null,
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "won",
+    "createTime": "2026-10-22T17:34:06.827341+00:00",
+    "isLive": false,
+    "matchId": 2826612,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T20:16:29.098547+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": null,
+    "winningSelectionId": [
+     596447251
+    ],
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "PreMatch",
+    "eventName": "Maccabi Tel Aviv vs Real Madrid",
+    "selectionId": 596447252,
+    "selectionName": "Under",
+    "selectionTotal": "8.5",
+    "competitorId": null,
+    "marketId": 239017337,
+    "marketName": "Player Campazzo Facundo - total points (incl. overtime)",
+    "marketBaseLine": "8.5",
+    "homeCompetitor": {
+     "id": 3564,
+     "name": "Maccabi Tel Aviv",
+     "hasImage": true
+    },
+    "awayCompetitor": {
+     "id": 3557,
+     "name": "Real Madrid",
+     "hasImage": true
+    },
+    "competition": {
+     "id": 418,
+     "name": "Euroleague",
+     "shortName": "Euroleague",
+     "countryCode": null
+    },
+    "wagerId": 10286603,
+    "gameId": 11,
+    "eventId": 2826612,
+    "eventStartTime": "2026-10-22T18:05:00+00:00",
+    "amount": 2227,
+    "odds": 2.18,
+    "subWagers": null,
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-22T17:35:32.712615+00:00",
+    "isLive": false,
+    "matchId": 2826612,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T20:16:28.985888+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": null,
+    "winningSelectionId": [
+     596447157
+    ],
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "PreMatch",
+    "eventName": "Maccabi Tel Aviv vs Real Madrid",
+    "selectionId": 596447158,
+    "selectionName": "Under",
+    "selectionTotal": "9.5",
+    "competitorId": null,
+    "marketId": 239017287,
+    "marketName": "Player Hoard Jaylen - total points (incl. overtime)",
+    "marketBaseLine": "9.5",
+    "homeCompetitor": {
+     "id": 3564,
+     "name": "Maccabi Tel Aviv",
+     "hasImage": true
+    },
+    "awayCompetitor": {
+     "id": 3557,
+     "name": "Real Madrid",
+     "hasImage": true
+    },
+    "competition": {
+     "id": 418,
+     "name": "Euroleague",
+     "shortName": "Euroleague",
+     "countryCode": null
+    },
+    "wagerId": 10286617,
+    "gameId": 11,
+    "eventId": 2826612,
+    "eventStartTime": "2026-10-22T18:05:00+00:00",
+    "amount": 2227,
+    "odds": 2.03,
+    "subWagers": null,
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-22T17:36:29.333787+00:00",
+    "isLive": false,
+    "matchId": 2826612,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T20:12:34.974304+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": 27516,
+    "winningSelectionId": null,
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "Combo",
+    "eventName": "Gherdeina vs Salzburg 2, Kyrian Jacquet vs Brandon Nakashima, Olimpia Milano vs Barcelona",
+    "selectionId": 0,
+    "selectionName": "Combo (3)",
+    "selectionTotal": null,
+    "competitorId": null,
+    "marketId": 0,
+    "marketName": "Combo",
+    "marketBaseLine": null,
+    "homeCompetitor": null,
+    "awayCompetitor": null,
+    "competition": null,
+    "wagerId": 2227740,
+    "gameId": null,
+    "eventId": null,
+    "eventStartTime": "2026-10-22T18:45:00+00:00",
+    "amount": 2228,
+    "odds": 12.35,
+    "subWagers": [
+     {
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 35425,
+       "name": "Olimpia Milano",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 3565,
+       "name": "Barcelona",
+       "hasImage": true
+      },
+      "selectionId": 596738242,
+      "selectionName": "Under",
+      "selectionTotal": "8.5",
+      "gameId": 11,
+      "eventId": 2826610,
+      "eventName": "Olimpia Milano vs Barcelona",
+      "marketBaseLine": "8.5",
+      "eventStartTime": "2026-10-22T18:30:00+00:00",
+      "odds": 2.01,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 418,
+       "name": "Euroleague",
+       "shortName": "Euroleague",
+       "countryCode": null
+      },
+      "marketId": 239139019,
+      "marketName": "Player Guduric Marko - total points (incl. overtime)",
+      "winningSelectionId": [],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "open",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2826610,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Over"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 57138,
+       "name": "Gherdeina",
+       "hasImage": false
+      },
+      "awayCompetitor": {
+       "id": 57139,
+       "name": "Salzburg 2",
+       "hasImage": false
+      },
+      "selectionId": 595421734,
+      "selectionName": "Over",
+      "selectionTotal": "2.5",
+      "gameId": 14,
+      "eventId": 2861437,
+      "eventName": "Gherdeina vs Salzburg 2",
+      "marketBaseLine": "2.5",
+      "eventStartTime": "2026-10-22T18:30:00+00:00",
+      "odds": 2.12,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 6128,
+       "name": "Alps Hockey League",
+       "shortName": "AlpsHL",
+       "countryCode": null
+      },
+      "marketId": 238601124,
+      "marketName": "Salzburg 2 Total (Regular Time)",
+      "winningSelectionId": [
+       595421734
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "won",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2861437,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Brandon Nakashima"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 10682,
+       "name": "Kyrian Jacquet",
+       "hasImage": false
+      },
+      "awayCompetitor": {
+       "id": 8153,
+       "name": "Brandon Nakashima",
+       "hasImage": false
+      },
+      "selectionId": 598041592,
+      "selectionName": "Kyrian Jacquet",
+      "selectionTotal": null,
+      "gameId": 15,
+      "eventId": 2862027,
+      "eventName": "Kyrian Jacquet vs Brandon Nakashima",
+      "marketBaseLine": null,
+      "eventStartTime": "2026-10-22T18:45:00+00:00",
+      "odds": 2.9,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 1517,
+       "name": "ATP Lyon",
+       "shortName": "ATP Lyon",
+       "countryCode": 250
+      },
+      "marketId": 239674605,
+      "marketName": "Aces - 1X2",
+      "winningSelectionId": [
+       598041594
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2862027,
+      "period": null
+     }
+    ],
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-22T18:10:08.696367+00:00",
+    "isLive": false,
+    "matchId": 0,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T05:01:42.103782+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": 29784,
+    "winningSelectionId": null,
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "Combo",
+    "eventName": "Los Angeles Lakers vs Golden State Warriors, Los Angeles Clippers vs Sacramento Kings, Portland Trail Blazers vs Phoenix Suns",
+    "selectionId": 0,
+    "selectionName": "Combo (3)",
+    "selectionTotal": null,
+    "competitorId": null,
+    "marketId": 0,
+    "marketName": "Combo",
+    "marketBaseLine": null,
+    "homeCompetitor": null,
+    "awayCompetitor": null,
+    "competition": null,
+    "wagerId": 2225863,
+    "gameId": 11,
+    "eventId": null,
+    "eventStartTime": "2026-10-22T02:30:00+00:00",
+    "amount": 2226,
+    "odds": 13.38,
+    "subWagers": [
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Under"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1829,
+       "name": "Los Angeles Lakers",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1815,
+       "name": "Golden State Warriors",
+       "hasImage": true
+      },
+      "selectionId": 596938692,
+      "selectionName": "Over",
+      "selectionTotal": "16.5",
+      "gameId": 11,
+      "eventId": 2510530,
+      "eventName": "Los Angeles Lakers vs Golden State Warriors",
+      "marketBaseLine": "16.5",
+      "eventStartTime": "2026-10-22T02:00:00+00:00",
+      "odds": 2.07,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": 840
+      },
+      "marketId": 239223396,
+      "marketName": "Player Melton De''Anthony - total points and rebounds (incl. overtime)",
+      "winningSelectionId": [
+       596938693
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2510530,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Under"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1821,
+       "name": "Portland Trail Blazers",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1825,
+       "name": "Phoenix Suns",
+       "hasImage": true
+      },
+      "selectionId": 595482768,
+      "selectionName": "Over",
+      "selectionTotal": "9.5",
+      "gameId": 11,
+      "eventId": 2557263,
+      "eventName": "Portland Trail Blazers vs Phoenix Suns",
+      "marketBaseLine": "9.5",
+      "eventStartTime": "2026-10-22T02:00:00+00:00",
+      "odds": 2.8,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": 840
+      },
+      "marketId": 238625224,
+      "marketName": "Player Maluach Khaman - total rebounds (incl. overtime)",
+      "winningSelectionId": [
+       595482769
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2557263,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Over"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1823,
+       "name": "Los Angeles Clippers",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1827,
+       "name": "Sacramento Kings",
+       "hasImage": true
+      },
+      "selectionId": 597020570,
+      "selectionName": "Under",
+      "selectionTotal": "21.5",
+      "gameId": 11,
+      "eventId": 2802268,
+      "eventName": "Los Angeles Clippers vs Sacramento Kings",
+      "marketBaseLine": "21.5",
+      "eventStartTime": "2026-10-22T02:30:00+00:00",
+      "odds": 2.31,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": 840
+      },
+      "marketId": 239258558,
+      "marketName": "Player Sabonis Domantas - total points and assists (incl. overtime)",
+      "winningSelectionId": [
+       597020569
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2802268,
+      "period": null
+     }
+    ],
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-22T00:54:43.74561+00:00",
+    "isLive": false,
+    "matchId": 0,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T05:01:41.190249+00:00",
+    "state": "resolved",
+    "outcome": 18720,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": 18721,
+    "winningSelectionId": null,
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "Combo",
+    "eventName": "Los Angeles Lakers vs Golden State Warriors, Los Angeles Clippers vs Sacramento Kings, Portland Trail Blazers vs Phoenix Suns",
+    "selectionId": 0,
+    "selectionName": "Combo (3)",
+    "selectionTotal": null,
+    "competitorId": null,
+    "marketId": 0,
+    "marketName": "Combo",
+    "marketBaseLine": null,
+    "homeCompetitor": null,
+    "awayCompetitor": null,
+    "competition": null,
+    "wagerId": 2225866,
+    "gameId": 11,
+    "eventId": null,
+    "eventStartTime": "2026-10-22T02:30:00+00:00",
+    "amount": 2226,
+    "odds": 8.41,
+    "subWagers": [
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Under"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1821,
+       "name": "Portland Trail Blazers",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1825,
+       "name": "Phoenix Suns",
+       "hasImage": true
+      },
+      "selectionId": 595424445,
+      "selectionName": "Under",
+      "selectionTotal": "7.5",
+      "gameId": 11,
+      "eventId": 2557263,
+      "eventName": "Portland Trail Blazers vs Phoenix Suns",
+      "marketBaseLine": "7.5",
+      "eventStartTime": "2026-10-22T02:00:00+00:00",
+      "odds": 2.28,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": 840
+      },
+      "marketId": 238602234,
+      "marketName": "Player Green Jalen - total assists and rebounds (incl. overtime)",
+      "winningSelectionId": [
+       595424445
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "won",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2557263,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Under"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1829,
+       "name": "Los Angeles Lakers",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1815,
+       "name": "Golden State Warriors",
+       "hasImage": true
+      },
+      "selectionId": 596324214,
+      "selectionName": "Under",
+      "selectionTotal": "24.5",
+      "gameId": 11,
+      "eventId": 2510530,
+      "eventName": "Los Angeles Lakers vs Golden State Warriors",
+      "marketBaseLine": "24.5",
+      "eventStartTime": "2026-10-22T02:00:00+00:00",
+      "odds": 2.17,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": 840
+      },
+      "marketId": 238964189,
+      "marketName": "Player Lendeborg Yaxel - total points, assists and rebounds (incl. overtime)",
+      "winningSelectionId": [
+       596324214
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "won",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2510530,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Over"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1823,
+       "name": "Los Angeles Clippers",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1827,
+       "name": "Sacramento Kings",
+       "hasImage": true
+      },
+      "selectionId": 594834637,
+      "selectionName": "Over",
+      "selectionTotal": "0.5",
+      "gameId": 11,
+      "eventId": 2802268,
+      "eventName": "Los Angeles Clippers vs Sacramento Kings",
+      "marketBaseLine": "0.5",
+      "eventStartTime": "2026-10-22T02:30:00+00:00",
+      "odds": 1.7,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": 840
+      },
+      "marketId": 238354298,
+      "marketName": "Player Dunn Kris - total 3 points made (incl. overtime)",
+      "winningSelectionId": [
+       594834637
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "won",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2802268,
+      "period": null
+     }
+    ],
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "won",
+    "createTime": "2026-10-22T00:56:00.227405+00:00",
+    "isLive": false,
+    "matchId": 0,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T04:49:06.233814+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": null,
+    "winningSelectionId": [
+     594831769
+    ],
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "PreMatch",
+    "eventName": "Los Angeles Lakers vs Golden State Warriors",
+    "selectionId": 594831768,
+    "selectionName": "Over",
+    "selectionTotal": "32.5",
+    "competitorId": null,
+    "marketId": 238353141,
+    "marketName": "Player Doncic Luka - total points (incl. overtime)",
+    "marketBaseLine": "32.5",
+    "homeCompetitor": {
+     "id": 1829,
+     "name": "Los Angeles Lakers",
+     "hasImage": true
+    },
+    "awayCompetitor": {
+     "id": 1815,
+     "name": "Golden State Warriors",
+     "hasImage": true
+    },
+    "competition": {
+     "id": 263,
+     "name": "NBA",
+     "shortName": "NBA",
+     "countryCode": 840
+    },
+    "wagerId": 10278329,
+    "gameId": 11,
+    "eventId": 2510530,
+    "eventStartTime": "2026-10-22T02:00:00+00:00",
+    "amount": 3562,
+    "odds": 1.8,
+    "subWagers": null,
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-22T00:50:21.713413+00:00",
+    "isLive": false,
+    "matchId": 2510530,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T02:45:25.712607+00:00",
+    "state": "resolved",
+    "outcome": 11749,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": null,
+    "winningSelectionId": [
+     595418360
+    ],
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "PreMatch",
+    "eventName": "New Orleans Pelicans vs Indiana Pacers",
+    "selectionId": 595418360,
+    "selectionName": "Over",
+    "selectionTotal": "14.5",
+    "competitorId": null,
+    "marketId": 238599666,
+    "marketName": "Player Missi Yves - total points, assists and rebounds (incl. overtime)",
+    "marketBaseLine": "14.5",
+    "homeCompetitor": {
+     "id": 1822,
+     "name": "New Orleans Pelicans",
+     "hasImage": true
+    },
+    "awayCompetitor": {
+     "id": 1837,
+     "name": "Indiana Pacers",
+     "hasImage": true
+    },
+    "competition": {
+     "id": 263,
+     "name": "NBA",
+     "shortName": "NBA",
+     "countryCode": 840
+    },
+    "wagerId": 10277912,
+    "gameId": 11,
+    "eventId": 2557244,
+    "eventStartTime": "2026-10-22T00:00:00+00:00",
+    "amount": 6676,
+    "odds": 1.76,
+    "subWagers": null,
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "won",
+    "createTime": "2026-10-21T23:52:51.344954+00:00",
+    "isLive": false,
+    "matchId": 2557244,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T02:29:07.20576+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": 23039,
+    "winningSelectionId": null,
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "Combo",
+    "eventName": "Miami Heat vs Minnesota Timberwolves, Toronto Raptors vs Chicago Bulls, Brooklyn Nets vs Charlotte Hornets",
+    "selectionId": 0,
+    "selectionName": "Combo (3)",
+    "selectionTotal": null,
+    "competitorId": null,
+    "marketId": 0,
+    "marketName": "Combo",
+    "marketBaseLine": null,
+    "homeCompetitor": null,
+    "awayCompetitor": null,
+    "competition": null,
+    "wagerId": 2225636,
+    "gameId": 11,
+    "eventId": null,
+    "eventStartTime": "2026-10-21T23:30:00+00:00",
+    "amount": 2226,
+    "odds": 10.35,
+    "subWagers": [
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Over"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1836,
+       "name": "Miami Heat",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1818,
+       "name": "Minnesota Timberwolves",
+       "hasImage": true
+      },
+      "selectionId": 594849138,
+      "selectionName": "Over",
+      "selectionTotal": "21.5",
+      "gameId": 11,
+      "eventId": 2510541,
+      "eventName": "Miami Heat vs Minnesota Timberwolves",
+      "marketBaseLine": "21.5",
+      "eventStartTime": "2026-10-21T23:30:00+00:00",
+      "odds": 2.16,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": 840
+      },
+      "marketId": 238360505,
+      "marketName": "Player McDaniels Jaden - total points and rebounds (incl. overtime)",
+      "winningSelectionId": [
+       594849138
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "won",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2510541,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Over"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1831,
+       "name": "Toronto Raptors",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1842,
+       "name": "Chicago Bulls",
+       "hasImage": true
+      },
+      "selectionId": 595435070,
+      "selectionName": "Over",
+      "selectionTotal": "19.5",
+      "gameId": 11,
+      "eventId": 2802262,
+      "eventName": "Toronto Raptors vs Chicago Bulls",
+      "marketBaseLine": "19.5",
+      "eventStartTime": "2026-10-21T23:30:00+00:00",
+      "odds": 2.21,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": 840
+      },
+      "marketId": 238606539,
+      "marketName": "Player Smith Jalen - total points and rebounds (incl. overtime)",
+      "winningSelectionId": [
+       595435070
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "won",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2802262,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Over"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1840,
+       "name": "Brooklyn Nets",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1841,
+       "name": "Charlotte Hornets",
+       "hasImage": true
+      },
+      "selectionId": 595430992,
+      "selectionName": "Under",
+      "selectionTotal": "10.5",
+      "gameId": 11,
+      "eventId": 2557236,
+      "eventName": "Brooklyn Nets vs Charlotte Hornets",
+      "marketBaseLine": "10.5",
+      "eventStartTime": "2026-10-21T23:30:00+00:00",
+      "odds": 2.17,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": 840
+      },
+      "marketId": 238604917,
+      "marketName": "Player Schroder Dennis - total points (incl. overtime)",
+      "winningSelectionId": [
+       595430991
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2557236,
+      "period": null
+     }
+    ],
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-21T23:12:42.042799+00:00",
+    "isLive": false,
+    "matchId": 0,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T02:29:06.290237+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": 35727,
+    "winningSelectionId": null,
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "Combo",
+    "eventName": "Miami Heat vs Minnesota Timberwolves, Toronto Raptors vs Chicago Bulls, Brooklyn Nets vs Charlotte Hornets",
+    "selectionId": 0,
+    "selectionName": "Combo (3)",
+    "selectionTotal": null,
+    "competitorId": null,
+    "marketId": 0,
+    "marketName": "Combo",
+    "marketBaseLine": null,
+    "homeCompetitor": null,
+    "awayCompetitor": null,
+    "competition": null,
+    "wagerId": 2225642,
+    "gameId": 11,
+    "eventId": null,
+    "eventStartTime": "2026-10-21T23:30:00+00:00",
+    "amount": 2226,
+    "odds": 16.05,
+    "subWagers": [
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Under"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1840,
+       "name": "Brooklyn Nets",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1841,
+       "name": "Charlotte Hornets",
+       "hasImage": true
+      },
+      "selectionId": 596330772,
+      "selectionName": "Over",
+      "selectionTotal": "14.5",
+      "gameId": 11,
+      "eventId": 2557236,
+      "eventName": "Brooklyn Nets vs Charlotte Hornets",
+      "marketBaseLine": "14.5",
+      "eventStartTime": "2026-10-21T23:30:00+00:00",
+      "odds": 2.47,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": 840
+      },
+      "marketId": 238966936,
+      "marketName": "Player O''Neale Royce - total points and rebounds (incl. overtime)",
+      "winningSelectionId": [
+       596330773
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2557236,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Under"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1831,
+       "name": "Toronto Raptors",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1842,
+       "name": "Chicago Bulls",
+       "hasImage": true
+      },
+      "selectionId": 596353475,
+      "selectionName": "Over",
+      "selectionTotal": "26.5",
+      "gameId": 11,
+      "eventId": 2802262,
+      "eventName": "Toronto Raptors vs Chicago Bulls",
+      "marketBaseLine": "26.5",
+      "eventStartTime": "2026-10-21T23:30:00+00:00",
+      "odds": 2.28,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": 840
+      },
+      "marketId": 238976728,
+      "marketName": "Player Wilson Caleb - total points, assists and rebounds (incl. overtime)",
+      "winningSelectionId": [
+       596353476
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2802262,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Under"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1836,
+       "name": "Miami Heat",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1818,
+       "name": "Minnesota Timberwolves",
+       "hasImage": true
+      },
+      "selectionId": 594851288,
+      "selectionName": "Over",
+      "selectionTotal": "1.5",
+      "gameId": 11,
+      "eventId": 2510541,
+      "eventName": "Miami Heat vs Minnesota Timberwolves",
+      "marketBaseLine": "1.5",
+      "eventStartTime": "2026-10-21T23:30:00+00:00",
+      "odds": 2.85,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": 840
+      },
+      "marketId": 238361320,
+      "marketName": "Player Mitchell Davion - total 3 points made (incl. overtime)",
+      "winningSelectionId": [
+       594851289
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2510541,
+      "period": null
+     }
+    ],
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-21T23:16:17.151204+00:00",
+    "isLive": false,
+    "matchId": 0,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2026-10-22T02:29:06.165164+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": 26467,
+    "winningSelectionId": null,
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "Combo",
+    "eventName": "Miami Heat vs Minnesota Timberwolves, Toronto Raptors vs Chicago Bulls, Brooklyn Nets vs Charlotte Hornets",
+    "selectionId": 0,
+    "selectionName": "Combo (3)",
+    "selectionTotal": null,
+    "competitorId": null,
+    "marketId": 0,
+    "marketName": "Combo",
+    "marketBaseLine": null,
+    "homeCompetitor": null,
+    "awayCompetitor": null,
+    "competition": null,
+    "wagerId": 2225662,
+    "gameId": 11,
+    "eventId": null,
+    "eventStartTime": "2026-10-21T23:30:00+00:00",
+    "amount": 2226,
+    "odds": 11.89,
+    "subWagers": [
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Over"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1836,
+       "name": "Miami Heat",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1818,
+       "name": "Minnesota Timberwolves",
+       "hasImage": true
+      },
+      "selectionId": 594849002,
+      "selectionName": "Over",
+      "selectionTotal": "24.5",
+      "gameId": 11,
+      "eventId": 2510541,
+      "eventName": "Miami Heat vs Minnesota Timberwolves",
+      "marketBaseLine": "24.5",
+      "eventStartTime": "2026-10-21T23:30:00+00:00",
+      "odds": 2.3,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": 840
+      },
+      "marketId": 238360437,
+      "marketName": "Player McDaniels Jaden - total points, assists and rebounds (incl. overtime)",
+      "winningSelectionId": [
+       594849002
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "won",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2510541,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Over"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1831,
+       "name": "Toronto Raptors",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1842,
+       "name": "Chicago Bulls",
+       "hasImage": true
+      },
+      "selectionId": 595711480,
+      "selectionName": "Over",
+      "selectionTotal": "21.5",
+      "gameId": 11,
+      "eventId": 2802262,
+      "eventName": "Toronto Raptors vs Chicago Bulls",
+      "marketBaseLine": "21.5",
+      "eventStartTime": "2026-10-21T23:30:00+00:00",
+      "odds": 2.2,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": 840
+      },
+      "marketId": 238715423,
+      "marketName": "Player Smith Jalen - total points, assists and rebounds (incl. overtime)",
+      "winningSelectionId": [
+       595711480
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "won",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2802262,
+      "period": null
+     },
+     {
+      "cancelReason": null,
+      "state": "Resolved",
+      "winningSelectionName": [
+       "Over"
+      ],
+      "eventType": 1,
+      "homeCompetitor": {
+       "id": 1840,
+       "name": "Brooklyn Nets",
+       "hasImage": true
+      },
+      "awayCompetitor": {
+       "id": 1841,
+       "name": "Charlotte Hornets",
+       "hasImage": true
+      },
+      "selectionId": 595431018,
+      "selectionName": "Under",
+      "selectionTotal": "12.5",
+      "gameId": 11,
+      "eventId": 2557236,
+      "eventName": "Brooklyn Nets vs Charlotte Hornets",
+      "marketBaseLine": "12.5",
+      "eventStartTime": "2026-10-21T23:30:00+00:00",
+      "odds": 2.35,
+      "cashOutOdds": null,
+      "competition": {
+       "id": 263,
+       "name": "NBA",
+       "shortName": "NBA",
+       "countryCode": 840
+      },
+      "marketId": 238604928,
+      "marketName": "Player Allen Grayson - total points (incl. overtime)",
+      "winningSelectionId": [
+       595431017
+      ],
+      "winningSelectionTotal": null,
+      "subWagerUIState": "lost",
+      "homeScore": null,
+      "awayScore": null,
+      "isLive": false,
+      "matchId": 2557236,
+      "period": null
+     }
+    ],
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2026-10-21T23:26:01.542669+00:00",
+    "isLive": false,
+    "matchId": 0,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2025-04-30T16:53:25.330859+00:00",
+    "state": "resolved",
+    "outcome": 7100,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": null,
+    "winningSelectionId": [
+     111330752
+    ],
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "PreMatch",
+    "eventName": "Vitality vs Wildcard",
+    "selectionId": 111330752,
+    "selectionName": "Vitality",
+    "selectionTotal": "-5.5",
+    "competitorId": 3432,
+    "marketId": 46626426,
+    "marketName": "Round Handicap - Map 2",
+    "marketBaseLine": "5.5",
+    "homeCompetitor": {
+     "id": 3432,
+     "name": "Vitality",
+     "hasImage": true
+    },
+    "awayCompetitor": {
+     "id": 37343,
+     "name": "Wildcard",
+     "hasImage": true
+    },
+    "competition": {
+     "id": 6827,
+     "name": "BLAST Rivals Spring 2025",
+     "shortName": "BLAST RIV SPR 25",
+     "countryCode": null
+    },
+    "wagerId": 4965610,
+    "gameId": 6,
+    "eventId": 1114683,
+    "eventStartTime": "2025-04-30T15:10:00+00:00",
+    "amount": 4383,
+    "odds": 1.62,
+    "subWagers": null,
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "won",
+    "createTime": "2025-04-25T22:19:35.259136+00:00",
+    "isLive": false,
+    "matchId": 1114683,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2025-04-28T14:47:48.212428+00:00",
+    "state": "resolved",
+    "outcome": 3410,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": null,
+    "winningSelectionId": [
+     112622746
+    ],
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "PreMatch",
+    "eventName": "Passion UA vs Zero Tenacity",
+    "selectionId": 112622746,
+    "selectionName": "Passion UA",
+    "selectionTotal": null,
+    "competitorId": 35826,
+    "marketId": 47151587,
+    "marketName": "Match Winner",
+    "marketBaseLine": null,
+    "homeCompetitor": {
+     "id": 35826,
+     "name": "Passion UA",
+     "hasImage": true
+    },
+    "awayCompetitor": {
+     "id": 21028,
+     "name": "Zero Tenacity",
+     "hasImage": true
+    },
+    "competition": {
+     "id": 6839,
+     "name": "Thunderpick World Championship",
+     "shortName": "THP WORLD CHAMP",
+     "countryCode": null
+    },
+    "wagerId": 4986447,
+    "gameId": 6,
+    "eventId": 1119890,
+    "eventStartTime": "2025-04-28T11:50:00+00:00",
+    "amount": 2200,
+    "odds": 1.55,
+    "subWagers": null,
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "won",
+    "createTime": "2025-04-28T01:55:25.079496+00:00",
+    "isLive": false,
+    "matchId": 1119890,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2025-04-28T11:52:40.941179+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": null,
+    "winningSelectionId": [
+     112894638
+    ],
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "InPlays",
+    "eventName": "RUSH B vs JANO Esports",
+    "selectionId": 112894637,
+    "selectionName": "RUSH B",
+    "selectionTotal": "-1.5",
+    "competitorId": 2552,
+    "marketId": 47262643,
+    "marketName": "Match Handicap",
+    "marketBaseLine": "1.5",
+    "homeCompetitor": {
+     "id": 2552,
+     "name": "RUSH B",
+     "hasImage": true
+    },
+    "awayCompetitor": {
+     "id": 25713,
+     "name": "JANO Esports",
+     "hasImage": true
+    },
+    "competition": {
+     "id": 6834,
+     "name": "YaLLa Compass Contenders #1 - CQ Swiss",
+     "shortName": "YALLA CQ #1 CQ S",
+     "countryCode": null
+    },
+    "wagerId": 4988241,
+    "gameId": 6,
+    "eventId": 1118450,
+    "eventStartTime": "2025-04-28T11:08:00+00:00",
+    "amount": 2203,
+    "odds": 2.8,
+    "subWagers": null,
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2025-04-28T11:29:52.955599+00:00",
+    "isLive": false,
+    "matchId": 1118450,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2025-04-28T11:52:40.941179+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": null,
+    "winningSelectionId": [
+     112894638
+    ],
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "InPlays",
+    "eventName": "RUSH B vs JANO Esports",
+    "selectionId": 112894637,
+    "selectionName": "RUSH B",
+    "selectionTotal": "-1.5",
+    "competitorId": 2552,
+    "marketId": 47262643,
+    "marketName": "Match Handicap",
+    "marketBaseLine": "1.5",
+    "homeCompetitor": {
+     "id": 2552,
+     "name": "RUSH B",
+     "hasImage": true
+    },
+    "awayCompetitor": {
+     "id": 25713,
+     "name": "JANO Esports",
+     "hasImage": true
+    },
+    "competition": {
+     "id": 6834,
+     "name": "YaLLa Compass Contenders #1 - CQ Swiss",
+     "shortName": "YALLA CQ #1 CQ S",
+     "countryCode": null
+    },
+    "wagerId": 4988225,
+    "gameId": 6,
+    "eventId": 1118450,
+    "eventStartTime": "2025-04-28T11:08:00+00:00",
+    "amount": 2203,
+    "odds": 2.4,
+    "subWagers": null,
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2025-04-28T11:28:54.119783+00:00",
+    "isLive": false,
+    "matchId": 1118450,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2025-04-26T11:27:07.398596+00:00",
+    "state": "resolved",
+    "outcome": 7263,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": null,
+    "winningSelectionId": [
+     112113571
+    ],
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "PreMatch",
+    "eventName": "Vitality vs MongolZ",
+    "selectionId": 112113571,
+    "selectionName": "Vitality",
+    "selectionTotal": "-1.5",
+    "competitorId": 3432,
+    "marketId": 46945685,
+    "marketName": "Match Handicap",
+    "marketBaseLine": "1.5",
+    "homeCompetitor": {
+     "id": 3432,
+     "name": "Vitality",
+     "hasImage": true
+    },
+    "awayCompetitor": {
+     "id": 20023,
+     "name": "MongolZ",
+     "hasImage": true
+    },
+    "competition": {
+     "id": 6810,
+     "name": "Intel Extreme Masters Melbourne 2025",
+     "shortName": "IEM Melbourne 25",
+     "countryCode": null
+    },
+    "wagerId": 4962247,
+    "gameId": 6,
+    "eventId": 1117970,
+    "eventStartTime": "2025-04-26T10:01:00+00:00",
+    "amount": 4402,
+    "odds": 1.65,
+    "subWagers": null,
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "won",
+    "createTime": "2025-04-25T12:56:30.697955+00:00",
+    "isLive": false,
+    "matchId": 1117970,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2025-04-26T09:09:00.166431+00:00",
+    "state": "resolved",
+    "outcome": 0,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": null,
+    "winningSelectionId": [
+     112196391
+    ],
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "PreMatch",
+    "eventName": "HEROIC vs Wildcard",
+    "selectionId": 112196390,
+    "selectionName": "HEROIC",
+    "selectionTotal": "-1.5",
+    "competitorId": 13,
+    "marketId": 46979168,
+    "marketName": "Match Handicap",
+    "marketBaseLine": "1.5",
+    "homeCompetitor": {
+     "id": 13,
+     "name": "HEROIC",
+     "hasImage": true
+    },
+    "awayCompetitor": {
+     "id": 37343,
+     "name": "Wildcard",
+     "hasImage": true
+    },
+    "competition": {
+     "id": 6817,
+     "name": "CCT Season 2 Global Finals",
+     "shortName": "CCT SEASON 2 GLO",
+     "countryCode": null
+    },
+    "wagerId": 4964932,
+    "gameId": 6,
+    "eventId": 1118304,
+    "eventStartTime": "2025-04-26T08:05:00+00:00",
+    "amount": 1319,
+    "odds": 2.3,
+    "subWagers": null,
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "lost",
+    "createTime": "2025-04-25T19:50:05.104714+00:00",
+    "isLive": false,
+    "matchId": 1118304,
+    "freeBet": null,
+    "period": null
+   },
+   {
+    "finishTime": "2025-04-24T18:29:40.581946+00:00",
+    "state": "resolved",
+    "outcome": 3953,
+    "cancelReason": null,
+    "cashOutOdds": null,
+    "theoreticalOutcome": null,
+    "winningSelectionId": [
+     111669466
+    ],
+    "homeScore": null,
+    "awayScore": null,
+    "wagerType": "PreMatch",
+    "eventName": "Dynamo Eclot vs Imperial Female",
+    "selectionId": 111669466,
+    "selectionName": "Dynamo Eclot",
+    "selectionTotal": "-7.5",
+    "competitorId": 16153,
+    "marketId": 46762160,
+    "marketName": "Round Handicap - Map 1",
+    "marketBaseLine": "7.5",
+    "homeCompetitor": {
+     "id": 16153,
+     "name": "Dynamo Eclot",
+     "hasImage": true
+    },
+    "awayCompetitor": {
+     "id": 41150,
+     "name": "Imperial Female",
+     "hasImage": true
+    },
+    "competition": {
+     "id": 6813,
+     "name": "Conquest of Prague 2025: Online Stage",
+     "shortName": "CONQUEST OF PRAG",
+     "countryCode": null
+    },
+    "wagerId": 4956054,
+    "gameId": 6,
+    "eventId": 1116009,
+    "eventStartTime": "2025-04-24T18:03:00+00:00",
+    "amount": 2196,
+    "odds": 1.8,
+    "subWagers": null,
+    "uuid": "00000000-0000-0000-0000-000000000000",
+    "wagerUIState": "won",
+    "createTime": "2025-04-24T15:21:04.53628+00:00",
+    "isLive": false,
+    "matchId": 1116009,
+    "freeBet": null,
+    "period": null
+   }
+  ],
+  "totalWagersCount": 29
+ }
+}

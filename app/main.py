@@ -266,6 +266,9 @@ _CASA_DISPLAY: dict[str, str] = {
     # `bilhetes`, `casas_meta` e `correcoes` (1 conta do Gabriel, 6 bilhetes de print, medido
     # em 21/10/2026). ⚠ Vizinha de VAVADA, que é outra casa.
     "VAVE":           "Vave",
+    # Plataforma PRÓPRIA (s426, feeds Oddin/DATA.BET). A base não tinha a casa em grafia
+    # nenhuma (medido em 22/10/2026, `audit_grafias`, 136 casas), então vale a da marca.
+    "THUNDERPICK":    "Thunderpick",
     "BETESPORTE":     "BETesporte",
     "BETFAIR":        "Betfair",
     "BETFAST":        "Betfast",
@@ -1145,6 +1148,10 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # Vave (s425) — plataforma própria `softlabs`. ID = numérico de 7 dígitos, o "#5435097"
     # que o card estampa.
     "VAVE",
+    # Thunderpick (s426) — plataforma própria. ID = `wagerId` com PREFIXO de tipo, posto pela
+    # extensão: `C2225866` (múltipla, série ~2,2M) / `S10277912` (simples, 4,9M–10,3M). As
+    # duas séries são independentes e o prefixo é o que impede a colisão na dedup.
+    "THUNDERPICK",
     "BETPIX365",
     # Estrela Bet (s303) — 5ª casa Altenar. Mesmo espaço de IDs do motor: numérico de 10
     # dígitos, o mesmo número que o rodapé do card estampa como `ID:`.

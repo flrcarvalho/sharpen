@@ -88,6 +88,8 @@ const CASA_HOSTS = {
   // amarração casa↔site segue no servidor (`casa_de_host`). O `vv_inject` não precisa do
   // desvio da 1xBet (`X1_ESPELHOS_MOVEIS`): injetado tarde pelo popup, ele parte do token do
   // `localStorage` e busca o histórico sozinho.
+  // Thunderpick (s426): plataforma própria, API no MESMO domínio da aba.
+  "Thunderpick": ["thunderpick.io"],
   // Antiga "Rei do Pitaco" (grafia unificada no banco na s270). Plataforma própria,
   // gRPC-Web/protobuf — inject próprio.
   "Pitaco":     ["pitaco.bet.br"],
@@ -374,6 +376,8 @@ async function capturar() {
                 : casa === "1win" ? "tp_inject.js"
                 // Vave: plataforma própria `softlabs` (s425).
                 : casa === "Vave" ? "vv_inject.js"
+                // Thunderpick: plataforma própria (s426). `thp_`, porque `tp_` é da 1win.
+                : casa === "Thunderpick" ? "thp_inject.js"
                 : casa === "Pitaco" ? "pt_inject.js"
                 : casa === "Novibet" ? "nv_inject.js"
                 // Motor Rogue: TRES casas espelho, MESMO inject — como Tivo/Betfast/Faz1bet.

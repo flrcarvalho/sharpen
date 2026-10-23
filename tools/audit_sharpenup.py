@@ -158,6 +158,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # Vave (s425): o "#5435097" do card, a múltipla de 2 perdida de 20/10/2026 (30 USDT @9,19),
     # conta do Feca. Numérico de 7 dígitos.
     "VAVE":       "5435097",
+    # Thunderpick (s426): a múltipla de 3 da NBA ganha em 22/10/2026 (22,26 EUR @8,41), conta
+    # do Feca. `wagerId` com o prefixo de tipo que a extensão põe (C múltipla / S simples).
+    "THUNDERPICK": "C2225866",
     # `internal_bet_id` real da conta (a perdida de 07/08, stake R$18,88 @3,95) — numérico de
     # 7 dígitos. ⚠ É o ID que o CARD estampa; o `ticket_id` (11 dígitos) NÃO vai para o
     # marcador, senão print e captura gerariam códigos diferentes para o mesmo bilhete.

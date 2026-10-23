@@ -1717,6 +1717,27 @@ foram vistos. Hoje só o dinheiro decide (`CASA_VAVE §5`): `W` exige `winFull` 
   tardio do popup, que parte do token do `localStorage` (provado ao vivo colando o inject depois
   do load). Ainda não provado pela extensão instalada.
 
+### 4.0o Thunderpick: mensagem do cadastro em EUR, medir devolvida/cashout/freebet (s426). **VIVA, 1ª captura pendente**
+
+A Thunderpick entrou na 0.7.61 com recon na conta do Feca (`CASA_THUNDERPICK.md`,
+`thp_inject.js`, plataforma própria). A conta é **sempre em euro** e a tela da casa pode
+mostrar outra moeda, convertida pelo câmbio do DIA (`CASA_THUNDERPICK §1.1`).
+
+- **Mensagem no cadastro da conta** (pedido do Feca, 22/10/2026): ao escolher Thunderpick,
+  explicar que a conta é em EUR, que a Caixa Inteligente confere em EUR e que, para comparar
+  com a casa, a exibição da casa tem de estar em EUR. Texto aprovado pelo Feca ANTES, depois
+  `/nova-ui`.
+- **Pergunta aberta:** a frente de moeda tem sigilo (02/10: fora de aviso, changelog e home).
+  A mensagem do cadastro é exceção?
+- Ideia, não decidida: "ver em USD" como exibição do sistema inteiro (não por casa). Contra
+  a ideia de deixar o usuário escolher outra moeda NA CONTA: o `/salvar` grava pela moeda
+  cadastrada e EUR lido como USD erra ~12%, e a Caixa divergiria todo dia só de câmbio.
+- 1ª devolvida/cancelada/cashout/freebet/boost: salvar o JSON como fixture e trocar o clone.
+- `gameId` fora do mapa (6, 10, 11, 14, 15): medir pela liga e somar ao `_ESPORTE_THP`.
+- Teto do `take` não medido: com mais de 100 liquidadas, conferir a contagem contra a casa.
+- Família `thp` sem adaptador da Ficha: o cru (o wager inteiro) só é guardado.
+- Captura pela extensão instalada e botão Conectar em produção: não provados.
+
 ### 4.0h Shuffle: validar ao vivo a 1ª captura e decidir o aviso (s401). **VIVA, só no harness**
 
 A Shuffle entrou no SharpenUp 0.7.47 (`shf_inject.js`, `CASA_SHUFFLE.md`) com o harness verde

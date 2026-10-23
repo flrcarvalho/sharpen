@@ -532,6 +532,31 @@
     }
   });
 
+  // Bilhetes da THUNDERPICK capturados pelo thp_inject.js (mundo MAIN) — `/api/wagers/v2/
+  // resolved` + `/pending` da plataforma própria, no mesmo domínio (s426). `thpById` guarda 1
+  // bilhete por código (`C…`/`S…`); a versão LIQUIDADA vence a aberta.
+  const thpById = new Map();         // código(string) → bilhete
+  let thpFimReal = false;
+  let thpHookVivo = false, thpRespostas = 0;
+  let thpSemToken = false, thpErro = "";
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupTHPData) {
+      if (d.hook) thpHookVivo = true;
+      if (typeof d.respostas === "number") thpRespostas = d.respostas;
+      thpSemToken = !!d.semToken;
+      thpErro = d.erro ? String(d.erro) : "";
+      if (Array.isArray(d.bilhetes)) {
+        for (const b of d.bilhetes) {
+          if (!b || !b.id) continue;
+          const ex = thpById.get(b.id);
+          if (!ex || ex.estado === "open" || b.estado !== "open") thpById.set(b.id, b);
+        }
+      }
+      if (d.fim) thpFimReal = true;
+    }
+  });
+
   // Bilhetes da TIVO capturados pelo tv_inject.js (mundo MAIN) — as RESPOSTAS do proxy
   // /api/game/p/messagetosport com {name:"gethistory"}, já normalizadas pelo inject. A Tivo
   // NÃO pagina: uma única chamada devolve a conta inteira e a própria casa carimba `Count`,
@@ -1522,6 +1547,12 @@
       // replay pede a lista sem filtro, 100 por página, até `page >= total`. SEM fallback de
       // texto: o card esconde as pernas num carrossel e não há linha em branco entre bilhetes.
       blocos = await roboVVPassive(ctx);
+    } else if (casa === "thunderpick") {
+      // Passivo + replay (thp_inject, plataforma PRÓPRIA — s426). O `thunderpick-token` sai de
+      // qualquer chamada de `/api/` da página ou, a frio, do `localStorage`; o replay pede as
+      // liquidadas 100 por vez até o total da 1ª página, e depois as abertas. SEM fallback de
+      // texto: não há prova de linha em branco entre os cards (lição da KTO, s192).
+      blocos = await roboTHPPassive(ctx);
     } else {
       blocos = await roboScroll(ctx);   // genéricos
     }
@@ -1741,6 +1772,11 @@
         vave:       { nome: "Vave",       hook: vvHookVivo, resp: vvRespostas, vistos: vvById.size,
                       extra: vvErro ? " · " + vvErro
                            : (vvSemToken ? " · faça login e abra Perfil → Histórico de apostas; rode de novo" : "") },
+        // Thunderpick (s426): o token sai de qualquer chamada de `/api/` ou do `localStorage`
+        // (`thp.sessionData`). Sem ele (`semToken`) a sessão não está logada.
+        thunderpick: { nome: "Thunderpick", hook: thpHookVivo, resp: thpRespostas, vistos: thpById.size,
+                      extra: thpErro ? " · " + thpErro
+                           : (thpSemToken ? " · faça login e abra My Bets; rode de novo" : "") },
         bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
                       // Extras só da Bet365: em quantos frames o inject respondeu (a área de
                       // membros é outra origem, em iframe) e quantas URLs com "history" passaram
@@ -5364,6 +5400,150 @@
                 " · hook=" + vvHookVivo + " · respostas=" + vvRespostas + " · fimReal=" + vvFimReal +
                 (vvSemDicionario ? " · sem dicionário de mercados" : "") +
                 (vvErro ? " · erro=" + vvErro : ""));
+    return blocos;
+  }
+
+  // ── Thunderpick (plataforma própria — s426) ──────────────────────────────────
+  // Formata 1 bilhete de `/api/wagers/v2/resolved|pending` (normalizado pelo thp_inject) no
+  // bloco que a IA lê. Leituras VALIDADAS contra o card em EUR (recon 22/10/2026, 42 bilhetes):
+  //   • stake e retorno vêm em CENTAVOS DE EURO e o inject já divide (4383 → 43,83 EUR);
+  //   • a odd do card é `odds` (8,41 na múltipla, já o produto das pernas);
+  //   • o retorno é arredondado ao centavo SEM regra fixa (18720,66 → 18720; 3952,8 → 3953),
+  //     então "fecha com stake × odd" tem tolerância de 1 centavo e a odd do bloco é a do card;
+  //   • a perna da múltipla diz o próprio estado (`subWagerUIState` won/lost/open), e perna já
+  //     ganha numa múltipla aberta não liquida nada;
+  //   • o esporte só vem como `gameId` (mapa abaixo, medido pela liga de cada bilhete).
+  // NÃO MEDIDO (a conta não tinha): devolvida/cancelada, cashout, freebet e boost. Só o
+  // DINHEIRO decide: retorno = stake prova V; o resto sobe cru, "a conferir". O de-para vive
+  // na CASA_THUNDERPICK.md §5.
+  const _ESPORTE_THP = { 6: "E-Sports (CS2)", 10: "Futebol", 11: "Basquete", 14: "Hóquei", 15: "Tênis" };
+  const _PERNA_THP = { won: "ganha", lost: "perdida" };
+  const _abertaTHP = (b) => b.estado === "open";
+  const _quaseTHP = (a, b, tol) => typeof a === "number" && typeof b === "number" && Math.abs(a - b) < tol;
+
+  function _dataEventoTHP(b) {
+    let max = null;
+    for (const p of (b.pernas || [])) if (typeof p.inicio === "number" && (max == null || p.inicio > max)) max = p.inicio;
+    if (max == null && typeof b.inicio === "number") max = b.inicio;
+    return max == null ? "" : new Date(max * 1000).toISOString();
+  }
+
+  // Leitura pelo DINHEIRO, com o estado cru ao lado. Só se decide onde o número prova.
+  function _resultadoTHP(b) {
+    const st = b.stake, moeda = b.moeda || "";
+    const cru = "wagerUIState " + (b.estado || "(vazio)");
+    const conferir = (extra) => cru + (extra ? " · " + extra : "") + " (a conferir — não liquidar automaticamente)";
+    const ret = "retorno " + (b.retorno == null ? "(vazio)" : _dinSHF(b.retorno) + " " + moeda);
+    if (_abertaTHP(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (!(st > 0)) return conferir("sem stake");
+    if (b.freebetCru && b.freebet == null) return conferir("freebet em formato desconhecido");
+    // Retorno = stake: P/L zero, V qualquer que seja o rótulo (rede do dinheiro).
+    if (_quaseTHP(b.retorno, st, 0.005)) return "Retorno = stake (" + _dinSHF(st) + " " + moeda + ", " + cru + ") → V";
+    if (b.cashoutOdd != null) return conferir("cashout " + _dinSHF(b.retorno) + " " + moeda + " @ " + _oddTxtKTO(b.cashoutOdd));
+    if (b.cancelamento) return conferir("cancelReason \"" + b.cancelamento + "\" · " + ret);
+    if (b.estado === "lost") return b.retorno === 0 ? "Perdeu → L" : conferir(ret);
+    if (b.estado === "won" && b.odd > 0 && _quaseTHP(b.retorno, st * b.odd, 0.01 + 1e-9)) {
+      return "Ganhou → W (retorno " + _dinSHF(b.retorno) + " " + moeda + ")";
+    }
+    return conferir(ret);
+  }
+
+  function formatTicketTHP(b) {
+    const L = [];
+    L.push("[Código: " + b.id + "]");
+    const dev = _dhKTO(_dataEventoTHP(b));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    const dcol = typeof b.colocada === "number" ? _dhKTO(new Date(b.colocada * 1000).toISOString()) : "";
+    if (dcol) L.push("Data (colocação): " + dcol);
+    _linhaCarimbo(L, b.colocada, b.moeda);
+    L.push("Stake: " + _dinSHF(b.stake));
+    _linhaMoeda(L, b.moeda);
+    L.push("Status: " + _resultadoTHP(b));
+    L.push("Status (API): wagerUIState=" + String(b.estado || "(vazio)") + " · state=" + String(b.estadoApi || "(vazio)") +
+           " · wagerType=" + String(b.tipoApi || "(vazio)") + " · wagerId=" + String(b.wagerId || "(vazio)"));
+
+    const pernas = b.pernas || [];
+    const n = pernas.length;
+    if (n === 1) L.push("Tipo: Simples");
+    else if (n > 1) L.push("Tipo: Múltipla (" + n + " seleções)");
+
+    if (b.odd > 0) L.push("Odd: " + _oddTxtKTO(b.odd));
+    else L.push("Odd: (a casa não informou — deixe a odd VAZIA; não use o produto das pernas nem zero)");
+    if (_abertaTHP(b) && b.stake > 0 && b.odd > 0) {
+      L.push("Retorno potencial (se ganhar): " + _dinSHF(Math.round(b.stake * b.odd * 100) / 100) + " " + (b.moeda || ""));
+    }
+    // Rótulo lido pelo servidor (`repository.freebets_do_texto`, MASTER_RESULTADO §5.8): a
+    // grafia é load-bearing, outra palavra e a freebet some do P/L sem erro.
+    if (b.freebet > 0) L.push("Freebet incluído: " + _dinSHF(b.freebet) + " " + (b.moeda || ""));
+    if (b.freebetCru && b.freebet == null) L.push("Freebet (cru da casa): " + b.freebetCru);
+    if (b.cancelamento) L.push("Motivo de cancelamento (casa): " + b.cancelamento);
+    if (b.cashoutOdd != null) L.push("Odd de cashout (casa): " + _oddTxtKTO(b.cashoutOdd));
+    // `finishTime` (liquidação) fica FORA: a data da linha é a do evento (CLAUDE.md, "Data
+    // derivada por ESTIMATIVA") e a colocação já vai no carimbo.
+
+    L.push("Seleções:");
+    for (const p of pernas) {
+      // Na simples, o estado da perna é o do bilhete; na múltipla, cada perna diz o seu.
+      const est = n > 1 ? p.estado : b.estado;
+      const bits = [(p.mercado || "(mercado sem nome)") + ":"];
+      bits.push(((p.selecao || "(seleção sem nome)") + (p.linha ? " " + p.linha : "")).trim());
+      if (est && est !== "open") bits.push("[perna " + (_PERNA_THP[est] || est) + "]");
+      L.push("- " + bits.join(" "));
+      const ctx2 = [];
+      if (p.jogo) ctx2.push("Jogo: " + p.jogo);
+      if (p.liga) ctx2.push("Liga: " + p.liga);
+      ctx2.push("Esporte: " + (_ESPORTE_THP[p.esporteId] ||
+                ("(gameId " + String(p.esporteId) + ", sem nome no mapa da casa — deduza pela liga)")));
+      if (typeof p.inicio === "number") ctx2.push("Início: " + _dhKTO(new Date(p.inicio * 1000).toISOString()));
+      L.push("    " + ctx2.join(" · "));
+      if (p.vencedora && est && est !== "open") L.push("    Seleção vencedora (casa): " + p.vencedora);
+      if (p.cancelamento) L.push("    Perna cancelada (casa): " + p.cancelamento);
+      if (p.odd != null && n > 1) L.push("    Odd da perna: " + _oddTxtKTO(p.odd));
+    }
+    return L.join("\n");
+  }
+
+  async function roboTHPPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      // Mais recente primeiro (pela colocação), para o corte da janela de dias cair no lugar certo.
+      const todos = Array.from(thpById.values()).sort((a, b) => (b.colocada || 0) - (a.colocada || 0));
+      for (const b of todos) {
+        const cod = String(b.id || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }
+        usados.add(cod);
+        // Janela de dias corta só as LIQUIDADAS (pela colocação); aberta nunca corta.
+        const dt = typeof b.colocada === "number" ? b.colocada * 1000 : NaN;
+        const passou = !_abertaTHP(b) && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketTHP(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+
+    // Rodada nova começa do zero (lição da s393, DEX Sport).
+    thpById.clear();
+    thpFimReal = false;
+    try { window.postMessage({ __sharpenupTHPReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+
+    // O lote completo chega no `fim` (liquidadas + abertas). Processar antes cortaria a janela
+    // de dias com as abertas ainda faltando.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !thpFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      if (thpById.size > ultTotal) { ultTotal = thpById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 30000) break;   // 30s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();
+    console.log("[SharpenUp] Thunderpick: " + blocos.length + " bilhete(s) · thpById=" + thpById.size +
+                " · hook=" + thpHookVivo + " · respostas=" + thpRespostas + " · fimReal=" + thpFimReal +
+                (thpErro ? " · erro=" + thpErro : ""));
     return blocos;
   }
 
