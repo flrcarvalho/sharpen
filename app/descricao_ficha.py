@@ -248,6 +248,21 @@ def mercado_com_jogador(p: dict) -> str | None:
     return merc[:i] + "{jogador}" + merc[i + len(nome):] if i >= 0 else None
 
 
+def mercado_com_time(p: dict) -> str | None:
+    """O mercado da casa com o time do jogo trocado por `{time}` (s427, a chave de CATEGORIA do
+    `dicionario`), ou None quando nenhum dos dois times está escrito no mercado. A Vave escreve
+    o time dentro do mercado (`{$competitor1} clean sheet` → `Athletic Bilbao clean sheet`), e
+    cada time novo seria uma chave nova, indo para a IA. Mesma família do `{jogador}` (s415)."""
+    merc = _limpo(p.get("mercado_casa")).translate(_HOMOGLIFOS)
+    t1, t2, _, _ = _times(p.get("evento"))
+    trocou = False
+    for t in (t1, t2):
+        i, n = _achar(merc, t) if t else (-1, 0)
+        if i >= 0:
+            merc, trocou = merc[:i] + "{time}" + merc[i + n:], True
+    return merc if trocou else None
+
+
 def decompor(p: dict) -> dict:
     """As peças de uma perna, sem IA: seleção, lado e linha, handicap, `N+`, times, jogador, e
     o mercado efetivo (com o subjogo da 1xBet) de onde saem a chave e os `{nK}`."""

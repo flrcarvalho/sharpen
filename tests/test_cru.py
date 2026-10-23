@@ -48,6 +48,7 @@ FIXTURES_POR_FAMILIA = {
     "tv": ["mystake.gethistory.json", "tivo.gethistory.json", "betfast.gethistory.json"],
     "vb": ["esportiva.settled.json", "esportiva.anuladas.json", "esportiva.cashout.json",
            "estrelabet.settled.json", "vaidebet.settled.json"],
+    "vv": ["vave.cru.json"],
     "x1": ["1xbet.bethistory.json", "1xbit.bethistory.json", "megapari.bethistory.json",
            "paripesa.bethistory.json", "sapphirebet.bethistory.json"],
 }

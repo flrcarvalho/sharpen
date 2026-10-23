@@ -163,6 +163,13 @@ def _merc_jogador(p: dict) -> str | None:
     return normalizar(m) if m else None
 
 
+def _merc_time(p: dict) -> str | None:
+    """A chave de categoria com o time do jogo trocado por `{time}` (s427), ou None."""
+    import descricao_ficha
+    m = descricao_ficha.mercado_com_time(p)
+    return normalizar(m) if m else None
+
+
 def chaves(f: dict) -> list[tuple[str, str]]:
     """As chaves (tipo, termo normalizado) que a tradução desta Ficha consulta, na ordem."""
     out = []
@@ -175,6 +182,8 @@ def chaves(f: dict) -> list[tuple[str, str]]:
         out.append(("categoria", _par(p)))
         if (mj := _merc_jogador(p)):
             out.append(("categoria", mj))
+        if (mt := _merc_time(p)):
+            out.append(("categoria", mt))
     return out
 
 
@@ -200,13 +209,14 @@ def traduzir(f: dict, termos: dict) -> tuple[str | None, str | None, list[tuple[
         merc = normalizar(pernas[0].get("mercado_casa"))
         par = _par(pernas[0])
         mj = _merc_jogador(pernas[0])
+        mt = _merc_time(pernas[0])
         if merc in VAGOS:
             categoria = None
         elif merc == TOTAL:
             categoria = categoria_do_total(esporte, pernas[0])
         else:
             categoria = termos.get(("categoria", merc)) or termos.get(("categoria", par)) \
-                or (termos.get(("categoria", mj)) if mj else None)
+                or (termos.get(("categoria", mj)) if mj else None)                 or (termos.get(("categoria", mt)) if mt else None)
         if categoria is None:
             faltam.append(("categoria", merc))
     return esporte, categoria, faltam
@@ -300,6 +310,8 @@ def votar(pares, votos_texto=()) -> tuple[dict, dict, list]:
                 votos[(casa, "categoria", _par(p))][cat_ia] += 1
                 if (mj := _merc_jogador(p)):          # s415: o mercado de qualquer jogador
                     votos[(casa, "categoria", mj)][cat_ia] += 1
+                if (mt := _merc_time(p)):             # s427: o mercado de qualquer time
+                    votos[(casa, "categoria", mt)][cat_ia] += 1
     for casa, termos_txt, esp_ia in votos_texto:
         termos_esp = {normalizar(t, numeros=False) for t in termos_txt} - {""}
         esp_ia = _limpo(esp_ia)

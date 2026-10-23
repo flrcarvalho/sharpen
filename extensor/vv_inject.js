@@ -41,18 +41,37 @@
 (function () {
   // ── CRU para o servidor (s409, Projeto Ficha Sharpen) ───────────────────────────────
   // O objeto da CASA de onde cada bilhete saiu, para o SERVIDOR montar a Ficha (o adaptador
-  // mora lá, `app/adaptadores/`; a família `vv` ainda não tem, e o servidor só guarda). Vai num
+  // mora lá, `app/adaptadores/vv.py`, s427). Vai num
   // campo NOVO (`cru`) da mesma mensagem: a lista de sempre segue intacta, e é ela que vira o
   // texto. Erro aqui nunca sobe. Como o payload é normalizado, o cru de um bilhete leva as
   // linhas das tabelas irmãs que ele usa — sozinho, o `details[]` é só um punhado de ids.
   // `userId` sai aqui: identifica o cliente e não está na lista fechada do filtro.
+  //
+  // DICIONÁRIO (s427): o nome do mercado e da seleção NÃO vem no histórico, só o id; ele mora
+  // nos dois dicionários públicos da casa (§2.5 da CASA_VAVE). O cru leva as linhas que o
+  // bilhete usa, verbatim (o template, sem resolver), para o adaptador `vv` do servidor montar o
+  // nome sozinho. Sai na hora do ENVIO, não da leitura: a página pode responder a lista antes de
+  // o dicionário carregar, e o `fim` do replay sempre chega com ele. Sem dicionário, sem a chave
+  // (o servidor recusa e o texto leva o bilhete à IA).
   const _cruDe = new WeakMap();
+  function _dicDe(bet) {
+    if (!dic) return null;
+    const mercados = {}, selecoes = {};
+    for (const d of (Array.isArray(bet.details) ? bet.details : [])) {
+      const m = dic.mercados.get(_s(d && d.marketId)), s = dic.selecoes.get(_s(d && d.outcomeId));
+      if (m != null) mercados[_s(d.marketId)] = m;
+      if (s != null) selecoes[_s(d.outcomeId)] = s;
+    }
+    return { mercados: mercados, selecoes: selecoes };
+  }
   function _crus(lista) {
     const out = [];
     try {
       for (const b of lista || []) {
         const c = _cruDe.get(b);
-        if (c && b.id) out.push({ codigo: String(b.id), cru: c });
+        if (!c || !b.id) continue;
+        const dc = _dicDe(c.bet);
+        out.push({ codigo: String(b.id), cru: dc ? Object.assign({}, c, { dicionario: dc }) : c });
       }
     } catch (e) {}
     return out;

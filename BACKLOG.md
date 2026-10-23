@@ -1699,7 +1699,7 @@ endereço da Jack e compara os blocos byte a byte.
   o botão Conectar em produção.
 - A Jack não está em `FICHA_CASAS_VIRADAS`: vai pela IA até a 1ª captura provar o cru.
 
-### 4.0n Vave: medir ganha, aberta, devolvida e cashout; adaptador `vv` (s425). **VIVA, amostra só de perdidas**
+### 4.0n Vave: medir aberta, devolvida e cashout; virar a Ficha (s425, s427). **VIVA, ganha medida, adaptador escrito**
 
 A Vave entrou na 0.7.60 com recon na conta do Feca (`CASA_VAVE.md`, `vv_inject.js`, plataforma
 própria `softlabs`). A conta tinha **11 bilhetes, todos perdidos**: `win`/`winFull` em ganha,
@@ -1707,15 +1707,28 @@ própria `softlabs`). A conta tinha **11 bilhetes, todos perdidos**: `win`/`winF
 foram vistos. Hoje só o dinheiro decide (`CASA_VAVE §5`): `W` exige `winFull` = stake × odd ou
 `win` = stake × (odd − 1); o resto sobe "a conferir" e **fica aberto até alguém medir**.
 
-- 1ª ganha: conferir `win`/`winFull` contra o card, registrar na §5, trocar o clone do harness
-  pela fixture real.
+- Ganha medida em 23/10/2026 nos crus reais (`win` = `winFull` = retorno, `CASA_VAVE §2.5`). Falta
+  trocar o clone do harness por um ganho real na fixture.
 - 1ª aberta: provar no harness que a liquidada vence a aberta (hoje sem cobertura) e que o
   potencial é o `taxesData.potentialWinAmount`.
 - Fuso do `finishedAt` não provado; está fora do bloco.
-- Família `vv` sem adaptador da Ficha: o cru (com as tabelas irmãs, sem `userId`) só é guardado.
+- Adaptador `vv` (s427, 0.7.63): o cru leva o `dicionario`. Falta `VAVE` nas 3 listas da Railway
+  depois do deploy, e a 1ª captura com a 0.7.63 conferida no `virada_log`.
 - O domínio troca (`34evav91.com`): o manifest tem esse e `vave.com`; outro número cai no inject
   tardio do popup, que parte do token do `localStorage` (provado ao vivo colando o inject depois
   do load). Ainda não provado pela extensão instalada.
+
+### 4.0p Casas .bet.br em banho-maria: o cru nunca chegou (s427). **PARADA, decisão do Feca**
+
+Decisão do Feca (23/10/2026): "Essas casas não estão sendo usadas por ninguém no momento, precisa
+aguardar a legislação liberar. Deixar tudo pronto, porém em banho maria para quando voltarem."
+
+Bet365 (2.265 bilhetes nos últimos 30 dias quando medido), Betano (504), Stake, Novibet, Superbet,
+Pinnacle e Betnacional mandam texto e nunca gravaram cru na `captura_crua`, embora o inject mande.
+Paripesa e 1xBit (fora do .bet.br) também não. Causa não medida; hipótese da Bet365: o histórico
+mora num iframe e o content roda só no topo (`all_frames:false`). Quando voltarem: captura ao vivo
+com o console aberto (`[SharpenUp] cru da rodada:`), depois adaptador por família, backtest e
+virada, como as outras.
 
 ### 4.0o Thunderpick: mensagem do cadastro em EUR, medir devolvida/cashout/freebet (s426). **VIVA, 1ª captura pendente**
 

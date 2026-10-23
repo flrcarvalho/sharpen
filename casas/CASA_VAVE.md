@@ -91,7 +91,7 @@ mercados e não há linha em branco entre bilhetes. **Texto por DOM não serve; 
 | `bets[].amount` | stake (o "Valor de aposta" do card). `fullAmount` = `amount` na amostra |
 | `bets[].value` | odd do bilhete, a do card, **já é o produto das pernas** (15,7 = 3,29 × 2,13 × 2,24) |
 | `bets[].status` | `1` perdida (11 de 11 medidos). `0`/`2`/`3`/`8` só pelo filtro da tela (§5) |
-| `bets[].win` · `winFull` | `0` nas 11 perdidas. ⚠️ **Em ganha NÃO MEDIDO** (retorno ou lucro?) |
+| `bets[].win` · `winFull` | `0` na perdida; na ganha os dois são o **retorno** (medido em 23/10/2026: 33 × 1,9 = 62,7) |
 | `bets[].betCashoutAmount` | `null` na amostra |
 | `bets[].taxesData.potentialWinAmount` | stake × odd (30 × 9,19 = 275,70) — o retorno potencial |
 | `bets[].ts` | colocação, **unix em SEGUNDOS** (o card a mostra em São Paulo) |
@@ -116,9 +116,14 @@ do evento · `{!x}` = ordinal (`1st`) · `{+x}` = valor com sinal · `{-x}` = va
 leva o `specifiers` cru ao lado (`Especificadores (cru da casa):`). Placeholder sem valor fica
 como veio; dicionário fora do ar sai `(mercado id N, sem nome)` e a captura segue.
 
-**Ficha:** a família `vv` ainda **não tem adaptador** (`app/adaptadores/`). O cru (bilhete +
-as linhas de `events`/`competitors`/`leagues`/`sportCategories`/`sports`/`results` que ele
-usa, sem `userId`) é só guardado; o bilhete vai pela IA.
+**Ficha (s427, SharpenUp 0.7.63):** adaptador `app/adaptadores/vv.py`. O cru é o bilhete (sem
+`userId`) + as linhas de `events`/`competitors`/`leagues`/`sportCategories`/`sports`/`results` que
+ele usa + o `dicionario` com o TEMPLATE de mercado e seleção de cada perna, verbatim. Quem resolve
+o template é o servidor, como o inject. Cru sem `dicionario` (de antes da 0.7.63) é recusado e vai
+à IA. Ganha medida em 23/10/2026 nos crus reais: `win` = `winFull` = o **retorno** (33 × 1,9 =
+62,7). Backtest nos 35 crus do banco: 35 aceitos, 34 iguais à IA, 1 com a odd do card (5,02)
+onde a IA gravou a divisão com ruído. O time escrito no mercado (`{$competitor1} clean sheet`)
+vira `{time}` na chave de categoria do dicionário (`dicionario._merc_time`).
 
 ---
 
@@ -237,7 +242,7 @@ Campo `amount`, na moeda da conta; a conversão para R$ é do `/salvar`.
 4. **Erro com HTTP 200** e teto de 100 no `limit` (§2.1).
 5. **Domínio numerado**: a API é `platform.` do host da aba (§1).
 6. **`userId` no bilhete** identifica a conta (§2.5).
-7. **Retorno em ganha não medido** (§5).
+7. **Retorno em ganha:** `win` = `winFull` = retorno (medido em 23/10/2026, §2.5).
 
 ---
 

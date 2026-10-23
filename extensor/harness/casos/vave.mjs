@@ -118,11 +118,24 @@ export async function rodar() {
   // O cru tem de ser o bilhete da casa, com o código igual ao do texto e as tabelas irmãs que
   // ele usa (sem elas o `details[]` é só id) — e SEM o `userId`, que identifica o cliente.
   const cru = ultima.cru || [];
+  const _mapa = (j) => new Map(j.data.items.map((x) => [String(x.id), x.name]));
+  const DIC_M = _mapa(DIC().markets), DIC_O = _mapa(DIC().outcomes);
   if (cru.length !== bets.length) falhas.push(`cru: esperava ${bets.length} itens, vieram ${cru.length}`);
   for (const c of cru) {
     if (!c.cru || !c.cru.bet || String(c.cru.bet.id) !== c.codigo) falhas.push(`cru ${c.codigo}: não é o bilhete da casa com o mesmo id`);
     else if ("userId" in c.cru.bet) falhas.push(`cru ${c.codigo}: levou o \`userId\` da conta`);
     else if (c.cru.events.length !== c.cru.bet.details.length || !c.cru.competitors.length) falhas.push(`cru ${c.codigo}: faltam os eventos/times das pernas`);
+    // s427: o adaptador `vv` do servidor monta o mercado pelo dicionário que o cru leva. Sem a
+    // linha de cada perna, a Ficha recusa e o bilhete volta à IA, em silêncio.
+    else {
+      // Verbatim: o TEMPLATE da casa, nunca o nome já resolvido (quem resolve é o servidor).
+      const dc = c.cru.dicionario || {};
+      for (const d of c.cru.bet.details) {
+        const m = DIC_M.get(String(d.marketId)), o = DIC_O.get(String(d.outcomeId));
+        if (!(dc.mercados && dc.mercados[String(d.marketId)] === m)) falhas.push(`cru ${c.codigo}: o dicionário não levou o mercado ${d.marketId} como a casa o escreve`);
+        if (!(dc.selecoes && dc.selecoes[String(d.outcomeId)] === o)) falhas.push(`cru ${c.codigo}: o dicionário não levou a seleção ${d.outcomeId} como a casa a escreve`);
+      }
+    }
   }
 
   const fmt = carregarContent().pegar("formatTicketVV");
@@ -286,5 +299,7 @@ async function semDicionario(falhas) {
   if (!(ultima && ultima.semDicionario)) falhas.push("sem dicionário: o inject não disse `semDicionario`");
   const txt = carregarContent().pegar("formatTicketVV")(bs.find((b) => b.id === "5433760") || {});
   if (!/^- \(mercado id 844, sem nome\): seleção id 74 \[perna perdida\]$/m.test(txt)) falhas.push("sem dicionário: a perna não saiu com o id do mercado e da seleção");
+  // Sem dicionário o cru sobe SEM a chave: o adaptador recusa em vez de montar perna sem nome.
+  if (((ultima && ultima.cru) || []).some((c) => c.cru && "dicionario" in c.cru)) falhas.push("sem dicionário: o cru levou um `dicionario` (vazio engana o adaptador)");
   return 1;
 }

@@ -5,6 +5,53 @@
 
 ---
 
+## 2026-10-23 · s427 · As 6 casas com adaptador viradas, e a Vave na Ficha (adaptador `vv`)
+
+**Onde está:** BETREBELS, SAPPHIREBET, BETFURY, BETCOIN, MELBET e JACK viradas (deploy `ebd2ce2b`,
+semente aplicada). Vave com adaptador escrito e testado, SharpenUp 0.7.63; **falta** push, deploy,
+`VAVE` nas 3 listas da Railway e a 1ª captura com a 0.7.63 conferida no `virada_log`.
+
+**Varredura das casas em uso (30 dias).** Viradas: DEXSPORT, MYSTAKE, VAVADA, 1WIN, DUEL, SHUFFLE,
+BETPANDA, BETMARTINI, MEGAPARI, THUNDERPICK. Com adaptador e fora da virada: as seis acima. Cru
+sem adaptador: VAVE. Sem cru nenhum gravado, embora o inject mande: as casas .bet.br (Bet365,
+Betano, Stake, Novibet, Superbet, Pinnacle, Betnacional) e algumas de fora (Paripesa, 1xBit);
+**decisão do Feca (23/10/2026): as .bet.br ficam em banho-maria até a legislação liberar**
+(BACKLOG).
+
+**Backtest das seis (Ficha × IA nos crus reais, só leitura):** BETREBELS 193 iguais de 212,
+SAPPHIREBET 25/28, BETFURY 24/57, BETCOIN 10/25, MELBET 17/18, JACK 14/14. Toda divergência é
+data ou odd de L. Data: a IA usou a colocação (BETREBELS 5507574880: pernas de 10/10 à tarde,
+colocada 09/10 23:32) ou o dia em UTC (SAPPHIREBET 88903282387: perna às 00:00 de 17/10 em SP);
+na perdida múltipla a Ficha segue a perna perdida mais cedo (BETFURY 2718264971782918604, 03/10).
+Odd de L: a exata da casa contra a truncada da IA. A Ficha segue a regra aprovada; D10 garante
+que nada liquidado é reescrito.
+
+**Vave.** O histórico só traz o id do mercado e da seleção; o nome mora em dois dicionários
+públicos da casa (template Sportradar). O `vv_inject` passa a mandar no cru as linhas que o
+bilhete usa (`dicionario`, o template verbatim, montado na hora do envio, quando o dicionário já
+carregou), e o `app/adaptadores/vv.py` resolve como o inject. Ganha medida nos crus reais
+(5402884: 33 × 1,9; `win` = `winFull` = 62,7, o retorno). Recusa: cru sem `dicionario`, perna
+sem a linha do dicionário, placeholder sem valor, `system`, bet builder, bônus, freebet,
+`betCashoutAmount`, status 3/8/outro cujo dinheiro não é a stake.
+
+**Genérico:** o time escrito no mercado (`{$competitor1} clean sheet` → `Athletic Bilbao clean
+sheet`) era uma chave de categoria por time. `descricao_ficha.mercado_com_time` +
+`dicionario._merc_time` acrescentam a chave com `{time}` (mesma família do `{jogador}`, s415);
+nenhuma chave existente muda.
+
+**Medido:** 35 crus `vv` no banco (Feca 11, Gabriel 24), com o dicionário baixado à parte: 35
+aceitos, 34 iguais à IA em resultado, data e odd; 1 (5376409) com a odd do card 5,02 onde a IA
+gravou 5,019999999778. Os 35 em produção não têm `dicionario` e seguem pela IA.
+
+**Gates:** `tests/test_adaptador_vv.py` (17, 10 mutações detectadas), harness da Vave com o
+dicionário no cru (3 mutações detectadas), `test_cru` com `vv`, pytest 1968, harness 51 verde.
+
+**Próxima ação:** push; depois do deploy, `VAVE` em `FICHA_SOMBRA_CASAS`, `FICHA_CASAS_VIRADAS` e
+`EXTRACAO_SEM_PENSAMENTO`; 1ª captura da Vave (e da Thunderpick) com a 0.7.63 conferida no
+`virada_log`.
+
+---
+
 ## 2026-10-23 · s426 · Thunderpick: o adaptador `thp` (a casa tinha entrado só pela IA)
 
 **Onde está:** adaptador escrito e testado; **falta `THUNDERPICK` em `FICHA_CASAS_VIRADAS`** (a
