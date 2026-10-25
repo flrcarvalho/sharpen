@@ -1450,7 +1450,7 @@
     } else if (casa === "vaidebet" || casa === "esportiva" || casa === "jogodeouro" ||
                casa === "betpix365" || casa === "estrelabet" || casa === "betrebels" ||
                casa === "betmartini" || casa === "vavada" ||
-               casa === "kikobet") {
+               casa === "kikobet" || casa === "tornadobet") {
       // Passivo + replay paginado (vb_inject). A lista NÃO carrega sozinha (a tela tem
       // "Mostrar mais apostas") e vem de 10 em 10 — o inject pagina por `pageNumber` nas duas
       // abas até `isLastPage`. SEM fallback de texto: os cards da VaideBet ficam colados num
@@ -1490,6 +1490,9 @@
       //
       // A Kikobet (s404) é a 9ª: SDK na própria página `/en-gb/sportsbook`, `integration=kikobet`,
       // mesmo cluster. Mora em espelho NUMERADO (`kikobet23.com`); `kikobet.com` redireciona.
+      //
+      // A Tornadobet (s428) é a 10ª, espelho da BetMartini: SDK na própria página `/sportsbook`,
+      // `integration=tornadobet`, mesmo cluster, `en-GB`. Também em espelho NUMERADO.
       blocos = await roboVBPassive(ctx);
     } else if (casa === "sportingbet" || casa === "betboo") {
       // Passivo + replay paginado (spb_inject, motor bwin/Entain — o primeiro deste motor
@@ -1775,6 +1778,11 @@
                         : "" },
         // Kikobet: 9ª casa Altenar (s404), mesmo inject/contadores.
         kikobet:    { nome: "Kikobet",    hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size,
+                      extra: vbRespostas === 0
+                        ? " · abra o histórico de apostas na tela e capture de novo; se persistir, refaça o login"
+                        : "" },
+        // Tornadobet: 10ª casa Altenar (s428), mesmo inject/contadores.
+        tornadobet: { nome: "Tornadobet", hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size,
                       extra: vbRespostas === 0
                         ? " · abra o histórico de apostas na tela e capture de novo; se persistir, refaça o login"
                         : "" },

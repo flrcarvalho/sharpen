@@ -52,6 +52,7 @@ const CASA_ICONS={
   'Vavada':'https://www.google.com/s2/favicons?sz=128&domain=vavada.com',
   // 9a casa Altenar (s404). Dominio canonico, nao o espelho numerado.
   'Kikobet':'https://www.google.com/s2/favicons?sz=128&domain=kikobet.com',
+  'Tornadobet':'https://www.google.com/s2/favicons?sz=128&domain=tornadobet.com',
   // Plataforma propria (s391).
   'DEX Sport':'https://www.google.com/s2/favicons?sz=128&domain=dexsport.io',
   'Shuffle':'https://www.google.com/s2/favicons?sz=128&domain=shuffle.com',
@@ -170,6 +171,7 @@ const HOUSE_DOMAIN={
   'BetMartini':'betmartini.com',
   'Vavada':'vavada.com',
   'Kikobet':'kikobet.com',
+  'Tornadobet':'tornadobet.com',
   'DEX Sport':'dexsport.io',
   'Shuffle':'shuffle.com',
   '1win':'1win.io',

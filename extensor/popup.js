@@ -54,6 +54,9 @@ const CASA_HOSTS = {
   // 9ª casa Altenar (s404) · `integration=kikobet`. `kikobet.com` redireciona para o espelho
   // numerado da vez (`kikobet23.com` em 09/10/2026); espelho novo precisa entrar aqui e no manifest.
   "Kikobet":    ["kikobet.com", "kikobet23.com"],
+  // 10ª casa Altenar (s428) · `integration=tornadobet`, SDK em `/sportsbook`. Espelho numerado:
+  // o da vez muda por pessoa e por dia; espelho novo precisa entrar aqui e no manifest.
+  "Tornadobet": ["tornadobet.com", "tornadobet82.com", "tornadobet34.com"],
   "Betfast":    ["betfast.bet.br"],   // espelho da Tivo · `hostBate` cobre o www por sufixo
   "Faz1bet":    ["faz1.bet.br"],      // 3ª casa BetConstruct (s284) · o domínio não tem o "bet"
   "MyStake":    ["mystake.bet", "mystake.com", "mystake2.com"],   // 4ª BetConstruct (s392)
@@ -354,6 +357,7 @@ async function capturar() {
                 : casa === "BetMartini" ? "vb_inject.js"
                 : casa === "Vavada" ? "vb_inject.js"
                 : casa === "Kikobet" ? "vb_inject.js"
+                : casa === "Tornadobet" ? "vb_inject.js"
                 : casa === "Betnacional" ? "bnc_inject.js"
                 // Betboom é espelho da Jonbet (mesmo motor BetBy/sptpub, mesmo endpoint
                 // `/api/v1/my_bets/list`): MESMO inject, de propósito.

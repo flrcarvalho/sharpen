@@ -334,6 +334,10 @@ _CASA_DISPLAY: dict[str, str] = {
     # 9ª casa Altenar (s404). Nenhuma menção a `kikobet` no repo; a base NÃO foi medida.
     # Grafia da marca em title case.
     "KIKOBET":        "Kikobet",
+    # 10ª casa Altenar (s428), espelho da BetMartini. Grafia da BASE: `Tornadobet` em
+    # `parceiros` (1 conta do Gabriel), `bilhetes` (25 de print), `casas_meta`, `correcoes` e
+    # `uso_tokens`, medido em 25/10/2026.
+    "TORNADOBET":     "Tornadobet",
     "JOGODEOURO":     "Jogo de Ouro",
     "JONBET":         "Jonbet",
     "KINGPANDA":      "KingPanda",
@@ -1179,6 +1183,9 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     "VAVADA",
     # Kikobet (s404) — 9ª casa Altenar. Mesmo espaço de IDs: numérico de 10 dígitos.
     "KIKOBET",
+    # Tornadobet (s428) — 10ª casa Altenar. Mesmo espaço de IDs: numérico de 10 dígitos (os 25
+    # bilhetes de print já gravados têm esse formato, `5558042202`).
+    "TORNADOBET",
     "PITACO",
     "NOVIBET",
     "SPORTINGBET",

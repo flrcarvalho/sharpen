@@ -1748,6 +1748,14 @@ captura pela extensão instalada ainda não.
   sem significado medido.
 - Bet Builder vai à IA (perna única com `;`). 11 de 31 bilhetes do recon eram Bet Builder.
 
+### 4.0s Tornadobet: validar ao vivo e trocar a fixture emprestada (s428). **VIVA, só no harness**
+
+Entrou na 0.7.66 sem conta de teste, espelho da BetMartini (`CASA_TORNADOBET.md`). O harness serve
+os bilhetes da Estrela Bet no host dela. Na 1ª captura: fixture da conta, cards lidos na tela,
+corpo real (`culture`, `countryCode`, `timezoneOffset`), moeda do cadastro, e os 25 bilhetes de print
+do Gabriel dedupando. Espelho numerado: o número difere entre pessoas no mesmo dia; domínio novo
+precisa entrar no manifest, `popup.js` e `_HOSTS_POR_CASA` com versão nova.
+
 ### 4.0p Casas .bet.br em banho-maria: o cru nunca chegou (s427). **PARADA, decisão do Feca**
 
 Decisão do Feca (23/10/2026): "Essas casas não estão sendo usadas por ninguém no momento, precisa
