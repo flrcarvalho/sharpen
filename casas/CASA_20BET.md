@@ -108,7 +108,19 @@ A régua é a da [`CASA_VAVE §5`](CASA_VAVE.md#5-status-e-resultado) (o dinheir
 
 **Perna devolvida (`3`) numa múltipla:** o card mantém a odd cheia do bilhete (7,36 =
 1,63 × 2,15 × 2,1 no 68651106, perdido). Numa múltipla GANHA com perna devolvida a odd que vale
-é `retorno ÷ stake` (regra global); sem amostra, o bloco sobe o dinheiro e a IA confere.
+é `retorno ÷ stake` (regra global).
+
+**Medido na ganha (s429, conta do Gabriel, 25/10/2026):** a casa paga MENOS que stake × odd do
+card em dois casos. `68703441`: 30 @ 7,29, perna 1,71 devolvida, pagou **127,8** (W @ 4,26).
+`68684132`: três pernas ganhas, 30 @ 11,25, pagou **337,2** (W @ 11,24). A Ficha aceita
+`status 2` com `winFull` > stake quando **toda perna está ganha (`2`) ou devolvida (`3`)**, e a
+odd sai do dinheiro. Antes disso ela recusava e a IA lia a odd do card numa captura e o retorno
+noutra: o P/L do dono mudava a cada recaptura (+91 USD nessa aposta).
+Fixture: `extensor/harness/fixtures/20bet.ganhas.cru.json`.
+
+**Print da LISTA não serve:** a tabela do Betting history só mostra o resumo (ID, odd, stake,
+status), sem as pernas. Subido por print, a IA grava `Mercado Especial - REVISAR` em tudo (s429,
+65 de 65). A fonte é a captura pela extensão; print, só do bilhete ABERTO com as pernas.
 
 ---
 
@@ -200,7 +212,7 @@ Recon de 25/10/2026 — conta inteira (**12 bilhetes**, 10 perdidos e 2 abertos,
 | 68651558 | Simples · Bet builder | `1` Lost | 100 | 2,5 | 23/10 19:57 | card |
 | 68651106 | Múltipla 3 (Lost · Returned · Won) | `1` Lost | 25 | 7,36 | 23/10 19:41 | card |
 
-**Sem amostra:** ganha · devolvida no bilhete inteiro · cashout · freebet · bônus · sistema.
+**Sem amostra:** devolvida no bilhete inteiro · cashout · freebet · bônus · sistema.
 
 ---
 

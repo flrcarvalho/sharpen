@@ -14,11 +14,16 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   1. perna 3 sem nome (fora do `_PERNA`)                      → test_perna_devolvida_como_o_card
   2. perna 0 sem nome                                         → test_aberta_bate_com_o_card
   3. bet builder deixa de recusar                              → test_bet_builder_recusa
+  s429 (as ganhas reais, `20bet.ganhas.cru.json`):
+  4. sem o ramo da ganha que não fecha com a odd do card       → test_ganha_com_perna_devolvida…
+                                                                 e test_ganha_paga_abaixo…
+  5. perna perdida também aceita nesse ramo                    → test_ganha_que_nao_fecha_com_perna_perdida_recusa
 
-O QUE NÃO COBRE: ganha (a conta não tinha; a régua está em `test_adaptador_vv.py`, sobre os
-ganhos reais da Vave), cashout, freebet e sistema. Bet builder segue RECUSADO: a Ficha precisaria
+O QUE NÃO COBRE: ganha que fecha com a odd do card (a régua está em `test_adaptador_vv.py`,
+sobre os ganhos reais da Vave), cashout, freebet e sistema. Bet builder segue RECUSADO: a Ficha precisaria
 de uma perna por seleção, e a casa só manda texto pronto (o texto leva o bilhete à IA).
 """
+import copy
 import json
 import sys
 from pathlib import Path
@@ -75,3 +80,32 @@ def test_aberta_bate_com_o_card():
 def test_bet_builder_recusa(cod):
     with pytest.raises(Recusa, match="betBetBuilderId"):
         vv.adaptar(CRUS[cod], "20BET")
+
+
+# s429: as duas ganhas reais da conta do Gabriel (`captura_crua`, 25/10/2026, só leitura) que
+# a Ficha recusava e a IA lia diferente a cada captura (o P/L dele mudava a cada exclusão).
+GANHAS = {vv.codigo(c): c for c in vv.bilhetes_da_resposta(
+    json.loads((_FIX / "20bet.ganhas.cru.json").read_text(encoding="utf-8")))}
+
+
+def test_ganha_com_perna_devolvida_e_retorno_sobre_stake():
+    """68703441: 30 USD @ 7,29 no card, perna 1,71 devolvida, a casa pagou 127,8."""
+    f, d = _montar(GANHAS["68703441"])
+    assert [p["status_perna"] for p in f["pernas"]] == ["anulada", "ganha", "ganha"]
+    assert (f["status"], f["stake"], f["odd"], f["retorno"]) == ("ganha", "30", "7.29", "127.8")
+    assert (d["resultado"], d["odd"]) == ("W", "4,26")
+
+
+def test_ganha_paga_abaixo_da_odd_do_card():
+    """68684132: 30 USD @ 11,25 no card, três pernas ganhas, a casa pagou 337,2 (não 337,5)."""
+    f, d = _montar(GANHAS["68684132"])
+    assert {p["status_perna"] for p in f["pernas"]} == {"ganha"}
+    assert (d["resultado"], d["odd"]) == ("W", "11,24")
+
+
+def test_ganha_que_nao_fecha_com_perna_perdida_recusa():
+    """Sem as pernas provarem a vitória, dinheiro que não fecha segue com a IA."""
+    c = copy.deepcopy(GANHAS["68703441"])
+    c["bet"]["details"][0]["status"] = 1
+    with pytest.raises(Recusa, match="sem amostra"):
+        vv.adaptar(c, "20BET")

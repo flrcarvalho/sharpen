@@ -30,6 +30,7 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
  17. a espera ignora o cru em processamento              → test_extrair_espera_o_cru_em_processamento
  18. a espera sem teto (trava em vez de falhar: wait_for) → test_extrair_sem_cru_espera_so_a_folga…
  19. cru igual já gravado é regravado                     → test_cru_igual_ja_gravado_pela_ficha…
+ 19b. (s429) cru igual dado por gravado sem a linha no banco → test_cru_igual_sem_a_linha_no_banco…
  20. recusada no /salvar conta como resolvida pela Ficha  → test_recusada_no_salvar_fica_com_a_ia
  16. texto de múltipla com um `Esporte:` só vota         → test_esportes_do_texto_so_quando_a_perna_e_clara
   s412 (furo N3, D24, R27; 13/10/2026):
@@ -352,10 +353,11 @@ def _registros():
 class _Conn:
     """Banco dublado: dicionário, códigos liquidados, `ficha_virada` e `captura_crua`."""
 
-    def __init__(self, termos=None, liquidados=(), estado=None, crus=()):
+    def __init__(self, termos=None, liquidados=(), estado=None, crus=(), no_banco=()):
         self.termos = termos if termos is not None else {
             **{k: "Futebol" for k in dicionario.chaves(_ficha("5508528206"))}, **DESC}
         self.liquidados, self.crus = list(liquidados), list(crus)
+        self.no_banco = list(no_banco)            # códigos com linha em `bilhetes` (s429)
         self.estado = dict(estado or {})          # código → (impressão, estado)
         self.motivos = {}
 
@@ -365,6 +367,8 @@ class _Conn:
                     for (t, k), v in self.termos.items()]
         if "extraction_state" in sql:
             return [{"codigo_bilhete": c} for c in self.liquidados]
+        if "FROM bilhetes" in sql:
+            return [{"codigo_bilhete": c} for c in self.no_banco if c in a[1]]
         if "FROM ficha_virada" in sql:
             return [{"codigo": c, "impressao": i, "estado": e}
                     for c, (i, e) in self.estado.items()]
@@ -467,9 +471,20 @@ def test_d10_liquidada_no_banco_nao_e_reescrita(monkeypatch):
 
 def test_cru_igual_ja_gravado_pela_ficha_sai_sem_regravar(monkeypatch):
     monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
-    _banco(monkeypatch, estado={"5508528206": ("x", "ficha")})      # impressão do _ficha
+    _banco(monkeypatch, estado={"5508528206": ("x", "ficha")},      # impressão do _ficha
+           no_banco=["5508528206"])
     vistos = _gravador(monkeypatch)
     assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 1 and vistos == []
+
+
+def test_cru_igual_sem_a_linha_no_banco_e_regravado(monkeypatch):
+    """s429 (20bet do Gabriel): o usuário EXCLUIU a aposta e recapturou. O cru é o mesmo e o
+    `ficha_virada` ainda diz "ficha"; sem a linha no banco, a Ficha a grava de novo."""
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
+    _banco(monkeypatch, estado={"5508528206": ("x", "ficha")})
+    vistos = _gravador(monkeypatch)
+    assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 1
+    assert [v[0] for v in vistos] == ["5508528206"]
 
 
 def test_recusada_no_salvar_fica_com_a_ia(monkeypatch):

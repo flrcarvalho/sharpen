@@ -16,8 +16,10 @@ real) e conferido nos 35 crus reais do banco (Feca e Gabriel, 23/10/2026).
   • ODD da casa: `bet.value`, a do card; na múltipla já é o produto das pernas.
   • `bet.status`: `0` aberta · `1` perdida só com `win` e `winFull` zerados · `2` ganha se
     `winFull` fecha com stake × odd ao meio centavo (medido em 23/10/2026 nos 6 ganhos reais:
-    `win` = `winFull` = o RETORNO, 33 × 1,9 = 62,7). `winFull` = stake é anulada, qualquer
-    rótulo (o dinheiro decide). O resto, RECUSA.
+    `win` = `winFull` = o RETORNO, 33 × 1,9 = 62,7), ou se `winFull` > stake com TODA perna
+    ganha ou devolvida (s429: a odd do card é a cheia e a casa paga menos; a odd do W sai de
+    retorno ÷ stake). `winFull` = stake é anulada, qualquer rótulo (o dinheiro decide). O
+    resto, RECUSA.
   • MERCADO e SELEÇÃO não vêm no histórico: saem do `dicionario` do cru, template Sportradar
     resolvido aqui como o inject resolve (`{$competitor1}`, `{!x}` ordinal, `{+x}` com sinal,
     `{-x}` com o sinal invertido, `{x}`). Placeholder sem valor, RECUSA: a perna sairia com
@@ -133,6 +135,15 @@ def _status(b: dict) -> str:
     if cheio is not None and abs(cheio - stake) <= _MEIO_CENTAVO:
         return "anulada"              # o dinheiro decide: P/L zero, qualquer que seja o rótulo
     if st == 2 and odd and cheio is not None and abs(cheio - stake * odd) <= _MEIO_CENTAVO:
+        return "ganha"
+    # Ganha que NÃO fecha com stake × odd do card (s429, 20bet do Gabriel, 25/10/2026): o
+    # card mantém a odd cheia e a casa paga menos. 68703441: perna 3 devolvida, 30 @ 7,29
+    # pagou 127,8 (= 30 × 2,12 × 2,01 arredondado); 68684132: todas ganhas, 30 @ 11,25 pagou
+    # 337,2. Aceita só quando as PERNAS provam a vitória (toda perna ganha ou devolvida): a
+    # odd sai do dinheiro (`ficha._odd`: nenhuma fecha → retorno ÷ stake, a regra global do W).
+    pernas = [d.get("status") for d in (b.get("details") or [])]
+    if (st == 2 and cheio is not None and cheio > stake and pernas
+            and all(p in (2, 3) for p in pernas)):
         return "ganha"
     raise Recusa(f"status {st!r} com winFull {b.get('winFull')!r} sobre amount {b.get('amount')!r} "
                  f"e odd {b.get('value')!r} (sem amostra; a conferir)")

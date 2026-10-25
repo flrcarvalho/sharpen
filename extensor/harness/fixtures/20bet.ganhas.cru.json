@@ -1,0 +1,885 @@
+[
+ {
+  "codigo": "68703441",
+  "cru": {
+   "bet": {
+    "id": 68703441,
+    "ts": 1792902554,
+    "win": 127.8,
+    "info": {
+     "falseCashOut": false
+    },
+    "mode": "1",
+    "type": 1,
+    "isVip": false,
+    "value": 7.29,
+    "amount": 30,
+    "bet_id": "68703441",
+    "number": 80,
+    "status": 2,
+    "system": 0,
+    "betType": 0,
+    "cashout": {
+     "amount": null,
+     "errorCode": 6,
+     "errorMessage": "This bet already settled"
+    },
+    "details": [
+     {
+      "id": "179067115",
+      "raw": "{}",
+      "odds": "1.7100",
+      "type": 0,
+      "value": 1.71,
+      "result": null,
+      "status": 3,
+      "cashOut": 0,
+      "context": "[]",
+      "event_id": 12046535,
+      "marketId": 557,
+      "eventType": 0,
+      "isCashOut": false,
+      "league_id": 1008503,
+      "outcomeId": 1715,
+      "variantId": null,
+      "event_time": "2026-10-25 13:30:00",
+      "marketType": 1,
+      "specifiers": "hcp=-1",
+      "actualValue": 0,
+      "cashOutHash": "",
+      "outcomeType": 1,
+      "vendorEventId": "sr:match:73630642"
+     },
+     {
+      "id": "179067116",
+      "raw": "{}",
+      "odds": "2.1200",
+      "type": 0,
+      "value": 2.12,
+      "result": null,
+      "status": 2,
+      "cashOut": 0,
+      "context": "[]",
+      "event_id": 12049524,
+      "marketId": 223,
+      "eventType": 0,
+      "isCashOut": false,
+      "league_id": 1066131,
+      "outcomeId": 12,
+      "variantId": null,
+      "event_time": "2026-10-25 09:00:00",
+      "marketType": 1,
+      "specifiers": "total=2",
+      "actualValue": 0,
+      "cashOutHash": "",
+      "outcomeType": 1,
+      "vendorEventId": "2228846"
+     },
+     {
+      "id": "179067117",
+      "raw": "{}",
+      "odds": "2.0100",
+      "type": 0,
+      "value": 2.01,
+      "result": null,
+      "status": 2,
+      "cashOut": 0,
+      "context": "[]",
+      "event_id": 12096592,
+      "marketId": 557,
+      "eventType": 0,
+      "isCashOut": false,
+      "league_id": 1086075,
+      "outcomeId": 1715,
+      "variantId": null,
+      "event_time": "2026-10-25 08:00:00",
+      "marketType": 1,
+      "specifiers": "hcp=2",
+      "actualValue": 0,
+      "cashOutHash": "",
+      "outcomeType": 1,
+      "vendorEventId": "2239400"
+     }
+    ],
+    "winFull": 127.8,
+    "betMaker": [],
+    "couponId": 67823758,
+    "currency": "USD",
+    "typeName": "sports_._platform_._accumulator",
+    "vendorId": "1",
+    "bonusType": null,
+    "freebetId": null,
+    "shareable": false,
+    "taxesData": {
+     "size": 0,
+     "exciseTaxSize": 0,
+     "mainTaxAmount": 0,
+     "exciseTaxAmount": 0,
+     "isMainTaxRefund": false,
+     "potentialWinAmount": 218.7,
+     "taxOnlyOnNetProfit": false,
+     "betAmountAfterExciseTax": 30,
+     "payoutAmountAfterExciseTax": 218.7
+    },
+    "count_bets": 3,
+    "finishedAt": "2026-10-25 15:27:08",
+    "fullAmount": 30,
+    "no_cashout": false,
+    "returnType": null,
+    "status_vip": null,
+    "bonusAmount": 0,
+    "freebetType": null,
+    "returnAmount": null,
+    "freebetAmount": 0,
+    "ts_calculated": 0,
+    "betBetBuilderId": null,
+    "currencyIconUrl": null,
+    "betCashoutAmount": null,
+    "betBetBuilderLegs": null,
+    "realProfitCashout": null,
+    "betBetBuilderStatus": null,
+    "winRealInBaseCurrency": null
+   },
+   "events": [
+    {
+     "id": "12046535",
+     "ts": 1792935000,
+     "name": null,
+     "time": "2026-10-25 13:30:00",
+     "team1": "",
+     "team2": "",
+     "is_top": "0",
+     "status": 4,
+     "sport_id": "1",
+     "isTopLive": "1",
+     "league_id": "1008503",
+     "competitor1Id": "424973",
+     "competitor2Id": "513415",
+     "vendorEventId": "sr:match:73630642"
+    },
+    {
+     "id": "12049524",
+     "ts": 1792918800,
+     "name": null,
+     "time": "2026-10-25 09:00:00",
+     "team1": "",
+     "team2": "",
+     "is_top": "0",
+     "status": 4,
+     "sport_id": "1",
+     "isTopLive": "1",
+     "league_id": "1066131",
+     "competitor1Id": "276146",
+     "competitor2Id": "338047",
+     "vendorEventId": "2228846"
+    },
+    {
+     "id": "12096592",
+     "ts": 1792915200,
+     "name": null,
+     "time": "2026-10-25 08:00:00",
+     "team1": "",
+     "team2": "",
+     "is_top": "0",
+     "status": 4,
+     "sport_id": "1",
+     "isTopLive": "1",
+     "league_id": "1086075",
+     "competitor1Id": "386594",
+     "competitor2Id": "521834",
+     "vendorEventId": "2239400"
+    }
+   ],
+   "sports": [
+    {
+     "id": 1,
+     "name": "Football",
+     "type": 0,
+     "alias": "football",
+     "cashoutDelay": 3,
+     "providerName": "football",
+     "outrightsCount": 44,
+     "lineEventsCount": 1166,
+     "liveEventsCount": 81,
+     "isCashoutEnabled": 1,
+     "popularEventsCount": 0
+    }
+   ],
+   "leagues": [
+    {
+     "id": 1008503,
+     "top": "0",
+     "name": "Série D, Grupo F",
+     "type": "0",
+     "order": "1",
+     "express": "1",
+     "flagURL": "https://d1wfowvne3d4em.cloudfront.net/flags/it.svg",
+     "topLive": "0",
+     "flagCode": "IT",
+     "sport_id": "1",
+     "defaultSlug": "serie-d-group-f",
+     "sportCategoryId": "73",
+     "translationSlug": "s-rie-d-grupo-f"
+    },
+    {
+     "id": 1066131,
+     "top": "0",
+     "name": "Japan. J-League Division 2",
+     "type": "0",
+     "order": "7",
+     "express": "1",
+     "flagURL": null,
+     "topLive": "1",
+     "flagCode": null,
+     "sport_id": "1",
+     "defaultSlug": "japan-j-league-division-2",
+     "sportCategoryId": "2707",
+     "translationSlug": "japan-j-league-division-2"
+    },
+    {
+     "id": 1086075,
+     "top": "0",
+     "name": "Romania. Liga 3. Women",
+     "type": "0",
+     "order": "1",
+     "express": "1",
+     "flagURL": null,
+     "topLive": "0",
+     "flagCode": null,
+     "sport_id": "1",
+     "defaultSlug": "romania-liga-3-women",
+     "sportCategoryId": "2731",
+     "translationSlug": "romania-liga-3-women"
+    }
+   ],
+   "results": [
+    {
+     "clock": null,
+     "eventId": 12046535,
+     "periods": [
+      {
+       "type": "regular_period",
+       "number": 1,
+       "team1Score": 1,
+       "team2Score": 0,
+       "matchStatusCode": 6
+      },
+      {
+       "type": "regular_period",
+       "number": 2,
+       "team1Score": 0,
+       "team2Score": 0,
+       "matchStatusCode": 7
+      }
+     ],
+     "team1Score": 1,
+     "team2Score": 0,
+     "matchStatusId": 100
+    },
+    {
+     "clock": null,
+     "eventId": 12049524,
+     "periods": [
+      {
+       "type": null,
+       "number": 1,
+       "team1Score": 0,
+       "team2Score": 1,
+       "matchStatusCode": 1
+      },
+      {
+       "type": null,
+       "number": 2,
+       "team1Score": 2,
+       "team2Score": 0,
+       "matchStatusCode": 1
+      }
+     ],
+     "team1Score": 2,
+     "team2Score": 1,
+     "matchStatusId": 7
+    },
+    {
+     "clock": null,
+     "eventId": 12096592,
+     "periods": [
+      {
+       "type": null,
+       "number": 1,
+       "team1Score": 0,
+       "team2Score": 3,
+       "matchStatusCode": 1
+      },
+      {
+       "type": null,
+       "number": 2,
+       "team1Score": 0,
+       "team2Score": 2,
+       "matchStatusCode": 1
+      }
+     ],
+     "team1Score": 0,
+     "team2Score": 5,
+     "matchStatusId": 7
+    }
+   ],
+   "dicionario": {
+    "mercados": {
+     "223": "1ª parte - {$competitor2} total cantos",
+     "557": "Handicap"
+    },
+    "selecoes": {
+     "12": "mais de {total}",
+     "1715": "{$competitor2} ({-hcp})"
+    }
+   },
+   "competitors": [
+    {
+     "id": 276146,
+     "name": "Shonan Bellmare",
+     "gender": null,
+     "players": [],
+     "ageGroup": null,
+     "countryId": null,
+     "abbreviation": ""
+    },
+    {
+     "id": 338047,
+     "name": "Tochigi City",
+     "gender": null,
+     "players": [],
+     "ageGroup": null,
+     "countryId": null,
+     "abbreviation": ""
+    },
+    {
+     "id": 386594,
+     "name": "Voluntari (Women)",
+     "gender": null,
+     "players": [],
+     "ageGroup": null,
+     "countryId": null,
+     "abbreviation": ""
+    },
+    {
+     "id": 424973,
+     "name": "Giulianova Calcio",
+     "gender": 1,
+     "players": [],
+     "ageGroup": null,
+     "countryId": 110,
+     "abbreviation": "GIU"
+    },
+    {
+     "id": 513415,
+     "name": "Polisportiva Pietralunghese",
+     "gender": 1,
+     "players": [],
+     "ageGroup": null,
+     "countryId": 110,
+     "abbreviation": "POL"
+    },
+    {
+     "id": 521834,
+     "name": "Teleorman (Women)",
+     "gender": null,
+     "players": [],
+     "ageGroup": null,
+     "countryId": null,
+     "abbreviation": ""
+    }
+   ],
+   "sportCategories": [
+    {
+     "id": 73,
+     "flag": "IT",
+     "name": "Itália",
+     "flagURL": "https://d1wfowvne3d4em.cloudfront.net/flags/it.svg",
+     "sportId": 1,
+     "countryId": 110,
+     "countryCode": "IT"
+    },
+    {
+     "id": 2707,
+     "flag": "JP",
+     "name": "Japan",
+     "flagURL": "https://d1wfowvne3d4em.cloudfront.net/flags/jp.svg",
+     "sportId": 1,
+     "countryId": 112,
+     "countryCode": "JP"
+    },
+    {
+     "id": 2731,
+     "flag": null,
+     "name": "Romania",
+     "flagURL": "https://d1wfowvne3d4em.cloudfront.net/flags/ro.svg",
+     "sportId": 1,
+     "countryId": 0,
+     "countryCode": null
+    }
+   ]
+  }
+ },
+ {
+  "codigo": "68684132",
+  "cru": {
+   "bet": {
+    "id": 68684132,
+    "ts": 1792861512,
+    "win": 337.2,
+    "info": {
+     "falseCashOut": false
+    },
+    "mode": "1",
+    "type": 1,
+    "isVip": false,
+    "value": 11.25,
+    "amount": 30,
+    "bet_id": "68684132",
+    "number": 70,
+    "status": 2,
+    "system": 0,
+    "betType": 0,
+    "cashout": {
+     "amount": null,
+     "errorCode": 6,
+     "errorMessage": "This bet already settled"
+    },
+    "details": [
+     {
+      "id": "179007078",
+      "raw": "{}",
+      "odds": "2.3500",
+      "type": 0,
+      "value": 2.35,
+      "result": null,
+      "status": 2,
+      "cashOut": 0,
+      "context": "[]",
+      "event_id": 12087272,
+      "marketId": 581,
+      "eventType": 0,
+      "isCashOut": false,
+      "league_id": 1009032,
+      "outcomeId": 13,
+      "variantId": null,
+      "event_time": "2026-10-25 09:15:00",
+      "marketType": 1,
+      "specifiers": "quarternr=3|total=55",
+      "actualValue": 0,
+      "cashOutHash": "",
+      "outcomeType": 1,
+      "vendorEventId": "sr:match:75953360"
+     },
+     {
+      "id": "179007079",
+      "raw": "{}",
+      "odds": "2.1000",
+      "type": 0,
+      "value": 2.1,
+      "result": null,
+      "status": 2,
+      "cashOut": 0,
+      "context": "[]",
+      "event_id": 11183865,
+      "marketId": 910,
+      "eventType": 0,
+      "isCashOut": false,
+      "league_id": 1114147,
+      "outcomeId": 4,
+      "variantId": null,
+      "event_time": "2026-10-24 20:35:00",
+      "marketType": 1,
+      "specifiers": "",
+      "actualValue": 0,
+      "cashOutHash": "",
+      "outcomeType": 1,
+      "vendorEventId": "2057472"
+     },
+     {
+      "id": "179007080",
+      "raw": "{}",
+      "odds": "2.1700",
+      "type": 0,
+      "value": 2.17,
+      "result": null,
+      "status": 2,
+      "cashOut": 0,
+      "context": "[]",
+      "event_id": 11927639,
+      "marketId": 338,
+      "eventType": 0,
+      "isCashOut": false,
+      "league_id": 1014476,
+      "outcomeId": 12,
+      "variantId": null,
+      "event_time": "2026-10-25 02:00:00",
+      "marketType": 1,
+      "specifiers": "total=19.5",
+      "actualValue": 0,
+      "cashOutHash": "",
+      "outcomeType": 1,
+      "vendorEventId": "sr:match:70918942"
+     }
+    ],
+    "winFull": 337.2,
+    "betMaker": [],
+    "couponId": 67804826,
+    "currency": "USD",
+    "typeName": "sports_._platform_._accumulator",
+    "vendorId": "1",
+    "bonusType": null,
+    "freebetId": null,
+    "shareable": false,
+    "taxesData": {
+     "size": 0,
+     "exciseTaxSize": 0,
+     "mainTaxAmount": 0,
+     "exciseTaxAmount": 0,
+     "isMainTaxRefund": false,
+     "potentialWinAmount": 337.5,
+     "taxOnlyOnNetProfit": false,
+     "betAmountAfterExciseTax": 30,
+     "payoutAmountAfterExciseTax": 337.5
+    },
+    "count_bets": 3,
+    "finishedAt": "2026-10-25 11:41:00",
+    "fullAmount": 30,
+    "no_cashout": false,
+    "returnType": null,
+    "status_vip": null,
+    "bonusAmount": 0,
+    "freebetType": null,
+    "returnAmount": null,
+    "freebetAmount": 0,
+    "ts_calculated": 0,
+    "betBetBuilderId": null,
+    "currencyIconUrl": null,
+    "betCashoutAmount": null,
+    "betBetBuilderLegs": null,
+    "realProfitCashout": null,
+    "betBetBuilderStatus": null,
+    "winRealInBaseCurrency": null
+   },
+   "events": [
+    {
+     "id": "12087272",
+     "ts": 1792919700,
+     "name": null,
+     "time": "2026-10-25 09:15:00",
+     "team1": "",
+     "team2": "",
+     "is_top": "0",
+     "status": 4,
+     "sport_id": "2",
+     "isTopLive": "1",
+     "league_id": "1009032",
+     "competitor1Id": "52418",
+     "competitor2Id": "52487",
+     "vendorEventId": "sr:match:75953360"
+    },
+    {
+     "id": "11183865",
+     "ts": 1792874100,
+     "name": null,
+     "time": "2026-10-24 20:35:00",
+     "team1": "",
+     "team2": "",
+     "is_top": "0",
+     "status": 4,
+     "sport_id": "1122",
+     "isTopLive": "0",
+     "league_id": "1114147",
+     "competitor1Id": "375989",
+     "competitor2Id": "349010",
+     "vendorEventId": "2057472"
+    },
+    {
+     "id": "11927639",
+     "ts": 1792893600,
+     "name": null,
+     "time": "2026-10-25 02:00:00",
+     "team1": "",
+     "team2": "",
+     "is_top": "0",
+     "status": 4,
+     "sport_id": "17",
+     "isTopLive": "1",
+     "league_id": "1014476",
+     "competitor1Id": "52667",
+     "competitor2Id": "42883",
+     "vendorEventId": "sr:match:70918942"
+    }
+   ],
+   "sports": [
+    {
+     "id": 17,
+     "name": "American Football",
+     "type": 0,
+     "alias": "american-football",
+     "cashoutDelay": 5,
+     "providerName": "american_football",
+     "outrightsCount": 1,
+     "lineEventsCount": 73,
+     "liveEventsCount": 6,
+     "isCashoutEnabled": 1,
+     "popularEventsCount": 0
+    },
+    {
+     "id": 1122,
+     "name": "MMA",
+     "type": 0,
+     "alias": "mma",
+     "cashoutDelay": 4,
+     "providerName": "mma",
+     "outrightsCount": 0,
+     "lineEventsCount": 31,
+     "liveEventsCount": 0,
+     "isCashoutEnabled": 0,
+     "popularEventsCount": 0
+    },
+    {
+     "id": 2,
+     "name": "Basketball",
+     "type": 0,
+     "alias": "basketball",
+     "cashoutDelay": 4,
+     "providerName": "basketball",
+     "outrightsCount": 10,
+     "lineEventsCount": 145,
+     "liveEventsCount": 18,
+     "isCashoutEnabled": 1,
+     "popularEventsCount": 0
+    }
+   ],
+   "leagues": [
+    {
+     "id": 1009032,
+     "top": "0",
+     "name": "PBA, Taça do Governador",
+     "type": "0",
+     "order": "3",
+     "express": "1",
+     "flagURL": "https://d1wfowvne3d4em.cloudfront.net/flags/ph.svg",
+     "topLive": "1",
+     "flagCode": "PH",
+     "sport_id": "2",
+     "defaultSlug": "pba-governors-cup",
+     "sportCategoryId": "308",
+     "translationSlug": "pba-ta-a-do-governador"
+    },
+    {
+     "id": 1114147,
+     "top": "0",
+     "name": "UFC 333",
+     "type": "0",
+     "order": "0",
+     "express": "1",
+     "flagURL": null,
+     "topLive": "0",
+     "flagCode": null,
+     "sport_id": "1122",
+     "defaultSlug": "ufc-333",
+     "sportCategoryId": "3303",
+     "translationSlug": "ufc-333"
+    },
+    {
+     "id": 1014476,
+     "top": "0",
+     "name": "NCAAF, Época Regular",
+     "type": "0",
+     "order": "4",
+     "express": "1",
+     "flagURL": "https://d1wfowvne3d4em.cloudfront.net/flags/us.svg",
+     "topLive": "0",
+     "flagCode": "US",
+     "sport_id": "17",
+     "defaultSlug": "ncaaf-regular-season",
+     "sportCategoryId": "772",
+     "translationSlug": "ncaaf-poca-regular"
+    }
+   ],
+   "results": [
+    {
+     "clock": null,
+     "eventId": 11183865,
+     "periods": [],
+     "team1Score": 2,
+     "team2Score": 0,
+     "matchStatusId": 31
+    },
+    {
+     "clock": null,
+     "eventId": 11927639,
+     "periods": [
+      {
+       "type": "regular_period",
+       "number": 1,
+       "team1Score": 7,
+       "team2Score": 3,
+       "matchStatusCode": 13
+      },
+      {
+       "type": "regular_period",
+       "number": 2,
+       "team1Score": 7,
+       "team2Score": 0,
+       "matchStatusCode": 14
+      },
+      {
+       "type": "regular_period",
+       "number": 3,
+       "team1Score": 0,
+       "team2Score": 6,
+       "matchStatusCode": 15
+      },
+      {
+       "type": "regular_period",
+       "number": 4,
+       "team1Score": 7,
+       "team2Score": 7,
+       "matchStatusCode": 16
+      }
+     ],
+     "team1Score": 21,
+     "team2Score": 16,
+     "matchStatusId": 100
+    },
+    {
+     "clock": null,
+     "eventId": 12087272,
+     "periods": [
+      {
+       "type": "regular_period",
+       "number": 1,
+       "team1Score": 29,
+       "team2Score": 26,
+       "matchStatusCode": 13
+      },
+      {
+       "type": "regular_period",
+       "number": 2,
+       "team1Score": 27,
+       "team2Score": 22,
+       "matchStatusCode": 14
+      },
+      {
+       "type": "regular_period",
+       "number": 3,
+       "team1Score": 21,
+       "team2Score": 25,
+       "matchStatusCode": 15
+      },
+      {
+       "type": "regular_period",
+       "number": 4,
+       "team1Score": 20,
+       "team2Score": 19,
+       "matchStatusCode": 16
+      }
+     ],
+     "team1Score": 97,
+     "team2Score": 92,
+     "matchStatusId": 100
+    }
+   ],
+   "dicionario": {
+    "mercados": {
+     "338": "2ª parte - total",
+     "581": "{!quarternr} quarto - total",
+     "910": "Vencedor"
+    },
+    "selecoes": {
+     "4": "{$competitor1}",
+     "12": "mais de {total}",
+     "13": "menos de {total}"
+    }
+   },
+   "competitors": [
+    {
+     "id": 42883,
+     "name": "Bison do Estado da Dakota do Norte",
+     "gender": 1,
+     "players": [],
+     "ageGroup": null,
+     "countryId": 237,
+     "abbreviation": "NDS"
+    },
+    {
+     "id": 52418,
+     "name": "Road Warriors",
+     "gender": 1,
+     "players": [],
+     "ageGroup": null,
+     "countryId": 175,
+     "abbreviation": "ROA"
+    },
+    {
+     "id": 52487,
+     "name": "Phoenix Fuel Masters",
+     "gender": 1,
+     "players": [],
+     "ageGroup": null,
+     "countryId": 175,
+     "abbreviation": "PFM"
+    },
+    {
+     "id": 52667,
+     "name": "Novo México",
+     "gender": 1,
+     "players": [],
+     "ageGroup": null,
+     "countryId": 237,
+     "abbreviation": "UNM"
+    },
+    {
+     "id": 349010,
+     "name": "Movsar Evloev",
+     "gender": null,
+     "players": [],
+     "ageGroup": null,
+     "countryId": null,
+     "abbreviation": ""
+    },
+    {
+     "id": 375989,
+     "name": "Alex Volkanovski",
+     "gender": null,
+     "players": [],
+     "ageGroup": null,
+     "countryId": null,
+     "abbreviation": ""
+    }
+   ],
+   "sportCategories": [
+    {
+     "id": 308,
+     "flag": "PH",
+     "name": "Ilhas Filipinas",
+     "flagURL": "https://d1wfowvne3d4em.cloudfront.net/flags/ph.svg",
+     "sportId": 2,
+     "countryId": 175,
+     "countryCode": "PH"
+    },
+    {
+     "id": 772,
+     "flag": "US",
+     "name": "Estados Unidos da América",
+     "flagURL": "https://d1wfowvne3d4em.cloudfront.net/flags/us.svg",
+     "sportId": 17,
+     "countryId": 237,
+     "countryCode": "US"
+    },
+    {
+     "id": 3303,
+     "flag": null,
+     "name": "UFC",
+     "flagURL": "https://d1wfowvne3d4em.cloudfront.net/flags/UFC.svg",
+     "sportId": 1122,
+     "countryId": 0,
+     "countryCode": null
+    }
+   ]
+  }
+ }
+]

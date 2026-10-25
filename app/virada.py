@@ -238,6 +238,19 @@ async def _liquidados(conn, dono: str, casa_key: str, codigos: list[str]) -> set
     return {r["codigo_bilhete"] for r in rows}
 
 
+async def _no_banco(conn, dono: str, casa_key: str, codigos: list[str]) -> set[str]:
+    """Códigos com linha no banco NESTA casa, em qualquer estado. "Cru igual, já gravado pela
+    Ficha" só vale com a linha lá: o usuário que EXCLUI a aposta e recaptura manda o mesmo cru,
+    e sem esta conferência a Ficha a dava por gravada e ela não voltava, nem pela IA (s429)."""
+    if not codigos:
+        return set()
+    rows = await conn.fetch(
+        "SELECT DISTINCT codigo_bilhete FROM bilhetes WHERE dono = $1 "
+        "AND codigo_bilhete = ANY($2::text[]) AND upper(replace(casa, ' ', '')) = $3",
+        dono, codigos, casa_key)
+    return {r["codigo_bilhete"] for r in rows}
+
+
 async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
                   candidatas: dict) -> tuple[set, dict]:
     """`candidatas` = {código: (Ficha ou None, motivos de recusa)}. Grava o que a Ficha resolve
@@ -252,6 +265,8 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
     estado = {r["codigo"]: (r["impressao"], r["estado"]) for r in await conn.fetch(
         "SELECT codigo, impressao, estado FROM ficha_virada WHERE dono = $1 AND casa = $2 "
         "AND codigo = ANY($3::text[])", dono, casa_key, cods)}
+    gravados = await _no_banco(conn, dono, casa_key,
+                               [c for c in cods if (estado.get(c) or ("", ""))[1] == "ficha"])
     resolvidos, fica, novo_estado, gravar = set(), {}, {}, []
 
     def ia(cod, motivo):
@@ -277,7 +292,7 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
             ia(cod, "descrição fora do dicionário")
             continue
         imp = f.get("impressao") or ""
-        if estado.get(cod) == (imp, "ficha"):
+        if estado.get(cod) == (imp, "ficha") and cod in gravados:
             resolvidos.add(cod)            # cru igual, já gravado pela Ficha: só sai do lote
             continue
         gravar.append((f, esporte, categoria, desc))
