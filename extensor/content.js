@@ -557,6 +557,31 @@
     }
   });
 
+  // Bilhetes da STAKE.COM capturados pelo stc_inject.js (mundo MAIN) — `/_api/v1/graphql`
+  // (`sportBetList` + as quatro listas de abertas) da Stake internacional (s428). `stcById`
+  // guarda 1 bilhete por código (o número do `iid`); a versão LIQUIDADA vence a aberta.
+  const stcById = new Map();         // código(string) → bilhete
+  let stcFimReal = false;
+  let stcHookVivo = false, stcRespostas = 0;
+  let stcSemToken = false, stcErro = "";
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupSTCData) {
+      if (d.hook) stcHookVivo = true;
+      if (typeof d.respostas === "number") stcRespostas = d.respostas;
+      stcSemToken = !!d.semToken;
+      stcErro = d.erro ? String(d.erro) : "";
+      if (Array.isArray(d.bilhetes)) {
+        for (const b of d.bilhetes) {
+          if (!b || !b.id) continue;
+          const ex = stcById.get(b.id);
+          if (!ex || ex.ativa || !b.ativa) stcById.set(b.id, b);
+        }
+      }
+      if (d.fim) stcFimReal = true;
+    }
+  });
+
   // Bilhetes da THUNDERPICK capturados pelo thp_inject.js (mundo MAIN) — `/api/wagers/v2/
   // resolved` + `/pending` da plataforma própria, no mesmo domínio (s426). `thpById` guarda 1
   // bilhete por código (`C…`/`S…`); a versão LIQUIDADA vence a aberta.
@@ -1584,6 +1609,12 @@
       // abertas 100 por vez, pelo cursor, até `hasNextPage: false`. SEM fallback de texto: os
       // cards fecham as pernas atrás de um clique e não há linha em branco entre bilhetes.
       blocos = await roboSBIPassive(ctx);
+    } else if (casa === "stakecom") {
+      // Passivo + replay (stc_inject, a Stake INTERNACIONAL, GraphQL — s428). ⚠ Não é a
+      // `stake` (stake.bet.br) logo acima no ramo do `stk_inject`. O token é o cookie `session`
+      // ou o header de `/_api/v1/graphql`; o replay pede histórico (20 por vez) e as quatro
+      // listas de abertas (50 por vez) até a página voltar menor. SEM fallback de texto.
+      blocos = await roboSTCPassive(ctx);
     } else if (casa === "thunderpick") {
       // Passivo + replay (thp_inject, plataforma PRÓPRIA — s426). O `thunderpick-token` sai de
       // qualquer chamada de `/api/` da página ou, a frio, do `localStorage`; o replay pede as
@@ -1823,6 +1854,10 @@
         sportsbetio: { nome: "Sportsbet.io", hook: sbiHookVivo, resp: sbiRespostas, vistos: sbiById.size,
                       extra: sbiErro ? " · " + sbiErro
                            : (sbiSemToken ? " · faça login e abra Minhas Apostas; rode de novo" : "") },
+        // Stake.com (s428): o token é o cookie `session` ou o header de `/_api/v1/graphql`.
+        stakecom:   { nome: "Stake.com",  hook: stcHookVivo, resp: stcRespostas, vistos: stcById.size,
+                      extra: stcErro ? " · " + stcErro
+                           : (stcSemToken ? " · faça login e abra Minhas Apostas → Esportes; rode de novo" : "") },
         // Thunderpick (s426): o token sai de qualquer chamada de `/api/` ou do `localStorage`
         // (`thp.sessionData`). Sem ele (`semToken`) a sessão não está logada.
         thunderpick: { nome: "Thunderpick", hook: thpHookVivo, resp: thpRespostas, vistos: thpById.size,
@@ -5604,6 +5639,149 @@
     console.log("[SharpenUp] Sportsbet.io: " + blocos.length + " bilhete(s) · sbiById=" + sbiById.size +
                 " · hook=" + sbiHookVivo + " · respostas=" + sbiRespostas + " · fimReal=" + sbiFimReal +
                 (sbiErro ? " · erro=" + sbiErro : ""));
+    return blocos;
+  }
+
+  // ── Stake.com (a Stake INTERNACIONAL, plataforma própria GraphQL — s428) ─────
+  // Formata 1 bilhete do `/_api/v1/graphql` (normalizado pelo stc_inject) no bloco que a IA lê.
+  // ⚠ NÃO é a `Stake` (stake.bet.br, `formatTicketSTK`): outro motor, outro id, conta em cripto.
+  // Leituras VALIDADAS contra o card (recon s428, 15 liquidadas + 3 abertas, USDT):
+  //   • o código é o número do `bet.iid` ("sport:676297455" → o "ID da Aposta: 676.297.455");
+  //   • `payout` é o RETORNO (30 × 1,4981273 = 44,943819); `createdAt` é a colocação (GMT);
+  //   • a odd do card é a do bilhete arredondada a 2 casas (2,2716947 → "2,27"); o bloco leva toda;
+  //   • "Retirado" no card = status `cashout`; o medido devolveu a stake (60,01 → V).
+  //   • SwishBet = props de jogador (jogador, estatística, linha, over/under); a perna não diz se
+  //     ganhou ou perdeu, só `cancel`.
+  // NÃO MEDIDO: SportBet liquidada, cashout ≠ stake, cancelada, corrida, XMulti, boost/promoção.
+  // Só o DINHEIRO decide; o resto sobe "a conferir". De-para na CASA_STAKECOM.md §5.
+  const _quaseSTC = (a, b) => typeof a === "number" && typeof b === "number" && Math.abs(a - b) < 0.005;
+  const _PERNA_STC = { pending: "aberta", won: "ganha", lost: "perdida", void: "anulada", cancelled: "anulada" };
+  const _abertaSTC = (b) => b.ativa || b.status === "confirmed" || b.status === "pending";
+
+  function _dataEventoSTC(b) {
+    let max = null;
+    for (const p of (b.pernas || [])) if (typeof p.inicio === "number" && (max == null || p.inicio > max)) max = p.inicio;
+    return max == null ? "" : new Date(max * 1000).toISOString();
+  }
+
+  function _resultadoSTC(b) {
+    const st = b.stake, ret = b.retorno, moeda = b.moeda || "";
+    const cru = "status " + (b.status || "(vazio)") + " · retorno " + (ret == null ? "(vazio)" : _dinSHF(ret)) + " " + moeda;
+    const conferir = (m) => cru.trim() + (m ? " · " + m : "") + " (a conferir — não liquidar automaticamente)";
+    if (_abertaSTC(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (!(st > 0)) return conferir("sem stake");
+    if (b.tipo !== "SportBet" && b.tipo !== "SwishBet") return conferir("tipo " + (b.tipo || "(vazio)") + " sem amostra");
+    if (b.promocao) return conferir("promoção/boost/ajuste sem amostra");
+    if (b.cashoutParcial) return conferir("cashout parcial sem amostra");
+    if (_quaseSTC(ret, st) || b.status === "cancelled" || b.status === "cancelPending") {
+      return "Retorno = stake (" + _dinSHF(st) + " " + moeda + ", status " + b.status + ") → V";
+    }
+    if (b.status === "cashout" || b.status === "cashoutPending") {
+      return ret > 0 ? "Cashout com retorno " + _dinSHF(ret) + " " + moeda + " ≠ stake → W (odd = retorno ÷ stake, MASTER_RESULTADO §5.6)"
+                     : conferir("cashout sem retorno");
+    }
+    if (/^settled/.test(b.status || "")) {
+      if (ret === 0) return "Perdeu → L";
+      if (_quaseSTC(ret, st * b.odd)) return "Ganhou → W (retorno " + _dinSHF(ret) + " " + moeda + ")";
+      return conferir("retorno não fecha com stake × odd");
+    }
+    return conferir("");
+  }
+
+  function formatTicketSTC(b) {
+    const L = [];
+    L.push("[Código: " + b.id + "]");
+    const dev = _dhKTO(_dataEventoSTC(b));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    const dcol = typeof b.colocada === "number" ? _dhKTO(new Date(b.colocada * 1000).toISOString()) : "";
+    if (dcol) L.push("Data (colocação): " + dcol);
+    _linhaCarimbo(L, b.colocada, b.moeda);
+    L.push("Stake: " + _dinSHF(b.stake));
+    _linhaMoeda(L, b.moeda);
+    const res = _resultadoSTC(b);
+    L.push("Status: " + res);
+    L.push("Status (API): tipo=" + String(b.tipo || "(vazio)") + " · status=" + String(b.status || "(vazio)") +
+           (b.anulacao ? " · voidReason=" + b.anulacao : ""));
+
+    const pernas = b.pernas || [];
+    const n = pernas.length;
+    const jogos = new Set(pernas.map((p) => p.jogo).filter(Boolean));
+    if (b.tipo !== "SportBet" && b.tipo !== "SwishBet") {
+      L.push("Tipo: " + (b.tipo || "(vazio)") + " (sem amostra — a conferir)");
+    } else if (n > 1 && jogos.size === 1) {
+      L.push("Tipo: Criar Aposta / mesmo jogo (" + n + " seleções; a odd é a do conjunto)");
+    } else if (n === 1) {
+      L.push("Tipo: Simples" + (b.tipo === "SwishBet" ? " (props de jogador)" : ""));
+    } else if (n > 1) {
+      // `customBet` vem true também em múltipla de 2 jogos com mesmo-jogo dentro (674778558):
+      // a odd do bilhete é a da casa, nunca o produto das pernas.
+      L.push("Tipo: Múltipla (" + n + " seleções em " + jogos.size + " jogos" +
+             (b.criarAposta ? "; com Criar Aposta dentro, a odd é a do bilhete" : "") + ")");
+    }
+
+    if (b.odd > 0) L.push("Odd: " + _oddTxtKTO(b.odd));
+    else L.push("Odd: (a casa não informou — deixe a odd VAZIA; não use o produto das pernas nem zero)");
+    if (_abertaSTC(b) && b.stake > 0 && b.odd > 0) L.push("Retorno potencial (se ganhar): " + _dinSHF(Math.round(b.stake * b.odd * 1e8) / 1e8) + " " + (b.moeda || ""));
+
+    // Props de jogador: a perna não diz se ganhou. Na simples o bilhete diz por ela.
+    const umaSoSwish = b.tipo === "SwishBet" && n === 1;
+    L.push("Seleções:");
+    for (const p of pernas) {
+      let est = "";
+      if (p.anulada === 1) est = "anulada";
+      else if (b.tipo === "SportBet") est = _PERNA_STC[p.status] || (p.status ? "status " + p.status : "");
+      else if (umaSoSwish) est = /^Perdeu/.test(res) ? "perdida" : /^Ganhou/.test(res) ? "ganha" : _abertaSTC(b) ? "aberta" : "";
+      const marca = est ? " [perna " + est + "]" : "";
+      if (b.tipo === "SwishBet") {
+        L.push("- Props de jogador: " + (p.jogador || "(sem jogador)") + " · " + (p.estatistica || "(sem estatística)") +
+               " · " + (p.lado || "") + " " + (p.linha != null ? String(p.linha) : "") + marca);
+      } else {
+        L.push("- " + (p.mercado ? p.mercado + ": " : "") + (p.selecao || "(sem seleção)") + marca);
+      }
+      const ctx2 = [];
+      if (p.jogo) ctx2.push("Jogo: " + p.jogo);
+      if (p.liga) ctx2.push("Liga: " + p.liga);
+      if (p.esporte) ctx2.push("Esporte: " + p.esporte);
+      if (typeof p.inicio === "number") ctx2.push("Início: " + _dhKTO(new Date(p.inicio * 1000).toISOString()));
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (p.odd != null && n > 1) L.push("    Odd da perna: " + _oddTxtKTO(p.odd));
+    }
+    return L.join("\n");
+  }
+
+  async function roboSTCPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+    const processar = () => {
+      const todos = Array.from(stcById.values()).sort((a, b) => (b.colocada || 0) - (a.colocada || 0));
+      for (const b of todos) {
+        const cod = String(b.id || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === String(ctx.stopId).toUpperCase()) { travado = true; return; }
+        usados.add(cod);
+        const dt = typeof b.colocada === "number" ? b.colocada * 1000 : NaN;
+        const passou = !_abertaSTC(b) && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketSTC(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+    stcById.clear();
+    stcFimReal = false;
+    try { window.postMessage({ __sharpenupSTCReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !stcFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      if (stcById.size > ultTotal) { ultTotal = stcById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 30000) break;
+    }
+    await sleep(400);
+    processar();
+    console.log("[SharpenUp] Stake.com: " + blocos.length + " bilhete(s) · stcById=" + stcById.size +
+                " · hook=" + stcHookVivo + " · respostas=" + stcRespostas + " · fimReal=" + stcFimReal +
+                (stcErro ? " · erro=" + stcErro : ""));
     return blocos;
   }
 

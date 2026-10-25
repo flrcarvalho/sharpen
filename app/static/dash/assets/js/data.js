@@ -60,6 +60,7 @@ const CASA_ICONS={
   'Vave':'https://www.google.com/s2/favicons?sz=128&domain=vave.com',
   '20bet':'https://www.google.com/s2/favicons?sz=128&domain=20bet.com',
   'Sportsbet.io':'https://www.google.com/s2/favicons?sz=128&domain=sportsbet.io',
+  'Stake.com':'https://www.google.com/s2/favicons?sz=128&domain=stake.com',
   'Thunderpick':'https://www.google.com/s2/favicons?sz=128&domain=thunderpick.io',
   'Faz1bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
   'MyStake':'https://www.google.com/s2/favicons?sz=128&domain=mystake.bet',
@@ -178,6 +179,7 @@ const HOUSE_DOMAIN={
   'Vave':'vave.com',
   '20bet':'20bet.com',
   'Sportsbet.io':'sportsbet.io',
+  'Stake.com':'stake.com',
   'Thunderpick':'thunderpick.io',
   'Faz1bet':'faz1.bet.br',   // grafia unificada no banco (s284); a s204 elegera 'Faz1Bet',
                              // mas imports posteriores viraram a maioria e a marca escreve minúsculo

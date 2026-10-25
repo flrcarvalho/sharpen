@@ -167,6 +167,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # Sportsbet.io (s428): o ObjectId que o botão "ID" do card copia, a múltipla de 3 perdida de
     # 25/10/2026 (25 USDT @11,64), conta do Feca. 24 hex, minúsculo.
     "SPORTSBETIO": "6addf2d1bf9e9d0001d7fda3",
+    # Stake.com (s428): o "ID da Aposta: 676.297.455" do modal, a props perdida de 23/10/2026
+    # (75 USDT @2,27), conta do Feca. Número do `bet.iid`, 9 dígitos.
+    "STAKECOM":   "676297455",
     # Thunderpick (s426): a múltipla de 3 da NBA ganha em 22/10/2026 (22,26 EUR @8,41), conta
     # do Feca. `wagerId` com o prefixo de tipo que a extensão põe (C múltipla / S simples).
     "THUNDERPICK": "C2225866",

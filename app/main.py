@@ -275,6 +275,11 @@ _CASA_DISPLAY: dict[str, str] = {
     # `uso_tokens`, medido em 25/10/2026. 1ª casa com PONTO no nome: a chave não tem o ponto
     # (as chaves são alfanuméricas), e o front e o content.js tiram ponto e espaço ao comparar.
     "SPORTSBETIO":    "Sportsbet.io",
+    # A Stake INTERNACIONAL (s428), plataforma própria GraphQL. ⚠ Não é a `STAKE` (stake.bet.br):
+    # outro motor, outro id, conta em cripto. A grafia é a da BASE: `Stake.com` em `parceiros`
+    # (1 conta do Jaao26), `bilhetes` (288 de import), `casas_meta`, `correcoes` e `uso_tokens`,
+    # medido em 25/10/2026. Ponto no nome: a chave não o tem, como a Sportsbet.io.
+    "STAKECOM":       "Stake.com",
     # Plataforma PRÓPRIA (s426, feeds Oddin/DATA.BET). A base não tinha a casa em grafia
     # nenhuma (medido em 22/10/2026, `audit_grafias`, 136 casas), então vale a da marca.
     "THUNDERPICK":    "Thunderpick",
@@ -1167,6 +1172,9 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # Sportsbet.io (s428) — plataforma própria GraphQL. ID = o ObjectId de 24 hex que o botão
     # "ID" do card copia (`6addf2d1bf9e9d0001d7fda3`).
     "SPORTSBETIO",
+    # Stake.com (s428) — a Stake internacional. ID = o número do `bet.iid` ("sport:676297455"),
+    # o "ID da Aposta: 676.297.455" do modal, 9 dígitos.
+    "STAKECOM",
     # Thunderpick (s426) — plataforma própria. ID = `wagerId` com PREFIXO de tipo, posto pela
     # extensão: `C2225866` (múltipla, série ~2,2M) / `S10277912` (simples, 4,9M–10,3M). As
     # duas séries são independentes e o prefixo é o que impede a colisão na dedup.

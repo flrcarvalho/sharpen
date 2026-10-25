@@ -1756,6 +1756,14 @@ corpo real (`culture`, `countryCode`, `timezoneOffset`), moeda do cadastro, e os
 do Gabriel dedupando. Espelho numerado: o número difere entre pessoas no mesmo dia; domínio novo
 precisa entrar no manifest, `popup.js` e `_HOSTS_POR_CASA` com versão nova.
 
+### 4.0t Stake.com: medir aposta comum liquidada, cashout e boost (s428). **VIVA, inject ao vivo**
+
+Entrou na 0.7.67 (`CASA_STAKECOM.md`, `stc_inject.js`, adaptador `stc`). A conta do recon tinha
+só props liquidadas (15) e apostas comuns abertas (3, Fórmula 1). Sem amostra: `SportBet` liquidada
+(estado das pernas e `payout`), cashout ≠ stake, cancelada, corrida, XMulti, boost/promoção. O inject
+usa cópia literal das queries da página: se a casa mudar o schema, a query inteira falha (o erro da
+casa sobe no autodiagnóstico). Falta a 1ª captura pela extensão instalada.
+
 ### 4.0p Casas .bet.br em banho-maria: o cru nunca chegou (s427). **PARADA, decisão do Feca**
 
 Decisão do Feca (23/10/2026): "Essas casas não estão sendo usadas por ninguém no momento, precisa
