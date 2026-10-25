@@ -144,6 +144,7 @@ Regras que valem para todos:
 | **Shuffle** | API + replay (cursor) — **1ª casa GraphQL** | `POST /main-api/graphql/sports-main/graphql-sports-main` (`GetSportsBets` · `sportsBetsV3`) | `shf_inject.js` | `id` (nanoid de 21) | `nextCursor: null` | evento mais recente (UTC→SP) |
 | **1win** | API + replay (offset) — gateway em **outro host** | `POST api-gateway.top-parser.com/bets/history/get-many` (plataforma `top-parser`) | `tp_inject.js` | `bet.id` (9 díg.) | `offset >= meta.total` | evento mais recente (epoch **s**→SP) |
 | **Vave** | API + replay (página) — payload **normalizado** | `GET platform.<host>/api/v2/bet/history` (plataforma `softlabs`) + dicionários de mercado | `vv_inject.js` | `id` (7 díg.) | `page >= total` (total = páginas) | evento mais recente (epoch **s**→SP) |
+| **20bet** | **espelho da Vave** — mesma plataforma `softlabs` (167 chaves, zero nova) ⚠ dicionário `/pt` em **português** | idem | **`vv_inject.js`** (o mesmo) | `id` (8 díg.) | `page >= total` | evento mais recente (epoch **s**→SP) |
 | **Thunderpick** | API + replay (`take`/`skip`) + abertas à parte — conta em **EUR**, dinheiro em **centavos** | `GET /api/wagers/v2/resolved` + `/pending` (plataforma própria, mesmo domínio) | `thp_inject.js` | `wagerId` com prefixo `C`/`S` (duas séries) | `skip >= totalWagersCount` **da 1ª página** | evento mais recente (ISO UTC→SP) |
 
 > ⚠️ **Shuffle (s401) — três coisas que nenhuma outra casa tinha mostrado.** (1) **GraphQL

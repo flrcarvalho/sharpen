@@ -1709,14 +1709,28 @@ foram vistos. Hoje só o dinheiro decide (`CASA_VAVE §5`): `W` exige `winFull` 
 
 - Ganha medida em 23/10/2026 nos crus reais (`win` = `winFull` = retorno, `CASA_VAVE §2.5`). Falta
   trocar o clone do harness por um ganho real na fixture.
-- 1ª aberta: provar no harness que a liquidada vence a aberta (hoje sem cobertura) e que o
-  potencial é o `taxesData.potentialWinAmount`.
+- 1ª aberta: o potencial = `taxesData.potentialWinAmount` está medido na 20bet (s428, espelho,
+  `casos/20bet.mjs`). Falta provar no harness que a liquidada vence a aberta (sem cobertura).
 - Fuso do `finishedAt` não provado; está fora do bloco.
 - Adaptador `vv` (s427, 0.7.63): o cru leva o `dicionario`. Falta `VAVE` nas 3 listas da Railway
   depois do deploy, e a 1ª captura com a 0.7.63 conferida no `virada_log`.
 - O domínio troca (`34evav91.com`): o manifest tem esse e `vave.com`; outro número cai no inject
   tardio do popup, que parte do token do `localStorage` (provado ao vivo colando o inject depois
   do load). Ainda não provado pela extensão instalada.
+
+### 4.0q 20bet: virar a Ficha e validar a 1ª captura (s428). **VIVA, só no harness**
+
+A 20bet entrou na 0.7.64 como espelho da Vave (`CASA_20BET.md`), recon no Chrome do Feca na conta
+do Gabriel (12 bilhetes em USD: 10 perdidos, 2 abertos, 3 bet builders). O inject real foi rodado
+sobre a resposta da casa no sandbox, não pela extensão instalada.
+
+- `20BET` nas 3 listas da Railway (`FICHA_SOMBRA_CASAS`, `FICHA_CASAS_VIRADAS`,
+  `EXTRACAO_SEM_PENSAMENTO`) depois do deploy, e a semente do dicionário.
+- 1ª captura pela extensão: contagem contra a lista `All`, código de 8 dígitos dedupando com os
+  57 bilhetes de print do Gabriel, conta cadastrada em USD.
+- Bet builder vai à IA (a Ficha recusa): a casa só manda as seleções como texto
+  (`betBetBuilderLegs`). Se o volume crescer, decidir se a Ficha aceita perna única com o texto.
+- Sem amostra: ganha, cashout, bônus ("20bet boost" das combos prontas), freebet.
 
 ### 4.0p Casas .bet.br em banho-maria: o cru nunca chegou (s427). **PARADA, decisão do Feca**
 

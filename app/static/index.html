@@ -3846,6 +3846,8 @@ const NOMES = {
   '1WIN': '1win',
   // Plataforma própria `softlabs` (s425). Grafia da BASE (`Vave`). ⚠ VAVADA é outra casa.
   VAVE: 'Vave',
+  // Espelho da Vave (s428). Grafia da BASE (`20bet`); a marca escreve `20Bet`.
+  '20BET': '20bet',
   // Plataforma própria (s426). A base não tinha a casa: vale a grafia da marca.
   THUNDERPICK: 'Thunderpick',
 };
@@ -4030,7 +4032,7 @@ const DOMINIOS = {
   // muda é o mapa deixar de apontar para o site global.
   'Betão': 'betao.bet.br', 'Betboo': 'betboo.bet.br', 'Betboom': 'betboom.bet.br',
   'Blaze': 'blaze.bet.br', 'Betpanda': 'betpandacasino.io',
-  'Betfury': 'betfury.com', 'Duel': 'duel.com', 'Betcoin': 'betcoin.ag', 'Betrebels': 'betrebels.gr', 'BetMartini': 'betmartini.com', 'Vavada': 'vavada.com', 'Kikobet': 'kikobet.com', 'DEX Sport': 'dexsport.io', 'Shuffle': 'shuffle.com', '1win': '1win.io', 'Vave': 'vave.com', 'Thunderpick': 'thunderpick.io',
+  'Betfury': 'betfury.com', 'Duel': 'duel.com', 'Betcoin': 'betcoin.ag', 'Betrebels': 'betrebels.gr', 'BetMartini': 'betmartini.com', 'Vavada': 'vavada.com', 'Kikobet': 'kikobet.com', 'DEX Sport': 'dexsport.io', 'Shuffle': 'shuffle.com', '1win': '1win.io', 'Vave': 'vave.com', '20bet': '20bet.com', 'Thunderpick': 'thunderpick.io',
   'Betfusion': 'betfusion.bet.br', 'Liderbet': 'lider.bet.br',
   'SportingBet': 'sportingbet.bet.br',
   // Casas da base do Soh Props - Vip (s316). Domínio MEDIDO, não deduzido: o
@@ -6115,7 +6117,7 @@ function mostrarEmptyState() {
 // Esta lista é o GATE DA FRENTE: casa fora dela nasce com o botão "Conectar"
 // desabilitado e nada da captura roda, por mais completo que esteja o backend (s191).
 // Confira com `python tools/audit_sharpenup.py` ao registrar casa nova.
-const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETPANDA', 'BETFURY', 'DUEL', 'BETCOIN', 'DEXSPORT', 'SHUFFLE', '1WIN', 'VAVE', 'THUNDERPICK', 'FAZ1BET', 'MYSTAKE', 'JACK', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'ESTRELABET', 'BETREBELS', 'BETMARTINI', 'VAVADA', 'KIKOBET', 'PITACO', 'NOVIBET', 'SPORTINGBET', 'LOTTU', '1XBET', 'SAPPHIREBET', 'PARIPESA', 'MEGAPARI', '1XBIT', 'MELBET', 'BOLSADEAPOSTA', 'BETBRA', 'BETAO', 'R7', '7GAMES', 'BLAZE', 'BETBOO']);
+const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETPANDA', 'BETFURY', 'DUEL', 'BETCOIN', 'DEXSPORT', 'SHUFFLE', '1WIN', 'VAVE', '20BET', 'THUNDERPICK', 'FAZ1BET', 'MYSTAKE', 'JACK', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'ESTRELABET', 'BETREBELS', 'BETMARTINI', 'VAVADA', 'KIKOBET', 'PITACO', 'NOVIBET', 'SPORTINGBET', 'LOTTU', '1XBET', 'SAPPHIREBET', 'PARIPESA', 'MEGAPARI', '1XBIT', 'MELBET', 'BOLSADEAPOSTA', 'BETBRA', 'BETAO', 'R7', '7GAMES', 'BLAZE', 'BETBOO']);
 // ⚠ O argumento é a casa COMO ESTÁ NO BANCO (`parceiroSelecionado.casa`), ou seja o nome de
 // exibição — `Jogo de Ouro`, não `JOGODEOURO`. As chaves do Set são as do `_CASA_DISPLAY`, que
 // NÃO têm espaço. Até a s256 toda casa de captura tinha nome de uma palavra só e o

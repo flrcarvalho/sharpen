@@ -199,7 +199,7 @@
     const mTpl = dic ? dic.mercados.get(_s(d.marketId)) : null;
     const sTpl = dic ? dic.selecoes.get(_s(d.outcomeId)) : null;
     return {
-      status: _n(d.status),                     // 1 perdida · 2 ganha (medido) · resto CRU
+      status: _n(d.status),                     // 0 aberta · 1 perdida · 2 ganha · 3 devolvida (20bet, s428) · resto CRU
       odd: _n(d.value != null ? d.value : d.odds),
       jogo: c1 && c2 ? c1 + " - " + c2 : (_s(ev.name) || c1 || c2),
       inicio: _n(ev.ts) != null ? _n(ev.ts) : _utc(d.event_time),   // unix em SEGUNDOS
@@ -234,6 +234,10 @@
       colocada: _n(b.ts),                       // unix em SEGUNDOS (card = ts em São Paulo)
       liquidada: _utc(b.finishedAt),            // ⚠ fuso NÃO provado; o formatador não usa
       betBuilder: b.betBetBuilderId != null,
+      // Bet Builder (medido na 20bet, s428): a perna única só diz "BetBuilder"; as seleções do
+      // cupom vêm prontas aqui, no idioma da conta. Espaço/TAB colapsados: TAB é coluna do TSV.
+      legsBB: (Array.isArray(b.betBetBuilderLegs) ? b.betBetBuilderLegs : [])
+        .map((x) => _s(x).replace(/\s+/g, " ").trim()).filter(Boolean),
       pernas: (Array.isArray(b.details) ? b.details : []).map((d) => parsePerna(d, ix)).filter(Boolean),
     };
   }

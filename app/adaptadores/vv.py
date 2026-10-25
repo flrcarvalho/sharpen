@@ -8,7 +8,10 @@ campo é a do `formatTicketVV` (`content.js`) e da `CASA_VAVE.md`; escrito da fi
 `extensor/harness/fixtures/vave.cru.json` (11 perdidas da conta do Feca, gerada pelo inject
 real) e conferido nos 35 crus reais do banco (Feca e Gabriel, 23/10/2026).
 
-  • CÓDIGO: `bet.id`, 7 dígitos, o `#` do card.
+  • CÓDIGO: `bet.id`, o `#` do card (7 dígitos na Vave, 8 na 20bet).
+  • 20bet (s428) é ESPELHO: o mesmo app, a mesma API, 167 chaves e zero nova. Fixture
+    `20bet.cru.json` (12 bilhetes, USD, 2 abertas, 3 bet builders, perna devolvida). O dicionário
+    `/pt` dela vem em português (o da Vave vinha em inglês); o adaptador copia o que vier.
   • MOEDA da conta: `bet.currency` (USDT, USDC). Quem converte é o servidor.
   • ODD da casa: `bet.value`, a do card; na múltipla já é o produto das pernas.
   • `bet.status`: `0` aberta · `1` perdida só com `win` e `winFull` zerados · `2` ganha se
@@ -32,7 +35,9 @@ from decimal import Decimal
 
 from . import Recusa, iso_de_epoch, numero
 
-_PERNA = {1: "perdida", 2: "ganha"}
+# Perna: 1 e 2 medidos na Vave (s425); 0 "Pending" e 3 "Returned" medidos no card da 20bet (s428,
+# espelho: o mesmo motor). Status de perna fora daqui sobe vazio, nunca chutado.
+_PERNA = {0: "aberta", 1: "perdida", 2: "ganha", 3: "anulada"}
 _MEIO_CENTAVO = Decimal("0.005")
 _TEMPLATE = re.compile(r"\{([!+\-$%]?)([^}]+)\}")
 

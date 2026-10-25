@@ -1541,8 +1541,9 @@
       // filtro, `sportType: "all"`, por `offset` até `meta.total`. SEM fallback de texto: não
       // há prova de linha em branco entre os cards (lição da KTO, s192).
       blocos = await roboTPPassive(ctx);
-    } else if (casa === "vave") {
-      // Passivo + replay (vv_inject, plataforma PRÓPRIA `softlabs` — s425). O Bearer sai de
+    } else if (casa === "vave" || casa === "20bet") {
+      // Passivo + replay (vv_inject, plataforma PRÓPRIA `softlabs` — s425). A 20bet (s428) é
+      // ESPELHO: mesmo app, mesma API em `platform.<host>`, 167 chaves e zero nova contra a Vave. O Bearer sai de
       // qualquer chamada autenticada de `platform.<host>` ou, a frio, do `localStorage`; o
       // replay pede a lista sem filtro, 100 por página, até `page >= total`. SEM fallback de
       // texto: o card esconde as pernas num carrossel e não há linha em branco entre bilhetes.
@@ -1772,6 +1773,10 @@
         vave:       { nome: "Vave",       hook: vvHookVivo, resp: vvRespostas, vistos: vvById.size,
                       extra: vvErro ? " · " + vvErro
                            : (vvSemToken ? " · faça login e abra Perfil → Histórico de apostas; rode de novo" : "") },
+        // 20bet (s428): espelho da Vave, o mesmo `vv_inject`.
+        "20bet":    { nome: "20bet",      hook: vvHookVivo, resp: vvRespostas, vistos: vvById.size,
+                      extra: vvErro ? " · " + vvErro
+                           : (vvSemToken ? " · faça login e abra My Bets → Betting history; rode de novo" : "") },
         // Thunderpick (s426): o token sai de qualquer chamada de `/api/` ou do `localStorage`
         // (`thp.sessionData`). Sem ele (`semToken`) a sessão não está logada.
         thunderpick: { nome: "Thunderpick", hook: thpHookVivo, resp: thpRespostas, vistos: thpById.size,
@@ -5253,10 +5258,12 @@
   //   • o "Valor de aposta" é `amount`, na moeda da conta (USDT);
   //   • a cor de cada perna é `details[].status`: 1 vermelha (perdida), 2 verde (ganha).
   // NÃO MEDIDO (a conta não tinha): ganha, aberta, devolvida, cashout, freebet, bet builder e
-  // sistema. Por isso só o DINHEIRO decide: `winFull` = stake × odd (retorno) ou `win` =
+  // sistema. A 20bet (s428, espelho) mediu no card a perna `0` "Pending" e `3` "Returned", e o
+  // Bet Builder: UMA perna só (mercado "BetBuilder" no dicionário) com as seleções do cupom em
+  // `betBetBuilderLegs`, texto pronto da casa. Por isso só o DINHEIRO decide: `winFull` = stake × odd (retorno) ou `win` =
   // stake × (odd − 1) (lucro) provam W; retorno = stake prova V; o resto sobe cru, "a
   // conferir". O de-para vive na CASA_VAVE.md §5.
-  const _PERNA_VV = { 1: "perdida", 2: "ganha" };
+  const _PERNA_VV = { 0: "aberta", 1: "perdida", 2: "ganha", 3: "devolvida" };
   const _abertaVV = (b) => b.status === 0;
   const _quaseVV = (a, b) => typeof a === "number" && typeof b === "number" && Math.abs(a - b) < 0.005;
 
@@ -5353,6 +5360,12 @@
       // O template da casa foi resolvido no inject; o cru vai junto para a IA conferir a linha.
       if (p.especificadores) L.push("    Especificadores (cru da casa): " + p.especificadores);
       if (p.odd != null && n > 1) L.push("    Odd da perna: " + _oddTxtKTO(p.odd));
+    }
+    // Bet Builder: o dicionário só diz "BetBuilder"; as seleções do cupom vêm prontas da casa.
+    const bb = Array.isArray(b.legsBB) ? b.legsBB.filter(Boolean) : [];
+    if (bb.length) {
+      L.push("Seleções do Criar Aposta (texto da casa):");
+      for (const x of bb) L.push("    · " + x);
     }
     return L.join("\n");
   }

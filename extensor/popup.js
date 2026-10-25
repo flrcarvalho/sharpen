@@ -83,7 +83,8 @@ const CASA_HOSTS = {
   // API sai de `api-gateway.top-parser.com`; a ABA é o site da casa. `1win.com` (s413, 14/10) é
   // espelho com o MESMO gateway, medido no Chrome do Feca: fora daqui o popup barra a aba.
   "1win":       ["1win.io", "1win.com"],
-  // Vave (s425) FICA FORA de propósito: roda em domínio NUMERADO (`34evav91.com` no recon) e
+  // Vave (s425) e 20bet (s428, espelho dela) FICAM FORA de propósito: rodam em domínio NUMERADO
+  // (`34evav91.com` e `20betz0ne1.com` nos recons) e
   // casa sem domínio listado não é checada aqui, senão o endereço novo travaria a captura. A
   // amarração casa↔site segue no servidor (`casa_de_host`). O `vv_inject` não precisa do
   // desvio da 1xBet (`X1_ESPELHOS_MOVEIS`): injetado tarde pelo popup, ele parte do token do
@@ -376,6 +377,8 @@ async function capturar() {
                 : casa === "1win" ? "tp_inject.js"
                 // Vave: plataforma própria `softlabs` (s425).
                 : casa === "Vave" ? "vv_inject.js"
+                // 20bet: espelho da Vave (s428), o mesmo inject.
+                : casa === "20bet" ? "vv_inject.js"
                 // Thunderpick: plataforma própria (s426). `thp_`, porque `tp_` é da 1win.
                 : casa === "Thunderpick" ? "thp_inject.js"
                 : casa === "Pitaco" ? "pt_inject.js"

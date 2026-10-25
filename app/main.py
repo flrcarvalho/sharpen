@@ -266,6 +266,10 @@ _CASA_DISPLAY: dict[str, str] = {
     # `bilhetes`, `casas_meta` e `correcoes` (1 conta do Gabriel, 6 bilhetes de print, medido
     # em 21/10/2026). ⚠ Vizinha de VAVADA, que é outra casa.
     "VAVE":           "Vave",
+    # ESPELHO da Vave (s428), mesma plataforma `softlabs`. A grafia é a da BASE: `20bet` em
+    # `parceiros` (1 conta do Gabriel), `bilhetes` (57 de print), `casas_meta`, `correcoes` e
+    # `uso_tokens`, medido em 25/10/2026. A marca escreve `20Bet`; a base manda.
+    "20BET":          "20bet",
     # Plataforma PRÓPRIA (s426, feeds Oddin/DATA.BET). A base não tinha a casa em grafia
     # nenhuma (medido em 22/10/2026, `audit_grafias`, 136 casas), então vale a da marca.
     "THUNDERPICK":    "Thunderpick",
@@ -1148,6 +1152,9 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # Vave (s425) — plataforma própria `softlabs`. ID = numérico de 7 dígitos, o "#5435097"
     # que o card estampa.
     "VAVE",
+    # 20bet (s428) — espelho da Vave. ID = numérico de 8 dígitos, o "#68651106" do card, o
+    # mesmo dos 57 bilhetes que a base já tinha por print.
+    "20BET",
     # Thunderpick (s426) — plataforma própria. ID = `wagerId` com PREFIXO de tipo, posto pela
     # extensão: `C2225866` (múltipla, série ~2,2M) / `S10277912` (simples, 4,9M–10,3M). As
     # duas séries são independentes e o prefixo é o que impede a colisão na dedup.
