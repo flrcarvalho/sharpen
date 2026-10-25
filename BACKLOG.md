@@ -1732,6 +1732,21 @@ sobre a resposta da casa no sandbox, não pela extensão instalada.
   (`betBetBuilderLegs`). Se o volume crescer, decidir se a Ficha aceita perna única com o texto.
 - Sem amostra: ganha, cashout, bônus ("20bet boost" das combos prontas), freebet.
 
+### 4.0r Sportsbet.io: virar a Ficha, medir outra moeda e cashout (s428). **VIVA, só no harness + inject ao vivo**
+
+A Sportsbet.io entrou na 0.7.65 (`CASA_SPORTSBETIO.md`, `sbi_inject.js`, adaptador `sbi`), recon na
+conta do Feca em USDT (18 liquidadas, 13 abertas). O inject real rodou ao vivo colado na aba; a
+captura pela extensão instalada ainda não.
+
+- `SPORTSBETIO` nas 3 listas da Railway depois do deploy, e a semente do dicionário.
+- **Escala do dinheiro fora de USDT não medida** (1e8 em USDT). As 2 contas da base (Gabriel,
+  Jaao26) podem ser em BRL: medir o `stakeAmount` de uma conta em real antes de confiar; até lá a
+  Ficha recusa outra moeda e a IA lê o número que o inject já dividiu por 1e8 (se a escala for
+  outra, o texto também erra: conferir a 1ª captura de conta não-USDT contra o card).
+- Sem amostra: cashout (`cashout.instances`), freebet, sistema, anulada inteira; `cashBackStake`
+  sem significado medido.
+- Bet Builder vai à IA (perna única com `;`). 11 de 31 bilhetes do recon eram Bet Builder.
+
 ### 4.0p Casas .bet.br em banho-maria: o cru nunca chegou (s427). **PARADA, decisão do Feca**
 
 Decisão do Feca (23/10/2026): "Essas casas não estão sendo usadas por ninguém no momento, precisa

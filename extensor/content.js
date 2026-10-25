@@ -532,6 +532,31 @@
     }
   });
 
+  // Bilhetes da SPORTSBET.IO capturados pelo sbi_inject.js (mundo MAIN) — `/graphql`
+  // (`myBettingHistory` + `myActiveTickets`) da plataforma própria (s428). `sbiById` guarda 1
+  // bilhete por código (o ObjectId do card); a versão LIQUIDADA vence a aberta.
+  const sbiById = new Map();         // código(string) → bilhete
+  let sbiFimReal = false;
+  let sbiHookVivo = false, sbiRespostas = 0;
+  let sbiSemToken = false, sbiErro = "";
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupSBIData) {
+      if (d.hook) sbiHookVivo = true;
+      if (typeof d.respostas === "number") sbiRespostas = d.respostas;
+      sbiSemToken = !!d.semToken;
+      sbiErro = d.erro ? String(d.erro) : "";
+      if (Array.isArray(d.bilhetes)) {
+        for (const b of d.bilhetes) {
+          if (!b || !b.id) continue;
+          const ex = sbiById.get(b.id);
+          if (!ex || ex.status === "ACTIVE" || b.status !== "ACTIVE") sbiById.set(b.id, b);
+        }
+      }
+      if (d.fim) sbiFimReal = true;
+    }
+  });
+
   // Bilhetes da THUNDERPICK capturados pelo thp_inject.js (mundo MAIN) — `/api/wagers/v2/
   // resolved` + `/pending` da plataforma própria, no mesmo domínio (s426). `thpById` guarda 1
   // bilhete por código (`C…`/`S…`); a versão LIQUIDADA vence a aberta.
@@ -1213,7 +1238,9 @@
     // e mandou para a IA como se fossem bilhetes. Até então toda casa de robô tinha nome de
     // uma palavra só e o `.toLowerCase()` sozinho bastava — a mesma classe de defeito que
     // deixou o botão "Conectar" morto no `index.html`.
-    const casa = (cfg.casa || "").toLowerCase().replace(/\s+/g, "");
+    // Sem espaço E sem ponto: `Sportsbet.io` (s428) é a 1ª casa com ponto no nome, e as chaves
+    // do sistema são alfanuméricas (`SPORTSBETIO`). O ramo e o diagnóstico usam `sportsbetio`.
+    const casa = (cfg.casa || "").toLowerCase().replace(/[\s.]+/g, "");
     const ctx = {
       cutoff, pisoSanidade,
       stopId: (cfg.stopId || "").trim().toUpperCase(),
@@ -1548,6 +1575,12 @@
       // replay pede a lista sem filtro, 100 por página, até `page >= total`. SEM fallback de
       // texto: o card esconde as pernas num carrossel e não há linha em branco entre bilhetes.
       blocos = await roboVVPassive(ctx);
+    } else if (casa === "sportsbetio") {
+      // Passivo + replay (sbi_inject, plataforma PRÓPRIA GraphQL — s428). O Bearer é o cookie
+      // `token` (JWT) ou o header de qualquer chamada `/graphql`; o replay pede histórico e
+      // abertas 100 por vez, pelo cursor, até `hasNextPage: false`. SEM fallback de texto: os
+      // cards fecham as pernas atrás de um clique e não há linha em branco entre bilhetes.
+      blocos = await roboSBIPassive(ctx);
     } else if (casa === "thunderpick") {
       // Passivo + replay (thp_inject, plataforma PRÓPRIA — s426). O `thunderpick-token` sai de
       // qualquer chamada de `/api/` da página ou, a frio, do `localStorage`; o replay pede as
@@ -1777,6 +1810,11 @@
         "20bet":    { nome: "20bet",      hook: vvHookVivo, resp: vvRespostas, vistos: vvById.size,
                       extra: vvErro ? " · " + vvErro
                            : (vvSemToken ? " · faça login e abra My Bets → Betting history; rode de novo" : "") },
+        // Sportsbet.io (s428): o Bearer é o cookie `token` ou o header de `/graphql`. Sem ele
+        // (`semToken`) a sessão não está logada.
+        sportsbetio: { nome: "Sportsbet.io", hook: sbiHookVivo, resp: sbiRespostas, vistos: sbiById.size,
+                      extra: sbiErro ? " · " + sbiErro
+                           : (sbiSemToken ? " · faça login e abra Minhas Apostas; rode de novo" : "") },
         // Thunderpick (s426): o token sai de qualquer chamada de `/api/` ou do `localStorage`
         // (`thp.sessionData`). Sem ele (`semToken`) a sessão não está logada.
         thunderpick: { nome: "Thunderpick", hook: thpHookVivo, resp: thpRespostas, vistos: thpById.size,
@@ -5413,6 +5451,151 @@
                 " · hook=" + vvHookVivo + " · respostas=" + vvRespostas + " · fimReal=" + vvFimReal +
                 (vvSemDicionario ? " · sem dicionário de mercados" : "") +
                 (vvErro ? " · erro=" + vvErro : ""));
+    return blocos;
+  }
+
+  // ── Sportsbet.io (plataforma própria GraphQL — s428) ─────────────────────────
+  // Formata 1 bilhete do `/graphql` (normalizado pelo sbi_inject) no bloco que a IA lê.
+  // Leituras VALIDADAS contra o card (recon s428, 17 liquidadas + 14 abertas, USDT):
+  //   • o código é o ObjectId que o botão "ID" do card copia (`6addf2d1bf9e9d0001d7fda3`);
+  //   • dinheiro em 1e8, já dividido pelo inject (2500000000 → 25,00 USDT);
+  //   • a odd do card é `boostedOdds` do bilhete (5,83 no TURBINADO, onde `odds` = 5,71);
+  //   • `wonAmount` é o RETORNO (60,01 × 1,77 = 106,2177 → "+ 106,21" no card) e é null na
+  //     perdida; `maxWin` é o potencial;
+  //   • perna: `status` 1 verde (ganha), 2 vermelha (perdida), 0 pendente; `voidFactor` 1 é
+  //     CINZA (anulada), qualquer que seja o `status` (medido: status 2 + voidFactor 1 = cinza).
+  //   • Bet Builder ("INVENTOR" no card): uma perna com mercado `Bet Builder` e as seleções do
+  //     cupom juntas por ";" no nome.
+  // NÃO MEDIDO: anulada inteira, cashout, freebet, sistema. Só o DINHEIRO decide; o resto sobe
+  // "a conferir". O de-para vive na CASA_SPORTSBETIO.md §5.
+  const _quaseSBI = (a, b) => typeof a === "number" && typeof b === "number" && Math.abs(a - b) < 0.005;
+  const _pernaSBI = (p) => (p.anulada === 1 ? "anulada" : ({ 0: "aberta", 1: "ganha", 2: "perdida" })[p.status] || ("status " + p.status));
+  const _bbSBI = (p) => /^bet builder$/i.test(p.mercado || "");
+
+  function _dataEventoSBI(b) {
+    let max = null;
+    for (const p of (b.pernas || [])) if (typeof p.inicio === "number" && (max == null || p.inicio > max)) max = p.inicio;
+    return max == null ? "" : new Date(max * 1000).toISOString();
+  }
+
+  // Leitura pelo DINHEIRO, com o status cru ao lado. Só se decide onde o número prova.
+  function _resultadoSBI(b) {
+    const st = b.stake, moeda = b.moeda || "", ret = b.retorno;
+    const cru = "status " + (b.status || "(vazio)") + " · retorno " + (ret == null ? "(vazio)" : _dinSHF(ret)) + " " + moeda;
+    const conferir = (m) => cru.trim() + (m ? " · " + m : "") + " (a conferir — não liquidar automaticamente)";
+    if (b.status === "ACTIVE") return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (!(st > 0)) return conferir("sem stake");
+    if (b.freebet) return conferir("aposta marcada como freebet");
+    if ((b.cashouts || []).length) return conferir("cashout " + b.cashouts.map((c) => c.valor + "/" + c.pago).join(", ") + " (cru, sem escala medida)");
+    if (_quaseSBI(ret, st)) return "Retorno = stake (" + _dinSHF(st) + " " + moeda + ") → V";
+    const pernas = b.pernas || [];
+    const perdida = pernas.some((p) => p.status === 2 && p.anulada !== 1);
+    if (ret == null || ret === 0) return perdida ? "Perdeu → L" : conferir("sem retorno e sem perna perdida");
+    if (_quaseSBI(ret, st * b.odd)) return "Ganhou → W (retorno " + _dinSHF(ret) + " " + moeda + ")";
+    // Múltipla ganha com perna anulada: o retorno fecha com o produto das pernas que valeram.
+    const valeram = pernas.filter((p) => p.anulada !== 1);
+    const tudoVerde = pernas.length > 1 && !perdida && valeram.every((p) => p.status === 1) && valeram.length < pernas.length;
+    if (tudoVerde) {
+      const prod = valeram.reduce((a, p) => a * (p.oddTurbo || p.odd || NaN), 1);
+      if (_quaseSBI(ret, st * prod)) return "Ganhou → W (retorno " + _dinSHF(ret) + " " + moeda + "; perna anulada fora da odd)";
+    }
+    return conferir("");
+  }
+
+  function formatTicketSBI(b) {
+    const L = [];
+    L.push("[Código: " + b.id + "]");
+    const dev = _dhKTO(_dataEventoSBI(b));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    const dcol = typeof b.colocada === "number" ? _dhKTO(new Date(b.colocada * 1000).toISOString()) : "";
+    if (dcol) L.push("Data (colocação): " + dcol);
+    _linhaCarimbo(L, b.colocada, b.moeda);
+    L.push("Stake: " + _dinSHF(b.stake));
+    _linhaMoeda(L, b.moeda);
+    L.push("Status: " + _resultadoSBI(b));
+    L.push("Status (API): status=" + String(b.status || "(vazio)") + " · betType=" + String(b.tipoAposta || "(vazio)") +
+           (b.turbinado ? " · TURBINADO" : ""));
+
+    const pernas = b.pernas || [];
+    const n = pernas.length;
+    if (b.apostas > 1) {
+      L.push("Tipo: Sistema (" + n + " seleções · " + b.apostas + " apostas) — calcule pela MASTER_RESULTADO §7; NUNCA o produto simples das odds");
+    } else if (n === 1 && _bbSBI(pernas[0])) {
+      L.push("Tipo: Criar Aposta / mesmo jogo (" + pernas[0].selecao.split(";").filter(Boolean).length + " seleções; a odd é a do conjunto)");
+    } else if (n === 1) {
+      L.push("Tipo: Simples");
+    } else if (n > 1) {
+      const nbb = pernas.filter(_bbSBI).length;
+      L.push("Tipo: Múltipla (" + n + " seleções" + (nbb ? "; " + nbb + " delas são Criar Aposta, cada uma com a odd do conjunto" : "") + ")");
+    }
+
+    if (b.odd > 0) L.push("Odd: " + _oddTxtKTO(b.odd));
+    else L.push("Odd: (a casa não informou — deixe a odd VAZIA; não use o produto das pernas nem zero)");
+    if (b.turbinado && b.oddSemTurbo > 0 && b.oddSemTurbo !== b.odd) {
+      L.push("Odd sem o turbo: " + _oddTxtKTO(b.oddSemTurbo) + " (o card mostra a turbinada, acima)");
+    }
+    if (b.status === "ACTIVE" && b.potencial > 0) L.push("Retorno potencial (se ganhar): " + _dinSHF(b.potencial) + " " + (b.moeda || ""));
+
+    L.push("Seleções:");
+    for (const p of pernas) {
+      const subs = _bbSBI(p) ? p.selecao.split(";").map((x) => x.trim()).filter(Boolean) : [];
+      if (subs.length) {
+        L.push("- Criar Aposta: " + subs.length + " seleções [perna " + _pernaSBI(p) + "]");
+        for (const x of subs) L.push("    · " + x);
+      } else {
+        L.push("- " + (p.mercado ? p.mercado + ": " : "") + (p.selecao || "(sem seleção)") + " [perna " + _pernaSBI(p) + "]");
+      }
+      const ctx2 = [];
+      if (p.jogo) ctx2.push("Jogo: " + p.jogo);
+      if (p.esporte) ctx2.push("Esporte: " + p.esporte);
+      if (typeof p.inicio === "number") ctx2.push("Início: " + _dhKTO(new Date(p.inicio * 1000).toISOString()));
+      if (p.placar) ctx2.push("Placar: " + p.placar);
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (p.odd != null && n > 1) L.push("    Odd da perna: " + _oddTxtKTO(p.oddTurbo || p.odd) + (p.oddTurbo ? " (turbinada; sem turbo " + _oddTxtKTO(p.odd) + ")" : ""));
+    }
+    return L.join("\n");
+  }
+
+  async function roboSBIPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      // Mais recente primeiro, para o corte da janela de dias cair no lugar certo.
+      const todos = Array.from(sbiById.values()).sort((a, b) => (b.colocada || 0) - (a.colocada || 0));
+      for (const b of todos) {
+        const cod = String(b.id || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === String(ctx.stopId).toUpperCase()) { travado = true; return; }
+        usados.add(cod);
+        // Janela de dias corta só as LIQUIDADAS (pela colocação); aberta nunca corta.
+        const dt = typeof b.colocada === "number" ? b.colocada * 1000 : NaN;
+        const passou = b.status !== "ACTIVE" && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketSBI(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+
+    // Rodada nova começa do zero (lição da s393, DEX Sport).
+    sbiById.clear();
+    sbiFimReal = false;
+    try { window.postMessage({ __sharpenupSBIReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+
+    // As duas listas chegam inteiras no `fim`: processar antes cortaria a janela pela metade.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !sbiFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      if (sbiById.size > ultTotal) { ultTotal = sbiById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 30000) break;   // 30s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();
+    console.log("[SharpenUp] Sportsbet.io: " + blocos.length + " bilhete(s) · sbiById=" + sbiById.size +
+                " · hook=" + sbiHookVivo + " · respostas=" + sbiRespostas + " · fimReal=" + sbiFimReal +
+                (sbiErro ? " · erro=" + sbiErro : ""));
     return blocos;
   }
 

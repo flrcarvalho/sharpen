@@ -161,6 +161,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # 20bet (s428, espelho da Vave): o "#68651106" do card, a múltipla de 3 perdida de 23/10/2026
     # (25 USD @7,36, Lost · Returned · Won). Numérico de 8 dígitos.
     "20BET":      "68651106",
+    # Sportsbet.io (s428): o ObjectId que o botão "ID" do card copia, a múltipla de 3 perdida de
+    # 25/10/2026 (25 USDT @11,64), conta do Feca. 24 hex, minúsculo.
+    "SPORTSBETIO": "6addf2d1bf9e9d0001d7fda3",
     # Thunderpick (s426): a múltipla de 3 da NBA ganha em 22/10/2026 (22,26 EUR @8,41), conta
     # do Feca. `wagerId` com o prefixo de tipo que a extensão põe (C múltipla / S simples).
     "THUNDERPICK": "C2225866",
@@ -307,7 +310,7 @@ def display_casa_conectavel(display: str) -> bool:
                         if not unicodedata.combining(c))
     chave = chave.upper()
     if "replace" in expr:                      # tira espaços, como o front faz hoje
-        chave = re.sub(r"\s+", "", chave)
+        chave = re.sub(r"[\s.]+" if r"[\s.]" in expr else r"\s+", "", chave)   # e o ponto (s428)
     return chave in conectaveis()
 
 
@@ -393,7 +396,7 @@ def chave_runtime_content(display: str) -> str:
     expr = m.group(1) if m else ""
     v = display.lower()
     if "replace" in expr:                      # tira espaços, como o content.js faz hoje
-        v = re.sub(r"\s+", "", v)
+        v = re.sub(r"[\s.]+" if r"[\s.]" in expr else r"\s+", "", v)   # e o ponto (s428)
     return v
 
 

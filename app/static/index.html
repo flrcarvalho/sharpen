@@ -3848,6 +3848,8 @@ const NOMES = {
   VAVE: 'Vave',
   // Espelho da Vave (s428). Grafia da BASE (`20bet`); a marca escreve `20Bet`.
   '20BET': '20bet',
+  // Plataforma própria GraphQL (s428). Grafia da BASE, com o ponto.
+  SPORTSBETIO: 'Sportsbet.io',
   // Plataforma própria (s426). A base não tinha a casa: vale a grafia da marca.
   THUNDERPICK: 'Thunderpick',
 };
@@ -4032,7 +4034,7 @@ const DOMINIOS = {
   // muda é o mapa deixar de apontar para o site global.
   'Betão': 'betao.bet.br', 'Betboo': 'betboo.bet.br', 'Betboom': 'betboom.bet.br',
   'Blaze': 'blaze.bet.br', 'Betpanda': 'betpandacasino.io',
-  'Betfury': 'betfury.com', 'Duel': 'duel.com', 'Betcoin': 'betcoin.ag', 'Betrebels': 'betrebels.gr', 'BetMartini': 'betmartini.com', 'Vavada': 'vavada.com', 'Kikobet': 'kikobet.com', 'DEX Sport': 'dexsport.io', 'Shuffle': 'shuffle.com', '1win': '1win.io', 'Vave': 'vave.com', '20bet': '20bet.com', 'Thunderpick': 'thunderpick.io',
+  'Betfury': 'betfury.com', 'Duel': 'duel.com', 'Betcoin': 'betcoin.ag', 'Betrebels': 'betrebels.gr', 'BetMartini': 'betmartini.com', 'Vavada': 'vavada.com', 'Kikobet': 'kikobet.com', 'DEX Sport': 'dexsport.io', 'Shuffle': 'shuffle.com', '1win': '1win.io', 'Vave': 'vave.com', '20bet': '20bet.com', 'Sportsbet.io': 'sportsbet.io', 'Thunderpick': 'thunderpick.io',
   'Betfusion': 'betfusion.bet.br', 'Liderbet': 'lider.bet.br',
   'SportingBet': 'sportingbet.bet.br',
   // Casas da base do Soh Props - Vip (s316). Domínio MEDIDO, não deduzido: o
@@ -6117,7 +6119,7 @@ function mostrarEmptyState() {
 // Esta lista é o GATE DA FRENTE: casa fora dela nasce com o botão "Conectar"
 // desabilitado e nada da captura roda, por mais completo que esteja o backend (s191).
 // Confira com `python tools/audit_sharpenup.py` ao registrar casa nova.
-const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETPANDA', 'BETFURY', 'DUEL', 'BETCOIN', 'DEXSPORT', 'SHUFFLE', '1WIN', 'VAVE', '20BET', 'THUNDERPICK', 'FAZ1BET', 'MYSTAKE', 'JACK', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'ESTRELABET', 'BETREBELS', 'BETMARTINI', 'VAVADA', 'KIKOBET', 'PITACO', 'NOVIBET', 'SPORTINGBET', 'LOTTU', '1XBET', 'SAPPHIREBET', 'PARIPESA', 'MEGAPARI', '1XBIT', 'MELBET', 'BOLSADEAPOSTA', 'BETBRA', 'BETAO', 'R7', '7GAMES', 'BLAZE', 'BETBOO']);
+const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR', 'PINNACLE', 'BET365', 'KTO', 'TIVO', 'VAIDEBET', 'BETFAST', 'BETPANDA', 'BETFURY', 'DUEL', 'BETCOIN', 'DEXSPORT', 'SHUFFLE', '1WIN', 'VAVE', '20BET', 'SPORTSBETIO', 'THUNDERPICK', 'FAZ1BET', 'MYSTAKE', 'JACK', 'BETNACIONAL', 'JONBET', 'BETBOOM', 'ESPORTIVA', 'JOGODEOURO', 'STAKE', 'BETPIX365', 'ESTRELABET', 'BETREBELS', 'BETMARTINI', 'VAVADA', 'KIKOBET', 'PITACO', 'NOVIBET', 'SPORTINGBET', 'LOTTU', '1XBET', 'SAPPHIREBET', 'PARIPESA', 'MEGAPARI', '1XBIT', 'MELBET', 'BOLSADEAPOSTA', 'BETBRA', 'BETAO', 'R7', '7GAMES', 'BLAZE', 'BETBOO']);
 // ⚠ O argumento é a casa COMO ESTÁ NO BANCO (`parceiroSelecionado.casa`), ou seja o nome de
 // exibição — `Jogo de Ouro`, não `JOGODEOURO`. As chaves do Set são as do `_CASA_DISPLAY`, que
 // NÃO têm espaço. Até a s256 toda casa de captura tinha nome de uma palavra só e o
@@ -6130,7 +6132,7 @@ const CASAS_CONECTAVEIS = new Set(['SUPERBET', 'BETANO', 'BETESPORTE', 'BETFAIR'
 // sem isto o `Betão` nasceria com o botão "Conectar" DESABILITADO — o bug da s191, terceira
 // encarnação (s256 foi o espaço, s335 é o acento). Medido antes de mudar: nas 31 grafias de
 // display conhecidas, a normalização não altera o resultado de nenhuma casa já existente.
-function _casaConectavel(casa) { return CASAS_CONECTAVEIS.has((casa || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, '')); }
+function _casaConectavel(casa) { return CASAS_CONECTAVEIS.has((casa || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[\s.]+/g, '')); }
 
 // ── Polymarket: sincronização via API ───────────────────────────────────────────
 function aplicarModoCasa(casa) {

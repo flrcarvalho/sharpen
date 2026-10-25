@@ -322,6 +322,8 @@ export async function rodarInject(cfg) {
     Uint8Array, Int8Array, Uint32Array, DataView, ArrayBuffer, TextDecoder, TextEncoder,
     // `btoa`: o cru da Pitaco (s409) viaja como os BYTES do protobuf em base64.
     btoa: (s) => Buffer.from(String(s), "latin1").toString("base64"),
+    // `atob`: a Sportsbet.io (s428) manda o id do bilhete em base64 (`SportsbetTicketsTicket:<hex>`).
+    atob: (s) => Buffer.from(String(s), "base64").toString("latin1"),
   };
   ctx.globalThis = ctx;
   vm.createContext(ctx);

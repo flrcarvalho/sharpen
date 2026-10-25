@@ -89,6 +89,8 @@ const CASA_HOSTS = {
   // amarração casa↔site segue no servidor (`casa_de_host`). O `vv_inject` não precisa do
   // desvio da 1xBet (`X1_ESPELHOS_MOVEIS`): injetado tarde pelo popup, ele parte do token do
   // `localStorage` e busca o histórico sozinho.
+  // Sportsbet.io (s428): plataforma própria GraphQL, API no MESMO domínio da aba.
+  "Sportsbet.io": ["sportsbet.io"],
   // Thunderpick (s426): plataforma própria, API no MESMO domínio da aba.
   "Thunderpick": ["thunderpick.io"],
   // Antiga "Rei do Pitaco" (grafia unificada no banco na s270). Plataforma própria,
@@ -379,6 +381,8 @@ async function capturar() {
                 : casa === "Vave" ? "vv_inject.js"
                 // 20bet: espelho da Vave (s428), o mesmo inject.
                 : casa === "20bet" ? "vv_inject.js"
+                // Sportsbet.io: plataforma própria GraphQL (s428).
+                : casa === "Sportsbet.io" ? "sbi_inject.js"
                 // Thunderpick: plataforma própria (s426). `thp_`, porque `tp_` é da 1win.
                 : casa === "Thunderpick" ? "thp_inject.js"
                 : casa === "Pitaco" ? "pt_inject.js"
