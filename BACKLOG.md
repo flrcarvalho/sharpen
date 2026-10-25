@@ -1712,8 +1712,8 @@ foram vistos. Hoje só o dinheiro decide (`CASA_VAVE §5`): `W` exige `winFull` 
 - 1ª aberta: o potencial = `taxesData.potentialWinAmount` está medido na 20bet (s428, espelho,
   `casos/20bet.mjs`). Falta provar no harness que a liquidada vence a aberta (sem cobertura).
 - Fuso do `finishedAt` não provado; está fora do bloco.
-- Adaptador `vv` (s427, 0.7.63): o cru leva o `dicionario`. Falta `VAVE` nas 3 listas da Railway
-  depois do deploy, e a 1ª captura com a 0.7.63 conferida no `virada_log`.
+- Adaptador `vv` (s427, 0.7.63): o cru leva o `dicionario`. `VAVE` nas 3 listas da Railway desde
+  25/10/2026 (s428). Falta a 1ª captura conferida no `virada_log`.
 - O domínio troca (`34evav91.com`): o manifest tem esse e `vave.com`; outro número cai no inject
   tardio do popup, que parte do token do `localStorage` (provado ao vivo colando o inject depois
   do load). Ainda não provado pela extensão instalada.
@@ -1724,8 +1724,8 @@ A 20bet entrou na 0.7.64 como espelho da Vave (`CASA_20BET.md`), recon no Chrome
 do Gabriel (12 bilhetes em USD: 10 perdidos, 2 abertos, 3 bet builders). O inject real foi rodado
 sobre a resposta da casa no sandbox, não pela extensão instalada.
 
-- `20BET` nas 3 listas da Railway (`FICHA_SOMBRA_CASAS`, `FICHA_CASAS_VIRADAS`,
-  `EXTRACAO_SEM_PENSAMENTO`) depois do deploy, e a semente do dicionário.
+- `20BET` nas 3 listas da Railway desde 25/10/2026, SEM backtest (decisão do Feca: "precisa sim
+  estar todas nas fichas"). Falta a 1ª captura conferida no `virada_log` (pela Ficha × para a IA).
 - 1ª captura pela extensão: contagem contra a lista `All`, código de 8 dígitos dedupando com os
   57 bilhetes de print do Gabriel, conta cadastrada em USD.
 - Bet builder vai à IA (a Ficha recusa): a casa só manda as seleções como texto
@@ -1738,7 +1738,8 @@ A Sportsbet.io entrou na 0.7.65 (`CASA_SPORTSBETIO.md`, `sbi_inject.js`, adaptad
 conta do Feca em USDT (18 liquidadas, 13 abertas). O inject real rodou ao vivo colado na aba; a
 captura pela extensão instalada ainda não.
 
-- `SPORTSBETIO` nas 3 listas da Railway depois do deploy, e a semente do dicionário.
+- `SPORTSBETIO` nas 3 listas da Railway desde 25/10/2026, SEM backtest (mesma decisão). Falta a
+  1ª captura conferida no `virada_log`.
 - **Escala do dinheiro fora de USDT não medida** (1e8 em USDT). As 2 contas da base (Gabriel,
   Jaao26) podem ser em BRL: medir o `stakeAmount` de uma conta em real antes de confiar; até lá a
   Ficha recusa outra moeda e a IA lê o número que o inject já dividiu por 1e8 (se a escala for
