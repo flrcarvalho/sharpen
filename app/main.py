@@ -6310,7 +6310,10 @@ TIPSTERS_PUBLICOS: dict[str, dict] = {
     # carteira monomodal do registro. Duas eras de escrita, não de aposta: até
     # 31/03 o título traz o confronto por extenso, de 01/04 em diante é só
     # sobrenome + mercado em código (`olise shot3`).
-    "sohpropsvips": {"dono": "sohprops", "nome": "Soh Props", "plano": "VIP"},
+    # Exclui o Nômade (e não "só o Vip"): as 925 linhas de `Lucas`/`Rafael` de
+    # março também são do Vip e sumiriam de uma lista de inclusão.
+    "sohpropsvips": {"dono": "sohprops", "nome": "Soh Props", "plano": "VIP",
+                     "excluir_tipsters": ["Soh Props - Nômade"]},
     # 8º tipster (s325). Marca e username DIVERGEM pela quinta vez: a marca é
     # `Grego Tips - VIP` (o nome do canal) e o username do cadastro é
     # `gregozxrd` (conferido na tabela `usuarios` — e-mail
@@ -6322,7 +6325,35 @@ TIPSTERS_PUBLICOS: dict[str, dict] = {
     # +127,84u, ROI 13,02%) reconcilia com o import: conferência contra fonte
     # externa, não só contra a própria planilha.
     "gregotipsvip": {"dono": "gregozxrd", "nome": "Grego Tips", "plano": "VIP"},
+    # 9º slug (26/10/2026), e o 1º que NÃO é a conta inteira. O Soh Props - Nômade é
+    # outro grupo dos mesmos donos e mora na MESMA conta `sohprops` (decisão do Feca:
+    # "pros donos pode ser juntas", "as planilhas sim tem links diferentes pros
+    # clientes"). A coluna `tipster` separa as duas carteiras, e cada slug declara o
+    # recorte dele: este mostra SÓ o Nômade, e o `sohpropsvips` acima o exclui.
+    # Entra DEPOIS do Vip de propósito: `perfil_publico_do_dono` devolve o 1º slug do
+    # dono, e a sidebar dos donos continua sendo a do Vip.
+    "sohpropsnomade": {"dono": "sohprops", "nome": "Soh Props", "plano": "NÔMADE",
+                       "so_tipsters": ["Soh Props - Nômade"]},
 }
+
+
+def _chave_tipster(nome: str) -> str:
+    """Compara nome de tipster sem caixa, espaço nas pontas nem diferença de
+    normalização Unicode (o `Ô` pode chegar composto ou decomposto)."""
+    import unicodedata
+    return unicodedata.normalize("NFC", (nome or "").strip()).casefold()
+
+
+def recorte_publico(cfg: dict, rows: list[dict]) -> list[dict]:
+    """O recorte de tipster de um slug público. Sem `so_tipsters` nem
+    `excluir_tipsters` o slug mostra a conta inteira, como sempre mostrou."""
+    so = {_chave_tipster(t) for t in cfg.get("so_tipsters") or []}
+    fora = {_chave_tipster(t) for t in cfg.get("excluir_tipsters") or []}
+    if so:
+        rows = [r for r in rows if _chave_tipster(r.get("tipster")) in so]
+    if fora:
+        rows = [r for r in rows if _chave_tipster(r.get("tipster")) not in fora]
+    return rows
 
 _PUBLICO_TTL = 300  # 5 min — feed é público; o cache em memória protege o Postgres
 _publico_data_cache: dict[str, tuple[float, bytes, bytes]] = {}  # slug → (ts, json, gzip)
@@ -6359,7 +6390,7 @@ async def dados_publicos_tipster(slug: str, request: Request, refresh: bool = Fa
     agora = time.time()
     hit = _publico_data_cache.get(slug.lower())
     if not hit or agora - hit[0] >= _PUBLICO_TTL:
-        rows = await dashboard_rows([cfg["dono"]])
+        rows = recorte_publico(cfg, await dashboard_rows([cfg["dono"]]))
         payload = {
             "ok": True,
             "data": rows,
