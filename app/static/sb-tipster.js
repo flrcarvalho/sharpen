@@ -212,7 +212,10 @@
         // TESTE, e e' isso que o selo diz. O SPEC pedia "Sem plano" em tom apagado;
         // o Feca trocou por "Tester" em badge azul da marca na s363, e a razao e' boa:
         // "sem plano" descreve o que a conta NAO tem, e "Tester" descreve o que ela E'.
-        plan.textContent = p.plano ? ('Plano ' + p.plano) : 'Tester';
+        // O selo e' o plano SOZINHO, sem o prefixo "Plano" (Feca, 27/10/2026: "pode
+        // alterar para vir sempre sem plano em tudo"). Nasceu do Nomade, onde o valor e'
+        // nome de GRUPO e "Plano Nomade" lia errado.
+        plan.textContent = p.plano ? p.plano : 'Tester';
         plan.className = 'sb-tipster__plan' + (p.plano ? '' : ' tester');
         el.classList.remove('vendo');
       }

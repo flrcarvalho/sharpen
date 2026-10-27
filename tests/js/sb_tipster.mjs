@@ -185,9 +185,10 @@ assert.ok(host.el.querySelector('button.sb-tipster__av'), 'no host o avatar É o
 assert.ok(host.el.querySelector('input[type=file]'), 'no host há seletor de arquivo real (alcançável por teclado)');
 
 // ── 5. Plano, ausência de plano e "vendo base de" ────────────────────────────
-assert.strictEqual(plano(host), 'Plano VIP');
+// o selo é o plano SOZINHO, sem o prefixo "Plano" (Feca, 27/10/2026)
+assert.strictEqual(plano(host), 'VIP');
 // O TEXTO sozinho nao prova o badge: com a classe `tester` colada em todo mundo, o
-// plano pago continuaria escrito "Plano VIP" e sairia AZUL. Foi o que a mutacao mostrou.
+// plano pago continuaria escrito "VIP" e sairia AZUL. Foi o que a mutacao mostrou.
 assert.ok(!host.el.querySelector('.sb-tipster__plan').classes.has('tester'),
   'plano pago fica no ambar — o azul e do estado Tester');
 const sem = SbTipster.montar({ editavel: true, unidade: 'reais' });
