@@ -1764,6 +1764,21 @@ só props liquidadas (15) e apostas comuns abertas (3, Fórmula 1). Sem amostra:
 usa cópia literal das queries da página: se a casa mudar o schema, a query inteira falha (o erro da
 casa sobe no autodiagnóstico). Falta a 1ª captura pela extensão instalada.
 
+### 4.0u Soh Props - Nômade: o que ficou aberto no onboarding (s430). **VIVA, medida**
+
+- **Jogo da madrugada postado na véspera.** `4h35` postado às 18:58 do dia 23 é jogo do dia 24, e o
+  bot ao vivo usa a data da MENSAGEM (`dataDaLegenda` só lê data escrita ou `amanha`). No passado
+  corrigi à mão (#29). "Hora menor que a da mensagem → dia seguinte" erraria em aposta feita com o
+  jogo em andamento: **decisão do Feca** (regra × pedir a data na legenda, `25-10 4h35`).
+- **`0.5❌` sem o `u`** não vira linha de stake (`RE_LINHA_STAKE` exige o `u`). Ao vivo vira aviso
+  ("assumi 1u"), não perda calada.
+- **Casas sem `CASA_*.md`:** `Win.Bet`, `CopaWin` e `99play` só existem no bot e nos mapas de
+  favicon. Leitura por print na tela de Extração não tem arquivo de tradução.
+- **CopaWin e 99play caem no globo:** o CopaWin não publica favicon nenhum e o da 99play só existe
+  num CDN (`api.koraigaming.com`) que o Google S2 não lê.
+- **As 9 abertas do passado** (`SPN202610-28/30/31/32/35/36/37/47/48`) não estão no storage do bot:
+  o resultado entra pelo dashboard, não por edição da legenda.
+
 ### 4.0p Casas .bet.br em banho-maria: o cru nunca chegou (s427). **PARADA, decisão do Feca**
 
 Decisão do Feca (23/10/2026): "Essas casas não estão sendo usadas por ninguém no momento, precisa
