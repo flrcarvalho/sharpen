@@ -64,7 +64,7 @@ const CASA_ICONS={
   'Thunderpick':'https://www.google.com/s2/favicons?sz=128&domain=thunderpick.io',
   // Soh Props - Nômade (26/10/2026). CopaWin e 99play não publicam favicon que o Google
   // leia (o CopaWin não tem nenhum) e caem no globo até publicarem.
-  'Win.bet':'https://www.google.com/s2/favicons?sz=128&domain=win.bet',
+  'Win.Bet':'https://www.google.com/s2/favicons?sz=128&domain=win.bet',
   'CopaWin':'https://www.google.com/s2/favicons?sz=128&domain=copawnbr.com',
   '99play':'https://www.google.com/s2/favicons?sz=128&domain=99play.io',
   'Faz1bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
@@ -186,7 +186,7 @@ const HOUSE_DOMAIN={
   'Sportsbet.io':'sportsbet.io',
   'Stake.com':'stake.com',
   'Thunderpick':'thunderpick.io',
-  'Win.bet':'win.bet',         // Soh Props - Nômade (26/10/2026)
+  'Win.Bet':'win.bet',         // Soh Props - Nômade (26/10/2026)
   'CopaWin':'copawnbr.com',
   '99play':'99play.io',
   'Faz1bet':'faz1.bet.br',   // grafia unificada no banco (s284); a s204 elegera 'Faz1Bet',
