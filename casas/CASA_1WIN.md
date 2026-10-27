@@ -88,9 +88,9 @@ botão `Cash out de USDT 24,46` na aberta.
 | `bet.currencyCode` | moeda da conta (`USDT`) |
 | `bet.amount` | stake |
 | `bet.cf` | odd do bilhete, ⚠️ **cortada em 2 casas** e é a que paga (§11) |
-| `bet.profitAmount` | ⚠️ **RETORNO, não lucro**: na aberta é o potencial (25 × 5,73 = 143,25), na perdida 0 |
+| `bet.profitAmount` | ⚠️ **RETORNO, não lucro**: na aberta é o potencial (25 × 5,73 = 143,25), na perdida 0, no cashout o valor recebido |
 | `bet.possibleProfitAmount` | retorno potencial (= `profitAmount` na aberta) |
-| `bet.status` | `0` aberta · `1` perdida · `2` ganha (cheia ou com perna anulada) · `3` anulada (medidos, s419) · `4` sem amostra (§5) |
+| `bet.status` | `0` aberta · `1` perdida · `2` ganha (cheia ou com perna anulada) · `3` anulada (medidos, s419) · `4` cashout (medido, s431; §7) |
 | `bet.betType` | `express` (múltipla, visto) |
 | `bet.createdAt` | colocação, ISO **UTC** |
 | `bet.closeAt` | liquidação, ISO **UTC** (só na liquidada) |
@@ -98,7 +98,7 @@ botão `Cash out de USDT 24,46` na aberta.
 | `bet.freebetAmount` | `0` em toda a amostra |
 | `bet.wallet` | `real` em toda a amostra |
 | `bet.refundInfo.refundAmount` | **oferta** de cashout da aberta — não é retorno; o inject ignora |
-| `selections[].status` | `0` pendente · `1` perdida · `2` ganha · `3` anulada, não entra no retorno (medidos, s419) |
+| `selections[].status` | `0` pendente · `1` perdida · `2` ganha · `3` anulada, não entra no retorno (medidos, s419) · `4` encerrada pelo cashout, até com o jogo já finalizado (s431) |
 | `selections[].isHalfReturn` | `false` em toda a amostra (meio retorno, asiática) |
 | `selections[].odd.cf` | odd **apostada** da perna |
 | `selections[].odd.groupName` · `odd.name` | mercado (`Total. 2 Parte`) e seleção (`Acima De 2.5`) |
@@ -113,8 +113,8 @@ Nenhum campo identifica a conta (nome, e-mail, id de usuário, saldo): o cru sob
 desta seção e da §5: stake = `amount`, odd = `bet.cf` (nunca o produto), retorno =
 `profitAmount` só na liquidada, código em `bet.id`. Sem amostra, a Ficha é RECUSADA com o
 motivo (sistema, bônus, freebet, carteira que não seja `real`, meio retorno, status 2/3/4 cujo
-dinheiro não prove ganha ou anulada) e o bilhete segue pela IA. Gate:
-`tests/test_adaptador_tp.py` (8 mutações, 8 detectadas).
+dinheiro não prove ganha, anulada ou cashout) e o bilhete segue pela IA. Gate:
+`tests/test_adaptador_tp.py` (17 mutações, 17 detectadas).
 
 ---
 
@@ -149,7 +149,8 @@ Só o **dinheiro** decide onde a amostra não alcança. Retorno = `profitAmount`
 | qualquer · retorno = stake | P/L zero | `V` |
 | `2` · retorno = stake × `cf` (ao centavo) | Ganhou | `W` |
 | `2` · perna `3` (anulada) e retorno = stake × produto das pernas `2` (exato ou cortado em 2 casas) | Ganhou com perna anulada | `W`, odd = retorno ÷ stake |
-| `1` com retorno > 0, `2` que não fecha com nenhuma das duas, `3` com retorno ≠ stake, `4`, enum novo | sobe cru | *(a conferir)* |
+| `4` · toda perna `4` · retorno > 0 e ≠ stake | Cashout (§7) | `W`, odd = retorno ÷ stake |
+| `1` com retorno > 0, `2` que não fecha com nenhuma das duas, `3` com retorno ≠ stake, `4` com perna fora do `4` ou sem retorno, enum novo | sobe cru | *(a conferir)* |
 
 Medido: `0` 4 · `1` 1 em 5.
 
@@ -159,8 +160,8 @@ Medido: `0` 4 · `1` 1 em 5.
 > 344388133 = 25 × 1,54 = 38,50 (tênis `Abandonado`, perna `3`) e 344381942 = 25 × 3,15 = 78,75
 > (handicap +4 exato). Antes deste registro as duas subiam "a conferir" e ficavam ABERTAS no
 > Sharpen para sempre (o bloco não mudava, a recaptura não relia), com 117,25 USDT fora da
-> Caixa. O status `4` continua sem amostra. Gates: `extensor/harness/casos/1win.mjs`
-> (`pernaAnulada`) e `tests/test_adaptador_tp.py`, sobre os crus reais em
+> Caixa. Gates: `extensor/harness/casos/1win.mjs` (`pernaAnulada`) e
+> `tests/test_adaptador_tp.py`, sobre os crus reais em
 > `extensor/harness/fixtures/1win.perna_anulada.json`.
 
 ---
@@ -176,8 +177,19 @@ Medido: `0` 4 · `1` 1 em 5.
 
 A aberta traz `refundInfo: { allowed, refundAmount }` — a **oferta** (ex.: 24,46 sobre 25), que
 muda a cada minuto e não é retorno: o inject ignora e o bloco não a imprime (senão a mesma
-aberta viraria texto novo a cada captura). Cashout executado sem amostra: sobe "a conferir"
-até ser medido; a regra global (`MASTER_RESULTADO §5.1.2` e `§5.6`) se aplica quando for.
+aberta viraria texto novo a cada captura).
+
+**Cashout executado = `bet.status 4`** (medido na s431, 5 múltiplas do Feca vendidas em
+27/10/2026, `extensor/harness/fixtures/1win.cashout.json`). O bilhete **e toda perna** vêm `4`,
+até a perna cujo jogo já terminou (Petrolul 0x6 no 362339071), e `profitAmount` é o valor
+recebido (361482655: 40 apostados, 31,80 recebidos; `possibleProfitAmount` segue o potencial,
+246). Vale a regra global (`MASTER_RESULTADO §5.1.2` e `§5.6`): recebido = stake → `V`;
+≠ stake (maior ou menor) → `W`, odd = retorno ÷ stake (31,80 ÷ 40 = 0,795).
+
+> Antes deste registro os 5 subiam "a conferir" e ficavam ABERTOS no Sharpen com o dinheiro já
+> na conta (253,64 USDT fora da Caixa). Cashout PARCIAL continua sem amostra; bilhete `4` com
+> perna fora do `4`, ou sem retorno, sobe "a conferir". Gates: `extensor/harness/casos/1win.mjs`
+> (`cashout`) e `tests/test_adaptador_tp.py`.
 
 ---
 
@@ -239,7 +251,8 @@ Campo `amount`, na moeda da conta; a conversão para R$ é do `/salvar`.
 1. **`profitAmount` é o retorno**, não o lucro (§2.5).
 2. **Odd do bilhete cortada em 2 casas** — é a que paga, não o produto das pernas (§11).
 3. **Perdida com perna ainda pendente** (§4).
-4. **Oferta de cashout na aberta** não é dinheiro (§7).
+4. **Oferta de cashout na aberta** não é dinheiro (§7). O cashout **executado** é o status `4`,
+   com toda perna em `4` (§7).
 5. **Erro com HTTP 200** e teto de 150 no `limit` (§2.1).
 6. **`startAt` em segundos, `createdAt` em ISO UTC** (§4).
 
@@ -270,8 +283,11 @@ byte).
 | 337817372 | Múltipla 2 | `0` | 25,00 | **4,92** (pernas 4,9225) | 14/10 16:00 | potencial 123,00 | card |
 | 337815546 | Múltipla 2 | `0` | 25,00 | 9 | 13/10 15:00 | potencial 225,00 | card |
 
-**Sem amostra:** ganha · simples · cashout executado · anulada · sistema · bônus de múltipla ·
-freebet · polybet · status `2`/`3`/`4`.
+**Sem amostra no recon de 12/10:** ganha · simples · cashout executado · anulada · sistema ·
+bônus de múltipla · freebet · polybet · status `2`/`3`/`4`. Depois medidos: status `2`/`3` e
+perna anulada (s419, `1win.perna_anulada.json`) e o cashout, status `4` (s431,
+`1win.cashout.json`). Seguem sem amostra: sistema, bônus de múltipla, freebet, polybet e cashout
+parcial.
 
 ---
 

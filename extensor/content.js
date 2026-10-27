@@ -5172,8 +5172,15 @@
   // perna anulada = stake × produto das pernas ganhas → W, s419); o resto sobe cru, "a
   // conferir". O de-para vive na CASA_1WIN.md §5.
   // Perna 2 = ganha e 3 = anulada medidos na s419 (344388133 e 344381942, conta do Feca).
-  const _PERNA_TP = { 0: "em aberto", 1: "perdida", 2: "ganha", 3: "anulada (não entra no retorno)" };
+  // Status 4 = CASHOUT (s431, 5 bilhetes do Feca): bilhete e toda perna em 4, até perna já
+  // finalizada; `profitAmount` é o valor recebido.
+  const _PERNA_TP = { 0: "em aberto", 1: "perdida", 2: "ganha", 3: "anulada (não entra no retorno)",
+                      4: "encerrada pelo cashout" };
   const _abertaTP = (b) => b.status === 0;
+  // Cashout só no formato medido: bilhete e TODA perna em 4, com dinheiro recebido. Mesma régua
+  // do `app/adaptadores/tp.py`.
+  const _cashoutTP = (b) => b.status === 4 && b.retorno > 0 && (b.pernas || []).length > 0 &&
+    b.pernas.every((p) => p.status === 4);
 
   // Múltipla ganha com perna ANULADA (s419): a casa paga pelo produto das pernas GANHAS (25 ×
   // 1,54 = 38,50 com o tênis abandonado), não pela `cf` da colocação. Só com toda perna ganha
@@ -5218,6 +5225,8 @@
     if (b.status === 2 && _pagaSemAnuladasTP(b)) {
       return "Ganhou → W (" + txt + "; perna anulada: a casa pagou pelas pernas ganhas, odd = retorno ÷ stake)";
     }
+    // Cashout ≠ stake → W, odd = retorno ÷ stake (MASTER_RESULTADO §5.6). = stake já saiu acima.
+    if (_cashoutTP(b)) return "Cashout com " + txt + " ≠ stake → W (odd = retorno ÷ stake, MASTER_RESULTADO §5.6)";
     return cru + " com " + txt + " (a conferir — não liquidar automaticamente)";
   }
 
@@ -5249,6 +5258,10 @@
     if (b.status === 2 && _pagaSemAnuladasTP(b) && !(b.odd > 0 && Math.abs(b.retorno - b.stake * b.odd) < 0.005)) {
       // Perna anulada: a `cf` da colocação não pagou; a odd é a do dinheiro (MASTER_RESULTADO).
       L.push("Odd: " + _oddTxtKTO(b.retorno / b.stake) + " (= Retorno ÷ Stake; perna anulada, a odd da colocação era " +
+             (b.odd > 0 ? _oddTxtKTO(b.odd) : "?") + ")");
+    } else if (_cashoutTP(b) && Math.abs(b.retorno - b.stake) >= 1e-9) {
+      // Cashout: a `cf` da colocação não pagou; a odd é a do dinheiro (MASTER_RESULTADO §5.6).
+      L.push("Odd: " + _oddTxtKTO(b.retorno / b.stake) + " (= Retorno ÷ Stake; cashout, a odd da colocação era " +
              (b.odd > 0 ? _oddTxtKTO(b.odd) : "?") + ")");
     } else if (b.odd > 0) {
       L.push("Odd: " + _oddTxtKTO(b.odd) + (n > 1 ? " (a da casa, cortada em 2 casas — é a que paga)" : ""));

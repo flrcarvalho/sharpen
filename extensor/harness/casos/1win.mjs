@@ -27,9 +27,10 @@
 //     `offset >= meta.total`. `sportType` só aceita `sport`, `all` e `polybet` — o replay
 //     pede `all` para nada ficar de fora.
 //
-// NÃO COBERTO pela fixture (a conta não tinha): ganha cheia, simples, cashout, anulada,
-// sistema, bônus de múltipla, freebet, polybet e o status 4. A ganha com perna ANULADA tem
-// fixture real desde a s419 (`1win.perna_anulada.json`, ver `pernaAnulada` abaixo). Os casos de dinheiro estão
+// NÃO COBERTO pela fixture (a conta não tinha): ganha cheia, simples, anulada, sistema, bônus
+// de múltipla, freebet, polybet e cashout parcial. A ganha com perna ANULADA tem fixture real
+// desde a s419 (`1win.perna_anulada.json`, ver `pernaAnulada` abaixo) e o CASHOUT (status 4)
+// desde a s431 (`1win.cashout.json`, ver `cashout` abaixo). Os casos de dinheiro estão
 // travados abaixo por CLONE da liquidada (subir "a conferir" quando o número não prova), não
 // por amostra real. Também não cobre a corrida "liquidada vence aberta" (o sandbox entrega
 // as respostas em ordem fixa, como na Shuffle).
@@ -198,8 +199,9 @@ export async function rodar() {
       if (!/→ V$/.test(devolvida)) falhas.push(`status 3 com retorno = stake virou "${devolvida}"`);
       const ganhoSemLucro = c({ status: 2, retorno: 25 });
       if (!/→ V$/.test(ganhoSemLucro)) falhas.push(`status 2 com retorno = stake virou "${ganhoSemLucro}"`);
+      // Status 4 é cashout só com TODA perna em 4; aqui as pernas são 0 e 1 (formato não medido).
       const quatro = c({ status: 4, retorno: 18.4 });
-      if (!/a conferir — não liquidar automaticamente/.test(quatro)) falhas.push(`status 4 com retorno 18,4 virou "${quatro}" (enum sem amostra)`);
+      if (!/a conferir — não liquidar automaticamente/.test(quatro)) falhas.push(`status 4 com pernas fora do 4 virou "${quatro}" (formato sem amostra)`);
       const perdidaComDinheiro = c({ status: 1, retorno: 12 });
       if (/Perdeu → L/.test(perdidaComDinheiro)) falhas.push(`status 1 com retorno 12 virou "${perdidaComDinheiro}" (o dinheiro desmente o rótulo)`);
       const novo = c({ status: 9, retorno: 0 });
@@ -219,6 +221,7 @@ export async function rodar() {
   }
 
   testes += await pernaAnulada(falhas);
+  testes += await cashout(falhas);
   testes += await partidaAFrio(itens, falhas);
   testes += await semToken(falhas);
   return { falhas, testes };
@@ -266,6 +269,55 @@ async function pernaAnulada(falhas) {
     // Ganha + anulada continuam ali; só a 3ª perna, num enum sem amostra, tem de barrar.
     const p4 = linha(fmt(Object.assign({}, b, { pernas: b.pernas.concat([Object.assign({}, b.pernas[0], { status: 4 })]) })), "Status:");
     if (!/a conferir — não liquidar automaticamente/.test(p4)) falhas.push(`perna anulada ${idb}: perna status 4 virou "${p4}"`);
+  }
+  return n;
+}
+
+// s431: CASHOUT (crus reais, conta do Feca, 27/10/2026, `1win.cashout.json`). A 1win manda
+// `status: 4` no bilhete E em toda perna, até na perna já finalizada (Petrolul 0x6), e
+// `profitAmount` é o valor recebido. Antes subiam "a conferir" e ficavam ABERTOS no Sharpen,
+// com 253,64 USDT fora da Caixa. Cashout ≠ stake → W, odd = retorno ÷ stake.
+async function cashout(falhas) {
+  const itens = JSON.parse(fixture("1win.cashout.json")).result.items;
+  const { ultima } = await rodarInject({
+    inject: "tp_inject.js",
+    href: "https://1win.io/betting/bets-history",
+    urlInicial: API + "/bets/history/get-many",
+    optsInicial: { method: "POST", headers: HDRS, body: JSON.stringify({ limit: 150, offset: 0, sportType: "sport" }) },
+    pedido: "__sharpenupTPReq",
+    responder: casaTP(itens, []),
+    ms: 600,
+  });
+  const fmt = carregarContent().pegar("formatTicketTP");
+  const porId = new Map(((ultima && ultima.bilhetes) || []).map((b) => [b.id, b]));
+  const ESP = {
+    "361482655": { ret: "31,80", odd: "0,795",   col: "6,15" },
+    "362337573": { ret: "86,22", odd: "2,1555",  col: "8,79" },
+    "362339071": { ret: "52,50", odd: "1,3125",  col: "4,38" },
+    "363617382": { ret: "43,61", odd: "1,09025", col: "8,13" },
+    "363619481": { ret: "39,51", odd: "0,98775", col: "5,07" },
+  };
+  let n = 0;
+  for (const [idb, e] of Object.entries(ESP)) {
+    const b = porId.get(idb);
+    if (!b) { falhas.push(`cashout ${idb}: não chegou ao lote`); continue; }
+    n++;
+    const txt = fmt(b);
+    const st = linha(txt, "Status:"), odd = linha(txt, "Odd:");
+    if (!new RegExp(`^Cashout com retorno ${e.ret} USDT ≠ stake → W`).test(st)) falhas.push(`cashout ${idb}: status "${st}"`);
+    if (!odd.startsWith(e.odd + " (= Retorno ÷ Stake")) falhas.push(`cashout ${idb}: odd esperada ${e.odd} (retorno ÷ stake), veio "${odd}"`);
+    if (!odd.includes("era " + e.col)) falhas.push(`cashout ${idb}: a odd da colocação (${e.col}) não está dita`);
+    if ((txt.match(/\[perna encerrada pelo cashout\]/g) || []).length !== 2) falhas.push(`cashout ${idb}: as pernas não estão ditas como encerradas pelo cashout`);
+    if (/a conferir/.test(txt)) falhas.push(`cashout ${idb}: ainda sobe "a conferir"`);
+    // Cashout = stake é V pela rede do dinheiro, com a odd da casa.
+    const igual = fmt(Object.assign({}, b, { retorno: b.stake }));
+    if (!/→ V$/.test(linha(igual, "Status:"))) falhas.push(`cashout ${idb}: retorno = stake virou "${linha(igual, "Status:")}"`);
+    if (linha(igual, "Odd:").replace(/\s*\(.*$/, "") !== e.col) falhas.push(`cashout ${idb}: cashout = stake com odd "${linha(igual, "Odd:")}"`);
+    // Fora do formato medido continua a conferir: perna fora do 4, ou nada recebido.
+    const torta = linha(fmt(Object.assign({}, b, { pernas: [Object.assign({}, b.pernas[0], { status: 2 })].concat(b.pernas.slice(1)) })), "Status:");
+    if (!/a conferir — não liquidar automaticamente/.test(torta)) falhas.push(`cashout ${idb}: perna 2 num bilhete 4 virou "${torta}"`);
+    const zero = linha(fmt(Object.assign({}, b, { retorno: 0 })), "Status:");
+    if (!/a conferir — não liquidar automaticamente/.test(zero)) falhas.push(`cashout ${idb}: status 4 sem dinheiro virou "${zero}"`);
   }
   return n;
 }

@@ -11,14 +11,16 @@ do 1º cru real chegar ao banco.
     (25 × 5,73 = 143,25) e nunca vira retorno; na perdida, 0. `possibleProfitAmount` idem.
   • odd da casa: `bet.cf`, CORTADA em 2 casas, e é ela que paga (337817372: pernas 1,79 × 2,75
     = 4,9225, a casa paga 25 × 4,92 = 123). Nunca o produto das pernas.
-  • `bet.status` 0 aberta · 1 perdida (só com retorno zero). Os status 2, 3 e 4 NÃO têm
-    amostra: só o dinheiro decide. Retorno = stake é anulada, qualquer status; status 2 com
-    retorno = stake × `cf` ao centavo é ganha. Status 2 com perna ANULADA (s419): a casa paga
-    pelo produto das pernas ganhas, e esse número fechando ao centavo também é ganha (odd =
-    retorno ÷ stake, a Ficha deriva). Qualquer outro número, RECUSA.
-  • perna: `status` 0 pendente · 1 perdida · 2 ganha · 3 anulada (s419); o resto vai vazio
-    (ausência, não palpite). A perdida pode ter perna ainda pendente: a casa liquida pela
-    perna que perdeu.
+  • `bet.status` 0 aberta · 1 perdida (só com retorno zero). Só o dinheiro decide o resto.
+    Retorno = stake é anulada, qualquer status; status 2 com retorno = stake × `cf` ao centavo
+    é ganha. Status 2 com perna ANULADA (s419): a casa paga pelo produto das pernas ganhas, e
+    esse número fechando ao centavo também é ganha (odd = retorno ÷ stake, a Ficha deriva).
+    Status 4 é CASHOUT (s431): o bilhete E toda perna vêm `4`, até perna já finalizada, e
+    `profitAmount` é o valor recebido (o `derivar` decide W ou V). Qualquer outro número,
+    RECUSA.
+  • perna: `status` 0 pendente · 1 perdida · 2 ganha · 3 anulada (s419) · 4 encerrada pelo
+    cashout (s431); o resto vai vazio (ausência, não palpite). A perdida pode ter perna ainda
+    pendente: a casa liquida pela perna que perdeu.
   • Sem amostra, RECUSA: sistema, bônus de múltipla (`bonusAmount`), freebet
     (`freebetAmount`), carteira que não seja `real` e perna com meio retorno (`isHalfReturn`).
     O texto continua levando esses bilhetes à IA, que lê o rótulo certo.
@@ -32,8 +34,9 @@ from decimal import Decimal
 from . import Recusa, iso_de_epoch, numero
 
 # Perna 2 = ganha e 3 = anulada medidos na s419 (344388133 e 344381942, conta do Feca): a perna
-# 3 não entrou no retorno (25 × 1,54 = 38,50 com a outra perna anulada).
-_PERNA = {0: "aberta", 1: "perdida", 2: "ganha", 3: "anulada"}
+# 3 não entrou no retorno (25 × 1,54 = 38,50 com a outra perna anulada). Perna 4 = cashout
+# (s431, 5 bilhetes do Feca em `1win.cashout.json`): vem 4 até com o jogo já finalizado.
+_PERNA = {0: "aberta", 1: "perdida", 2: "ganha", 3: "anulada", 4: "cashout"}
 _CENTAVO = Decimal("0.005")
 
 
@@ -95,6 +98,9 @@ def _status(b: dict, sels: list) -> str:
         return "ganha"
     if st == 2 and _paga_sem_anuladas(sels, stake, ret):
         return "ganha"                # a Ficha deriva a odd: retorno ÷ stake
+    # Cashout (s431): só no formato medido, bilhete e TODA perna em 4, com dinheiro recebido.
+    if st == 4 and ret > 0 and sels and all(s.get("status") == 4 for s in sels):
+        return "cashout"              # o `derivar` decide: ≠ stake → W, odd = retorno ÷ stake
     raise Recusa(f"status {st!r} com profitAmount {ret} sobre amount {stake} "
                  f"e cf {b.get('cf')!r} (sem amostra; a conferir)")
 

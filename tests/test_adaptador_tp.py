@@ -23,11 +23,16 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   INÓCUA: tirar a exigência de "pelo menos uma ganha e uma anulada". Sem anulada o produto
   das ganhas é a própria odd do bilhete (ganha cheia, o ramo de cima); só anuladas dá retorno
   = stake (anulada, também de cima). A trava fica por restringir ao formato medido.
+  s431, cashout (crus REAIS em `1win.cashout.json`, 5 bilhetes do Feca de 27/10/2026):
+ 14. sem o ramo do status 4                              → test_status_4_e_cashout_pelo_dinheiro
+ 15. perna 4 sem rótulo `cashout`                        → idem
+ 16. cashout aceito com perna fora do 4                  → test_cashout_so_no_formato_medido
+ 17. cashout aceito com retorno zero                     → idem
 
 O QUE NÃO COBRE: simples, sistema, bônus, freebet, polybet, carteira de bônus e meio retorno
-(todos RECUSADOS por falta de amostra, o texto continua levando à IA), e o status 4 de
-bilhete. Medido na s419: status 2 = ganha (cheia ou com perna anulada), 3 = anulada (retorno =
-stake); perna 2 = ganha, 3 = anulada.
+(todos RECUSADOS por falta de amostra, o texto continua levando à IA), e cashout PARCIAL (sem
+amostra). Medido na s419: status 2 = ganha (cheia ou com perna anulada), 3 = anulada (retorno =
+stake); perna 2 = ganha, 3 = anulada. Na s431: status 4 = cashout, com toda perna em 4.
 """
 import copy
 import json
@@ -152,14 +157,50 @@ def test_perna_anulada_so_prova_quando_o_dinheiro_fecha():
         tp.adaptar(c, "1WIN")
     c = copy.deepcopy(ANULADA["344388133"])
     extra = copy.deepcopy(c["selections"][1])               # ganha + anulada continuam ali:
-    extra["status"] = 4                                     # só a perna sem amostra recusa
+    extra["status"] = 4                                     # perna de cashout num bilhete 2: recusa
     c["selections"].append(extra)
     with pytest.raises(Recusa):
         tp.adaptar(c, "1WIN")
     c = copy.deepcopy(ANULADA["344388133"])
-    c["bet"]["status"] = 4                                 # só o status 2 é ganha
-    with pytest.raises(Recusa):
+    c["bet"]["status"] = 4                                 # só o status 2 é ganha, e o 4 exige
+    with pytest.raises(Recusa):                            # toda perna em 4
         tp.adaptar(c, "1WIN")
+
+
+CASHOUT = {it["bet"]["id"]: it for it in tp.bilhetes_da_resposta(
+    json.loads((_FIX / "1win.cashout.json").read_text(encoding="utf-8")))}
+
+
+@pytest.mark.parametrize("cod, retorno, odd", [
+    ("361482655", "31.8", "0,795"),       # recebeu menos que a stake: W com odd < 1
+    ("362337573", "86.22", "2,1555"),
+    ("362339071", "52.5", "1,3125"),
+    ("363617382", "43.61", "1,09025"),
+    ("363619481", "39.51", "0,98775"),
+])
+def test_status_4_e_cashout_pelo_dinheiro(cod, retorno, odd):
+    """s431: os cinco ficaram ABERTOS no Sharpen com o cashout já recebido (253,64 USDT fora da
+    Caixa do Feca). Cashout ≠ stake → W, odd = retorno ÷ stake (`MASTER_RESULTADO §5.6`),
+    nunca o `cf` da colocação."""
+    f, d = _montar(CASHOUT[cod])
+    assert (f["status"], f["retorno"], f["stake"]) == ("cashout", retorno, "40")
+    assert {p["status_perna"] for p in f["pernas"]} == {"cashout"}
+    assert (d["resultado"], d["odd"]) == ("W", odd)
+
+
+def test_cashout_so_no_formato_medido():
+    cod = "361482655"
+    c = copy.deepcopy(CASHOUT[cod])
+    c["bet"]["profitAmount"] = 40                          # cashout = stake: V, odd da casa
+    f, d = _montar(c)
+    assert (d["resultado"], d["odd"]) == ("V", "6,15")
+    for mexer in (lambda c: c["selections"][0].update(status=2),
+                  lambda c: c["selections"][1].update(status=1),
+                  lambda c: c["bet"].update(profitAmount=0)):
+        c = copy.deepcopy(CASHOUT[cod])
+        mexer(c)
+        with pytest.raises(Recusa):
+            tp.adaptar(c, "1WIN")
 
 
 def test_recusa_grava_o_codigo_de_bet_id():
