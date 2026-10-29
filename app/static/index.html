@@ -6074,6 +6074,7 @@ window.loadData = function (force) {
   // o `force` só decide se o backend reconstrói a planilha (`?refresh=1`) ou serve o
   // cache de 120s que o 1º da fila acabou de encher.
   painelDashRows = null; _painelDashPromise = null;
+  _recarregarGradeDeFora(!!force);   // s433: a conta aberta na Extração acompanha a base
   // s388: a banca não é mais apagada aqui — `renderPainelBanca(true)` busca e TROCA,
   // e a abertura do painel já força a busca, então painel fechado não precisa de nada.
   // s330 (revisão 2): o portão passou a ser a LISTA. O `#painelAtividade` era o card
@@ -7233,6 +7234,13 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
     } else {
       markDone('⚠️ Nenhum bilhete extraído — veja Notas acima', 'warn');
     }
+    // s433: os dois ramos sem /salvar também recarregam. Na casa virada, "nada novo para a
+    // IA" quase sempre quer dizer "a Ficha já gravou tudo", e sem isto a lista e o P/L
+    // ficavam com o retrato de antes da captura.
+    if (!parsed.tsv && parceiroSelecionado && parceiroSelecionado.id === parceiro.id) {
+      paginaAtual = 0;
+      await carregarGrade();
+    }
     await _avisarNaoLidas(card, parceiro.casa);
 
   } catch (e) {
@@ -7375,9 +7383,38 @@ const PAGE_SIZE = 100;
 let paginaAtual = 0;
 let totalBilhetes = 0;
 
+// s433 — recarga da conta ativa vinda de FORA da tela (aviso "base mudou" da casca, ↻).
+// A Ficha grava a aposta quando o cru chega, antes e durante o Processar; sem isto a lista
+// da Extração só a mostrava no fim, junto com as da IA, e o P/L ficava parado até lá.
+// Três travas, porque o renderGrade reescreve a lista inteira:
+//   • foco dentro da lista (célula de tipster, editor aberto) → espera e tenta de novo;
+//   • linha marcada para a ação em massa (s432) → idem, a marcação sumiria;
+//   • a própria tela acabou de recarregar (o /salvar dela dispara o mesmo aviso) → pula,
+//     senão a lista pisca duas vezes por extração. O ↻ (force) ignora esta última.
+let _gradeCarregadaEm = 0;
+let _gradeAdiada = null;
+function _gradeOcupada() {
+  const body = document.getElementById('grade-body');
+  const a = document.activeElement;
+  if (body && a && a !== document.body && body.contains(a)) return true;
+  return !!document.querySelector('.row-chk:checked');
+}
+function _recarregarGradeDeFora(force) {
+  clearTimeout(_gradeAdiada);
+  const pagina = document.getElementById('partner-page');
+  if (!parceiroSelecionado || !pagina || pagina.style.display === 'none') return;
+  if (!force && Date.now() - _gradeCarregadaEm < 2500) return;
+  if (_gradeOcupada()) { _gradeAdiada = setTimeout(() => _recarregarGradeDeFora(force), 3000); return; }
+  carregarGrade();
+}
+
 async function carregarGrade() {
   if (!parceiroSelecionado) return;
   const body = document.getElementById('grade-body');
+  // s433: lista, faixa de KPIs e Caixa saem JUNTAS. O resumo (que puxa a Caixa) era pedido
+  // só depois de a lista chegar e ser desenhada: três idas ao servidor em fila, e o P/L
+  // aparecia atrasado em relação às apostas novas que a lista já mostrava.
+  atualizarResumoConta();
   try {
     const off = paginaAtual * PAGE_SIZE;
     // Cada badge filtra pelo mesmo predicado que gerou o número dele (ver
@@ -7401,7 +7438,7 @@ async function carregarGrade() {
     carregarMercados();
     atualizarStats();
     atualizarBotoesGrade();
-    atualizarResumoConta();
+    _gradeCarregadaEm = Date.now();
   } catch (e) {
     body.innerHTML = `<div class="grade-empty" style="color:var(--neg)">Erro: ${e.message}</div>`;
   }
