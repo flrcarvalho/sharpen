@@ -64,7 +64,7 @@ import cambio as _cambio
 from prompts import build_system
 import contrato_texto as _contrato
 from repository import (
-    registrar_extracao, fechar_extracao, listar_extracoes,
+    registrar_extracao, fechar_extracao, listar_extracoes, painel_conta,
     alinhar_tsv, categorias_do_dono, codigos_odd_vazia, odd_vazia_ganha,
     analisar_extracao,
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
@@ -5119,6 +5119,13 @@ async def resumo_da_conta(
     extrator: P/L, turnover, apostas, ROI, win rate, duração e dias ativos.
     Números batem com o card da casa no Dashboard (mesmos filtros)."""
     return await resumo_conta(dono, casa, parceiro)
+
+
+@app.get("/conta/painel")
+async def painel_da_conta(casa: str, parceiro: str, dono: str = Depends(dono_leitura)):
+    """Painel da conta na Extração (s433, 2.2): curva do P/L com topo e mínima, dias para o
+    calendário e o resultado de cada tipster. Mesma régua do `/conta/resumo`."""
+    return await painel_conta(dono, casa, parceiro)
 
 
 @app.get("/ficha/nao_lidas")

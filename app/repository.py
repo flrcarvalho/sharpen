@@ -2748,6 +2748,86 @@ async def resumo_conta(dono: str, casa: str, parceiro: str) -> dict:
     return {**_resumir_apostas(linhas), **_em_aberto(linhas)}
 
 
+async def painel_conta(dono: str, casa: str, parceiro: str) -> dict:
+    """Painel da conta na Extração (s433, entrega 2.2): a curva do P/L dia a dia com topo e
+    mínima, e o resultado de cada tipster nesta conta. Mesmo SELECT e mesmos filtros do
+    `resumo_conta`, de propósito: a curva termina no P/L do card da faixa, ao lado dela."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT stake, odd, resultado, data, tipster FROM bilhetes "
+            "WHERE dono = $1 AND casa = $2 AND parceiro = $3",
+            dono, casa, parceiro,
+        )
+    return _painel_conta([dict(r) for r in rows])
+
+
+def _painel_conta(rows: list[dict]) -> dict:
+    """PURA. Filtros do `_resumir_apostas` (resultado válido, stake > 0, P/L numérico, data
+    legível). A curva segue a régua do `calcTopoDrawdown` do dash (memória
+    `topo_drawdown_dia_a_dia`): DIA A DIA, nunca aposta a aposta (a `data` não tem hora), e
+    partindo do ZERO, então topo >= 0 e mínima <= 0, com a data `None` quando o extremo é o
+    próprio início. Tipster vazio vira "sem tipster" e não ganha card."""
+    por_dia: dict[str, list] = {}
+    tips: dict[str, dict] = {}
+    sem_tipster = 0
+    for r in rows:
+        nome = (r.get("tipster") or "").strip()
+        resultado = (r.get("resultado") or "").strip().upper()
+        if not nome:
+            sem_tipster += 1
+        if resultado not in _RESULTADOS_VALIDOS:
+            continue
+        stake = _num(r.get("stake"))
+        if stake <= 0:
+            continue
+        lucro = calcular_pl(r.get("stake"), r.get("odd"), resultado, r.get("stake_freebet"))
+        if lucro is None:
+            continue
+        data_iso = _data_iso(r.get("data"))
+        if not data_iso:
+            continue
+        dia = por_dia.setdefault(data_iso, [0.0, 0])
+        dia[0] += lucro
+        dia[1] += 1
+        if not nome:
+            continue
+        t = tips.setdefault(nome, {"nome": nome, "apostas": 0, "pl": 0.0, "turnover": 0.0,
+                                   "wins": 0.0, "den": 0.0, "odds": []})
+        t["apostas"] += 1
+        t["pl"] += lucro
+        if resultado != "V":
+            t["turnover"] += dinheiro_real(r.get("stake"), r.get("stake_freebet"))
+            # Win rate com a fração do HW/HL (achado #17), a mesma do `_resumir_apostas`.
+            t["wins"] += {"W": 1, "HW": 0.5}.get(resultado, 0)
+            t["den"] += {"HW": 0.5, "HL": 0.5}.get(resultado, 1)
+            odd = _num(r.get("odd"))
+            if odd > 0:
+                t["odds"].append(odd)
+    dias = [{"data": d, "pl": round(v[0], 2), "apostas": v[1]} for d, v in sorted(por_dia.items())]
+    acc = topo = minima = 0.0
+    topo_data = minima_data = None
+    for d in dias:
+        acc += d["pl"]
+        if acc > topo:
+            topo, topo_data = acc, d["data"]
+        if acc < minima:
+            minima, minima_data = acc, d["data"]
+    tipsters = []
+    for t in tips.values():
+        tipsters.append({
+            "nome": t["nome"], "apostas": t["apostas"], "pl": round(t["pl"], 2),
+            "roi": round(t["pl"] / t["turnover"] * 100, 2) if t["turnover"] > 0 else 0.0,
+            "win_rate": round(t["wins"] / t["den"] * 100, 2) if t["den"] > 0 else 0.0,
+            "odd_media": round(sum(t["odds"]) / len(t["odds"]), 2) if t["odds"] else None,
+        })
+    tipsters.sort(key=lambda t: (-t["apostas"], t["nome"].lower()))
+    return {"dias": dias, "atual": round(acc, 2),
+            "topo": {"valor": round(topo, 2), "data": topo_data},
+            "minima": {"valor": round(minima, 2), "data": minima_data},
+            "tipsters": tipsters, "sem_tipster": sem_tipster}
+
+
 def _em_aberto(rows: list[dict]) -> dict:
     """Quantas apostas da conta ainda esperam resultado e quanto de stake está nelas (s433,
     card "Em aberto" da faixa da Extração). A régua é a do selo "Aguardando resultado" da

@@ -2533,3 +2533,20 @@ def test_s433_resumo_da_conta_traz_o_em_aberto():
         assert (r["em_aberto_qtd"], r["em_aberto"]) == (2, 75.5)
         assert r["apostas"] == 1                 # o resto do resumo segue só com a resolvida
     _run(body())
+
+
+def test_s433_painel_da_conta_le_o_banco():
+    """A rota do painel (2.2) usa o mesmo recorte da faixa: só esta conta, só liquidada na curva."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([
+            _row(codigo_bilhete="P1", resultado="W", data="01/10/2026", tipster="Ana"),
+            _row(codigo_bilhete="P2", resultado="L", data="02/10/2026", tipster=""),
+            _row(codigo_bilhete="P3", resultado="", data="03/10/2026", tipster=""),
+            _row(codigo_bilhete="X1", resultado="W", data="01/10/2026", parceiro="Outra [Eu]"),
+        ], "TDonoA")
+        p = await repository.painel_conta("TDonoA", "Betano", "Feca [Eu]")
+        assert [d["data"] for d in p["dias"]] == ["2026-10-01", "2026-10-02"]
+        assert p["topo"] == {"valor": 90.0, "data": "2026-10-01"}
+        assert [t["nome"] for t in p["tipsters"]] == ["Ana"] and p["sem_tipster"] == 2
+    _run(body())

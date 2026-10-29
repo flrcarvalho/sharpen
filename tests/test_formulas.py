@@ -369,3 +369,53 @@ def test_em_aberto_vazio_e_zero():
 def test_em_aberto_stake_ilegivel_conta_a_aposta_e_nao_soma():
     rows = [{"stake": "", "extraction_state": "aberta"}, {"stake": "20", "extraction_state": "aberta"}]
     assert R._em_aberto(rows) == {"em_aberto_qtd": 2, "em_aberto": 20.0}
+
+
+# ── _painel_conta (s433, entrega 2.2): curva, topo, mínima e tipsters ─────────
+def _ap(data, resultado, stake="100", odd="2,00", tipster="T1"):
+    return {"stake": stake, "odd": odd, "resultado": resultado, "data": data, "tipster": tipster}
+
+
+def test_painel_curva_e_dia_a_dia():
+    """Dentro do dia a ordem é a do feed: o pico intradiário não pode virar topo (s166)."""
+    rows = [_ap("01/10/2026", "W"), _ap("01/10/2026", "L"), _ap("02/10/2026", "W")]
+    p = R._painel_conta(rows)
+    assert p["dias"] == [{"data": "2026-10-01", "pl": 0.0, "apostas": 2},
+                         {"data": "2026-10-02", "pl": 100.0, "apostas": 1}]
+    assert p["topo"] == {"valor": 100.0, "data": "2026-10-02"}
+    assert p["atual"] == 100.0
+
+
+def test_painel_topo_parte_do_zero_no_vermelho():
+    """Carteira só no vermelho: topo é o INÍCIO (zero, sem data), nunca um dia negativo (s313)."""
+    rows = [_ap("01/10/2026", "L"), _ap("02/10/2026", "W", stake="50")]
+    p = R._painel_conta(rows)
+    assert p["topo"] == {"valor": 0.0, "data": None}
+    assert p["minima"] == {"valor": -100.0, "data": "2026-10-01"}
+    assert p["atual"] == -50.0
+
+
+def test_painel_minima_zero_quando_nunca_ficou_negativo():
+    p = R._painel_conta([_ap("01/10/2026", "W")])
+    assert p["minima"] == {"valor": 0.0, "data": None}
+
+
+def test_painel_tipsters_e_sem_tipster():
+    rows = [_ap("01/10/2026", "W", tipster="Ana"), _ap("01/10/2026", "L", tipster="Ana"),
+            _ap("02/10/2026", "HW", odd="3,00", tipster="Ana"),
+            _ap("02/10/2026", "W", tipster="Bia"),
+            _ap("02/10/2026", "L", tipster=""), _ap("03/10/2026", "", tipster="")]
+    p = R._painel_conta(rows)
+    ana = next(t for t in p["tipsters"] if t["nome"] == "Ana")
+    assert ana["apostas"] == 3
+    assert ana["pl"] == 100.0                        # +100 −100 +100 (HW @3: metade a 3, metade devolvida)
+    assert ana["roi"] == round(100 / 300 * 100, 2)
+    assert ana["win_rate"] == round(1.5 / 2.5 * 100, 2)   # W=1, HW=½ · denominador L=1, W=1, HW=½
+    assert ana["odd_media"] == round((2 + 2 + 3) / 3, 2)
+    assert [t["nome"] for t in p["tipsters"]] == ["Ana", "Bia"]   # mais apostas primeiro
+    assert p["sem_tipster"] == 2                     # a aberta sem tipster também conta
+
+
+def test_painel_aberta_nao_entra_na_curva():
+    p = R._painel_conta([_ap("01/10/2026", ""), _ap("02/10/2026", "W")])
+    assert [d["data"] for d in p["dias"]] == ["2026-10-02"]

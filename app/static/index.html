@@ -1233,6 +1233,92 @@ body.cap-off .cx__body { display: none; }
   .rail.rail--off .rail-card { display: flex; }
   .workfull.rx-off { grid-template-columns: 1fr; }
 }
+/* ── Painel da conta (s433, entrega 2.2) ──────────────────────────────────────────
+   Mora na coluna que era do RAIO-X. Lado a lado (> 1180px): 372px (440px a partir de
+   2200px), rola por dentro, recolhe pela MESMA alça do RAIO-X (s346: controle de layout
+   mora na borda do painel). Empilhado (≤ 1180px): entra depois da lista, em fluxo, como
+   o RAIO-X entrava. Verde e vermelho só no P/L; o resto é tinta. */
+.painel-conta { display: none; position: relative; min-width: 0; min-height: 0; }
+.pc-corpo { height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.pc-hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 2px 2px 0; }
+.pc-t { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--accent-2); }
+.pc-sub { font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.pc-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; flex: none; min-width: 0; }
+.pc-card-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pc-lab { font-family: var(--font-mono); font-size: var(--text-xxs); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); display: inline-flex; align-items: center; gap: 6px; }
+.pc-meta { font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-soft); }
+.pc-vazio { font-size: var(--text-xs); color: var(--ink-soft); line-height: 1.5; }
+.pc-vazio b { color: var(--ink); font-weight: 600; }
+.pc-svg { display: block; width: 100%; height: auto; }
+.pc-trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.pc-trio > div { display: grid; gap: 3px; min-width: 0; }
+.pc-trio .v { font-size: var(--text-sm); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-trio .d { font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-soft); }
+/* O "i" de ajuda é ícone (exceção documentada da Escada): o texto dele traz o número real. */
+.pc-i { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--line); font-size: 9px; font-style: normal; color: var(--ink-mute); cursor: help; letter-spacing: 0; }
+.pc-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.pc-cal .dw { font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-soft); text-align: center; }
+.pc-dia { aspect-ratio: 1.2; border-radius: 5px; background: var(--surface-2); border: 0; padding: 3px 5px; font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-soft); text-align: left; display: flex; align-items: flex-start; min-width: 0; }
+.pc-dia.fora { visibility: hidden; }
+button.pc-dia { cursor: pointer; }
+button.pc-dia:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+.pc-dia.zero { box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); }
+.pc-dia.p1 { background: rgba(var(--pos-rgb), .16); }
+.pc-dia.p2 { background: rgba(var(--pos-rgb), .32); }
+.pc-dia.p3 { background: rgba(var(--pos-rgb), .52); color: var(--ink); }
+.pc-dia.n1 { background: rgba(var(--neg-rgb), .16); }
+.pc-dia.n2 { background: rgba(var(--neg-rgb), .32); }
+.pc-dia.n3 { background: rgba(var(--neg-rgb), .52); color: var(--ink); }
+.pc-dia.sel { outline: 2px solid var(--accent); outline-offset: -1px; color: var(--ink); }
+.pc-nav { display: flex; align-items: center; gap: 6px; }
+.pc-nav button { background: none; border: 1px solid var(--line); color: var(--ink-soft); border-radius: var(--r-sm); width: 24px; height: 22px; cursor: pointer; font-size: 12px; line-height: 1; }
+.pc-nav button:hover:not(:disabled) { color: var(--ink); border-color: rgba(var(--accent-rgb), .4); }
+/* Ponta do histórico: opacidade como ESTADO (desabilitado), a exceção do .chgbtn:disabled. */
+.pc-nav button:disabled { opacity: .38; cursor: default; }
+.pc-mes { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink); min-width: 96px; text-align: center; }
+.pc-sel { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; border-top: 1px solid var(--line-2); padding-top: 8px; font-size: var(--text-xs); color: var(--ink-soft); flex-wrap: wrap; }
+.pc-sel .money { font-size: var(--text-sm); font-weight: 700; }
+/* Três classes de propósito: `.workfull.sem-rail.rx-off` (o RAIO-X antigo, que ainda pode
+   vir ligado da preferência dele) tem três e vinha antes; com duas, o painel caía para
+   uma linha nova abaixo da coluna (medido, s433). */
+@media (min-width: 1181px) {
+  .workfull.sem-rail.com-painel { grid-template-columns: minmax(0, 1fr) 372px; }
+  .workfull.com-painel > .painel-conta { display: block; }
+  .workfull.sem-rail.com-painel.pc-off { grid-template-columns: minmax(0, 1fr) 22px; }
+  .painel-conta.fechado .pc-corpo { display: none; }
+  .painel-conta.fechado .rx-alca { position: static; transform: none; width: 100%; height: 100%; gap: 10px;
+    border-right: 1px solid var(--line); border-radius: var(--r-sm); }
+  .painel-conta.fechado .rx-rot { display: block; }
+}
+@media (min-width: 2200px) { .workfull.sem-rail.com-painel:not(.pc-off) { grid-template-columns: minmax(0, 1fr) 440px; } }
+@media (max-width: 1180px) {
+  .workfull.com-painel > .painel-conta { display: block; flex: none; }
+  .painel-conta .rx-alca { display: none; }
+  .pc-corpo { height: auto; overflow: visible; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .pc-hd { grid-column: 1 / -1; }
+}
+
+/* ── Tipsters desta conta (s433, entrega 2.2) ─────────────────────────────────────
+   No vão que a Caixa deixa embaixo da captura. Lado a lado, só aparecem quando CABEM no
+   vão (medido no render): se fossem empurrar a lista para baixo, ficam de fora. */
+.tipcards { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tipcards[hidden] { display: none; }
+.tc-hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.tc { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.tc-nome { font-weight: 700; font-size: var(--text-sm); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tc-n { font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-soft); white-space: nowrap; }
+.tc-pl { font-size: var(--text-base); font-weight: 800; }
+.tc-g { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.tc-g > div { display: grid; gap: 1px; min-width: 0; }
+.tc-g .k { font-family: var(--font-mono); font-size: var(--text-xxs); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.tc-g .v { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.tc-g .v.pos { color: var(--pos); }
+.tc-g .v.neg { color: var(--neg); }
+.tc.sem { border-style: dashed; justify-content: center; }
+.tc.sem .tc-txt { font-size: var(--text-xs); color: var(--ink-soft); line-height: 1.45; }
+.tc.sem .btn { align-self: flex-start; }
 .rail-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 .rail-card--hist .hist__list { max-height: none; flex: 1; min-height: 0; }
 /* Visão Contas & Parceiros: RAIO-X não faz sentido → só o histórico ocupa o rail. */
@@ -3053,6 +3139,8 @@ td.c-res.res-HL { color: var(--warn); }
       </div>
     </div>
   </div><!-- #capwrap -->
+  <!-- s433 (2.2): tipsters desta conta, no vão que a Caixa deixa embaixo da captura. -->
+  <section class="tipcards" id="tipCards" aria-label="Tipsters desta conta" hidden></section>
   </div><!-- #topleft -->
 
   <!-- Caixa Inteligente (s314): auditoria de saldo da conta ativa. Por renderCaixa();
@@ -3221,6 +3309,18 @@ td.c-res.res-HL { color: var(--warn); }
       <div class="hist__list" id="rail-hist-list"></div>
     </div>
   </aside><!-- .rail -->
+  <!-- s433 (2.2): painel da conta na coluna que era do RAIO-X: curva do P/L com topo e
+       mínima, e o calendário do resultado por dia. A alça é a mesma do RAIO-X (s346). -->
+  <aside class="painel-conta" id="painelConta" aria-label="Painel da conta">
+    <button type="button" class="rx-alca" id="pcAlca" aria-expanded="true" aria-controls="pcCorpo" title="Recolher o painel da conta">
+      <span class="rx-car" aria-hidden="true">›</span><span class="rx-rot">PAINEL</span>
+    </button>
+    <div class="pc-corpo" id="pcCorpo">
+      <div class="pc-hd"><span class="pc-t">Painel da conta</span><span class="pc-sub" id="pcSub"></span></div>
+      <div class="pc-card" id="pcCurva"></div>
+      <div class="pc-card" id="pcCal"></div>
+    </div>
+  </aside>
 
   </div><!-- .workfull -->
   </div><!-- #view-extracao -->
@@ -4508,6 +4608,7 @@ function mostrarView(v) {
     // log de ações passou a viver dentro da própria página (`.pc-logcol`), em altura
     // cheia. Deixar o rail escondido mas com a trilha de pé abriria 372px vazios.
     document.querySelector('.workfull').classList.add('sem-rail');
+    try { _pcAplicarLayout(); } catch (_) {}   // s433: o painel da conta é da Extração
     // O idcard (conta ativa + tiles) não serve à gestão de contas → esconde o .arow
     // e sobe o painel (sem box nem espaço vazio). Selecionar conta = clicar na lista.
     const arowEl = document.querySelector('.arow'); if (arowEl) arowEl.style.display = 'none';
@@ -6197,6 +6298,7 @@ function mostrarEmptyState() {
   const tl = document.getElementById('topleft');
   if (tl) tl.classList.remove('poly');
   document.querySelector('.colmain').classList.add('faixa');   // s433 (2.1)
+  try { _pcAplicarLayout(); const tc = document.getElementById('tipCards'); if (tc) tc.hidden = true; } catch (_) {}
   document.querySelector('.workfull').classList.add('sem-rail');   // s433: sem RAIO-X
   const kpis = document.getElementById('ctxKpis');
   if (kpis) kpis.style.display = 'none';
@@ -6247,6 +6349,7 @@ function aplicarModoCasa(casa) {
   const tl = document.getElementById('topleft');
   if (tl) tl.classList.toggle('poly', isPoly);
   document.querySelector('.colmain').classList.toggle('faixa', !isPoly);   // s433 (2.1)
+  try { _pcAplicarLayout(); } catch (_) {}   // s433 (2.2): Polymarket não tem painel
   document.querySelector('.workfull').classList.add('sem-rail');   // s433: sem RAIO-X
   // SharpenUp: só clicável nas casas conectáveis; nas demais fica visível porém esmaecido.
   const conn = document.getElementById('btn-conectar-ext');
@@ -7794,11 +7897,246 @@ function _moneyInt(n, cls) {
 }
 function _pctK(n) { return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'; }
 
+// ── Painel da conta + tipsters (s433, entrega 2.2) ───────────────────────────────
+// `GET /conta/painel` (curva dia a dia, topo, mínima, tipsters) no MESMO ciclo da faixa de
+// KPIs: os dois descrevem a conta ativa, e a curva termina no P/L do card ao lado.
+let _pcToken = 0, _pcDados = null, _pcMes = null, _pcSel = null;
+const _PC_OFF_KEY = 'sharpen_painel_off';
+const _PC_DOW = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const _PC_MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto',
+                   'setembro', 'outubro', 'novembro', 'dezembro'];
+function _pcBR(iso) { return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}` : ''; }
+
+// Mostra o painel só na Extração, com conta ativa e fora da Polymarket (que é sync de API).
+function _pcVisivel() {
+  return !!parceiroSelecionado && casaSelecionada !== 'Polymarket' && viewAtual !== 'contas';
+}
+// A preferência de recolher é conveniência deste navegador (permitido: não é dado digitado).
+// Sem preferência, nasce recolhido onde a lista não cabe com ele aberto (medido, s346).
+function _pcFechadoPref() {
+  try { const v = localStorage.getItem(_PC_OFF_KEY); if (v != null) return v === '1'; } catch (_) {}
+  return window.innerWidth < 1500;
+}
+function _pcAplicarLayout() {
+  const wf = document.querySelector('.workfull'), pc = document.getElementById('painelConta');
+  if (!wf || !pc) return;
+  const on = _pcVisivel();
+  wf.classList.toggle('com-painel', on);
+  const fechado = on && _pcFechadoPref();
+  wf.classList.toggle('pc-off', fechado);
+  pc.classList.toggle('fechado', fechado);
+  const alca = document.getElementById('pcAlca');
+  if (alca) {
+    alca.setAttribute('aria-expanded', String(!fechado));
+    alca.title = fechado ? 'Abrir o painel da conta' : 'Recolher o painel da conta';
+    alca.querySelector('.rx-car').textContent = fechado ? '‹' : '›';
+  }
+}
+document.getElementById('pcAlca').addEventListener('click', () => {
+  const fechar = !document.getElementById('painelConta').classList.contains('fechado');
+  try { localStorage.setItem(_PC_OFF_KEY, fechar ? '1' : '0'); } catch (_) {}
+  _pcAplicarLayout();
+  _tcCaber();
+});
+
+async function carregarPainelConta() {
+  _pcAplicarLayout();
+  const tc = document.getElementById('tipCards');
+  if (!_pcVisivel()) { if (tc) tc.hidden = true; return; }
+  const casa = parceiroSelecionado.casa, parceiro = parceiroSelecionado.nome;
+  const token = ++_pcToken;
+  try {
+    const r = await fetch(`/conta/painel?casa=${encodeURIComponent(casa)}&parceiro=${encodeURIComponent(parceiro)}`);
+    if (!r.ok) throw new Error('painel');
+    const d = await r.json();
+    if (token !== _pcToken) return;   // a conta mudou no meio do fetch
+    const trocouConta = !_pcDados || _pcDados._conta !== casa + '|' + parceiro;
+    _pcDados = Object.assign(d, { _conta: casa + '|' + parceiro });
+    if (trocouConta || !_pcMes) {
+      const ult = d.dias.length ? d.dias[d.dias.length - 1].data : hojeISO();
+      _pcMes = ult.slice(0, 7);
+      _pcSel = d.dias.length ? ult : null;
+    }
+    _pcRender();
+    _tcRender();
+  } catch (_) {
+    if (token !== _pcToken) return;
+    document.getElementById('pcCurva').innerHTML = '<div class="pc-vazio">Não foi possível carregar o painel agora.</div>';
+    document.getElementById('pcCal').innerHTML = '';
+    if (tc) tc.hidden = true;
+  }
+}
+
+function _pcRender() {
+  const d = _pcDados;
+  if (!d) return;
+  document.getElementById('pcSub').textContent = d.dias.length
+    ? `desde ${_pcBR(d.dias[0].data)}` : 'sem aposta liquidada';
+  document.getElementById('pcCurva').innerHTML = _pcCurvaHTML(d);
+  document.getElementById('pcCal').innerHTML = _pcCalHTML(d);
+}
+
+function _pcCurvaHTML(d) {
+  const h = '<div class="pc-card-h"><span class="pc-lab">P/L acumulado</span></div>';
+  if (d.dias.length < 2) {
+    return h + '<div class="pc-vazio">A curva aparece a partir de <b>2 dias com aposta liquidada</b>. '
+      + 'Ela mostra o topo, a mínima e quanto a conta está abaixo do topo.</div>';
+  }
+  // Curva DIA A DIA partindo do zero (régua do calcTopoDrawdown, memória topo_drawdown_dia_a_dia).
+  const W = 340, H = 120, PAD = 14;
+  const acc = [0];
+  d.dias.forEach(x => acc.push(acc[acc.length - 1] + x.pl));
+  const hi = Math.max(d.topo.valor, 0), lo = Math.min(d.minima.valor, 0);
+  const span = (hi - lo) || 1;
+  const X = i => (i / (acc.length - 1)) * W;
+  const Y = v => PAD + (1 - (v - lo) / span) * (H - 2 * PAD);
+  const pts = acc.map((v, i) => `${X(i).toFixed(1)} ${Y(v).toFixed(1)}`);
+  const linha = 'M' + pts.join(' L');
+  const cor = d.atual >= 0 ? 'var(--pos)' : 'var(--neg)';
+  const iTopo = d.topo.data ? d.dias.findIndex(x => x.data === d.topo.data) + 1 : 0;
+  const iMin = d.minima.data ? d.dias.findIndex(x => x.data === d.minima.data) + 1 : 0;
+  const rot = (i, v, txt, emCima) => {
+    const x = Math.min(W - 4, Math.max(4, X(i))), y = Y(v) + (emCima ? -8 : 14);
+    const anc = x > W - 40 ? 'end' : (x < 40 ? 'start' : 'middle');
+    return `<text x="${x.toFixed(1)}" y="${Math.min(H - 2, Math.max(10, y)).toFixed(1)}" style="fill:var(--ink-soft)" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="${anc}">${txt}</text>`;
+  };
+  const svg = `<svg class="pc-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Curva do P/L acumulado, dia a dia">`
+    + `<defs><linearGradient id="pcGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:${cor};stop-opacity:.22"/><stop offset="1" style="stop-color:${cor};stop-opacity:0"/></linearGradient></defs>`
+    + `<line x1="0" x2="${W}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" style="stroke:var(--line)" stroke-dasharray="3 4"/>`
+    + `<path d="${linha} L${W} ${H} L0 ${H} Z" fill="url(#pcGrad)"/>`
+    + `<path d="${linha}" style="fill:none;stroke:${cor}" stroke-width="2" stroke-linejoin="round"/>`
+    + (d.topo.valor > 0 ? `<circle cx="${X(iTopo).toFixed(1)}" cy="${Y(d.topo.valor).toFixed(1)}" r="3.5" style="fill:var(--pos)"/>` + rot(iTopo, d.topo.valor, 'topo', true) : '')
+    + (d.minima.valor < 0 ? `<circle cx="${X(iMin).toFixed(1)}" cy="${Y(d.minima.valor).toFixed(1)}" r="3.5" style="fill:var(--neg)"/>` + rot(iMin, d.minima.valor, 'mínima', false) : '')
+    + '</svg>';
+  const doTopo = Math.round((d.atual - d.topo.valor) * 100) / 100;
+  const ajudaTopo = `Topo: o maior P/L acumulado da conta, ${d.topo.valor > 0 ? 'em ' + _pcBR(d.topo.data) : 'que é o início da série (a conta nunca ficou acima do zero)'}. A curva soma o resultado dia a dia e parte do zero.`;
+  const ajudaDo = `Do topo: quanto a conta está abaixo do maior P/L que já teve. Hoje o acumulado é ${_numBR2(d.atual)} e o topo foi ${_numBR2(d.topo.valor)}.`;
+  return h + svg + '<div class="pc-trio">'
+    + `<div><span class="pc-lab">Topo <i class="pc-i" title="${esc(ajudaTopo)}">i</i></span><span class="v">${fmtPL(d.topo.valor)}</span><span class="d">${d.topo.valor > 0 ? 'em ' + _pcBR(d.topo.data) : 'no início da série'}</span></div>`
+    + `<div><span class="pc-lab">Mínima</span><span class="v">${fmtPL(d.minima.valor)}</span><span class="d">${d.minima.valor < 0 ? 'em ' + _pcBR(d.minima.data) : 'nunca abaixo do zero'}</span></div>`
+    + `<div><span class="pc-lab">Do topo <i class="pc-i" title="${esc(ajudaDo)}">i</i></span><span class="v">${fmtPL(doTopo)}</span><span class="d">${doTopo < 0 ? 'abaixo do topo' : 'no topo agora'}</span></div>`
+    + '</div>';
+}
+// SÓ para `title`/`aria-label` (texto puro, onde HTML não entra), como o `title` do tile de
+// Custo. Na tela o dinheiro sai sempre pelo `fmtPL`/`.money` (UI_REFERENCE §5).
+function _numBR2(v) {
+  const n = Number(v) || 0;
+  return (n < 0 ? '−' : '') + 'R$ ' + Math.abs(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function _pcCalHTML(d) {
+  const [y, m] = _pcMes.split('-').map(Number);
+  const porDia = new Map(d.dias.filter(x => x.data.startsWith(_pcMes)).map(x => [x.data, x]));
+  const primeiroMes = d.dias.length ? d.dias[0].data.slice(0, 7) : _pcMes;
+  const ultimoMes = [d.dias.length ? d.dias[d.dias.length - 1].data.slice(0, 7) : _pcMes, hojeISO().slice(0, 7)].sort()[1];
+  const maxAbs = Math.max(0, ...[...porDia.values()].map(x => Math.abs(x.pl)));
+  const nav = `<span class="pc-nav"><button type="button" onclick="pcMes(-1)" aria-label="Mês anterior" ${_pcMes <= primeiroMes ? 'disabled' : ''}>‹</button>`
+    + `<span class="pc-mes">${_PC_MESES[m - 1]} ${y}</span>`
+    + `<button type="button" onclick="pcMes(1)" aria-label="Próximo mês" ${_pcMes >= ultimoMes ? 'disabled' : ''}>›</button></span>`;
+  let cel = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(x => `<span class="dw">${x}</span>`).join('');
+  const offset = new Date(y, m - 1, 1).getDay(), nDias = new Date(y, m, 0).getDate();
+  for (let i = 0; i < offset; i++) cel += '<span class="pc-dia fora"></span>';
+  let pos = 0, neg = 0;
+  for (let dia = 1; dia <= nDias; dia++) {
+    const iso = `${_pcMes}-${String(dia).padStart(2, '0')}`, x = porDia.get(iso);
+    if (!x) { cel += `<span class="pc-dia">${dia}</span>`; continue; }
+    const r = maxAbs ? Math.abs(x.pl) / maxAbs : 0, k = r >= 0.66 ? 3 : (r >= 0.33 ? 2 : 1);
+    const tom = x.pl > 0 ? 'p' + k : (x.pl < 0 ? 'n' + k : 'zero');
+    if (x.pl > 0) pos++; else if (x.pl < 0) neg++;
+    cel += `<button type="button" class="pc-dia ${tom}${_pcSel === iso ? ' sel' : ''}" onclick="pcDia('${iso}')"`
+      + ` aria-label="${dia} de ${_PC_MESES[m - 1]}: ${x.apostas} aposta${x.apostas === 1 ? '' : 's'}, ${_numBR2(x.pl)}">${dia}</button>`;
+  }
+  const sel = _pcSel && porDia.get(_pcSel);
+  const rodape = sel
+    ? `<div class="pc-sel"><span>${_PC_DOW[new Date(_pcSel + 'T12:00:00').getDay()]} ${_pcBR(_pcSel).slice(0, 5)} · ${sel.apostas} aposta${sel.apostas === 1 ? '' : 's'}</span>${fmtPL(sel.pl)}</div>`
+    : (porDia.size
+      ? `<div class="pc-sel"><span>${porDia.size} dia${porDia.size === 1 ? '' : 's'} com aposta · ${pos} no positivo · ${neg} no negativo</span><span>clique num dia</span></div>`
+      : '<div class="pc-vazio">Nenhuma aposta liquidada neste mês. Os dias ganham cor quando a aposta liquida: verde e vermelho seguem o P/L do dia.</div>');
+  return `<div class="pc-card-h"><span class="pc-lab">Resultado por dia</span>${nav}</div><div class="pc-cal">${cel}</div>${rodape}`;
+}
+function pcMes(delta) {
+  const [y, m] = _pcMes.split('-').map(Number), dt = new Date(y, m - 1 + delta, 1);
+  _pcMes = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+  _pcSel = null;
+  _pcRender();
+}
+function pcDia(iso) { _pcSel = _pcSel === iso ? null : iso; _pcRender(); }
+
+// Cards de tipster. Ficam no VÃO que a Caixa deixa embaixo da captura quando cabem nele numa
+// linha; quando não cabem (o vão encolhe com o painel aberto, medido no Full HD), descem para o
+// painel, depois do calendário. Empilhado (≤ 1180px), moram no painel, depois da lista: antes
+// dela, empurravam a lista 215px no notebook (medido). Nunca empurram a lista para baixo.
+function _tcHTML(d, vagasBase) {
+  const vagas = Math.max(1, vagasBase - (d.sem_tipster > 0 ? 1 : 0));
+  const mostra = d.tipsters.slice(0, vagas), resto = d.tipsters.length - mostra.length;
+  let cards = mostra.map(t => {
+    const roiCls = t.roi > 0 ? 'pos' : (t.roi < 0 ? 'neg' : '');
+    return `<div class="tc"><div class="tc-top"><span class="tc-nome" title="${esc(t.nome)}">${esc(t.nome)}</span>`
+      + `<span class="tc-n">${t.apostas} aposta${t.apostas === 1 ? '' : 's'}</span></div>`
+      + `<span class="tc-pl">${fmtPL(t.pl)}</span>`
+      + `<div class="tc-g"><div><span class="k">ROI</span><span class="v ${roiCls}">${_pctK(t.roi)}</span></div>`
+      + `<div><span class="k">Win rate</span><span class="v">${_pctK(t.win_rate)}</span></div>`
+      + `<div><span class="k">Odd méd.</span><span class="v">${t.odd_media == null ? '—' : _fmtOddDisplay(String(t.odd_media).replace('.', ','))}</span></div></div></div>`;
+  }).join('');
+  if (d.sem_tipster > 0) {
+    cards += `<div class="tc sem"><div class="tc-top"><span class="tc-nome">Sem tipster</span>`
+      + `<span class="tc-n">${d.sem_tipster} aposta${d.sem_tipster === 1 ? '' : 's'}</span></div>`
+      + `<button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('btn-sugerir-tip').click()">Sugerir tipsters</button></div>`;
+  } else if (!d.tipsters.length) {
+    cards = '<div class="tc sem"><span class="tc-txt"><b>Nenhum tipster ainda.</b> Quando as apostas tiverem tipster, cada um ganha um card aqui com o resultado dele nesta conta.</span></div>';
+  }
+  return `<div class="tc-hd"><span class="pc-lab">Tipsters desta conta</span>`
+    + `<span class="pc-meta">${resto > 0 ? `+${resto} outro${resto === 1 ? '' : 's'} na lista` : ''}</span></div>`
+    + `<div class="tc-grid">${cards}</div>`;
+}
+function _tcRender() { _tcCaber(); }
+function _tcCaber() {
+  const tc = document.getElementById('tipCards'), tl = document.getElementById('topleft');
+  const cx = document.getElementById('caixaBox'), cap = document.getElementById('capwrap');
+  const corpo = document.getElementById('pcCorpo'), d = _pcDados;
+  if (!tc || !tl || !cap || !corpo || !d || !_pcVisivel()) return;
+  const noPainel = () => {
+    if (tc.parentNode !== corpo) corpo.appendChild(tc);
+    tc.innerHTML = _tcHTML(d, 5);
+    tc.hidden = window.innerWidth > 1180 && document.getElementById('painelConta').classList.contains('fechado');
+  };
+  if (window.innerWidth <= 1180) { noPainel(); return; }
+  // 1) No vão, numa linha: quantas colunas a grade dá nesta largura.
+  if (tc.parentNode !== tl) cap.after(tc);
+  tc.hidden = false;
+  tc.innerHTML = _tcHTML(d, 5);
+  const grid = tc.querySelector('.tc-grid');
+  const cols = grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length : 1;
+  tc.innerHTML = _tcHTML(d, cols);
+  if (!cx || cx.style.display === 'none') return;
+  // 2) A regra é "não empurrar a lista", então mede-se a lista, com e sem os cards. Medir a
+  // Caixa não serve: ela estica até a altura da linha da grade.
+  const lista = document.getElementById('partner-page');
+  if (!lista) return;
+  tc.hidden = true;
+  const sem = lista.getBoundingClientRect().top;
+  tc.hidden = false;
+  if (lista.getBoundingClientRect().top > sem + 1) noPainel();
+}
+// Toda mudança de altura de quem forma o vão refaz a conta: a Caixa e a faixa chegam por
+// fetch, a fonte carrega depois e muda as alturas, a captura recolhe. Medido (s433): só com
+// ganchos nos renders, a última checagem acontecia antes da fonte e os cards empurravam a
+// lista. Os cards e o #topleft NÃO são observados: mostrar/esconder os cards mudaria o que
+// se observa e faria laço.
+let _tcRaf = 0;
+function _tcAgendar() { cancelAnimationFrame(_tcRaf); _tcRaf = requestAnimationFrame(() => { try { _tcCaber(); } catch (_) {} }); }
+window.addEventListener('resize', _tcAgendar);
+if (window.ResizeObserver) {
+  const _tcRO = new ResizeObserver(_tcAgendar);
+  ['caixaBox', 'capwrap', 'ctxKpis'].forEach(id => { const el = document.getElementById(id); if (el) _tcRO.observe(el); });
+}
+
 async function atualizarResumoConta() {
   const bar = document.getElementById('ctxKpis');
   // s314: a Caixa acompanha o MESMO ciclo dos KPIs — os dois descrevem a conta ativa
   // e um deles atrasado seria pior que os dois atrasados (a projeção usa o P/L).
   carregarCaixa();
+  carregarPainelConta();   // s433 (2.2): curva, calendário e tipsters, no mesmo ciclo
   if (!bar || !parceiroSelecionado) { if (bar) bar.style.display = 'none'; return; }
   const casa = parceiroSelecionado.casa, parceiro = parceiroSelecionado.nome;
   const token = ++_resumoToken;
@@ -7895,6 +8233,7 @@ function _renderCtxKpis(d, casa, parceiro, erroCusto) {
     ? ['pl', 'roi', 'turnover', 'apostas', 'win', 'custo', 'duracao', 'dias']
     : ['pl2', 'turnover2', 'aberto', 'dias2', 'custo'];
   bar.innerHTML = ordem.map(k => t[k]).join('');
+  try { _tcCaber(); } catch (_) {}   // s433: a faixa mudou de altura, o vão também
   const inp = document.getElementById('ctxCustoInput');
   if (inp) {
     inp.addEventListener('blur', async () => {
@@ -8141,6 +8480,9 @@ async function carregarCaixa() {
     renderCaixa(d);
     box.style.display = '';
     if (col) col.classList.add('tem-caixa');
+    // s433: só aqui a Caixa está visível e na coluna dela; o vão dos cards de tipster
+    // depende da altura dela (no `renderCaixa` ela ainda estava escondida).
+    try { _tcCaber(); } catch (_) {}
   } catch (e) {
     if (token !== _caixaToken) return;
     caixaAtual = null;
@@ -10911,6 +11253,7 @@ carregarCasas();
   aplicar(inicial, false);
   btn.addEventListener('click', function(){
     aplicar(!sec.classList.contains('cap-recolhida'), true);
+    try { _tcCaber(); } catch(e){}   // s433: recolher a captura abre vão para os cards de tipster
   });
 })();
 </script>

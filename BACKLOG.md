@@ -823,6 +823,14 @@ Quando chegar um bilhete novo: abrir o arquivo da casa correspondente, preencher
 
 ## 3. Decisão do Feca pendente
 
+### 3.0a A faixa e o painel da Extração cobram a freebet perdida inteira (s433). **VIVA, medida no código**
+
+`repository.resumo_conta` e `repository.painel_conta` (o card P/L da faixa, a curva e os tipsters
+da Extração) não selecionam `stake_freebet`, e o `calcular_pl` recebe `None`: freebet perdida
+sai como dinheiro do apostador. É a mesma falha que a s405 consertou no `resumo_perfil`
+(sidebar). Consertar muda o P/L da faixa de quem tem freebet: **pergunta ao Feca antes**.
+O conserto é uma linha em cada SELECT, e as duas andam juntas (a curva termina no P/L do card).
+
 > Medido, com o número na mão, e parado esperando qual dos caminhos seguir. Nenhum destes é
 > dúvida técnica.
 
@@ -1514,6 +1522,23 @@ Os dois saíram do replay do fiscal que passou a ler a linha `Retorno:`
   V antes de W com folga de R$ 0,10 (P/L −R$ 0,05). **Rever depois da Ficha.**
 
 ## 4. Dívida técnica medida
+
+### 4.0a A Extração dispara ~63 `GET /parceiros` por carga (s433). **VIVA, medida nos logs HTTP**
+Um por casa (`carregarParceiros`, `index.html`), no mesmo segundo, a cada abrir da página
+(Gabriel, 28/10 19h48: 63 chamadas em 22h48:06-07 UTC). Cada uma leva ~50 ms; a soma pesa em
+rede lenta. Existe `/parceiros?arquivados=true` que devolve tudo de uma vez.
+
+### 4.0b A semente do dicionário segura o event loop (s433). **VIVA, medida nos logs HTTP**
+`dicionario.semear_agora` (gatilho `extrair`) roda o `votar` (Python puro) dentro do processo
+web a cada captura com termo novo: 30-70 s por rodada, 4 rodadas em 10 min no dia 29/10, e um
+`PATCH /bilhetes` levou 5,2 s no meio de uma (o normal é ~20 ms). Caminho: `asyncio.to_thread`
+no `votar` e juntar as rodadas que chegam em sequência.
+
+### 4.0c `.qbtn.active` é branco sobre o acento (s433). **VIVA**
+`dash/assets/css/components.css`: o seletor de período de TODAS as telas do dash usa `#fff`
+sobre `--accent` (3,36:1). A Escada pede tinta escura (`var(--bg)`, 5,8:1). A página de Logs
+reusou o componente como está para não criar um segundo estilo; trocar é uma linha e vale
+para todas as telas de uma vez.
 
 > Achado, com arquivo e linha, e não corrigido. Aqui a referência é pista, não endereço.
 
