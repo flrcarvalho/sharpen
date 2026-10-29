@@ -2358,6 +2358,45 @@ async def deletar_bilhetes(ids: list[int], dono: str) -> list[dict]:
     return [dict(r) for r in recs]
 
 
+async def excluir_bilhetes_lote(ids: list[int], dono: str, confirmar: int) -> dict:
+    """Exclusão em massa pela tela (Base Completa / Em Aberto). MOVE para `lixeira_bilhetes`.
+
+    Irmã do `deletar_bilhetes`, mas com outra régua, porque o tamanho muda a natureza: o
+    `deletar_bilhetes` apaga de vez e confia no toast de "Desfazer" da Extração, que segura
+    as linhas no navegador por 7 s. Aqui a seleção chega a dezenas de milhares de linhas
+    (um clique no "selecionar todas") e não existe toast — então o que sai vai inteiro para
+    a lixeira, e voltar é decisão humana, por script.
+
+    Duas travas, as mesmas do `excluir_parceiro`:
+      · `confirmar` tem de ser o número de apostas selecionadas. A UI só libera o botão
+        quando ele é digitado, mas a rota é destrutiva e não pode depender só do cliente.
+      · Snapshot e DELETE são UMA instrução (`WITH sai AS (DELETE … RETURNING to_jsonb)`):
+        ler antes e apagar depois abriria janela para uma lixeira que não corresponde ao
+        que saiu.
+
+    O escopo é o `dono` da sessão: id de outro dono não casa no WHERE e volta em
+    `ignorados` (contagem é dado — quem chama compara com o que mandou)."""
+    alvo = sorted({int(i) for i in (ids or [])})
+    if not alvo:
+        return {"ok": False, "motivo": "Nenhuma aposta selecionada."}
+    if confirmar != len(alvo):
+        return {"ok": False, "motivo": "O número digitado não confere com o de apostas selecionadas."}
+    motivo = f"exclusão em massa pela tela ({len(alvo)} selecionadas)"
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        st = await conn.execute(
+            """WITH sai AS (
+                   DELETE FROM bilhetes b WHERE b.id = ANY($1) AND b.dono = $2
+                   RETURNING b.dono, to_jsonb(b.*) AS linha)
+               INSERT INTO lixeira_bilhetes (dono, motivo, mantido_id, bilhete)
+               SELECT dono, $3, NULL, linha FROM sai""",
+            alvo, dono, motivo,
+        )
+    n = int(st.split()[-1])                  # "INSERT 0 n"
+    logger.info("exclusão em massa: dono=%s selecionadas=%d movidas=%d", dono, len(alvo), n)
+    return {"ok": True, "excluidos": n, "ignorados": len(alvo) - n, "total": len(alvo)}
+
+
 async def restaurar_bilhetes(linhas: list[dict], dono: str) -> int:
     """Re-insere bilhetes apagados (undo). Idempotente: se a linha ainda existir
     (ou colidir na unique), o ON CONFLICT DO NOTHING a ignora. `dono` vem da sessão."""

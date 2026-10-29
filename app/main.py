@@ -80,7 +80,7 @@ from repository import (
     calcular_pl,
     criar_parceiro, criar_sessao_trial, dashboard_rows, data_valida,
     extracoes_do_trial,
-    deletar_bilhetes,
+    deletar_bilhetes, excluir_bilhetes_lote,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, get_tipster_por_codigo, remover_bilhetes_supersedidos,
     polymarket_conta_em_usd, caixa_polymarket_sync,
@@ -4963,6 +4963,27 @@ async def restaurar_bilhetes_route(body: RestaurarRequest, dono: str = Depends(d
     sessão (o cliente não injeta), igual ao delete."""
     restaurados = await restaurar_bilhetes(body.linhas, dono)
     return {"restaurados": restaurados}
+
+
+class ExcluirLoteRequest(BaseModel):
+    ids: list[int]
+    # Quantas apostas o usuário DIGITOU no modal. Tem de bater com len(ids): a UI trava o
+    # botão até isso, mas rota destrutiva reconfere no servidor (mesma régua do Excluir conta).
+    confirmar: int
+
+
+# Exclusão em massa da Base Completa / Em Aberto (s432). Diferente do DELETE /bilhetes, o
+# que sai vai para `lixeira_bilhetes` — a seleção chega a dezenas de milhares de linhas e a
+# tela não tem toast de desfazer. Dono EFETIVO, como o /bilhetes/lote: atua sobre a tela.
+@app.post("/bilhetes/excluir-lote")
+async def excluir_bilhetes_lote_route(body: ExcluirLoteRequest, dono: str = Depends(dono_efetivo)):
+    res = await excluir_bilhetes_lote(body.ids, dono, body.confirmar)
+    if not res["ok"]:
+        raise HTTPException(400, res["motivo"])
+    # Bilhete com tipster é treino do matcher; sumir com milhares deles muda o modelo.
+    if res["excluidos"]:
+        matcher.invalidar(dono)
+    return res
 
 
 @app.get("/conta/resumo")

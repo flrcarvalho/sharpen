@@ -753,9 +753,54 @@ function apSelBarra(tela) {
     `<span class="ap-selbar__n">${n.toLocaleString('pt-BR')}</span>`
     + `<span class="ap-selbar__l">selecionada${n === 1 ? '' : 's'}</span>`
     + `<button type="button" class="ap-selbar__btn ap-selbar__btn--acao" onclick="abrirLoteApostas('${tela}')">✎ Editar em massa</button>`
+    + `<button type="button" class="ap-selbar__btn ap-selbar__btn--perigo" onclick="apSelExcluir('${tela}')">🗑 Excluir</button>`
     + `<button type="button" class="ap-selbar__btn" onclick="apSelLimpar('${tela}')">Limpar seleção</button>`;
 }
 window.apSelBarra = apSelBarra;
+
+// ── Excluir em massa (s432) ─────────────────────────────────────────────────
+// Reusa o `shConfirm` em modo perigo — nada de modal novo. A seleção chega a dezenas de
+// milhares de linhas com um clique no "selecionar todas", então a trava é DIGITAR o
+// número de apostas; o servidor reconfere (`/bilhetes/excluir-lote`) e move tudo para a
+// `lixeira_bilhetes`. O número digitado aceita a forma da tela (42.045) e a crua (42045).
+async function apSelExcluir(tela) {
+  if (window.MODO_PUBLICO) return;   // vitrine pública: nunca escreve (nem via console)
+  const ids = _apSelIds(tela);
+  const n = ids.length;
+  if (!n) return;
+  const nTxt = n.toLocaleString('pt-BR');
+  const plural = n === 1 ? 'aposta' : 'apostas';
+  const corpo =
+    `<div class="sh-cfm__aviso sh-cfm__aviso--perigo"><span class="sh-cfm__aviso-ico">⚠️</span>`
+      + `<span class="sh-cfm__aviso-txt">As ${plural} selecionada${n === 1 ? '' : 's'} saem da base <b>e de todos os números</b>: KPIs, P/L, relatórios e tipsters. Não há desfazer pela tela.</span></div>`
+    + `<div class="sh-cfm__alvo"><span class="sh-cfm__alvo-nome">Selecionadas na tela</span>`
+      + `<span class="sh-cfm__alvo-n"><span class="n">${nTxt}</span><span class="l">${plural}</span></span></div>`
+    + `<div class="sh-cfm__aviso"><span class="sh-cfm__aviso-ico">⚠️</span>`
+      + `<span class="sh-cfm__aviso-txt">Aposta que veio da <b>captura do SharpenUp</b> volta na próxima captura da casa. Excluir é para o que não vai ser recapturado, como uma base importada.</span></div>`
+    + `<div class="sh-cfm__campo"><label class="sh-cfm__label" for="apExclN">Digite ${nTxt} para confirmar</label>`
+      + `<input class="sh-cfm__inp" id="apExclN" type="text" inputmode="numeric" spellcheck="false" autocomplete="off"></div>`;
+  const digitado = el => parseInt(((el.querySelector('#apExclN') || {}).value || '').replace(/\D/g, ''), 10);
+  await shConfirm({
+    eyebrow: 'EXCLUIR EM MASSA', titulo: `${nTxt} ${plural}`, corpo,
+    acao: `Excluir ${nTxt}`, rodando: 'Excluindo…', perigo: true, focar: '#apExclN',
+    validar: el => digitado(el) === n ? '' : 'número não confere',
+    aoConfirmar: async el => {
+      const r = await fetch('/bilhetes/excluir-lote', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, confirmar: digitado(el) }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.detail || 'Não foi possível excluir.');
+      // Contagem devolvida é dado: compara com o que foi mandado antes de dizer "excluídas".
+      const ex = d.excluidos || 0, ign = d.ignorados || 0;
+      _apSel[tela].clear();
+      apAviso(`${ex.toLocaleString('pt-BR')} aposta${ex === 1 ? '' : 's'} excluída${ex === 1 ? '' : 's'}`
+        + (ign ? ` — ${ign.toLocaleString('pt-BR')} já não estava${ign === 1 ? '' : 'm'} na base.` : '.'));
+      await loadData(false);
+    },
+  });
+}
+window.apSelExcluir = apSelExcluir;
 
 // ── Modal de edição em massa ────────────────────────────────────────────────
 // Mesma casca do modal de editar aposta (`apEditOverlay`), mesmos `.apedit-*`: é a mesma

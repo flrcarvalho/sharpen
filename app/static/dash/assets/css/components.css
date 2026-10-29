@@ -2525,6 +2525,10 @@ select.ap-inline-inp { padding: 2px 4px; }
 .ap-selbar__btn:hover { border-color: var(--ink-mute); color: var(--ink); }
 .ap-selbar__btn--acao { border-color: var(--accent); color: var(--accent); }
 .ap-selbar__btn--acao:hover { background: rgba(var(--accent-rgb), .1); color: var(--accent-2); }
+/* Excluir em massa: mesmo botão vazado, acento --neg (reservado ao irreversível, como o
+   `.sh-cfm__btn--perigo` do modal que ele abre). --neg sobre a superfície mede 4,9:1. */
+.ap-selbar__btn--perigo { border-color: rgba(var(--neg-rgb), .45); color: var(--neg); }
+.ap-selbar__btn--perigo:hover { background: rgba(var(--neg-rgb), .1); border-color: var(--neg); color: var(--neg-2); }
 
 /* Modal de edição em massa — só o que ele acrescenta ao `.apedit-*`. */
 .ap-lote-dica {
