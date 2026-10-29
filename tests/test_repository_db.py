@@ -2446,3 +2446,75 @@ def test_a3_rastro_nao_e_correcao_humana():
         return bid, so_ficha, com_humana
     bid, so_ficha, com_humana = _run(body())
     assert so_ficha == set() and com_humana == {bid}
+
+
+# ── Página de Logs (s433, entrega 1.4): `extracao_log` ───────────────────────
+# O que estes testes NÃO cobrem: o embrulho do fluxo (`main._com_log`), que decide QUANDO
+# gravar, e a rota `/extracoes/log` (a decisão do admin vem do `auth.eh_admin`). Aqui é a
+# gravação, o fechamento escopado por dono e o corte do que só o admin vê.
+
+async def _log_reset():
+    await init_db()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("TRUNCATE extracao_log RESTART IDENTITY")
+
+
+def test_s433_log_grava_e_o_salvar_completa():
+    async def body():
+        await _log_reset()
+        lid = await repository.registrar_extracao(
+            "TDonoA", "Vavada", "Ellen [Eu]", total=26, prontas=21, para_ia=5, segundos=28.4,
+            situacao="aviso", avisos=["2 aposta(s) com descrição que parece de outro bilhete: confira"],
+            motivos={"descrição fora do dicionário": 4}, notas="nota", modelo="claude-sonnet-5",
+            tokens={"input": 1000, "output": 200, "cache_read": 0, "cache_write": 0})
+        assert lid
+        await repository.fechar_extracao(lid, "TDonoA", 5, 1, [])
+        rows = await repository.listar_extracoes("TDonoA", 1)
+        assert len(rows) == 1
+        r = rows[0]
+        assert (r["total"], r["novas"], r["atualizadas"], r["situacao"]) == (26, 5, 1, "aviso")
+        assert r["avisos"] == ["2 aposta(s) com descrição que parece de outro bilhete: confira"]
+    _run(body())
+
+
+def test_s433_log_sem_admin_nao_leva_o_motor():
+    """O caminho de cada aposta, as notas e o custo NÃO saem do servidor para o usuário."""
+    async def body():
+        await _log_reset()
+        await repository.registrar_extracao("TDonoA", "Vavada", "c", total=3, prontas=1, para_ia=2,
+                                            motivos={"termo fora do dicionário": 2}, notas="x",
+                                            modelo="claude-sonnet-5",
+                                            tokens={"input": 12000, "output": 900})
+        user = (await repository.listar_extracoes("TDonoA", 1))[0]
+        adm = (await repository.listar_extracoes("TDonoA", 1, admin=True))[0]
+        assert "admin" not in user
+        assert not {"prontas", "para_ia", "motivos", "notas", "modelo", "custo_usd"} & set(user)
+        assert adm["admin"]["para_ia"] == 2
+        assert adm["admin"]["motivos"] == {"termo fora do dicionário": 2}
+        assert adm["admin"]["custo_usd"] > 0
+    _run(body())
+
+
+def test_s433_fechar_de_outro_dono_nao_toca_a_linha():
+    async def body():
+        await _log_reset()
+        lid = await repository.registrar_extracao("TDonoA", "Vavada", "c", total=3)
+        await repository.fechar_extracao(lid, "TDonoB", 99, 99, ["invasão"])
+        r = (await repository.listar_extracoes("TDonoA", 1))[0]
+        assert (r["novas"], r["atualizadas"], r["situacao"], r["avisos"]) == (None, None, "ok", [])
+        assert await repository.listar_extracoes("TDonoB", 1) == []
+    _run(body())
+
+
+def test_s433_alerta_do_salvar_rebaixa_ok_para_aviso_e_so_aviso_filtra():
+    async def body():
+        await _log_reset()
+        a = await repository.registrar_extracao("TDonoA", "Vavada", "c", total=3)
+        await repository.registrar_extracao("TDonoA", "Duel", "c", total=1)
+        await repository.fechar_extracao(a, "TDonoA", 2, 0, ["odd fora da faixa"])
+        so = await repository.listar_extracoes("TDonoA", 1, so_aviso=True)
+        assert [r["casa"] for r in so] == ["Vavada"]
+        assert so[0]["situacao"] == "aviso" and so[0]["avisos"] == ["odd fora da faixa"]
+        assert len(await repository.listar_extracoes("TDonoA", 1)) == 2
+    _run(body())

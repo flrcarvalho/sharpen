@@ -1347,6 +1347,17 @@ body.cap-off .cx__body { display: none; }
 .procbar__msg { font-size: var(--text-xs); color: var(--ink-soft); }
 .procbar.warn .procbar__msg { color: var(--warn); }
 .procbar.err .procbar__msg { color: var(--neg); }
+/* Aviso que pede ação (s433, 1.4): âmbar é aviso. Fica até ser dispensado ou até a próxima
+   extração da conta; o detalhe, com as linhas, mora na página de Logs. */
+.ext-aviso { display: none; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; padding: 8px 12px;
+  border: 1px solid rgba(var(--warn-rgb),.45); background: rgba(var(--warn-rgb),.09); border-radius: var(--r-sm); }
+.ext-aviso.on { display: flex; }
+.ext-aviso__k { font-family: var(--font-mono); font-size: var(--text-xxs); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--warn); }
+.ext-aviso__t { font-size: var(--text-sm); color: var(--ink); flex: 1; min-width: 0; }
+.ext-aviso__a { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--accent-2); text-decoration: none; }
+.ext-aviso__a:hover, .ext-aviso__a:focus-visible { text-decoration: underline; }
+.ext-aviso__x { background: none; border: 0; color: var(--ink-soft); cursor: pointer; font-size: var(--text-sm); padding: 2px 4px; }
+.ext-aviso__x:hover, .ext-aviso__x:focus-visible { color: var(--ink); }
 .cap__sp { flex: 1; }
 
 /* ── Item 5: recolher a captura ──
@@ -2841,7 +2852,7 @@ td.c-res.res-HL { color: var(--warn); }
 
   <!-- Rail v2 (handoff-rail-v2): grid colmain | rail. ctxbar + KPI bar + intake +
        grade vivem na COLUNA ESQUERDA; o rail RAIO-X é a 2ª coluna, full lateral. -->
-  <div class="workfull">
+  <div class="workfull sem-rail">   <!-- s433: sem RAIO-X; o painel da conta entra na 2.2 -->
   <div class="colmain">
 
   <!-- 4.2.c — context bar SEMPRE visível (Operador + seletor de conta + Modelo).
@@ -3000,6 +3011,12 @@ td.c-res.res-HL { color: var(--warn); }
         <div class="procbar__top"><span class="procbar__t" id="procTit"></span><span class="procbar__n" id="procNum"></span></div>
         <div class="procbar__trk"><span class="procbar__fill" id="procFill"></span></div>
         <div class="procbar__pe"><span class="procbar__msg" id="procMsg"></span><button class="btn btn-ghost btn-sm" id="procCancel" type="button">Cancelar</button></div>
+      </div>
+      <!-- s433 (1.4): o aviso que pede ação fica até ser dispensado; o detalhe mora no log. -->
+      <div class="ext-aviso" id="extAviso" role="alert">
+        <span class="ext-aviso__k">Conferir</span><span class="ext-aviso__t" id="extAvisoTxt"></span>
+        <a href="#" class="ext-aviso__a" id="extAvisoLog">ver no log ›</a>
+        <button type="button" class="ext-aviso__x" id="extAvisoFechar" aria-label="Dispensar o aviso">✕</button>
       </div>
     </div>
   </div><!-- #capwrap -->
@@ -4467,8 +4484,9 @@ function mostrarView(v) {
     if (eyebrow) eyebrow.textContent = 'Operação · extração de bilhetes';
     // s398: a Polymarket também não tem rail — voltar para a Extração com ela ativa
     // não pode trazê-lo de volta.
-    document.querySelector('.workfull').classList.toggle('sem-rail',
-      !!parceiroSelecionado && casaSelecionada === 'Polymarket');
+    // s433 (1.4): o RAIO-X e o histórico saíram para a página de Logs; a Extração não
+    // tem mais rail, com ou sem conta, Polymarket ou não.
+    document.querySelector('.workfull').classList.add('sem-rail');
     const arowEl = document.querySelector('.arow'); if (arowEl) arowEl.style.display = '';
     navC && navC.classList.remove('active'); navP && navP.classList.add('active');
     if (!parceiroSelecionado) mostrarEmptyState();   // sem conta ativa → hub
@@ -6145,7 +6163,7 @@ function mostrarEmptyState() {
   // s398: sem conta não há modo Polymarket — o hub da Extração tem rail (feed + convite).
   const tl = document.getElementById('topleft');
   if (tl) tl.classList.remove('poly');
-  if (viewAtual !== 'contas') document.querySelector('.workfull').classList.remove('sem-rail');
+  document.querySelector('.workfull').classList.add('sem-rail');   // s433: sem RAIO-X
   const kpis = document.getElementById('ctxKpis');
   if (kpis) kpis.style.display = 'none';
   atualizarQuickActs();
@@ -6194,7 +6212,7 @@ function aplicarModoCasa(casa) {
   // também tira o rail, por isso a condição olha a view.
   const tl = document.getElementById('topleft');
   if (tl) tl.classList.toggle('poly', isPoly);
-  document.querySelector('.workfull').classList.toggle('sem-rail', isPoly || viewAtual === 'contas');
+  document.querySelector('.workfull').classList.add('sem-rail');   // s433: sem RAIO-X
   // SharpenUp: só clicável nas casas conectáveis; nas demais fica visível porém esmaecido.
   const conn = document.getElementById('btn-conectar-ext');
   if (conn) {
@@ -7119,8 +7137,10 @@ async function _avisarNaoLidas(card, casa) {
 // (`triagem`: total e quantas já estão prontas) e o avanço da leitura (`chunk_progress`);
 // daqui sai só "N de M". De onde cada aposta veio não é assunto do usuário.
 const _procPorConta = new Map();   // parceiro.id → { casa, total, prontas, k, n, t0, ctrl, fim }
+const _avisoPorConta = new Map();  // parceiro.id → texto do aviso que pede ação (1.4)
 let _procTick = null;
 function _procIniciar(parceiro, ctrl) {
+  _avisoPorConta.delete(parceiro.id);   // extração nova da conta: o aviso velho saiu de cena
   _procPorConta.set(parceiro.id, { casa: parceiro.casa, total: null, prontas: 0, k: 0, n: 0,
                                    t0: Date.now(), ctrl, fim: null });
   _renderProcBar();
@@ -7152,6 +7172,12 @@ function _renderProcBar() {
   const wrap = document.getElementById('capwrap'), el = document.getElementById('procBar');
   if (!wrap || !el) return;
   const s = parceiroSelecionado && _procPorConta.get(parceiroSelecionado.id);
+  const aviso = parceiroSelecionado && _avisoPorConta.get(parceiroSelecionado.id);
+  const av = document.getElementById('extAviso');
+  if (av) {
+    av.classList.toggle('on', !!aviso && !(s && !s.fim));
+    if (aviso) document.getElementById('extAvisoTxt').textContent = aviso;
+  }
   wrap.classList.toggle('processando', !!s);
   if (!s) { clearInterval(_procTick); _procTick = null; return; }
   const nome = casaDisplay(NOMES[s.casa] || s.casa);
@@ -7190,6 +7216,16 @@ function _renderProcBar() {
       ? 'As apostas prontas já estão na lista e no P/L. Pode continuar usando a tela.'
       : 'Lendo os bilhetes. Pode continuar usando a tela.';
 }
+document.getElementById('extAvisoFechar').addEventListener('click', () => {
+  if (parceiroSelecionado) _avisoPorConta.delete(parceiroSelecionado.id);
+  _renderProcBar();
+});
+// A página de Logs é do dashboard: dentro da casca troca o hash dela; fora, abre o dash.
+document.getElementById('extAvisoLog').addEventListener('click', (e) => {
+  e.preventDefault();
+  try { if (window.top !== window) { window.top.location.hash = 'dash/logs'; return; } } catch (_) {}
+  location.href = '/dashboard/#logs';
+});
 document.getElementById('procCancel').addEventListener('click', () => {
   const s = parceiroSelecionado && _procPorConta.get(parceiroSelecionado.id);
   if (s && s.ctrl) s.ctrl.abort();
@@ -7295,7 +7331,8 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
         body: JSON.stringify({ tsv: parsed.tsv, casa: parceiro.casa, parceiro: parceiro.nome,
                                parceiro_id: parceiro.id, submitted_at: submittedAt,
                                codigo_ocr: !!data.codigo_ocr, carimbos: data.carimbos || null,
-                               moedas: data.moedas || null, freebets: data.freebets || null }),
+                               moedas: data.moedas || null, freebets: data.freebets || null,
+                               log_id: data.log_id || null }),
       });
       const ds = await rs.json();
       if (!rs.ok) throw new Error(ds.detail || `Erro ao salvar (HTTP ${rs.status})`);
@@ -7344,6 +7381,7 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
       if (fid.restantes > 0) fimPartes.push(`${fid.restantes} a conferir: descrição parece de outro bilhete`);
       if (perdidos > 0 || data.chunks_falhos > 0) fimPartes.push('parte não foi lida, processe de novo');
       if (ds.alertas && ds.alertas.length) fimPartes.push(`${ds.alertas.length} alerta${ds.alertas.length === 1 ? '' : 's'}`);
+      if (tipo === 'warn') _avisoPorConta.set(parceiro.id, fimPartes.slice(1 + (upd > 0 ? 1 : 0)).join(' · '));
       _procFim(parceiro, fimPartes.join(' · '), tipo);
 
       // Rail "Análise IA": KPIs + notas estruturadas + observação livre da IA

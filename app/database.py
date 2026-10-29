@@ -1064,6 +1064,32 @@ ALTER TABLE dicionario_termos DROP CONSTRAINT IF EXISTS dicionario_termos_tipo_c
 ALTER TABLE dicionario_termos ADD CONSTRAINT dicionario_termos_tipo_check
     CHECK (tipo IN ('esporte', 'categoria', 'descricao'));
 ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS descricao_fora INTEGER NOT NULL DEFAULT 0;
+
+-- s433: uma linha por `/extrair` (página de Logs). Substitui o histórico do RAIO-X, que vivia
+-- no navegador (`sharpen_raiox_hist`) e sumia ao trocar de computador. O `/extrair` grava ao
+-- fechar o fluxo; o `/salvar` completa `novas`/`atualizadas`/`alertas` pelo `log_id`.
+-- `motivos`, `notas`, `modelo` e `custo_usd` são da parte só do admin: o usuário vê quantas
+-- apostas entraram, nunca o caminho de cada uma.
+CREATE TABLE IF NOT EXISTS extracao_log (
+    id          BIGSERIAL PRIMARY KEY,
+    criado_em   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    dono        TEXT NOT NULL,
+    casa        TEXT NOT NULL DEFAULT '',
+    parceiro    TEXT NOT NULL DEFAULT '',
+    total       INTEGER,
+    prontas     INTEGER,
+    para_ia     INTEGER,
+    novas       INTEGER,
+    atualizadas INTEGER,
+    segundos    REAL NOT NULL DEFAULT 0,
+    situacao    TEXT NOT NULL DEFAULT 'ok',
+    avisos      JSONB NOT NULL DEFAULT '[]',
+    motivos     JSONB NOT NULL DEFAULT '{}',
+    notas       TEXT NOT NULL DEFAULT '',
+    modelo      TEXT NOT NULL DEFAULT '',
+    custo_usd   REAL NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS extracao_log_dono ON extracao_log (dono, criado_em DESC);
 ALTER TABLE semente_log ADD COLUMN IF NOT EXISTS revisao JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE semente_log ADD COLUMN IF NOT EXISTS regravadas INTEGER NOT NULL DEFAULT 0;
 

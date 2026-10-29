@@ -64,6 +64,7 @@ import cambio as _cambio
 from prompts import build_system
 import contrato_texto as _contrato
 from repository import (
+    registrar_extracao, fechar_extracao, listar_extracoes,
     alinhar_tsv, categorias_do_dono, codigos_odd_vazia, odd_vazia_ganha,
     analisar_extracao,
     arquivar_parceiro, atualizar_bilhete, auto_arquivar, contar_arquivados,
@@ -1476,6 +1477,8 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
                 motivos[m] = motivos.get(m, 0) + 1
         logger.info("virada: %s/%s · %d capturada(s), %d pela Ficha, %d à IA (espera %.1f s) %s",
                     dono, casa, len(set(codigos)), n_ficha, len(mantidos), espera, motivos)
+        if info is not None:
+            info["motivos"] = motivos   # página de Logs, parte só do admin (s433)
         _fire(_virada.registrar(dono, casa_key, len(set(codigos)),
                                 len(set(codigos) & ja_resolvidos), n_ficha, inalterados,
                                 len(mantidos), espera, motivos))
@@ -3958,6 +3961,16 @@ async def salvar_casa_meta(body: CasaMetaRequest, dono: str = Depends(dono_efeti
     return {"ok": True}
 
 
+@app.get("/extracoes/log")
+async def extracoes_log(dias: int = 1, casa: str = "", so_aviso: bool = False,
+                        dono: str = Depends(dono_efetivo), usuario: str = Depends(usuario_atual)):
+    """Página de Logs (s433): uma linha por extração do dono, mais nova primeiro. A parte
+    do motor (caminho de cada aposta, notas da IA, custo) só sai para o admin."""
+    dias = max(1, min(90, dias))
+    return {"extracoes": await listar_extracoes(dono, dias, casa.strip(), so_aviso,
+                                                admin=eh_admin(usuario))}
+
+
 @app.get("/uso/tokens")
 async def uso_tokens_endpoint(dias: int = 30, dono: str = Depends(usuario_atual)):
     """Resumo de uso/custo de tokens dos últimos `dias`. Admin (`usuarios.role`)
@@ -4239,6 +4252,51 @@ async def _com_triagem(fluxo, triagem: dict):
         yield ev
 
 
+_NOTAS_RE = re.compile(r"##\s*Notas Cr[ií]ticas\s*\n([\s\S]*?)(?=##\s|$)")
+
+
+def _avisos_do_done(d: dict) -> list[str]:
+    """Os avisos que pedem ação, na língua do usuário (página de Logs, s433). São os mesmos
+    que o card da extração já mostrava: parte não lida e descrição de outro bilhete."""
+    avisos = []
+    cob = d.get("cobertura") or {}
+    if cob.get("faltantes"):
+        avisos.append(f"{len(cob['faltantes'])} aposta(s) do texto não foram lidas: processe de novo")
+    if d.get("chunks_falhos"):
+        avisos.append("parte do lote falhou: processe de novo")
+    fid = d.get("fidelidade") or {}
+    if fid.get("restantes"):
+        avisos.append(f"{fid['restantes']} aposta(s) com descrição que parece de outro bilhete: confira")
+    return avisos
+
+
+async def _com_log(fluxo, dono: str, casa: str, parceiro: str, contagem: dict, t0: float):
+    """Passa o fluxo do `/extrair` adiante e grava a linha da página de Logs quando ele fecha
+    (`done` ou `error`). O id volta dentro do `done` (`log_id`) para o `/salvar` completar a
+    linha. Falha ao gravar não toca o fluxo: o pior caso é a extração sem linha no log."""
+    async for ev in fluxo:
+        if ev.startswith("data: ") and ('"done"' in ev or '"error"' in ev):
+            try:
+                d = json.loads(ev[6:])
+            except ValueError:
+                d = None
+            if isinstance(d, dict) and (d.get("done") or d.get("error")):
+                avisos = [] if d.get("error") else _avisos_do_done(d)
+                m = _NOTAS_RE.search(d.get("resultado") or "")
+                log_id = await registrar_extracao(
+                    dono, casa, parceiro, total=contagem.get("total"),
+                    prontas=(contagem["total"] - contagem["para_ia"]) if "total" in contagem else None,
+                    para_ia=contagem.get("para_ia"), segundos=time.monotonic() - t0,
+                    situacao="erro" if d.get("error") else ("aviso" if avisos else "ok"),
+                    avisos=[d["error"]] if d.get("error") else avisos,
+                    motivos=contagem.get("motivos"), notas=(m.group(1).strip() if m else ""),
+                    modelo=d.get("modelo") or "", tokens=d.get("tokens"))
+                if d.get("done") and log_id:
+                    d["log_id"] = log_id
+                    ev = f"data: {json.dumps(d)}\n\n"
+        yield ev
+
+
 @app.post("/extrair")
 async def extrair(
     casa: str = Form(...),
@@ -4259,6 +4317,7 @@ async def extrair(
 ):
     if modelo not in ALLOWED_MODELS:
         raise HTTPException(400, f"Modelo não permitido. Opções: {ALLOWED_MODELS}")
+    t0_extrair = time.monotonic()   # tempo da linha da página de Logs (s433)
 
     # Teto do visitante da demonstração. Vem ANTES de qualquer leitura de
     # arquivo: a chamada à IA é o que custa, e recusar depois de processar o
@@ -4404,7 +4463,9 @@ async def extrair(
                 if triagem:
                     yield f"data: {json.dumps({'triagem': triagem})}\n\n"
                 yield f"data: {_payload}\n\n"
-            return StreamingResponse(_only_skipped(), media_type="text/event-stream",
+            return StreamingResponse(_com_log(_only_skipped(), dono, _casa_display(casa_key),
+                                              parceiro, contagem, t0_extrair),
+                                     media_type="text/event-stream",
                                      headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
         raise HTTPException(400, "Envie pelo menos uma imagem ou texto.")
 
@@ -4470,6 +4531,7 @@ async def extrair(
 
     if triagem:
         generator = _com_triagem(generator, triagem)
+    generator = _com_log(generator, dono, _casa_disp, parceiro, contagem, t0_extrair)
 
     return StreamingResponse(
         generator,
@@ -4518,6 +4580,9 @@ class SalvarRequest(BaseModel):
     # cru no /extrair (`freebets_do_texto`) e transportado pelo front, igual ao `carimbos`.
     # Vira a coluna `stake_freebet`. Ausente → nenhuma linha marcada (import, bot, print).
     freebets: Optional[dict] = None
+    # Linha da página de Logs (s433) que o `/extrair` abriu e devolveu no `done`. O `/salvar`
+    # completa novas/atualizadas nela. Ausente (bot, import, Ficha) → não toca log nenhum.
+    log_id: Optional[int] = None
 
 
 # Criação de dado NOVO → dono REAL (ver nota em /extrair): salva sempre na base de
@@ -4525,7 +4590,13 @@ class SalvarRequest(BaseModel):
 @app.post("/salvar")
 async def salvar(body: SalvarRequest, dono: str = Depends(usuario_atual_ou_bot),
                  dono_view: str = Depends(dono_efetivo_ou_bot)):
-    return await gravar_tsv(body, dono, dono_view)
+    r = await gravar_tsv(body, dono, dono_view)
+    if body.log_id:
+        # Mesmo dono que abriu a linha no /extrair (o real, nunca o "ver como").
+        await fechar_extracao(body.log_id, dono, r.get("inseridos", r.get("salvos", 0)) or 0,
+                              r.get("atualizados", 0) or 0,
+                              [str(a) for a in (r.get("alertas") or [])][:20])
+    return r
 
 
 async def gravar_tsv(body: SalvarRequest, dono: str, dono_view: str,

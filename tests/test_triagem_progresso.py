@@ -134,3 +134,58 @@ def test_a_contagem_e_o_primeiro_evento_do_fluxo():
     assert len(eventos) == 3
     assert json.loads(eventos[0][6:]) == {"triagem": {"total": 9, "prontas": 7}}
     assert eventos[1:] == ['data: {"chunk_progress": 1, "of": 2}\n\n', 'data: {"done": true}\n\n']
+
+
+# ── A linha da página de Logs (entrega 1.4): `_com_log` ───────────────────────
+
+def _passar_pelo_log(eventos, contagem=None):
+    gravados = []
+
+    async def _fake(dono, casa, parceiro, **kw):
+        gravados.append(dict(dono=dono, casa=casa, parceiro=parceiro, **kw))
+        return 77
+
+    orig = main.registrar_extracao
+    main.registrar_extracao = _fake
+
+    async def fluxo():
+        for e in eventos:
+            yield e
+
+    async def coletar():
+        return [ev async for ev in main._com_log(fluxo(), "Feca", "Vavada", "Ellen [Eu]",
+                                                  contagem or {}, 0.0)]
+    try:
+        saida = asyncio.run(coletar())
+    finally:
+        main.registrar_extracao = orig
+    return saida, gravados
+
+
+def test_done_grava_a_linha_e_devolve_o_log_id():
+    done = {"done": True, "resultado": "```tsv\nx\n```\n## Notas Críticas\nnota da IA",
+            "modelo": "claude-sonnet-5", "tokens": {"input": 1, "output": 1},
+            "fidelidade": {"restantes": 2}}
+    saida, gravados = _passar_pelo_log(
+        ['data: {"t": "parcial com a palavra done"}\n\n', f"data: {json.dumps(done)}\n\n"],
+        {"total": 26, "para_ia": 5, "motivos": {"termo fora do dicionário": 1}})
+    assert len(gravados) == 1
+    g = gravados[0]
+    assert (g["total"], g["prontas"], g["para_ia"]) == (26, 21, 5)
+    assert g["situacao"] == "aviso" and "outro bilhete" in g["avisos"][0]
+    assert g["notas"] == "nota da IA"
+    assert json.loads(saida[-1][6:])["log_id"] == 77
+    assert saida[0] == 'data: {"t": "parcial com a palavra done"}\n\n'   # passa intacto
+
+
+def test_erro_grava_linha_de_erro():
+    saida, gravados = _passar_pelo_log(['data: {"error": "Erro ao processar a extração."}\n\n'])
+    assert gravados[0]["situacao"] == "erro"
+    assert gravados[0]["avisos"] == ["Erro ao processar a extração."]
+    assert saida == ['data: {"error": "Erro ao processar a extração."}\n\n']
+
+
+def test_done_limpo_e_ok_sem_aviso():
+    _, gravados = _passar_pelo_log(['data: {"done": true, "resultado": ""}\n\n'])
+    assert gravados[0]["situacao"] == "ok" and gravados[0]["avisos"] == []
+    assert gravados[0]["total"] is None   # print/planilha: o total não existe antes da leitura

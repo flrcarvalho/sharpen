@@ -3461,3 +3461,28 @@ select.ap-inline-inp { padding: 2px 4px; }
 .cn-mrow .vv .p            { text-align: right; }
 /* O chip da casa no ranking é o mesmo componente da tabela, um degrau menor. */
 .cn-mrow .house-chip       { width: 18px; height: 18px; border-radius: 5px; margin-right: 8px; }
+
+/* ── Logs de extração (s433, charts/logs.js) ─────────────────────────────────
+   Reusa .filters/.qbtn e .tbl. Casa é nome próprio: --ink, 13px. Conta e o resumo
+   abaixo do título são metadado: --ink-soft. A situação é pill: âmbar = aviso,
+   vermelho = erro, neutro = ok (verde fica para resultado). */
+.lg-sub { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-soft); margin-bottom: var(--sp-3); }
+.lg-tbl td { font-size: var(--text-sm); }
+.lg-tbl td.mono { font-family: var(--font-mono); }
+.lg-row { cursor: pointer; }
+.lg-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.lg-row.on td { background: rgba(var(--accent-rgb), .07); }
+.lg-casa { color: var(--ink); font-weight: 600; }
+.lg-det-h { font-size: var(--text-sm); }
+.lg-conta { color: var(--ink-soft); }
+.lg-sit { display: inline-flex; font-family: var(--font-mono); font-size: var(--text-xxs); font-weight: 600; letter-spacing: .08em;
+  text-transform: uppercase; padding: 2px 8px; border-radius: var(--r-pill); border: 1px solid var(--line); color: var(--ink-soft); }
+.lg-sit.aviso { color: var(--warn); border-color: rgba(var(--warn-rgb), .45); background: rgba(var(--warn-rgb), .09); }
+.lg-sit.erro { color: var(--neg); border-color: rgba(var(--neg-rgb), .45); background: rgba(var(--neg-rgb), .09); }
+.lg-det td { white-space: normal; background: var(--surface-2) !important; }
+.lg-det-in { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: var(--sp-5); padding: var(--sp-2) 0; }
+@media (max-width: 900px) { .lg-det-in { grid-template-columns: 1fr; } }
+.lg-lista { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; color: var(--ink); font-size: var(--text-sm); }
+.lg-notas { margin-top: var(--sp-2); font-size: var(--text-xs); color: var(--ink-soft); white-space: pre-wrap; max-height: 220px; overflow: auto; }
+.lg-vazio { margin-top: 6px; font-size: var(--text-sm); color: var(--ink-soft); }
+.lg-vazio-tela { padding: var(--sp-6) var(--sp-2); font-size: var(--text-sm); color: var(--ink-soft); text-align: center; }

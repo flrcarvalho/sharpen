@@ -6593,7 +6593,8 @@ async def _purgar_trials(conn, prefixo: str, dias: int) -> int:
     if not velhos:
         return 0
     async with conn.transaction():
-        for tabela in ("bilhetes", "parceiros", "tipsters", "custo_store", "caixa_mov"):
+        for tabela in ("bilhetes", "parceiros", "tipsters", "custo_store", "caixa_mov",
+                       "extracao_log"):
             try:
                 await conn.execute(
                     f"DELETE FROM {tabela} WHERE dono = ANY($1)", velhos)
@@ -6616,3 +6617,85 @@ async def extracoes_do_trial(dono: str) -> int:
     async with pool.acquire() as conn:
         return await conn.fetchval(
             "SELECT count(*) FROM uso_tokens WHERE dono = $1", dono) or 0
+
+
+# ── Página de Logs (s433): uma linha por `/extrair` ───────────────────────────
+# O `/extrair` grava ao fechar o fluxo (`registrar_extracao`) e devolve o id no `done`; o
+# `/salvar` completa o que só ele sabe (`fechar_extracao`). As duas escritas nunca derrubam
+# a extração: falhou, a aposta está salva e só o log fica sem a linha.
+_LOG_SITUACOES = ("ok", "aviso", "erro")
+
+
+async def registrar_extracao(dono: str, casa: str, parceiro: str, *, total=None, prontas=None,
+                             para_ia=None, segundos: float = 0.0, situacao: str = "ok",
+                             avisos=(), motivos=None, notas: str = "", modelo: str = "",
+                             tokens: dict | None = None) -> int | None:
+    try:
+        custo = custo_usd(modelo, tokens) if (modelo and tokens) else 0.0
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            return await conn.fetchval(
+                """INSERT INTO extracao_log (dono, casa, parceiro, total, prontas, para_ia,
+                                             segundos, situacao, avisos, motivos, notas,
+                                             modelo, custo_usd)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13)
+                   RETURNING id""",
+                dono, casa or "", parceiro or "", total, prontas, para_ia, float(segundos),
+                situacao if situacao in _LOG_SITUACOES else "ok",
+                json.dumps(list(avisos), ensure_ascii=False),
+                json.dumps(motivos or {}, ensure_ascii=False), notas or "", modelo or "",
+                float(custo))
+    except Exception:
+        logger.warning("extracao_log: linha nao gravada", exc_info=True)
+        return None
+
+
+async def fechar_extracao(log_id: int, dono: str, novas: int, atualizadas: int,
+                          alertas: list[str] | None = None) -> None:
+    """Completa a linha com o que o `/salvar` gravou. Escopada por dono: um `log_id` de outra
+    base não é tocado. Alerta do `/salvar` vira aviso e rebaixa `ok` para `aviso`."""
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """UPDATE extracao_log
+                      SET novas = $3, atualizadas = $4,
+                          avisos = avisos || $5::jsonb,
+                          situacao = CASE WHEN jsonb_array_length($5::jsonb) > 0
+                                           AND situacao = 'ok' THEN 'aviso' ELSE situacao END
+                    WHERE id = $1 AND dono = $2""",
+                int(log_id), dono, int(novas), int(atualizadas),
+                json.dumps(list(alertas or []), ensure_ascii=False))
+    except Exception:
+        logger.warning("extracao_log: fechamento nao gravado (id %s)", log_id, exc_info=True)
+
+
+async def listar_extracoes(dono: str, dias: int = 1, casa: str = "",
+                           so_aviso: bool = False, admin: bool = False) -> list[dict]:
+    """As extrações do dono no período, mais nova primeiro (teto de 500 linhas). Sem `admin`,
+    os campos do motor (`para_ia`, `prontas`, `motivos`, `notas`, `modelo`, `custo_usd`) não
+    saem do servidor: a tela do usuário não os recebe nem escondidos."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT * FROM extracao_log
+                WHERE dono = $1 AND criado_em >= NOW() - make_interval(days => $2)
+                  AND ($3 = '' OR casa = $3)
+                  AND (NOT $4 OR situacao <> 'ok')
+                ORDER BY criado_em DESC LIMIT 500""",
+            dono, int(dias), casa or "", bool(so_aviso))
+    publicos = ("id", "casa", "parceiro", "total", "novas", "atualizadas", "segundos",
+                "situacao")
+    out = []
+    for r in rows:
+        d = {k: r[k] for k in publicos}
+        d["criado_em"] = r["criado_em"].isoformat()
+        d["avisos"] = json.loads(r["avisos"]) if isinstance(r["avisos"], str) else r["avisos"]
+        if admin:
+            d["admin"] = {"prontas": r["prontas"], "para_ia": r["para_ia"],
+                          "motivos": json.loads(r["motivos"]) if isinstance(r["motivos"], str)
+                          else r["motivos"],
+                          "notas": r["notas"], "modelo": r["modelo"],
+                          "custo_usd": round(float(r["custo_usd"] or 0), 6)}
+        out.append(d)
+    return out

@@ -616,6 +616,8 @@ const PAGE_META={
   'custos_v2':      ['Custos',                   'contas, tipsters e gerais num lugar só'],
   'tipster_metodo': ['Tipsters & Métodos',       'cadastro, unidades e detecção do tipster'],
   'metrics':        ['Métricas',                 'base de conhecimento e valores atuais'],
+  // Logs (s433): uma linha por extração. Substitui o RAIO-X e o histórico da Extração.
+  'logs':           ['Logs de extração',         'o que cada captura trouxe para a sua planilha'],
 };
 // Deep-link: os atalhos do Planilhador chegam como /dashboard/#<id>. Sem âncora
 // (ou âncora desconhecida) cai na Visão Geral, preservando o comportamento antigo.
@@ -641,6 +643,10 @@ function showPage(id){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id)?.classList.add('active');
   document.getElementById('nav-'+id)?.classList.add('active');
+  // Logs (s433): vêm do servidor, não do feed, e abrir a tela tem de trazer a extração que
+  // acabou de acontecer. Sem isto, o 1º showPage (que a casca dispara antes do buildHTML)
+  // marcava a página como pintada e a chamada seguinte era descartada: tela vazia.
+  if(id==='logs'){_lastPage=id;_lastPageSig='';renderPage(id);return;}
   const sig=_pageSig(id);
   if(id===_lastPage&&sig===_lastPageSig)return;
   _lastPage=id;_lastPageSig=sig;
@@ -689,6 +695,7 @@ function renderPage(id){
   else if(id==='tipster_metodo'){renderTipsterMetodo();}
   else if(id==='metrics'){renderMetrics(filtrarPagina('metrics'));}
   else if(id==='resultados'){renderResultados();}
+  else if(id==='logs'){renderLogs();}
 }
 
 // KPI
@@ -762,6 +769,9 @@ function buildHTML(){
         <!-- SharpenUp: página pública/standalone da extensão. Abre em nova aba (sai do
              app) e nunca fica "ativo" — não é página do dashboard. Espelha app.html. -->
         <a class="nav-item" id="navSharpenUp" href="/extensao" target="_blank" rel="noopener" style="text-decoration:none" title="Instalar ou atualizar o SharpenUp — abre em nova aba"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M8 11.3V5"/><path d="M5.5 7.5 8 5l2.5 2.5"/></svg>SharpenUp<svg class="nav-out" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10 10.5 5.5"/><path d="M6.6 5.5h3.9v3.9"/></svg></a>
+        ${[
+          ['logs','Logs de extração','<path d="M3 2.5h10M3 6h10M3 9.5h6M3 13h8"/><circle cx="13" cy="12.5" r="1.6"/>'],
+        ].map(([id,label,icon])=>`<div class="nav-item" id="nav-${id}" onclick="showPage('${id}')"><svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${icon}</svg>${label}</div>`).join('')}
         <!-- Minhas Apostas: a base crua. "Base Completa" = tudo (era "Apostas", depois "Minha Base");
              "Em Aberto" = só o que ainda não liquidou. -->
         <div class="nav-group">Minhas Apostas</div>
@@ -965,6 +975,11 @@ function buildHTML(){
       </div>
 
       <!-- TIPSTER / MÉTODO -->
+      <!-- LOGS DE EXTRAÇÃO (s433) — render: charts/logs.js. Não lê DADOS: vem do servidor. -->
+      <div class="page" id="page-logs">
+        <div id="logsContent"></div>
+      </div>
+
       <div class="page" id="page-tipster_metodo">
         <div id="tipsterMetodoContent"></div>
       </div>
