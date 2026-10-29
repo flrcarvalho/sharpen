@@ -2740,11 +2740,25 @@ async def resumo_conta(dono: str, casa: str, parceiro: str) -> dict:
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT stake, odd, resultado, data FROM bilhetes "
+            "SELECT stake, odd, resultado, data, extraction_state FROM bilhetes "
             "WHERE dono = $1 AND casa = $2 AND parceiro = $3",
             dono, casa, parceiro,
         )
-    return _resumir_apostas([dict(r) for r in rows])
+    linhas = [dict(r) for r in rows]
+    return {**_resumir_apostas(linhas), **_em_aberto(linhas)}
+
+
+def _em_aberto(rows: list[dict]) -> dict:
+    """Quantas apostas da conta ainda esperam resultado e quanto de stake está nelas (s433,
+    card "Em aberto" da faixa da Extração). A régua é a do selo "Aguardando resultado" da
+    lista: `extraction_state = 'aberta'`. Stake ilegível não soma, mas a aposta conta."""
+    qtd, valor = 0, 0.0
+    for r in rows:
+        if (r.get("extraction_state") or "") != "aberta":
+            continue
+        qtd += 1
+        valor += max(0.0, _num(r.get("stake")))
+    return {"em_aberto_qtd": qtd, "em_aberto": round(valor, 2)}
 
 
 # ── Perfil da conta: os números do bloco de tipster na sidebar (s362) ─────────

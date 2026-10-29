@@ -349,3 +349,23 @@ def test_estado_extracao_perda_e_void_nao_exigem_odd():
     for res in ("W", "HW"):
         assert R.calcular_pl("100", "", res) is None
         assert R.estado_extracao(res, "") == "aberta"
+
+
+# ── _em_aberto (s433): o card "Em aberto" da faixa da Extração ───────────────
+def test_em_aberto_soma_so_o_que_espera_resultado():
+    rows = [
+        {"stake": "100,00", "resultado": "", "extraction_state": "aberta"},
+        {"stake": "50,50", "resultado": "", "extraction_state": "aberta"},
+        {"stake": "999", "resultado": "W", "extraction_state": "resolvida"},
+        {"stake": "10", "resultado": "L", "extraction_state": None},
+    ]
+    assert R._em_aberto(rows) == {"em_aberto_qtd": 2, "em_aberto": 150.5}
+
+
+def test_em_aberto_vazio_e_zero():
+    assert R._em_aberto([]) == {"em_aberto_qtd": 0, "em_aberto": 0.0}
+
+
+def test_em_aberto_stake_ilegivel_conta_a_aposta_e_nao_soma():
+    rows = [{"stake": "", "extraction_state": "aberta"}, {"stake": "20", "extraction_state": "aberta"}]
+    assert R._em_aberto(rows) == {"em_aberto_qtd": 2, "em_aberto": 20.0}

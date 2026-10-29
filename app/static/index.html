@@ -910,8 +910,39 @@ html.embedded .sidebar { display: none; }
    maior que o piso, ele vence e a grade fica com as 4 de sempre; quando não for, o piso
    vence e ela quebra em 3 e depois em 2. `30px` = os 3 gaps de 10px entre as 4 colunas. */
 .ktiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(max(145px, (100% - 30px) / 4), 1fr)); grid-auto-rows: 1fr; gap: 10px; }
+/* ── Faixa de KPIs (s433, entrega 2.1) ──────────────────────────────────────────────
+   Só dentro da .arow: o arranjo da coluna fica como estava (faixa e captura em coluna no
+   #topleft, Caixa ao lado ocupando as duas). Medido (s433): pôr a faixa na largura toda
+   empurrava a Caixa para baixo e a lista começava 125px mais baixo em Full HD; e partir
+   o #topleft em itens da grade fazia a Caixa repartir a altura dela entre as linhas, com
+   a faixa esticada. Quem manda na altura em Full HD é a Caixa, não a faixa.
+   Card da conta compacto em duas linhas; os 5 números numa linha quando cada um tem
+   175px, senão 3 em cima e 2 embaixo (grade de 6 com spans, sem buraco). `.faixa` sai na
+   Polymarket, que tem a grade de 3 colunas dela. */
+.colmain.faixa .arow { grid-template-columns: 300px minmax(0, 1fr); container: faixa / inline-size; }
+.colmain.faixa .idcard { padding: 12px 14px; gap: 9px; }
+.colmain.faixa .idcard__logo { width: 34px; height: 34px; border-radius: 9px; }
+.colmain.faixa .idcard__foot { flex-direction: row; align-items: stretch; gap: 6px; }
+.colmain.faixa .idcard__foot .acct-navrow { flex: 1; min-width: 0; }
+.colmain.faixa .idcard__foot .acct-quickacts { width: auto; gap: 6px; }
+.colmain.faixa .idcard__foot .acct-quickacts .chgbtn.p { flex: 0 0 34px; width: 34px; }
+.colmain.faixa #acctSelBtn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.colmain.faixa .ktiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.colmain.faixa .tile { padding: 10px 13px; min-height: 0; }
+.colmain.faixa .tile .val { padding-top: 5px; }
+/* A linha de baixo quebra em vez de cortar: reticência esconderia o win rate em 1536px. */
+.colmain.faixa .tile .sub { white-space: normal; margin-top: 3px; line-height: 1.35; }
+@container faixa (max-width: 1250px) {
+  .colmain.faixa .ktiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .colmain.faixa .ktiles > .tile { grid-column: span 2; }
+  .colmain.faixa .ktiles > .tile:nth-child(n+4) { grid-column: span 3; }
+}
 .tile { border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); padding: 13px 14px; display: flex; flex-direction: column; min-height: 66px; }
-.tile .lab { font-family: var(--font-mono); font-size: var(--text-xxs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mute); display: flex; align-items: center; }
+.tile .lab { font-family: var(--font-mono); font-size: var(--text-xxs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); display: flex; align-items: center; }
+/* s433: o label era --ink-mute (3,0:1), abaixo dos 4,5:1 que a Escada de Tinta pede de label. */
+.tile .sub { font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-soft); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .sub .pos { color: var(--pos); }
+.tile .sub .neg { color: var(--neg); }
 /* Tarja azul antes do label — padrão de KPI da marca (SHELL_SPEC §3), igual à Visão Geral. */
 .tile .lab::before { content: ""; width: 4px; height: 13px; background: var(--accent); border-radius: 2px; margin-right: 8px; flex: none; }
 .tile .val { font-family: var(--font-mono); font-size: 16px; font-weight: 700; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: auto; padding-top: 10px; white-space: nowrap; }
@@ -945,8 +976,8 @@ html.embedded .sidebar { display: none; }
 .cx__pill.al .dot { background: var(--warn); }
 .cx__hero { padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid var(--line-2); flex: none; }
 .cx__hero .k { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
-.cx__hero .v { font-family: var(--font-mono); font-size: 25px; font-weight: 800; letter-spacing: -.03em; color: var(--ink); line-height: 1.05; }
-.cx__hero .v .money-sign { font-size: 13px; }
+.cx__hero .v { font-family: var(--font-mono); font-size: 20px; font-weight: 800; letter-spacing: -.03em; color: var(--ink); line-height: 1.05; }
+.cx__hero .v .money-sign { font-size: 11px; }   /* s433: Caixa mais baixa (pedido do Feca) */
 /* Saldo projetado NEGATIVO não é prejuízo — é lançamento faltando. Âmbar (aviso). */
 .cx__hero .v.aviso .money-val { color: var(--warn); }
 .cx__hero .s { font-family: var(--font-mono); font-size: 10px; color: var(--ink-mute); }
@@ -1234,7 +1265,7 @@ body.cap-off .cx__body { display: none; }
   /* `.colmain` na lista NÃO é detalhe: sem ela o flex encolhe a coluna inteira (medido:
      266px para 1.148px de conteúdo) e os filhos, esses sim com `flex:none`, vazam para
      fora dela e caem por cima do rail. Quem tem altura própria não pode ter shrink. */
-  .colmain, #topleft, #caixaBox, .rail { flex: none; }
+  .colmain, #topleft, #capwrap, #caixaBox, .rail { flex: none; }
   #empty-state, #partner-page { flex: none; height: 70vh; }
   .rail { min-height: 46vh; }
 }
@@ -2018,6 +2049,8 @@ body.cap-off .cx__body { display: none; }
 /* P/L — cor pos/neg SÓ no número (UI_REFERENCE §5); sinal/R$ ficam neutros */
 .money.pos .money-val { color: var(--pos); }
 .money.neg .money-val { color: var(--neg); }
+/* s433: dinheiro em aposta ABERTA é âmbar, como o selo "Aguardando resultado" da lista. */
+.money.aberto .money-val { color: var(--warn); }
 .btbl-pl .money { width: auto; }   /* encolhe p/ o cell text-align:right alinhar à direita */
 .btbl-pl-empty { color: var(--ink-mute); }
 /* Sub-linha do stake: o valor na OUTRA moeda sob o principal. Nasceu para o USD do
@@ -2853,7 +2886,7 @@ td.c-res.res-HL { color: var(--warn); }
   <!-- Rail v2 (handoff-rail-v2): grid colmain | rail. ctxbar + KPI bar + intake +
        grade vivem na COLUNA ESQUERDA; o rail RAIO-X é a 2ª coluna, full lateral. -->
   <div class="workfull sem-rail">   <!-- s433: sem RAIO-X; o painel da conta entra na 2.2 -->
-  <div class="colmain">
+  <div class="colmain faixa">   <!-- s433 (2.1): .faixa sai só na Polymarket -->
 
   <!-- 4.2.c — context bar SEMPRE visível (Operador + seletor de conta + Modelo).
        Fica fora do partner-page para que o seletor de conta seja acessível também
@@ -6163,6 +6196,7 @@ function mostrarEmptyState() {
   // s398: sem conta não há modo Polymarket — o hub da Extração tem rail (feed + convite).
   const tl = document.getElementById('topleft');
   if (tl) tl.classList.remove('poly');
+  document.querySelector('.colmain').classList.add('faixa');   // s433 (2.1)
   document.querySelector('.workfull').classList.add('sem-rail');   // s433: sem RAIO-X
   const kpis = document.getElementById('ctxKpis');
   if (kpis) kpis.style.display = 'none';
@@ -6212,6 +6246,7 @@ function aplicarModoCasa(casa) {
   // também tira o rail, por isso a condição olha a view.
   const tl = document.getElementById('topleft');
   if (tl) tl.classList.toggle('poly', isPoly);
+  document.querySelector('.colmain').classList.toggle('faixa', !isPoly);   // s433 (2.1)
   document.querySelector('.workfull').classList.add('sem-rail');   // s433: sem RAIO-X
   // SharpenUp: só clicável nas casas conectáveis; nas demais fica visível porém esmaecido.
   const conn = document.getElementById('btn-conectar-ext');
@@ -7753,9 +7788,9 @@ async function _salvarCustoDaConta(id, bruto) {
 // via componente .money (R$ menor/neutro, cor só no número). Casas por contexto:
 // P/L → fmtPL (2 casas, sinal colado, U+2212, zero neutro); agregado/KPI sem sinal
 // (turnover) → INTEIRO, espelhando fmtR do Dashboard. % com 1 casa.
-function _moneyInt(n) {
+function _moneyInt(n, cls) {
   const abs = (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  return `<span class="money"><span class="money-sign">R$</span><span class="money-val">${abs}</span></span>`;
+  return `<span class="money${cls ? ' ' + cls : ''}"><span class="money-sign">R$</span><span class="money-val">${abs}</span></span>`;
 }
 function _pctK(n) { return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'; }
 
@@ -7800,8 +7835,9 @@ function _renderCtxKpis(d, casa, parceiro, erroCusto) {
   const roiCls = d.roi > 0 ? 'pos' : (d.roi < 0 ? 'neg' : '');
   // tile uniforme; herói (P/L) destaca só por acento. P/L usa fmtPL (cor no próprio
   // componente .money — não passar cls); demais valores são neutros salvo ROI.
-  const tile = (lbl, val, cls, hero) =>
-    `<div class="tile${hero ? ' hero' : ''}"><span class="lab">${lbl}</span><span class="val ${cls || ''}">${val}</span></div>`;
+  const tile = (lbl, val, cls, hero, sub) =>
+    `<div class="tile${hero ? ' hero' : ''}"><span class="lab">${lbl}</span><span class="val ${cls || ''}">${val}</span>`
+    + (sub ? `<span class="sub">${sub}</span>` : '') + `</div>`;
   const dec2 = n => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   // Rótulo curto de propósito: "Custo · tabela Norte" quebrava em duas linhas e
   // desalinhava o card dos vizinhos (medido no demo). O fornecedor mora no title.
@@ -7835,13 +7871,29 @@ function _renderCtxKpis(d, casa, parceiro, erroCusto) {
     duracao: tile('Duração', (d.duracao_dias || 0) + 'd'),
     dias: tile('Dias Ativos', (d.dias_ativos || 0) + 'd'),
     custo: custoTile,
+    // s433 (2.1): a faixa de uma linha. Turnover leva apostas e win rate embaixo (o Feca:
+    // "turnover é a info principal"); Dias ativos leva a duração; Em aberto é âmbar, como
+    // o selo "Aguardando resultado" da lista. Zero em aberto fica neutro: não há o que esperar.
+    // O ROI desce para baixo do P/L pelo mesmo motivo (s433): 5 cards cabem numa linha
+    // ao lado da Caixa em Full HD; 6 não cabiam, e a faixa voltava a ter 2 andares.
+    pl2: tile('P/L · conta', fmtPL(d.pl), '', true, `ROI <span class="${roiCls}">${_pctK(d.roi)}</span>`),
+    turnover2: tile('Turnover', _moneyInt(d.turnover), '', false,
+      `${(d.apostas || 0).toLocaleString('pt-BR')} aposta${d.apostas === 1 ? '' : 's'} · win rate ${_pctK(d.win_rate)}`),
+    aberto: tile('Em aberto',
+      d.em_aberto == null ? '<span style="color:var(--ink-soft)">—</span>'
+        : _moneyInt(d.em_aberto, d.em_aberto_qtd > 0 ? 'aberto' : ''),
+      '', false,
+      d.em_aberto == null ? '' : d.em_aberto_qtd > 0
+        ? `${d.em_aberto_qtd} aposta${d.em_aberto_qtd === 1 ? '' : 's'} aguardando` : 'nenhuma aguardando'),
+    dias2: tile('Dias ativos', (d.dias_ativos || 0).toLocaleString('pt-BR'), '', false,
+      d.primeira ? `em ${(d.duracao_dias || 0).toLocaleString('pt-BR')} dias · desde ${d.primeira.slice(8, 10)}/${d.primeira.slice(5, 7)}/${d.primeira.slice(2, 4)}` : 'nenhuma aposta liquidada'),
   };
   // 2 andares de 4: P/L | Turnover | Apostas | Win Rate  /  ROI | Duração | Dias Ativos | Custo.
   // s398: na Polymarket a grade é de 3 colunas e segue com os saldos da carteira, na ordem
   // que o Feca escolheu no mockup: P/L ROI Turnover / Apostas WinRate Custo / Duração Dias…
   const ordem = casa === 'Polymarket'
     ? ['pl', 'roi', 'turnover', 'apostas', 'win', 'custo', 'duracao', 'dias']
-    : ['pl', 'turnover', 'apostas', 'win', 'roi', 'duracao', 'dias', 'custo'];
+    : ['pl2', 'turnover2', 'aberto', 'dias2', 'custo'];
   bar.innerHTML = ordem.map(k => t[k]).join('');
   const inp = document.getElementById('ctxCustoInput');
   if (inp) {
@@ -8163,7 +8215,7 @@ function renderCaixa(d) {
                  + (d.n_liquidadas === 1 ? ' liquidada' : ' liquidadas'),
                  (d.moeda && _MOEDA_ORIG[d.moeda]) ? moneyOrig(d.pl, d.moeda, true) : fmtPL(d.pl));
   corpo += linha('Em aberto', n(d.n_abertas) + (d.n_abertas === 1 ? ' aposta' : ' apostas'), _fs(-d.aberto, true));
-  corpo += linha('Saldo disponível', '', _fs(d.disponivel), 'sum');
+  // s433: a linha "Saldo disponível" saiu (pedido do Feca): é o número grande do topo.
 
   // Por que o "Resultado" da caixa não é o P/L da conta: as apostas anteriores ao
   // corte já estão DENTRO do saldo informado. Sem dizer isso, o operador compara o

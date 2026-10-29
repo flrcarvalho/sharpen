@@ -2518,3 +2518,18 @@ def test_s433_alerta_do_salvar_rebaixa_ok_para_aviso_e_so_aviso_filtra():
         assert so[0]["situacao"] == "aviso" and so[0]["avisos"] == ["odd fora da faixa"]
         assert len(await repository.listar_extracoes("TDonoA", 1)) == 2
     _run(body())
+
+
+def test_s433_resumo_da_conta_traz_o_em_aberto():
+    """O card "Em aberto" da faixa (2.1) lê `extraction_state` do banco: aberta conta, resolvida não."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([
+            _row(codigo_bilhete="A1", resultado="", stake="50,00"),
+            _row(codigo_bilhete="A2", resultado="", stake="25,50"),
+            _row(codigo_bilhete="R1", resultado="W", stake="100,00"),
+        ], "TDonoA")
+        r = await repository.resumo_conta("TDonoA", "Betano", "Feca [Eu]")
+        assert (r["em_aberto_qtd"], r["em_aberto"]) == (2, 75.5)
+        assert r["apostas"] == 1                 # o resto do resumo segue só com a resolvida
+    _run(body())
