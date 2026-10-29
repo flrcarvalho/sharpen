@@ -1400,6 +1400,8 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     virou = _virada.virada(casa_key)
     blocks = _split_superbet_bilhetes(text)
     if len(blocks) < 2 and not virou:
+        if info is not None:   # contagem da barra de progresso (s433)
+            info["total"] = info["para_ia"] = len(blocks)
         return text, 0
 
     # Código na caixa em que veio, NUNCA em maiúsculas. O banco grava o código verbatim
@@ -1489,6 +1491,12 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
                                                         & set(codigos))):
             _fire(_vigia_rodar(dono, casa_key, casa, parceiro, text, cands))
 
+    if info is not None:
+        # Contagem da barra de progresso (s433): bilhetes DISTINTOS do texto (o código repetido
+        # pelo scroll conta uma vez; bloco sem código conta sempre) e quantos seguem à IA.
+        # A tela só mostra "N de M prontas": de onde cada uma saiu não é assunto do usuário.
+        info["total"] = len(set(codigos)) + sum(1 for i in ids if not i)
+        info["para_ia"] = len(mantidos)
     if not mantidos:
         return "", skipped
     return "\n\n".join(mantidos), skipped
@@ -4202,6 +4210,13 @@ def _pdf_para_blocos_imagem(raw: bytes, nome: str) -> list[dict]:
     return blocos
 
 
+async def _com_triagem(fluxo, triagem: dict):
+    """O mesmo fluxo SSE do `/extrair`, com a contagem da barra de progresso na frente."""
+    yield f"data: {json.dumps({'triagem': triagem})}\n\n"
+    async for ev in fluxo:
+        yield ev
+
+
 @app.post("/extrair")
 async def extrair(
     casa: str = Form(...),
@@ -4290,6 +4305,7 @@ async def extrair(
 
     xls_skipped = 0
     fora_corte = 0
+    contagem: dict = {}   # preenchida pelo pré-dedup: vira o evento `triagem` (s433)
 
     if texto:
         # Corte de histórico da casa (ver `_corte_historico_text`): sai ANTES do pré-dedup e
@@ -4321,7 +4337,8 @@ async def extrair(
             # caminho — o pior caso é não pular nada (a IA reprocessa e o UPSERT dedupa),
             # nunca esconder bilhete, que era o modo de falha antigo.
             texto, n_skip = await _dedup_superbet_text(
-                texto, dono, _casa_display(casa_key), parceiro, casa_key=casa_key)
+                texto, dono, _casa_display(casa_key), parceiro, casa_key=casa_key,
+                info=contagem)
             xls_skipped += n_skip
         if texto:
             base_content.append({"type": "text", "text": texto})
@@ -4346,12 +4363,23 @@ async def extrair(
         if xls_text:
             base_content.append({"type": "text", "text": xls_text})
 
+    # Barra de progresso (s433): "N de M prontas" logo no 1º evento. Só quando a conta é
+    # conhecida, que é o lote de texto com marcador de código e SEM imagem; com print ou
+    # planilha o total não existe antes da IA ler, e a tela mostra a barra sem número.
+    triagem = None
+    if "total" in contagem and not any(b.get("type") == "image" for b in base_content) \
+            and not xls_file:
+        triagem = {"total": contagem["total"],
+                   "prontas": max(0, contagem["total"] - contagem["para_ia"])}
+
     if not base_content:
         if xls_skipped > 0 or fora_corte > 0:
             _payload = json.dumps({"done": True, "resultado": "", "modelo": modelo,
                                    "xls_skipped": xls_skipped, "fora_corte": fora_corte,
                                    "tokens": {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}})
             async def _only_skipped():
+                if triagem:
+                    yield f"data: {json.dumps({'triagem': triagem})}\n\n"
                 yield f"data: {_payload}\n\n"
             return StreamingResponse(_only_skipped(), media_type="text/event-stream",
                                      headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
@@ -4416,6 +4444,9 @@ async def extrair(
             lambda t, cam: _gerador_de_hoje(t, [{"type": "text", "text": t}], cam))
     else:
         generator = _gerador_de_hoje(texto, base_content)
+
+    if triagem:
+        generator = _com_triagem(generator, triagem)
 
     return StreamingResponse(
         generator,

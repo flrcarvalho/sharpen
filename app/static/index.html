@@ -1325,6 +1325,28 @@ body.cap-off .cx__body { display: none; }
 .capbox__hint b { color: var(--accent-2); }
 .capbox__area { flex: 1; min-height: 78px !important; height: auto !important; resize: none; background: rgba(0,0,0,.15); }
 .cap__bar { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 2px; }
+/* ── Barra de progresso do Processar (s433) ──────────────────────────────────────
+   Toma o lugar da barra de ação enquanto a conta da tela processa. Conta APOSTAS
+   ("214 de 230"), nunca o caminho de cada uma: Ficha, IA e conferência são o motor.
+   Azul é sinal; verde e vermelho ficam para resultado. Sem total (print, planilha), a
+   barra corre sem número. Classe no #capwrap, não `hidden`: o `display:flex` da barra
+   venceria o atributo. */
+.procbar { display: none; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 2px; }
+#capwrap.processando .cap__bar { display: none; }
+#capwrap.processando .procbar { display: flex; }
+.procbar__top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.procbar__t { font-size: var(--text-sm); font-weight: 700; color: var(--ink); }
+.procbar__n { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.procbar__trk { height: 10px; border-radius: var(--r-pill); overflow: hidden;
+  background: repeating-linear-gradient(-45deg, rgba(var(--accent-rgb),.22) 0 5px, transparent 5px 10px), var(--surface-2); }
+.procbar__fill { display: block; height: 100%; width: 0; background: var(--accent); border-radius: inherit; transition: width .4s var(--ease); }
+.procbar.indet .procbar__fill { width: 30%; animation: procIndet 1.4s var(--ease) infinite; }
+@keyframes procIndet { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+@media (prefers-reduced-motion: reduce) { .procbar.indet .procbar__fill { animation: none; width: 100%; } }
+.procbar__pe { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.procbar__msg { font-size: var(--text-xs); color: var(--ink-soft); }
+.procbar.warn .procbar__msg { color: var(--warn); }
+.procbar.err .procbar__msg { color: var(--neg); }
 .cap__sp { flex: 1; }
 
 /* ── Item 5: recolher a captura ──
@@ -2959,6 +2981,12 @@ td.c-res.res-HL { color: var(--warn); }
         <!-- Item 5: recolher/expandir a área de captura (mais linhas na grade em telas baixas). -->
         <span class="cap__sp"></span>
         <button class="btn btn-ghost btn-sm" id="btn-recolher-cap" type="button" aria-expanded="true" title="Recolher a área de captura para dar mais espaço à lista de apostas">Recolher captura</button>
+      </div>
+      <!-- s433: enquanto a conta da tela processa, a barra de ação dá lugar a esta. -->
+      <div class="procbar" id="procBar" role="status" aria-live="polite">
+        <div class="procbar__top"><span class="procbar__t" id="procTit"></span><span class="procbar__n" id="procNum"></span></div>
+        <div class="procbar__trk"><span class="procbar__fill" id="procFill"></span></div>
+        <div class="procbar__pe"><span class="procbar__msg" id="procMsg"></span><button class="btn btn-ghost btn-sm" id="procCancel" type="button">Cancelar</button></div>
       </div>
     </div>
   </div><!-- #capwrap -->
@@ -6606,6 +6634,7 @@ document.addEventListener('keydown', e => {
 function atualizarBotaoExtrair() {
   const ok = arquivos.length > 0 || csvFiles.length > 0 || xlsFiles.length > 0 || pdfFiles.length > 0 || document.getElementById('texto').value.trim();
   document.getElementById('btn-extrair').disabled = !parceiroSelecionado || !ok;
+  _renderProcBar();   // s433: trocou de conta → a barra passa a ser a da conta nova (ou some)
 }
 document.getElementById('texto').addEventListener('input', () => {
   atualizarBotaoExtrair();
@@ -7071,11 +7100,91 @@ async function _avisarNaoLidas(card, casa) {
   } catch (_) {}
 }
 
+// ── Barra de progresso do Processar (s433) ──────────────────────────────────────
+// Uma por CONTA: a extração de uma conta segue rodando quando se troca para outra, e a
+// barra mostra a da conta que está na tela. O servidor manda a contagem no 1º evento
+// (`triagem`: total e quantas já estão prontas) e o avanço da leitura (`chunk_progress`);
+// daqui sai só "N de M". De onde cada aposta veio não é assunto do usuário.
+const _procPorConta = new Map();   // parceiro.id → { casa, total, prontas, k, n, t0, ctrl, fim }
+let _procTick = null;
+function _procIniciar(parceiro, ctrl) {
+  _procPorConta.set(parceiro.id, { casa: parceiro.casa, total: null, prontas: 0, k: 0, n: 0,
+                                   t0: Date.now(), ctrl, fim: null });
+  _renderProcBar();
+}
+function _procAtualizar(parceiro, campos) {
+  const s = _procPorConta.get(parceiro.id);
+  if (!s || s.fim) return;
+  Object.assign(s, campos);
+  _renderProcBar();
+}
+// O resumo final fica 6 s na tela e a barra de ação volta.
+function _procFim(parceiro, msg, tipo) {
+  const s = _procPorConta.get(parceiro.id);
+  if (!s) return;
+  s.fim = { msg, tipo };
+  _renderProcBar();
+  setTimeout(() => {
+    if (_procPorConta.get(parceiro.id) === s) { _procPorConta.delete(parceiro.id); _renderProcBar(); }
+  }, 6000);
+}
+function _procDecorrido(t0) {
+  const seg = Math.max(0, Math.round((Date.now() - t0) / 1000));
+  return `${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}`;
+}
+function _renderProcBar() {
+  const wrap = document.getElementById('capwrap'), el = document.getElementById('procBar');
+  if (!wrap || !el) return;
+  const s = parceiroSelecionado && _procPorConta.get(parceiroSelecionado.id);
+  wrap.classList.toggle('processando', !!s);
+  if (!s) { clearInterval(_procTick); _procTick = null; return; }
+  const nome = casaDisplay(NOMES[s.casa] || s.casa);
+  const tit = document.getElementById('procTit'), num = document.getElementById('procNum');
+  const fill = document.getElementById('procFill'), msg = document.getElementById('procMsg');
+  document.getElementById('procCancel').style.display = s.fim ? 'none' : '';
+  el.classList.remove('ok', 'warn', 'err', 'indet');
+  if (s.fim) {
+    clearInterval(_procTick); _procTick = null;
+    el.classList.add(s.fim.tipo);
+    tit.textContent = s.fim.tipo === 'err' ? 'Não foi possível processar' : 'Pronto';
+    num.textContent = s.total != null && s.fim.tipo !== 'err' ? `${s.total} de ${s.total}` : _procDecorrido(s.t0);
+    fill.style.width = s.fim.tipo === 'err' ? '0%' : '100%';
+    msg.textContent = s.fim.msg;
+    return;
+  }
+  if (!_procTick) _procTick = setInterval(_renderProcBar, 1000);
+  tit.textContent = `Processando as apostas da ${nome}`;
+  const t = _procDecorrido(s.t0);
+  if (s.total == null) {
+    el.classList.add('indet');
+    fill.style.width = '';
+    num.textContent = t;
+    msg.textContent = 'Lendo os bilhetes. Pode continuar usando a tela.';
+    return;
+  }
+  // A leitura avança por lote; enquanto o último não volta, conta só o que já voltou.
+  const restantes = s.total - s.prontas;
+  const lidas = s.n ? Math.floor(restantes * s.k / s.n) : 0;
+  const pronto = Math.min(s.total, s.prontas + lidas);
+  num.textContent = `${pronto} de ${s.total} · ${t}`;
+  fill.style.width = (s.total ? Math.round(pronto / s.total * 100) : 0) + '%';
+  msg.textContent = s.n && s.k >= s.n
+    ? 'Finalizando. As apostas prontas já estão na lista e no P/L.'
+    : s.prontas > 0
+      ? 'As apostas prontas já estão na lista e no P/L. Pode continuar usando a tela.'
+      : 'Lendo os bilhetes. Pode continuar usando a tela.';
+}
+document.getElementById('procCancel').addEventListener('click', () => {
+  const s = parceiroSelecionado && _procPorConta.get(parceiroSelecionado.id);
+  if (s && s.ctrl) s.ctrl.abort();
+});
+
 async function runExtractionCard(form, card, parceiro, estadoSnapshot, submittedAt) {
   const { ctrl, setProgress, setTokens, setNotas, markDone } = card;
   let _elapsed = 0;
   const _timer = setInterval(() => { _elapsed++; setProgress(`Processando… (${_elapsed}s)`); }, 1000);
   setRailRunning();   // rail entra em "analisando" enquanto o lote roda
+  _procIniciar(parceiro, ctrl);
 
   try {
     const r = await fetch('/extrair', { method: 'POST', body: form, signal: ctrl.signal });
@@ -7107,9 +7216,21 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
         if (!ev.startsWith('data: ')) continue;
         const obj = JSON.parse(ev.slice(6));
         if (obj.error) throw new Error(obj.error);
+        if (obj.triagem) {
+          _procAtualizar(parceiro, { total: obj.triagem.total, prontas: obj.triagem.prontas });
+          // 1ª batida (s433): o que já estava pronto entra na lista e no P/L agora, sem
+          // esperar a leitura do resto.
+          if (obj.triagem.prontas > 0 && parceiroSelecionado && parceiroSelecionado.id === parceiro.id) {
+            paginaAtual = 0;
+            carregarGrade();
+          }
+        }
         if (obj.t) { streamChars += obj.t.length; setProgress(`Processando… (${_elapsed}s · ${streamChars} chars)`); }
         if (obj.continuation) setProgress(`Continuando… parte ${obj.continuation} (${_elapsed}s)`);
-        if (obj.chunk_progress) setProgress(`Processando… chunk ${obj.chunk_progress}/${obj.of} (${_elapsed}s)`);
+        if (obj.chunk_progress) {
+          setProgress(`Processando… chunk ${obj.chunk_progress}/${obj.of} (${_elapsed}s)`);
+          _procAtualizar(parceiro, { k: obj.chunk_progress, n: obj.of });
+        }
         if (obj.done) data = obj;
       }
     }
@@ -7121,6 +7242,7 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
 
     if (data.stop_reason === 'max_tokens') {
       markDone('✗ Truncado (limite de tokens) — reduza o lote', 'err');
+      _procFim(parceiro, 'O lote ficou grande demais. Divida em partes menores e processe de novo.', 'err');
       return;
     }
 
@@ -7198,6 +7320,13 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
                    || fid.restantes > 0 ? 'warn' : 'ok';
 
       markDone(`✓ ${parts.join(' · ')}${skipInfo}${corteInfo}${alertMsg}${failMsg}${cobMsg}${fidMsg}`, tipo);
+      // A barra diz o resultado na língua do usuário: o que entrou e o que pede ação.
+      const fimPartes = [`${ins} nova${ins === 1 ? '' : 's'}`];
+      if (upd > 0) fimPartes.push(`${upd} atualizada${upd === 1 ? '' : 's'}`);
+      if (fid.restantes > 0) fimPartes.push(`${fid.restantes} a conferir: descrição parece de outro bilhete`);
+      if (perdidos > 0 || data.chunks_falhos > 0) fimPartes.push('parte não foi lida, processe de novo');
+      if (ds.alertas && ds.alertas.length) fimPartes.push(`${ds.alertas.length} alerta${ds.alertas.length === 1 ? '' : 's'}`);
+      _procFim(parceiro, fimPartes.join(' · '), tipo);
 
       // Rail "Análise IA": KPIs + notas estruturadas + observação livre da IA
       renderRail(ds.analise, parsed.notas, modeloLabel(data.modelo), _elapsed,
@@ -7231,8 +7360,10 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
       if (data.xls_skipped > 0) motivos.push(`${data.xls_skipped} já salva(s)`);
       if (data.fora_corte > 0) motivos.push(`${data.fora_corte} anterior(es) ao corte da casa`);
       markDone(`✓ ${motivos.join(' · ')} — nada novo`, 'ok');
+      _procFim(parceiro, 'Lista e P/L atualizados.', 'ok');
     } else {
       markDone('⚠️ Nenhum bilhete extraído — veja Notas acima', 'warn');
+      _procFim(parceiro, 'Nenhuma aposta encontrada no que foi enviado.', 'warn');
     }
     // s433: os dois ramos sem /salvar também recarregam. Na casa virada, "nada novo para a
     // IA" quase sempre quer dizer "a Ficha já gravou tudo", e sem isto a lista e o P/L
@@ -7246,8 +7377,10 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
   } catch (e) {
     if (e.name === 'AbortError') {
       markDone('Cancelado', 'warn');
+      _procFim(parceiro, 'Cancelado.', 'warn');
     } else {
       markDone('✗ ' + (e.message || 'Erro desconhecido'), 'err');
+      _procFim(parceiro, e.message || 'Erro desconhecido. Tente de novo.', 'err');
     }
     // Falha/cancelamento → devolve o lote enviado ao estado do parceiro para retry,
     // a menos que o usuário já tenha começado a montar um novo lote para ele nesse
@@ -7269,6 +7402,9 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
     }
   } finally {
     clearInterval(_timer);
+    // Saída que nenhum ramo acima fechou (não deve haver): a barra não pode ficar girando.
+    const _pr = _procPorConta.get(parceiro.id);
+    if (_pr && !_pr.fim) _procFim(parceiro, 'Concluído.', 'ok');
     // Sai do estado "analisando" se este lote não chegou a preencher o resumo
     // (erro, cancelamento, nada extraído): mantém "concluída" se já há resumo.
     const pill = document.getElementById('rail-pill');
