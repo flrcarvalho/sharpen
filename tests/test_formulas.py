@@ -366,6 +366,12 @@ def test_em_aberto_vazio_e_zero():
     assert R._em_aberto([]) == {"em_aberto_qtd": 0, "em_aberto": 0.0}
 
 
+def test_em_aberto_e_dinheiro_real_sem_a_freebet():
+    rows = [{"extraction_state": "aberta", "stake": "50,00", "stake_freebet": 30},
+            {"extraction_state": "aberta", "stake": "20,00"}]
+    assert R._em_aberto(rows) == {"em_aberto_qtd": 2, "em_aberto": 40.0}
+
+
 def test_em_aberto_stake_ilegivel_conta_a_aposta_e_nao_soma():
     rows = [{"stake": "", "extraction_state": "aberta"}, {"stake": "20", "extraction_state": "aberta"}]
     assert R._em_aberto(rows) == {"em_aberto_qtd": 2, "em_aberto": 20.0}

@@ -2740,7 +2740,9 @@ async def resumo_conta(dono: str, casa: str, parceiro: str) -> dict:
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT stake, odd, resultado, data, extraction_state FROM bilhetes "
+            # `stake_freebet` é load-bearing (§5.8): sem ela a freebet perdida sai do P/L
+            # como dinheiro do apostador, a mesma falha que a s405 fechou no `resumo_perfil`.
+            "SELECT stake, odd, resultado, data, extraction_state, stake_freebet FROM bilhetes "
             "WHERE dono = $1 AND casa = $2 AND parceiro = $3",
             dono, casa, parceiro,
         )
@@ -2755,7 +2757,7 @@ async def painel_conta(dono: str, casa: str, parceiro: str) -> dict:
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT stake, odd, resultado, data, tipster FROM bilhetes "
+            "SELECT stake, odd, resultado, data, tipster, stake_freebet FROM bilhetes "
             "WHERE dono = $1 AND casa = $2 AND parceiro = $3",
             dono, casa, parceiro,
         )
@@ -2831,13 +2833,14 @@ def _painel_conta(rows: list[dict]) -> dict:
 def _em_aberto(rows: list[dict]) -> dict:
     """Quantas apostas da conta ainda esperam resultado e quanto de stake está nelas (s433,
     card "Em aberto" da faixa da Extração). A régua é a do selo "Aguardando resultado" da
-    lista: `extraction_state = 'aberta'`. Stake ilegível não soma, mas a aposta conta."""
+    lista: `extraction_state = 'aberta'`. Stake ilegível não soma, mas a aposta conta. O valor
+    é o dinheiro REAL (§5.8), o mesmo "em aberto" da Caixa: a parte freebet nunca saiu do bolso."""
     qtd, valor = 0, 0.0
     for r in rows:
         if (r.get("extraction_state") or "") != "aberta":
             continue
         qtd += 1
-        valor += max(0.0, _num(r.get("stake")))
+        valor += max(0.0, dinheiro_real(r.get("stake"), r.get("stake_freebet")))
     return {"em_aberto_qtd": qtd, "em_aberto": round(valor, 2)}
 
 

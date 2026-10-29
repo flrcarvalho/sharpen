@@ -2550,3 +2550,21 @@ def test_s433_painel_da_conta_le_o_banco():
         assert p["topo"] == {"valor": 90.0, "data": "2026-10-01"}
         assert [t["nome"] for t in p["tipsters"]] == ["Ana"] and p["sem_tipster"] == 2
     _run(body())
+
+
+def test_s433_faixa_e_painel_seguem_a_regra_da_freebet():
+    """§5.8: freebet perdida não é dinheiro do apostador. Faixa (resumo), painel (curva e
+    tipster) e o "Em aberto" leem a coluna `stake_freebet`, como a sidebar e a Caixa."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([
+            _row(codigo_bilhete="F1", resultado="L", stake="45,00", data="01/10/2026", tipster="Ana"),
+            _row(codigo_bilhete="F2", resultado="", stake="30,00", data="02/10/2026"),
+        ], "TDonoA", freebets={"F1": "45,00", "F2": "20,00"})
+        r = await repository.resumo_conta("TDonoA", "Betano", "Feca [Eu]")
+        assert r["pl"] == 0.0 and r["turnover"] == 0.0
+        assert (r["em_aberto_qtd"], r["em_aberto"]) == (1, 10.0)
+        p = await repository.painel_conta("TDonoA", "Betano", "Feca [Eu]")
+        assert p["dias"][0]["pl"] == 0.0 and p["atual"] == 0.0
+        assert p["tipsters"][0]["pl"] == 0.0
+    _run(body())

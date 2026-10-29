@@ -823,14 +823,6 @@ Quando chegar um bilhete novo: abrir o arquivo da casa correspondente, preencher
 
 ## 3. Decisão do Feca pendente
 
-### 3.0a A faixa e o painel da Extração cobram a freebet perdida inteira (s433). **VIVA, medida no código**
-
-`repository.resumo_conta` e `repository.painel_conta` (o card P/L da faixa, a curva e os tipsters
-da Extração) não selecionam `stake_freebet`, e o `calcular_pl` recebe `None`: freebet perdida
-sai como dinheiro do apostador. É a mesma falha que a s405 consertou no `resumo_perfil`
-(sidebar). Consertar muda o P/L da faixa de quem tem freebet: **pergunta ao Feca antes**.
-O conserto é uma linha em cada SELECT, e as duas andam juntas (a curva termina no P/L do card).
-
 > Medido, com o número na mão, e parado esperando qual dos caminhos seguir. Nenhum destes é
 > dúvida técnica.
 

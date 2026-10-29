@@ -967,7 +967,9 @@ html.embedded .sidebar { display: none; }
 /* Piso comum aos DOIS cabeçalhos: os pills (aqui e no RAIO-X) aparecem e somem, e sem
    piso a linha subiria e desceria conforme o estado. O alinhamento tem de valer sempre. */
 .right-panel-header { min-height: var(--hd-h); }
-.cx__hd .t { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--accent-2); }
+/* Título de bloco da Extração: Caixa, Apostas, P/L acumulado, Resultado por dia e Tipsters
+   desta conta (s433, pedido do Feca: um padrão só). `.sec-t` é o nome para quem não é a Caixa. */
+.cx__hd .t, .sec-t { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--accent-2); }
 .cx__pill { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; border-radius: var(--r-pill); padding: 3px 8px; border: 1px solid var(--line); color: var(--ink-soft); background: var(--surface-2); white-space: nowrap; }
 .cx__pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-mute); flex: none; }
 .cx__pill.ok { color: var(--pos); border-color: rgba(var(--pos-rgb),.4); background: rgba(var(--pos-rgb),.07); }
@@ -1240,9 +1242,6 @@ body.cap-off .cx__body { display: none; }
    o RAIO-X entrava. Verde e vermelho só no P/L; o resto é tinta. */
 .painel-conta { display: none; position: relative; min-width: 0; min-height: 0; }
 .pc-corpo { height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-.pc-hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 2px 2px 0; }
-.pc-t { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--accent-2); }
-.pc-sub { font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .pc-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; flex: none; min-width: 0; }
 .pc-card-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .pc-lab { font-family: var(--font-mono); font-size: var(--text-xxs); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); display: inline-flex; align-items: center; gap: 6px; }
@@ -1258,7 +1257,10 @@ body.cap-off .cx__body { display: none; }
 .pc-i { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--line); font-size: 9px; font-style: normal; color: var(--ink-mute); cursor: help; letter-spacing: 0; }
 .pc-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .pc-cal .dw { font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-soft); text-align: center; }
-.pc-dia { aspect-ratio: 1.2; border-radius: 5px; background: var(--surface-2); border: 0; padding: 3px 5px; font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-soft); text-align: left; display: flex; align-items: flex-start; min-width: 0; }
+.pc-dia { aspect-ratio: 1; border-radius: 5px; background: var(--surface-2); border: 0; padding: 3px 4px; font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-soft); text-align: left; display: flex; flex-direction: column; justify-content: space-between; align-items: stretch; min-width: 0; overflow: hidden; }
+/* O P/L do dia na célula: inteiro, sem "R$", em tinta (o fundo já é verde/vermelho e cor
+   sobre cor reprova). O valor exato, com centavos, fica no rodapé ao clicar e no aria-label. */
+.pc-dia .pl { font-size: var(--text-xxs); font-weight: 700; color: var(--ink); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
 .pc-dia.fora { visibility: hidden; }
 button.pc-dia { cursor: pointer; }
 button.pc-dia:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
@@ -1295,17 +1297,16 @@ button.pc-dia:focus-visible { outline: 2px solid var(--accent); outline-offset: 
   .workfull.com-painel > .painel-conta { display: block; flex: none; }
   .painel-conta .rx-alca { display: none; }
   .pc-corpo { height: auto; overflow: visible; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-  .pc-hd { grid-column: 1 / -1; }
 }
 
 /* ── Tipsters desta conta (s433, entrega 2.2) ─────────────────────────────────────
    No vão que a Caixa deixa embaixo da captura. Lado a lado, só aparecem quando CABEM no
    vão (medido no render): se fossem empurrar a lista para baixo, ficam de fora. */
-.tipcards { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tipcards { display: flex; flex-direction: column; gap: 10px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; flex: none; }
 .tipcards[hidden] { display: none; }
 .tc-hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .tc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
-.tc { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tc { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .tc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
 .tc-nome { font-weight: 700; font-size: var(--text-sm); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .tc-n { font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-soft); white-space: nowrap; }
@@ -1719,7 +1720,6 @@ button.pc-dia:focus-visible { outline: 2px solid var(--accent); outline-offset: 
   border-bottom: 1px solid var(--line);
 }
 .grade-title-row { display: flex; flex-direction: column; gap: 3px; }
-.grade-title { font-family: var(--font-mono); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-mute); }
 .stats-bar {
   display: flex; align-items: center; gap: 8px;
   font-size: 12px; font-family: var(--font-mono);
@@ -3167,7 +3167,7 @@ td.c-res.res-HL { color: var(--warn); }
         <div class="grade-section">
           <div class="grade-header">
             <div class="grade-title-row">
-              <span class="grade-title">Apostas</span>
+              <span class="grade-title sec-t">Apostas</span>
               <!-- Os dois badges são os FILTROS da grade (s262). Nascem escondidos:
                    atualizarStats() só os mostra quando a contagem é > 0 — conta em
                    dia não ganha pill de "0", que é ruído. -->
@@ -3316,7 +3316,6 @@ td.c-res.res-HL { color: var(--warn); }
       <span class="rx-car" aria-hidden="true">›</span><span class="rx-rot">PAINEL</span>
     </button>
     <div class="pc-corpo" id="pcCorpo">
-      <div class="pc-hd"><span class="pc-t">Painel da conta</span><span class="pc-sub" id="pcSub"></span></div>
       <div class="pc-card" id="pcCurva"></div>
       <div class="pc-card" id="pcCal"></div>
     </div>
@@ -7970,14 +7969,13 @@ async function carregarPainelConta() {
 function _pcRender() {
   const d = _pcDados;
   if (!d) return;
-  document.getElementById('pcSub').textContent = d.dias.length
-    ? `desde ${_pcBR(d.dias[0].data)}` : 'sem aposta liquidada';
   document.getElementById('pcCurva').innerHTML = _pcCurvaHTML(d);
   document.getElementById('pcCal').innerHTML = _pcCalHTML(d);
 }
 
 function _pcCurvaHTML(d) {
-  const h = '<div class="pc-card-h"><span class="pc-lab">P/L acumulado</span></div>';
+  const desde = d.dias.length ? `desde ${_pcBR(d.dias[0].data)}` : 'sem aposta liquidada';
+  const h = `<div class="pc-card-h"><span class="sec-t">P/L acumulado</span><span class="pc-meta">${desde}</span></div>`;
   if (d.dias.length < 2) {
     return h + '<div class="pc-vazio">A curva aparece a partir de <b>2 dias com aposta liquidada</b>. '
       + 'Ela mostra o topo, a mínima e quanto a conta está abaixo do topo.</div>';
@@ -8024,6 +8022,12 @@ function _numBR2(v) {
   return (n < 0 ? '−' : '') + 'R$ ' + Math.abs(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// SÓ a célula do calendário: o sinal e o inteiro do `fmtPL`, sem "R$" e sem centavos, que
+// não cabem em 1/7 do painel. O valor completo sai pelo `fmtPL` no rodapé do dia.
+function _pcPlDia(v) {
+  const n = Math.round(Number(v) || 0);
+  return (n > 0 ? '+' : (n < 0 ? '−' : '')) + Math.abs(n).toLocaleString('pt-BR');
+}
 function _pcCalHTML(d) {
   const [y, m] = _pcMes.split('-').map(Number);
   const porDia = new Map(d.dias.filter(x => x.data.startsWith(_pcMes)).map(x => [x.data, x]));
@@ -8044,7 +8048,8 @@ function _pcCalHTML(d) {
     const tom = x.pl > 0 ? 'p' + k : (x.pl < 0 ? 'n' + k : 'zero');
     if (x.pl > 0) pos++; else if (x.pl < 0) neg++;
     cel += `<button type="button" class="pc-dia ${tom}${_pcSel === iso ? ' sel' : ''}" onclick="pcDia('${iso}')"`
-      + ` aria-label="${dia} de ${_PC_MESES[m - 1]}: ${x.apostas} aposta${x.apostas === 1 ? '' : 's'}, ${_numBR2(x.pl)}">${dia}</button>`;
+      + ` aria-label="${dia} de ${_PC_MESES[m - 1]}: ${x.apostas} aposta${x.apostas === 1 ? '' : 's'}, ${_numBR2(x.pl)}">`
+      + `<span>${dia}</span><span class="pl">${_pcPlDia(x.pl)}</span></button>`;
   }
   const sel = _pcSel && porDia.get(_pcSel);
   const rodape = sel
@@ -8052,7 +8057,7 @@ function _pcCalHTML(d) {
     : (porDia.size
       ? `<div class="pc-sel"><span>${porDia.size} dia${porDia.size === 1 ? '' : 's'} com aposta · ${pos} no positivo · ${neg} no negativo</span><span>clique num dia</span></div>`
       : '<div class="pc-vazio">Nenhuma aposta liquidada neste mês. Os dias ganham cor quando a aposta liquida: verde e vermelho seguem o P/L do dia.</div>');
-  return `<div class="pc-card-h"><span class="pc-lab">Resultado por dia</span>${nav}</div><div class="pc-cal">${cel}</div>${rodape}`;
+  return `<div class="pc-card-h"><span class="sec-t">Resultado por dia</span>${nav}</div><div class="pc-cal">${cel}</div>${rodape}`;
 }
 function pcMes(delta) {
   const [y, m] = _pcMes.split('-').map(Number), dt = new Date(y, m - 1 + delta, 1);
@@ -8085,7 +8090,7 @@ function _tcHTML(d, vagasBase) {
   } else if (!d.tipsters.length) {
     cards = '<div class="tc sem"><span class="tc-txt"><b>Nenhum tipster ainda.</b> Quando as apostas tiverem tipster, cada um ganha um card aqui com o resultado dele nesta conta.</span></div>';
   }
-  return `<div class="tc-hd"><span class="pc-lab">Tipsters desta conta</span>`
+  return `<div class="tc-hd"><span class="sec-t">Tipsters desta conta</span>`
     + `<span class="pc-meta">${resto > 0 ? `+${resto} outro${resto === 1 ? '' : 's'} na lista` : ''}</span></div>`
     + `<div class="tc-grid">${cards}</div>`;
 }
