@@ -1402,6 +1402,7 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     if len(blocks) < 2 and not virou:
         if info is not None:   # contagem da barra de progresso (s433)
             info["total"] = info["para_ia"] = len(blocks)
+            info["lendo"] = [r for r in (_resumo_do_bloco(b) for b in blocks) if r]
         return text, 0
 
     # Código na caixa em que veio, NUNCA em maiúsculas. O banco grava o código verbatim
@@ -1497,9 +1498,30 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
         # A tela só mostra "N de M prontas": de onde cada uma saiu não é assunto do usuário.
         info["total"] = len(set(codigos)) + sum(1 for i in ids if not i)
         info["para_ia"] = len(mantidos)
+        info["lendo"] = [r for r in (_resumo_do_bloco(b) for b in mantidos[:_LENDO_MAX]) if r]
     if not mantidos:
         return "", skipped
     return "\n\n".join(mantidos), skipped
+
+
+# Linha "processando" da lista (s433, entrega 1.3): enquanto a IA lê, a tela mostra cada
+# bilhete pendente no lugar dele, com o que o bloco da casa já diz sem leitura nenhuma.
+# Tudo é CÓPIA do bloco: o código do marcador, a data e a stake. Stake com dois valores no
+# mesmo bloco é ambígua (a régua do `corrigir_stake_tsv`) e vai vazia, nunca adivinhada.
+_LENDO_MAX = 300
+_DATA_BLOCO_RE = re.compile(r"^Data:\s*(\d{2}/\d{2}/\d{4})", re.MULTILINE)
+_STAKE_LENDO_RE = re.compile(r"^Stake:\s*(?:R\$\s*)?([\d.,]+)", re.MULTILINE)
+
+
+def _resumo_do_bloco(bloco: str) -> dict | None:
+    m = _SUPERBET_ID_RE.search(bloco)
+    if not m:
+        return None
+    stakes = {s.rstrip(".,") for s in _STAKE_LENDO_RE.findall(bloco)}
+    data = _DATA_BLOCO_RE.search(bloco)
+    return {"codigo": m.group(1).strip(),
+            "data": data.group(1) if data else "",
+            "stake": stakes.pop() if len(stakes) == 1 else ""}
 
 
 # ── Instrução ─────────────────────────────────────────────────────────────────
@@ -4370,7 +4392,8 @@ async def extrair(
     if "total" in contagem and not any(b.get("type") == "image" for b in base_content) \
             and not xls_file:
         triagem = {"total": contagem["total"],
-                   "prontas": max(0, contagem["total"] - contagem["para_ia"])}
+                   "prontas": max(0, contagem["total"] - contagem["para_ia"]),
+                   "lendo": contagem.get("lendo", [])}
 
     if not base_content:
         if xls_skipped > 0 or fora_corte > 0:

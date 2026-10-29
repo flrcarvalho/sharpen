@@ -1841,6 +1841,19 @@ body.cap-off .cx__body { display: none; }
   transition: background .1s;
 }
 .btbl-data-row:hover { background: rgba(var(--accent-rgb),.04); }
+/* s433 (1.3): aposta que ainda está sendo lida. Fica no lugar onde vai entrar, com o que
+   o bloco da casa já diz (data, stake, código); o resto pisca até a leitura voltar. */
+.btbl-lendo { cursor: default; }
+.btbl-lendo:hover { background: transparent; }
+.lendo-shim { display: inline-block; height: 9px; width: 62%; border-radius: var(--r-xs); vertical-align: middle;
+  background: linear-gradient(90deg, var(--surface-2), var(--elevated), var(--surface-2)); background-size: 200% 100%;
+  animation: lendoShim 1.6s linear infinite; }
+.lendo-shim.curto { width: 56px; }
+@keyframes lendoShim { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .lendo-shim { animation: none; } }
+.lendo-cod { display: block; margin-top: 6px; font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-soft); }
+.lendo-tag { font-family: var(--font-mono); font-size: var(--text-xxs); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--accent-2); border: 1px solid rgba(var(--accent-rgb),.45); border-radius: var(--r-xs); padding: 2px 6px; white-space: nowrap; }
 .btbl-data-row.row-sel { background: rgba(var(--accent-rgb),.08); }
 .btbl-cell { min-width: 0; overflow: hidden; }
 .btbl-sel { display: flex; align-items: center; justify-content: center; }
@@ -7119,11 +7132,14 @@ function _procAtualizar(parceiro, campos) {
   _renderProcBar();
 }
 // O resumo final fica 6 s na tela e a barra de ação volta.
-function _procFim(parceiro, msg, tipo) {
+function _procFim(parceiro, msg, tipo, titulo) {
   const s = _procPorConta.get(parceiro.id);
   if (!s) return;
-  s.fim = { msg, tipo };
+  s.fim = { msg, tipo, titulo };
   _renderProcBar();
+  // Erro ou cancelamento não passam pelo carregarGrade do fim: as linhas "processando"
+  // sairiam só na próxima recarga, fingindo leitura em andamento.
+  if (s.lendo && s.lendo.length && parceiroSelecionado && parceiroSelecionado.id === parceiro.id) renderGrade();
   setTimeout(() => {
     if (_procPorConta.get(parceiro.id) === s) { _procPorConta.delete(parceiro.id); _renderProcBar(); }
   }, 6000);
@@ -7146,7 +7162,7 @@ function _renderProcBar() {
   if (s.fim) {
     clearInterval(_procTick); _procTick = null;
     el.classList.add(s.fim.tipo);
-    tit.textContent = s.fim.tipo === 'err' ? 'Não foi possível processar' : 'Pronto';
+    tit.textContent = s.fim.titulo || (s.fim.tipo === 'err' ? 'Não foi possível processar' : 'Pronto');
     num.textContent = s.total != null && s.fim.tipo !== 'err' ? `${s.total} de ${s.total}` : _procDecorrido(s.t0);
     fill.style.width = s.fim.tipo === 'err' ? '0%' : '100%';
     msg.textContent = s.fim.msg;
@@ -7217,12 +7233,14 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
         const obj = JSON.parse(ev.slice(6));
         if (obj.error) throw new Error(obj.error);
         if (obj.triagem) {
-          _procAtualizar(parceiro, { total: obj.triagem.total, prontas: obj.triagem.prontas });
+          _procAtualizar(parceiro, { total: obj.triagem.total, prontas: obj.triagem.prontas,
+                                     lendo: obj.triagem.lendo || [] });
           // 1ª batida (s433): o que já estava pronto entra na lista e no P/L agora, sem
-          // esperar a leitura do resto.
-          if (obj.triagem.prontas > 0 && parceiroSelecionado && parceiroSelecionado.id === parceiro.id) {
+          // esperar a leitura do resto; o que falta aparece como "processando" (1.3).
+          if (parceiroSelecionado && parceiroSelecionado.id === parceiro.id) {
+            const buscar = obj.triagem.prontas > 0 || paginaAtual > 0;
             paginaAtual = 0;
-            carregarGrade();
+            if (buscar) carregarGrade(); else renderGrade();
           }
         }
         if (obj.t) { streamChars += obj.t.length; setProgress(`Processando… (${_elapsed}s · ${streamChars} chars)`); }
@@ -7377,7 +7395,7 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
   } catch (e) {
     if (e.name === 'AbortError') {
       markDone('Cancelado', 'warn');
-      _procFim(parceiro, 'Cancelado.', 'warn');
+      _procFim(parceiro, 'O que já estava pronto continua na lista.', 'warn', 'Processamento cancelado');
     } else {
       markDone('✗ ' + (e.message || 'Erro desconhecido'), 'err');
       _procFim(parceiro, e.message || 'Erro desconhecido. Tente de novo.', 'err');
@@ -9221,16 +9239,48 @@ function _celPL(b) {
   return fmtPL(b.pl) + _subPL(b);
 }
 
+// s433 (1.3): as apostas que a leitura ainda não devolveu, no topo da 1ª página da conta
+// que está processando. Só sem filtro (o desfecho delas ainda não existe) e só as que a
+// lista não tem: aposta ABERTA relida já tem linha e continua mostrando a dela.
+function _linhasLendo() {
+  const s = parceiroSelecionado && _procPorConta.get(parceiroSelecionado.id);
+  if (!s || s.fim || !s.lendo || !s.lendo.length || paginaAtual > 0 || filtroGrade) return '';
+  const naLista = new Set(bilhetes.map(b => String(b.codigo_bilhete || '')));
+  const moeda = parceiroSelecionado.moeda;
+  const nomeCasa = NOMES[parceiroSelecionado.casa] || parceiroSelecionado.casa;
+  return s.lendo.filter(g => !naLista.has(g.codigo)).map(g => {
+    const stake = moeda && moeda !== 'BRL' && _MOEDA_ORIG[moeda]
+      ? moneyOrig(_stakeNum(g.stake), moeda) : moneyStake(g.stake);
+    return `<div class="btbl-cols btbl-data-row btbl-lendo" aria-busy="true">
+      <div class="btbl-cell btbl-sel"></div>
+      <div class="btbl-cell btbl-date">${esc(g.data)}</div>
+      <div class="btbl-cell"><div class="btbl-desc"><span class="lendo-shim"></span><span class="lendo-cod">cód. ${esc(g.codigo)}</span></div></div>
+      <div class="btbl-cell"><span class="lendo-shim curto"></span></div>
+      <div class="btbl-cell"></div>
+      <div class="btbl-cell btbl-casa">
+        <span class="casa-chip" data-casa="${esc(parceiroSelecionado.casa)}"><img src="${faviconUrl(parceiroSelecionado.casa)}" alt="${esc(nomeCasa)}" loading="lazy"></span>
+        <div class="btbl-casa-sub"><span class="btbl-casa-nome">${esc(nomeCasa)}</span><span class="btbl-casa-conta">${esc(parceiroSelecionado.nome)}</span></div>
+      </div>
+      <div class="btbl-cell btbl-num">${stake}</div>
+      <div class="btbl-cell btbl-num"></div>
+      <div class="btbl-cell btbl-res"><span class="lendo-tag">Processando</span></div>
+      <div class="btbl-cell btbl-num btbl-pl"></div>
+      <div class="btbl-cell btbl-acts"></div>
+    </div>`;
+  }).join('');
+}
+
 function renderGrade() {
   const body = document.getElementById('grade-body');
   _grMoedaSync();
-  if (!bilhetes.length) {
+  const lendo = _linhasLendo();
+  if (!bilhetes.length && !lendo) {
     body.innerHTML = filtroGrade
       ? '<div class="grade-empty">Nenhuma aposta nesse filtro — clique no badge de novo para ver a conta inteira.</div>'
       : '<div class="grade-empty">Nenhum bilhete salvo. Extraia para preencher.</div>';
     return;
   }
-  body.innerHTML = bilhetes.map(b => {
+  body.innerHTML = lendo + bilhetes.map(b => {
     const dupInfo = ultimaDuplicatas[String(b.id)];
     const soSuspect = ultimaScrollOverlaps.has(b.id);
     const badges = [];

@@ -62,9 +62,13 @@ def _rodar(texto, resolvidos=()):
     return info
 
 
+def _conta(info):
+    return {"total": info["total"], "para_ia": info["para_ia"]}
+
+
 def test_o_que_ja_esta_salvo_conta_como_pronto():
     info = _rodar(DOIS, resolvidos=("A1",))
-    assert info == {"total": 2, "para_ia": 1}
+    assert _conta(info) == {"total": 2, "para_ia": 1}
 
 
 def test_codigo_repetido_pelo_scroll_conta_uma_vez():
@@ -75,12 +79,47 @@ def test_codigo_repetido_pelo_scroll_conta_uma_vez():
 
 def test_tudo_salvo_da_zero_para_a_ia():
     info = _rodar(DOIS, resolvidos=("A1", "B2"))
-    assert info == {"total": 2, "para_ia": 0}
+    assert _conta(info) == {"total": 2, "para_ia": 0}
+    assert info["lendo"] == []
 
 
 def test_bilhete_unico_tambem_e_contado():
     """Um bloco só sai pelo atalho do começo da função, antes de qualquer consulta."""
-    assert _rodar(UM) == {"total": 1, "para_ia": 1}
+    info = _rodar(UM)
+    assert _conta(info) == {"total": 1, "para_ia": 1}
+    assert info["lendo"] == [{"codigo": "Z9", "data": "", "stake": "5,00"}]
+
+
+# ── A linha "processando" (entrega 1.3): só o que segue à IA, copiado do bloco ──
+
+COM_DATA = """[Código: C3]
+Data: 28/10/2026
+Stake: 30,00
+Status: Perdeu → L
+
+[Código: D4]
+Data: 29/10/2026
+Stake: 12,50
+Stake: 15,00
+Status: Em aberto (aguardando resultado — NÃO liquidar; sem resultado)
+"""
+
+
+def test_lendo_traz_so_o_que_vai_para_a_ia():
+    info = _rodar(DOIS, resolvidos=("A1",))
+    assert [r["codigo"] for r in info["lendo"]] == ["B2"]
+    assert info["lendo"][0]["stake"] == "20,00"
+
+
+def test_lendo_copia_data_e_stake_do_bloco():
+    info = _rodar(COM_DATA)
+    assert info["lendo"][0] == {"codigo": "C3", "data": "28/10/2026", "stake": "30,00"}
+
+
+def test_stake_ambigua_vai_vazia():
+    """Dois valores de Stake no mesmo bloco: a régua do `corrigir_stake_tsv` não escreve."""
+    info = _rodar(COM_DATA)
+    assert info["lendo"][1] == {"codigo": "D4", "data": "29/10/2026", "stake": ""}
 
 
 def test_a_contagem_e_o_primeiro_evento_do_fluxo():
