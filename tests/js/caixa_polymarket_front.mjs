@@ -70,14 +70,17 @@ ok(!lig.includes('cx-conf-val'), 'C: não há campo de conferência à mão');
 ok(!lig.includes('&quot;deposito&quot;') && !lig.includes('&quot;saque&quot;'), 'C: sem + Depósito / − Saque');
 ok(lig.includes('&quot;ajuste&quot;'), 'C: o Ajuste continua');
 ok(!lig.includes('cx__row--edit') && !lig.includes('&quot;inicial&quot;'), 'C: saldo inicial não é editável');
-ok(txt(lig).includes('Início da carteira') && txt(lig).includes('Conferência automática'), 'C: diz que é automática');
-// s433: a explicação mora no "i" da conferência (title), não mais numa nota que esticava a Caixa.
-ok(/class="pc-i" title="[^"]*vêm da carteira na blockchain/.test(lig), 'C: o "i" da conferência diz de onde vêm os lançamentos');
+ok(txt(lig).includes('Início da carteira'), 'C: mostra o início da carteira');
+// s433: a explicação mora no "i" do título (title), não mais numa nota que esticava a Caixa.
+ok(/class="pc-i" title="[^"]*vêm da carteira na blockchain/.test(lig), 'C: o "i" diz de onde vêm os lançamentos');
+// s433 (Feca, 30/10): batendo, a Caixa automática não gasta altura dizendo que bate.
+ok(!/Bate com a carteira/.test(txt(lig)) && !txt(lig).includes('Conferência automática'), 'C: batendo, sem mensagem de conferência');
 
 // D. bate com arredondamento: a diferença real
-ok(/Bate com a carteira.*0,13.*arredondamento/.test(txt(lig)), 'D: mostra a diferença real de arredondamento');
+// A diferença REAL continua ao alcance, no title da pílula CONFERE (nunca um zero que não houve).
+ok(/cx__pill ok" title="Bate com a carteira[^"]*0,13[^"]*arredondamento/.test(lig), 'D: a pílula diz a diferença real de arredondamento');
 const zero = render({ ...base, casa: 'Polymarket', estado: 'confere', divergencia: 0, conferencia: conf(0, 9.77) });
-ok(/Bate com a carteira/.test(txt(zero)) && !/arredondamento/.test(txt(zero)), 'D: diferença zero não fala em arredondamento');
+ok(/cx__pill ok" title="Bate com a carteira/.test(zero) && !/arredondamento/.test(zero), 'D: diferença zero não fala em arredondamento');
 
 // E. divergente
 const div = render({ ...base, casa: 'Polymarket', estado: 'divergente', disponivel: 270.32, divergencia: -260.42, conferencia: conf(-260.42, 9.9, 270.32) });

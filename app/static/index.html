@@ -926,7 +926,21 @@ html.embedded .sidebar { display: none; }
 .colmain.faixa .idcard__foot { gap: 6px; }
 .colmain.faixa #acctSelBtn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .colmain.faixa .ktiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-.colmain.faixa .tile { padding: 10px 13px; min-height: 0; }
+/* Coluna estreita (painel aberto em ~1600px, medido: 3 tiles de ~90px, número fora do card):
+   o card da conta sobe e deita numa linha, e a faixa ganha a largura da coluna. Abaixo de
+   ~720px nem o piso de 13px cabe em 1/3 do que sobra ao lado do card. */
+.colmain.faixa #topleft { container: esq / inline-size; }
+@container esq (max-width: 720px) {
+  .colmain.faixa .arow { grid-template-columns: minmax(0, 1fr); }
+  .colmain.faixa .idcard { flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .colmain.faixa .idcard__foot { flex-direction: row; margin-top: 0; margin-left: auto; }
+}
+.colmain.faixa .tile { padding: 10px 13px; min-height: 0; min-width: 0; container-type: inline-size; }
+/* Tela achatada (Feca, 30/10): o tile estreita e o número vazava para fora do card. O corpo
+   acompanha a largura do PRÓPRIO tile (cqi), de 16px até o piso de 13px da Escada para
+   valor; o label quebra em vez de cortar. */
+.colmain.faixa .tile .val { font-size: clamp(13px, 12.5cqi, 16px); }
+.colmain.faixa .tile .lab { white-space: normal; line-height: 1.3; }
 .colmain.faixa .tile .val { padding-top: 5px; }
 /* A linha de baixo quebra em vez de cortar: reticência esconderia o win rate em 1536px. */
 .colmain.faixa .tile .sub { white-space: normal; margin-top: 3px; line-height: 1.35; }
@@ -948,7 +962,8 @@ html.embedded .sidebar { display: none; }
 .tile .val.neg { color: var(--neg); }
 .tile.hero { background: linear-gradient(150deg, rgba(var(--accent-rgb),.12), var(--surface) 62%); border-color: rgba(var(--accent-rgb),.42); box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb),.08); }
 .tile.hero .lab { color: var(--accent-2); }
-.tile .val.custo-wrap { display: flex; align-items: center; gap: 5px; padding-top: 8px; }
+.tile .val.custo-wrap { display: flex; align-items: center; gap: 5px; padding-top: 8px; min-width: 0; }
+.tile .val.custo-wrap .ctx-kpi-custo-input { flex: 0 1 82px; min-width: 0; }
 .tile .val .money-sign { font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft); flex: none; }
 
 /* ── Caixa Inteligente (s314): auditoria de saldo da conta ───────────────────
@@ -961,7 +976,8 @@ html.embedded .sidebar { display: none; }
 /* Cabeçalho GÊMEO do RAIO-X: as duas colunas começam no mesmo y (mesma linha do
    grid do .workfull), então padding e borda IDÊNTICOS aos do .right-panel-header
    fazem as duas linhas caírem no mesmo pixel. Mexer num sem o outro desalinha. */
-.cx__hd { display: flex; align-items: center; gap: 9px; padding: 16px 18px; border-bottom: 1px solid var(--line); flex: none; min-height: var(--hd-h); }
+.cx__hd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; row-gap: 6px; padding: 16px 18px; border-bottom: 1px solid var(--line); flex: none; min-height: var(--hd-h); }
+/* flex-wrap: na Caixa de 300px (1600px com o painel aberto) a pílula era cortada na borda. */
 /* Piso comum aos DOIS cabeçalhos: os pills (aqui e no RAIO-X) aparecem e somem, e sem
    piso a linha subiria e desceria conforme o estado. O alinhamento tem de valer sempre. */
 .right-panel-header { min-height: var(--hd-h); }
@@ -1641,23 +1657,19 @@ button.pc-dia:focus-visible { outline: 2px solid var(--accent); outline-offset: 
    Faixa de 5, painel da conta e tipsters iguais aos de qualquer casa. O que só ela tem, a
    carteira, é um bloco no lugar da captura: cabeçalho (título, endereço, Sincronizar,
    status) e os saldos lado a lado. "A resgatar" só aparece quando há, e aí a grade vira 4. */
-.pcart { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); min-width: 0; display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; padding: 10px 6px 10px 16px; }
-.pcart__hd { display: flex; align-items: center; gap: 10px; flex: 1 1 380px; flex-wrap: wrap; min-width: 0; padding: 2px 0; }
-.pcart__hd .poly-wallet-input { flex: 1 1 200px; min-width: 0; max-width: 430px; }
-/* O status pode trazer o aviso da Caixa inteiro: ganha a linha dele em vez de esticar a carteira. */
+.pcart { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); min-width: 0; padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.pcart__hd { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.pcart__hd .poly-wallet-input { flex: 1 1 220px; min-width: 0; max-width: 430px; }
+/* O status pode trazer o aviso da Caixa inteiro: ganha a linha dele em vez de esticar o box. */
 .pcart__hd .status-msg { font-size: 11px; flex-basis: 100%; white-space: normal; line-height: 1.4; }
 .pcart__hd .status-msg:empty { display: none; }
-.pcart__g { display: flex; flex-wrap: wrap; }
-.pcart__g > div { padding: 2px 14px; display: grid; gap: 3px; border-left: 1px solid var(--line-2); min-width: 118px; }
-/* Rótulo = o do tile de KPI (tarja azul, SHELL_SPEC §3): um papel, um estilo. */
-.pcart__g .k { font-family: var(--font-mono); font-size: var(--text-xxs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); display: flex; align-items: center; white-space: nowrap; }
-.pcart__g .k::before { content: ""; width: 4px; height: 13px; background: var(--accent); border-radius: 2px; margin-right: 8px; flex: none; }
-.pcart__g .v { font-family: var(--font-mono); font-size: var(--text-base); font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pcart__g .s { font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-soft); white-space: nowrap; }
+/* Os saldos são o MESMO `.tile` da faixa (um papel, um estilo); só a grade é deles. */
+.pcart__g { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.pcart__g .tile { min-height: 0; padding: 10px 13px; min-width: 0; }
+.pcart__g .tile .val { padding-top: 6px; }
 /* Âmbar = dinheiro esperando (posição aberta, resgate pendente), o mesmo do "Em aberto" da
    faixa e do selo "aguardando resultado". Zero fica neutro: não há o que esperar. */
-.pcart__g .v.aberto, .pcart__g .res .v { color: var(--warn); }
-.pcart__g .tot .v { font-size: var(--text-lg); }
+.pcart__g .val.aberto, .pcart__g .res .val { color: var(--warn); }
 .poly-wallet-input {
   background:var(--surface-2); border:1px solid var(--line);
   color:var(--ink); border-radius:var(--r-sm); padding:6px 10px;
@@ -3033,10 +3045,10 @@ td.c-res.res-HL { color: var(--warn); }
         <span class="status-msg" id="poly-status"></span>
       </div>
       <div class="pcart__g" id="pm-kpis">
-        <div><span class="k">Disponível</span><span class="v" id="pm-k-cash">—</span><span class="s" id="pm-k-cash-sub"></span></div>
-        <div><span class="k">Em posições</span><span class="v" id="pm-k-portfolio">—</span><span class="s" id="pm-k-portfolio-sub"></span></div>
-        <div class="res" id="pm-kpi-resgatar" style="display:none" title="Posições que já liquidaram e continuam na carteira — é só resgatar na Polymarket"><span class="k">A resgatar</span><span class="v" id="pm-k-resgatar">—</span><span class="s" id="pm-k-resgatar-sub"></span></div>
-        <div class="tot"><span class="k">Total</span><span class="v" id="pm-k-total">—</span><span class="s" id="pm-k-total-sub"></span></div>
+        <div class="tile"><span class="lab">Disponível</span><span class="val" id="pm-k-cash">—</span><span class="sub" id="pm-k-cash-sub"></span></div>
+        <div class="tile"><span class="lab">Em posições</span><span class="val" id="pm-k-portfolio">—</span><span class="sub" id="pm-k-portfolio-sub"></span></div>
+        <div class="tile res" id="pm-kpi-resgatar" style="display:none" title="Posições que já liquidaram e continuam na carteira — é só resgatar na Polymarket"><span class="lab">A resgatar</span><span class="val" id="pm-k-resgatar">—</span><span class="sub" id="pm-k-resgatar-sub"></span></div>
+        <div class="tile"><span class="lab">Total</span><span class="val" id="pm-k-total">—</span><span class="sub" id="pm-k-total-sub"></span></div>
       </div>
     </section>
 
@@ -8465,9 +8477,18 @@ function renderCaixa(d) {
   const poly = d.casa === 'Polymarket';
   box.classList.toggle('alerta', d.estado === 'divergente');
   const [pcls, ptxt] = _CX_PILL[d.estado] || ['', ''];
+  // Polymarket: a Caixa é automática e, batendo, a mensagem "bate com a carteira" não diz
+  // nada que a pílula CONFERE não diga (Feca, 30/10). Ela sai da tela e a diferença REAL de
+  // centavos (s397: nunca um zero que não houve) fica no title da pílula. As notas fixas
+  // (moeda, "automática") moram no "i" ao lado do título.
+  const ajudaPoly = 'Caixa em ' + _cxSigla(d.moeda) + ': saldo, lançamentos e apostas na moeda da conta, sem conversão. '
+    + 'Depósitos, saques e a conferência vêm da carteira na blockchain a cada Sincronizar. Não lance à mão, ou entra em dobro.';
+  const polyBate = poly && d.estado === 'confere';
+  const pTit = polyBate ? ` title="${_cxDiver(d).replace(/<\/b>/, ': ').replace(/<[^>]+>/g, '').trim()}"` : '';
   const head = '<div class="cx__hd"><span class="t">Caixa Inteligente</span>'
+    + (poly && d.ligada ? `<i class="pc-i" title="${ajudaPoly}">i</i>` : '')
     + (d.ligada ? '<button class="cx__link" type="button" onclick="caixaAbrirExtrato()">extrato</button>' : '')
-    + (d.ligada ? `<span class="cx__pill ${pcls}"><span class="dot"></span>${ptxt}</span>` : '')
+    + (d.ligada ? `<span class="cx__pill ${pcls}"${pTit}><span class="dot"></span>${ptxt}</span>` : '')
     + '</div>';
 
   if (!d.ligada && poly) {
@@ -8526,10 +8547,8 @@ function renderCaixa(d) {
     notas.push(n(d.n_preso_corte) + (d.n_preso_corte === 1 ? ' aposta estava aberta' : ' apostas estavam abertas')
       + ' nesse dia: o stake saiu da casa antes do corte e volta inteiro ao liquidar.');
   // Na Polymarket as duas notas fixas (moeda e "automática") são sempre as mesmas e
-  // esticavam a Caixa: moram no "i" da conferência (Feca, 30/10). Nas outras casas a de
-  // moeda segue aqui, porque só aparece em conta fora do real.
-  const ajudaPoly = 'Caixa em ' + _cxSigla(d.moeda) + ': saldo, lançamentos e apostas na moeda da conta, sem conversão. '
-    + 'Depósitos, saques e a conferência vêm da carteira na blockchain a cada Sincronizar. Não lance à mão, ou entra em dobro.';
+  // esticavam a Caixa: moram no "i" do título (Feca, 30/10). Nas outras casas a de moeda
+  // segue aqui, porque só aparece em conta fora do real.
   if (d.moeda && d.moeda !== 'BRL' && !poly)
     notas.push('Caixa em ' + _cxSigla(d.moeda) + ': saldo, lançamentos e apostas na moeda da conta, sem conversão.');
   if (d.n_sem_origem)
@@ -8548,7 +8567,7 @@ function renderCaixa(d) {
 
   const hoje = hojeISO();
   const conf = poly
-    ? `<div class="cx__conf"><span class="k">Conferência automática <i class="pc-i" title="${ajudaPoly}">i</i></span>` + _cxDiver(d) + '</div>'
+    ? (polyBate ? '' : '<div class="cx__conf"><span class="k">Conferência automática</span>' + _cxDiver(d) + '</div>')
     : '<div class="cx__conf"><span class="k">Conferência</span>'
     + '<div class="cx__inrow">'
     + '<span class="cx__inp"><span class="sg">' + _cxSigla(d.moeda) + '</span>'
