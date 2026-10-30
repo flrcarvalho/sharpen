@@ -71,7 +71,8 @@ ok(!lig.includes('&quot;deposito&quot;') && !lig.includes('&quot;saque&quot;'), 
 ok(lig.includes('&quot;ajuste&quot;'), 'C: o Ajuste continua');
 ok(!lig.includes('cx__row--edit') && !lig.includes('&quot;inicial&quot;'), 'C: saldo inicial não é editável');
 ok(txt(lig).includes('Início da carteira') && txt(lig).includes('Conferência automática'), 'C: diz que é automática');
-ok(txt(lig).includes('vêm da carteira na blockchain'), 'C: a nota diz de onde vêm os lançamentos');
+// s433: a explicação mora no "i" da conferência (title), não mais numa nota que esticava a Caixa.
+ok(/class="pc-i" title="[^"]*vêm da carteira na blockchain/.test(lig), 'C: o "i" da conferência diz de onde vêm os lançamentos');
 
 // D. bate com arredondamento: a diferença real
 ok(/Bate com a carteira.*0,13.*arredondamento/.test(txt(lig)), 'D: mostra a diferença real de arredondamento');
