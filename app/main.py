@@ -344,6 +344,9 @@ _CASA_DISPLAY: dict[str, str] = {
     # `parceiros` (1 conta do Gabriel), `bilhetes` (25 de print), `casas_meta`, `correcoes` e
     # `uso_tokens`, medido em 25/10/2026.
     "TORNADOBET":     "Tornadobet",
+    # 11ª casa Altenar (s434), espelho da Vavada. Nenhuma linha em `parceiros`, `bilhetes`,
+    # `casas_meta`, `correcoes` ou `uso_tokens` (medido em 30/10/2026): grafia da marca.
+    "SPORTAZA":       "Sportaza",
     "JOGODEOURO":     "Jogo de Ouro",
     "JONBET":         "Jonbet",
     "KINGPANDA":      "KingPanda",
@@ -1195,6 +1198,8 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # Tornadobet (s428) — 10ª casa Altenar. Mesmo espaço de IDs: numérico de 10 dígitos (os 25
     # bilhetes de print já gravados têm esse formato, `5558042202`).
     "TORNADOBET",
+    # Sportaza (s434) — 11ª casa Altenar. Numérico de 10 dígitos (`5590494619`, conta do Feca).
+    "SPORTAZA",
     "PITACO",
     "NOVIBET",
     "SPORTINGBET",

@@ -72,7 +72,7 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # histórico dispara o `widgetExpandedBetHistory` sozinha, na window de topo, e o clone passivo
 # resolve. O que ela tem de próprio é o CORS do gateway, que recusa `credentials:"include"`
 # para o tenant dela; quem trata é o `pedirPagina` do `vb_inject.js`. Mesmo inject.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "BLAZE": "texto", "BETPANDA": "texto", "BETFURY": "texto", "DUEL": "texto", "BETCOIN": "texto","DEXSPORT": "texto", "SHUFFLE": "texto", "1WIN": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "BETREBELS": "texto", "BETMARTINI": "texto", "VAVADA": "texto", "KIKOBET": "texto", "TORNADOBET": "texto","PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto", "SAPPHIREBET": "texto", "PARIPESA": "texto", "MEGAPARI": "texto", "1XBIT": "texto", "MELBET": "texto", "MYSTAKE": "texto", "JACK": "texto", "VAVE": "texto", "20BET": "texto", "SPORTSBETIO": "texto", "STAKECOM": "texto", "THUNDERPICK": "texto",
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "BLAZE": "texto", "BETPANDA": "texto", "BETFURY": "texto", "DUEL": "texto", "BETCOIN": "texto","DEXSPORT": "texto", "SHUFFLE": "texto", "1WIN": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "BETREBELS": "texto", "BETMARTINI": "texto", "VAVADA": "texto", "KIKOBET": "texto", "TORNADOBET": "texto", "SPORTAZA": "texto","PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto", "SAPPHIREBET": "texto", "PARIPESA": "texto", "MEGAPARI": "texto", "1XBIT": "texto", "MELBET": "texto", "MYSTAKE": "texto", "JACK": "texto", "VAVE": "texto", "20BET": "texto", "SPORTSBETIO": "texto", "STAKECOM": "texto", "THUNDERPICK": "texto",
                    # Betboo (s372) — espelho da SportingBet: mesmo inject, mesmo formatador,
                    # logo o mesmo modo. So muda a marca.
                    "BETBOO": "texto",
@@ -204,6 +204,10 @@ _HOSTS_POR_CASA = {
     # cluster `altenar2`). Espelho NUMERADO: o Feca usa `tornadobet82.com`, e `tornadobet.com`
     # redirecionava para `tornadobet34.com` no mesmo dia (25/10/2026).
     "TORNADOBET": ("tornadobet.com", "tornadobet82.com", "tornadobet34.com"),
+    # 11ª casa Altenar (s434). SDK na própria página `/pt/sports` (`integration=sportaza`,
+    # cluster `altenar2`, `culture=pt-PT`). Espelho NUMERADO: o Feca usa `sportaza-5178.com`
+    # (30/10/2026); `sportaza.com` é o domínio da marca no rodapé.
+    "SPORTAZA":   ("sportaza.com", "sportaza-5178.com"),
     # A Betfast serve tanto `betfast.bet.br` quanto `www.betfast.bet.br` (as duas devolvem
     # 200, sem redirecionar). O `casa_de_host` abaixo casa subdomínio, então uma entrada cobre.
     "BETFAST":    ("betfast.bet.br",),

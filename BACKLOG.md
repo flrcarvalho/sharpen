@@ -1788,6 +1788,19 @@ só props liquidadas (15) e apostas comuns abertas (3, Fórmula 1). Sem amostra:
 usa cópia literal das queries da página: se a casa mudar o schema, a query inteira falha (o erro da
 casa sobe no autodiagnóstico). Falta a 1ª captura pela extensão instalada.
 
+### 4.0v Sportaza: 1ª captura pela extensão instalada e a virada da Ficha (s434). **VIVA, harness com fixture real**
+
+Entrou na 0.7.69, 11ª Altenar, espelho da Vavada, recon LOGADO na conta do Feca (USD,
+`CASA_SPORTAZA.md`). Harness e adaptador `vb` com 6 bilhetes reais conferidos no card.
+- 1ª captura pela 0.7.69 instalada, conferida contra as abas (30/10/2026: 9 abertas, 18
+  processadas em 10 dias) e no `virada_log` depois de `SPORTAZA` nas 3 listas da Railway.
+- **Conta cadastrada em USD antes de capturar**: o bloco diz `R$` e não escreve `Moeda:`.
+- **`status 21`**: a tela pede `[1,8,21,2,4,18]` nas processadas e o `vb_inject` não pede o 21.
+  Zero aposta no 21 nesta conta em 365 dias. Medir o que é (cashout? anulada?) antes de mexer no
+  inject compartilhado das 11 casas.
+- Espelho numerado (`sportaza-5178.com`): domínio novo entra no manifest, `popup.js` e
+  `_HOSTS_POR_CASA`, com versão nova.
+
 ### 4.0u Soh Props - Nômade: o que ficou aberto no onboarding (s430). **VIVA, medida**
 
 - **Jogo da madrugada postado na véspera.** `4h35` postado às 18:58 do dia 23 é jogo do dia 24, e o

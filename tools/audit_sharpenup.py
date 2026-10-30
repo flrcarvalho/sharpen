@@ -116,6 +116,8 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # 10a casa Altenar (s428). Sem conta de teste, mas o codigo e REAL: um dos 25 bilhetes de
     # print que a base ja tinha (Gabriel, 21/10/2026), numerico de 10 digitos do motor.
     "TORNADOBET": "5558042202",
+    # 11a casa Altenar (s434). Codigo REAL da conta do Feca (simples ganha, 30/10/2026).
+    "SPORTAZA":   "5590494619",
     "BET365":     "JR8714690761I",
     # Motor Rogue (s335) — ids reais das três contas, todos `PurchaseTicketId` numérico de
     # 18 dígitos, reconhecidos pela regex GENÉRICA do repository (não há regex por casa).

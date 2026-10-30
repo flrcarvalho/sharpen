@@ -1475,7 +1475,7 @@
     } else if (casa === "vaidebet" || casa === "esportiva" || casa === "jogodeouro" ||
                casa === "betpix365" || casa === "estrelabet" || casa === "betrebels" ||
                casa === "betmartini" || casa === "vavada" ||
-               casa === "kikobet" || casa === "tornadobet") {
+               casa === "kikobet" || casa === "tornadobet" || casa === "sportaza") {
       // Passivo + replay paginado (vb_inject). A lista NÃO carrega sozinha (a tela tem
       // "Mostrar mais apostas") e vem de 10 em 10 — o inject pagina por `pageNumber` nas duas
       // abas até `isLastPage`. SEM fallback de texto: os cards da VaideBet ficam colados num
@@ -1518,6 +1518,11 @@
       //
       // A Tornadobet (s428) é a 10ª, espelho da BetMartini: SDK na própria página `/sportsbook`,
       // `integration=tornadobet`, mesmo cluster, `en-GB`. Também em espelho NUMERADO.
+      //
+      // A Sportaza (s434) é a 11ª, espelho da Vavada: SDK na própria página `/pt/sports`,
+      // `integration=sportaza`, `pt-PT`, conta em USD. A tela "Minhas apostas"
+      // (`?page=betHistory`) chama só o COMPACTO, como a Betpix365; o inject aprende dele.
+      // Espelho NUMERADO (`sportaza-5178.com`).
       blocos = await roboVBPassive(ctx);
     } else if (casa === "sportingbet" || casa === "betboo") {
       // Passivo + replay paginado (spb_inject, motor bwin/Entain — o primeiro deste motor
@@ -1816,6 +1821,11 @@
         tornadobet: { nome: "Tornadobet", hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size,
                       extra: vbRespostas === 0
                         ? " · abra o histórico de apostas na tela e capture de novo; se persistir, refaça o login"
+                        : "" },
+        // Sportaza: 11ª casa Altenar (s434), mesmo inject/contadores.
+        sportaza:   { nome: "Sportaza",   hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size,
+                      extra: vbRespostas === 0
+                        ? " · abra Minhas apostas na tela e capture de novo; se persistir, refaça o login"
                         : "" },
         jonbet:     { nome: "Jonbet",     hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         // Espelho da Jonbet: mesmo inject, mesmos contadores. Só o nome muda, para o

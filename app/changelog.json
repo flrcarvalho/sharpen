@@ -288,6 +288,12 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0769",
+      "v": "v0.7.69",
+      "data": "2026-10-30",
+      "texto": "**Sportaza na captura automática.** É só atualizar a extensão e cadastrar a conta na moeda dela."
+    },
+    {
       "id": "su-0767",
       "v": "v0.7.67",
       "data": "2026-10-25",
