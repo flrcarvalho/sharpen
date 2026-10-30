@@ -823,6 +823,13 @@ Quando chegar um bilhete novo: abrir o arquivo da casa correspondente, preencher
 
 ## 3. Decisão do Feca pendente
 
+### 3.0b Dólar e "≈ R$" da carteira Polymarket sem ponto de milhar (s433). **VIVA**
+
+`fmtUSD` e `fmtBRLsub` (`index.html`, bloco Carteira da Polymarket) usam `toFixed` e imprimem
+`$ 1192,72` e `≈ R$ 6464,54`. O R$ com `toFixed` fura o `UI_REFERENCE §5`; o dólar é a exceção
+documentada (§5.3), mas sem milhar. Anterior à s433, mantido no redesenho para não misturar.
+Decisão: trocar os dois para o milhar com ponto (`$ 1.192,72`, `≈ R$ 6.464,54`).
+
 > Medido, com o número na mão, e parado esperando qual dos caminhos seguir. Nenhum destes é
 > dúvida técnica.
 

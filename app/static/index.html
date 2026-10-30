@@ -1639,56 +1639,31 @@ button.pc-dia:focus-visible { outline: 2px solid var(--accent); outline-offset: 
 .status-msg.err  { color: var(--neg); }
 .status-msg.warn { color: var(--warn); }
 
-/* Polymarket — carteira + sincronizar no cabeçalho (ocupa o lugar do seletor de modelo) */
-.poly-head-sync { display:flex; align-items:center; gap:8px; }
-.poly-head-sync .status-msg { font-size:11px; font-family:var(--font-mono); color:var(--ink-mute); white-space:nowrap; }
+/* ── s433: Polymarket com o visual das outras casas (mockup aprovado pelo Feca, 29/10) ──
+   Faixa de 5, painel da conta e tipsters iguais aos de qualquer casa. O que só ela tem, a
+   carteira, é um bloco no lugar da captura: cabeçalho (título, endereço, Sincronizar,
+   status) e os saldos lado a lado. "A resgatar" só aparece quando há, e aí a grade vira 4. */
+.pcart { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); min-width: 0; }
+.pcart__hd { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line-2); flex-wrap: wrap; }
+.pcart__hd .poly-wallet-input { flex: 1; min-width: 200px; }
+.pcart__hd .status-msg { font-size: 11px; white-space: nowrap; }
+.pcart__hd .status-msg:empty { display: none; }
+.pcart__g { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pcart__g.tem-resgatar { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pcart__g > div { padding: 10px 16px 12px; display: grid; gap: 3px; border-left: 1px solid var(--line-2); min-width: 0; }
+.pcart__g > div:first-child { border-left: 0; }
+.pcart__g .k { font-family: var(--font-mono); font-size: var(--text-xxs); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+.pcart__g .v { font-family: var(--font-mono); font-size: var(--text-base); font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pcart__g .s { font-family: var(--font-mono); font-size: var(--text-xxs); color: var(--ink-soft); white-space: nowrap; }
+/* Âmbar = pendência do operador, mesma leitura do selo "aguardando resultado". */
+.pcart__g .res .v { color: var(--warn); }
+.pcart__g .tot .k { color: var(--ink); }
 .poly-wallet-input {
-  width:340px; max-width:42vw; background:var(--surface-2); border:1px solid var(--line);
+  background:var(--surface-2); border:1px solid var(--line);
   color:var(--ink); border-radius:var(--r-sm); padding:6px 10px;
   font-size:12px; font-family:var(--font-mono); outline:none; transition:border-color .12s;
 }
 .poly-wallet-input:focus { border-color:var(--accent); box-shadow:var(--glow); }
-
-/* Polymarket — dashboard ao vivo.
-   Cards no padrão de marca dos KPIs do Dashboard (.kpi): tarja azul antes do label,
-   label mono uppercase, valor grande mono à direita. Sem margem horizontal → alinham
-   flush com os cards de intake/grade da coluna. */
-.pm-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:0 0 16px; }
-/* O card "A resgatar" só existe quando há dinheiro liquidado parado na carteira; nesse
-   caso a faixa vira 5 colunas. Sem ele, o layout de 4 continua idêntico ao de sempre. */
-.pm-kpis.tem-resgatar { grid-template-columns:repeat(5,1fr); }
-.pm-kpi { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); padding:16px 18px; display:flex; flex-direction:column; gap:5px; }
-.pm-kpi-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); font-family:var(--font-mono); display:flex; align-items:center; }
-.pm-kpi-label::before { content:""; width:4px; height:13px; background:var(--accent); border-radius:2px; margin-right:8px; flex:none; }
-.pm-kpi-val { font-size:22px; font-weight:800; font-family:var(--font-mono); letter-spacing:-.03em; line-height:1; color:var(--ink); font-variant-numeric:tabular-nums; text-align:right; margin-top:2px; }
-.pm-kpi-val.blue { color:var(--accent); }
-.pm-kpi-val.green { color:var(--pos); }
-/* Âmbar = pendência do operador, mesma leitura do badge "aguardando resultado". */
-.pm-kpi-val.amber { color:var(--warn); }
-.pm-kpi-sub { font-size:10px; color:var(--ink-mute); font-family:var(--font-mono); text-align:right; margin-top:2px; }
-/* ── s398: a Polymarket na Extração (layout escolhido pelo Feca em mockup, 06/10) ──
-   A Polymarket não tem RAIO-X nem histórico de extração (é sync de API), então o rail
-   sai (`.sem-rail`) e a Caixa fica sozinha na coluna da direita. À esquerda, o card da
-   conta (com a carteira e o Sincronizar dentro) e UMA grade de 3 colunas com os tiles
-   da conta e os saldos da carteira. Antes os tiles ocupavam 2 linhas ao lado de uma
-   Caixa muito mais alta e sobrava um vão do tamanho da Caixa embaixo deles.
-   O `.pm-kpi` veste a régua do `.tile` aqui: dois estilos de card na mesma grade leem
-   como inconsistência mesmo quando os dois estão certos (CLAUDE.md, UI item 8). */
-.kgrid { display: contents; }
-#topleft.poly #capwrap { display: none; }
-#topleft.poly .arow { flex: 1; }
-#topleft.poly .kgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 10px; min-width: 0; }
-#topleft.poly #ctxKpis, #topleft.poly #polymarket-dashboard, #topleft.poly .pm-kpis { display: contents; }
-/* Label é --ink-soft pela Escada de Tinta; o `.tile .lab` geral ainda está em --ink-mute
-   (anterior à regra). Aqui os dois convivem na mesma grade, então sobem juntos. */
-#topleft.poly .tile:not(.hero) .lab { color: var(--ink-soft); }
-#topleft.poly .pm-kpi { border-radius: var(--r-md); padding: 13px 14px; gap: 0; min-height: 66px; min-width: 0; }
-#topleft.poly .pm-kpi-val { font-size: 16px; font-weight: 700; letter-spacing: -.02em; line-height: normal; text-align: left; margin-top: auto; padding-top: 10px; white-space: nowrap; }
-#topleft.poly .pm-kpi-sub { text-align: left; }
-.idcard .poly-head-sync { flex-direction: column; align-items: stretch; gap: 7px; padding-top: 11px; border-top: 1px solid var(--line-2); }
-.idcard .poly-head-sync .status-msg { order: 3; white-space: normal; text-align: center; }
-.idcard .poly-head-sync .status-msg:empty { display: none; }
-.idcard .poly-wallet-input { width: 100%; max-width: none; }
 .data-ref-label {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 11px; color: var(--ink-mute); cursor: default;
@@ -2993,19 +2968,6 @@ td.c-res.res-HL { color: var(--warn); }
           <div class="usr" id="ctx-parceiro">selecione uma conta</div>
         </div>
       </div>
-      <!-- s398: carteira + Sincronizar da Polymarket moram no card da conta (pedido do Feca:
-           a linha solta embaixo dos tiles comia uma faixa da tela). Só aparece na Polymarket
-           (toggle em aplicarModoCasa). O status vem depois do botão por `order` no CSS. Modelo
-           de IA NÃO é escolha do usuário (backend DEFAULT_MODEL); o front não envia 'modelo'. -->
-      <div class="poly-head-sync" id="poly-head-sync" style="display:none">
-        <span class="idcard__op-lbl">Carteira</span>
-        <span class="status-msg" id="poly-status"></span>
-        <input type="text" id="poly-wallet" class="poly-wallet-input"
-          placeholder="Carteira Polymarket (0x…)"
-          title="Cole o endereço da carteira e clique Sincronizar — sincroniza o histórico, converte USD→BRL e deduplica"
-          spellcheck="false" autocomplete="off">
-        <button class="btn btn-primary btn-sm" id="btn-poly-sync">↻ Sincronizar</button>
-      </div>
       <!-- Rodapé: Trocar conta (abre o mesmo dropdown acctPop) + editar nome + arquivar -->
       <div class="idcard__foot">
         <!-- Linha de navegação: ‹ conta anterior | Selecionar conta | próxima conta ›.
@@ -3049,29 +3011,34 @@ td.c-res.res-HL { color: var(--warn); }
     </div>
     <!-- Tiles uniformes da conta ativa (P/L herói). Preenchido por atualizarResumoConta()
          a cada carregarGrade(); custo = o da conta (cadastro), com a tabela como placeholder. -->
-    <!-- s398: .kgrid = os tiles da conta + os saldos da carteira. Fora da Polymarket ela é
-         `display:contents` e nada muda; na Polymarket vira UMA grade de 3 colunas e os dois
-         blocos de dentro somem como caixa, então os 12 cards correm juntos. -->
-    <div class="kgrid">
     <div class="ktiles" id="ctxKpis" style="display:none"></div>
-      <!-- Polymarket: dashboard ao vivo (KPIs de saldo da carteira). As posições
-           ATIVAS não moram mais aqui: viram bilhete aberto na grade (badge âmbar
-           "aguardando resultado"), junto das resolvidas. Aqui ficam só os saldos.
-           s398: moram na .kgrid, ao lado dos tiles da conta. -->
-      <div id="polymarket-dashboard" style="display:none">
-        <div class="pm-kpis" id="pm-kpis">
-          <div class="pm-kpi"><span class="pm-kpi-label">Posições ativas</span><span class="pm-kpi-val" id="pm-k-count">—</span></div>
-          <div class="pm-kpi"><span class="pm-kpi-label">Saldo em Aberto</span><span class="pm-kpi-val blue" id="pm-k-portfolio">—</span><span class="pm-kpi-sub" id="pm-k-portfolio-sub"></span></div>
-          <div class="pm-kpi" id="pm-kpi-resgatar" style="display:none" title="Posições que já liquidaram e continuam na carteira — é só resgatar na Polymarket"><span class="pm-kpi-label">A resgatar</span><span class="pm-kpi-val amber" id="pm-k-resgatar">—</span><span class="pm-kpi-sub" id="pm-k-resgatar-sub"></span></div>
-          <div class="pm-kpi"><span class="pm-kpi-label">Saldo Disponível</span><span class="pm-kpi-val green" id="pm-k-cash">—</span><span class="pm-kpi-sub" id="pm-k-cash-sub"></span></div>
-          <div class="pm-kpi"><span class="pm-kpi-label">Saldo Total</span><span class="pm-kpi-val green" id="pm-k-total">—</span><span class="pm-kpi-sub" id="pm-k-total-sub"></span></div>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- s314: captura + sync da Polymarket vivem no #topleft, à esquerda da Caixa. -->
   <div id="capwrap" style="display:none">
+
+    <!-- s433: a CARTEIRA da Polymarket (mockup aprovado pelo Feca, 29/10). Mora onde as
+         outras casas têm a captura: na Polymarket o gesto da tela é Sincronizar, não colar.
+         Saldos em dólar, ao vivo (`renderDashPoly`). "Em posições" é o valor de MERCADO das
+         posições abertas; o "Em aberto" da faixa é a STAKE delas, em reais, régua de todas as
+         casas. Dois nomes iguais para números diferentes leriam como defeito. -->
+    <section class="pcart" id="polymarket-dashboard" style="display:none" aria-label="Carteira Polymarket">
+      <div class="pcart__hd" id="poly-head-sync">
+        <span class="sec-t">Carteira</span>
+        <input type="text" id="poly-wallet" class="poly-wallet-input"
+          placeholder="Carteira Polymarket (0x…)"
+          title="Cole o endereço da carteira e clique Sincronizar — sincroniza o histórico, converte USD→BRL e deduplica"
+          spellcheck="false" autocomplete="off">
+        <button class="btn btn-primary btn-sm" id="btn-poly-sync">↻ Sincronizar</button>
+        <span class="status-msg" id="poly-status"></span>
+      </div>
+      <div class="pcart__g" id="pm-kpis">
+        <div><span class="k">Disponível</span><span class="v" id="pm-k-cash">—</span><span class="s" id="pm-k-cash-sub"></span></div>
+        <div><span class="k">Em posições</span><span class="v" id="pm-k-portfolio">—</span><span class="s" id="pm-k-portfolio-sub"></span></div>
+        <div class="res" id="pm-kpi-resgatar" style="display:none" title="Posições que já liquidaram e continuam na carteira — é só resgatar na Polymarket"><span class="k">A resgatar</span><span class="v" id="pm-k-resgatar">—</span><span class="s" id="pm-k-resgatar-sub"></span></div>
+        <div class="tot"><span class="k">Total</span><span class="v" id="pm-k-total">—</span><span class="s" id="pm-k-total-sub"></span></div>
+      </div>
+    </section>
 
     <!-- Inputs -->
     <div class="input-section" id="upload-section">
@@ -6293,9 +6260,6 @@ function mostrarEmptyState() {
   if (cx) cx.style.display = 'none';
   caixaAtual = null; _caixaToken++;
   document.querySelector('.colmain').classList.remove('tem-caixa');
-  // s398: sem conta não há modo Polymarket — o hub da Extração tem rail (feed + convite).
-  const tl = document.getElementById('topleft');
-  if (tl) tl.classList.remove('poly');
   document.querySelector('.colmain').classList.add('faixa');   // s433 (2.1)
   try { _pcAplicarLayout(); const tc = document.getElementById('tipCards'); if (tc) tc.hidden = true; } catch (_) {}
   document.querySelector('.workfull').classList.add('sem-rail');   // s433: sem RAIO-X
@@ -6345,10 +6309,7 @@ function aplicarModoCasa(casa) {
   // s398: na Polymarket o card da conta leva a carteira, os saldos entram na grade dos
   // tiles e o RAIO-X sai (é sync de API, não há o que extrair). A gestão de contas
   // também tira o rail, por isso a condição olha a view.
-  const tl = document.getElementById('topleft');
-  if (tl) tl.classList.toggle('poly', isPoly);
-  document.querySelector('.colmain').classList.toggle('faixa', !isPoly);   // s433 (2.1)
-  try { _pcAplicarLayout(); } catch (_) {}   // s433 (2.2): Polymarket não tem painel
+  try { _pcAplicarLayout(); } catch (_) {}   // s433: a Polymarket também tem painel
   document.querySelector('.workfull').classList.add('sem-rail');   // s433: sem RAIO-X
   // SharpenUp: só clicável nas casas conectáveis; nas demais fica visível porém esmaecido.
   const conn = document.getElementById('btn-conectar-ext');
@@ -6427,7 +6388,7 @@ function renderDashPoly(d) {
     if (faixa) faixa.classList.toggle('tem-resgatar', on);
   };
   if (!d) {
-    ['pm-k-count','pm-k-portfolio','pm-k-cash','pm-k-total'].forEach(i => setTxt(i, '—'));
+    ['pm-k-portfolio','pm-k-cash','pm-k-total'].forEach(i => setTxt(i, '—'));
     ['pm-k-portfolio-sub','pm-k-cash-sub','pm-k-total-sub'].forEach(i => setTxt(i, ''));
     mostrarResgatar(false);
     return;
@@ -6435,7 +6396,6 @@ function renderDashPoly(d) {
   // Só os KPIs de saldo da carteira (ao vivo). As posições ativas agora vivem na grade
   // como bilhete aberto — o badge âmbar de "aguardando resultado" vem do persistido.
   const cot = d.cotacao;
-  setTxt('pm-k-count', d.count);
   // "Em aberto" é só o que ainda corre. O que já liquidou e não foi resgatado sai no card
   // âmbar ao lado — antes os dois entravam juntos aqui e o rótulo mentia (posições ativas
   // zeradas com saldo "em aberto" na tela). Fallback ao portfólio se o campo não vier.
@@ -7908,7 +7868,7 @@ function _pcBR(iso) { return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso
 
 // Mostra o painel só na Extração, com conta ativa e fora da Polymarket (que é sync de API).
 function _pcVisivel() {
-  return !!parceiroSelecionado && casaSelecionada !== 'Polymarket' && viewAtual !== 'contas';
+  return !!parceiroSelecionado && viewAtual !== 'contas';
 }
 // A preferência de recolher é conveniência deste navegador (permitido: não é dado digitado).
 // Sem preferência, nasce recolhido onde a lista não cabe com ele aberto (medido, s346).
@@ -8206,13 +8166,6 @@ function _renderCtxKpis(d, casa, parceiro, erroCusto) {
       + _renovBotao(conta) + `</span></div>`
     : `<div class="tile"><span class="lab">Custo</span><span class="val" style="color:var(--ink-mute)">—</span></div>`;
   const t = {
-    pl: tile('P/L · conta', fmtPL(d.pl), '', true),
-    turnover: tile('Turnover', _moneyInt(d.turnover)),
-    apostas: tile('Apostas', (d.apostas || 0).toLocaleString('pt-BR')),
-    win: tile('Win Rate', _pctK(d.win_rate)),
-    roi: tile('ROI', _pctK(d.roi), roiCls),
-    duracao: tile('Duração', (d.duracao_dias || 0) + 'd'),
-    dias: tile('Dias Ativos', (d.dias_ativos || 0) + 'd'),
     custo: custoTile,
     // s433 (2.1): a faixa de uma linha. Turnover leva apostas e win rate embaixo (o Feca:
     // "turnover é a info principal"); Dias ativos leva a duração; Em aberto é âmbar, como
@@ -8231,12 +8184,8 @@ function _renderCtxKpis(d, casa, parceiro, erroCusto) {
     dias2: tile('Dias ativos', (d.dias_ativos || 0).toLocaleString('pt-BR'), '', false,
       d.primeira ? `em ${(d.duracao_dias || 0).toLocaleString('pt-BR')} dias · desde ${d.primeira.slice(8, 10)}/${d.primeira.slice(5, 7)}/${d.primeira.slice(2, 4)}` : 'nenhuma aposta liquidada'),
   };
-  // 2 andares de 4: P/L | Turnover | Apostas | Win Rate  /  ROI | Duração | Dias Ativos | Custo.
-  // s398: na Polymarket a grade é de 3 colunas e segue com os saldos da carteira, na ordem
-  // que o Feca escolheu no mockup: P/L ROI Turnover / Apostas WinRate Custo / Duração Dias…
-  const ordem = casa === 'Polymarket'
-    ? ['pl', 'roi', 'turnover', 'apostas', 'win', 'custo', 'duracao', 'dias']
-    : ['pl2', 'turnover2', 'aberto', 'dias2', 'custo'];
+  // A mesma faixa em toda casa, a Polymarket inclusive (s433: a grade de 8 dela saiu).
+  const ordem = ['pl2', 'turnover2', 'aberto', 'dias2', 'custo'];
   bar.innerHTML = ordem.map(k => t[k]).join('');
   try { _tcCaber(); } catch (_) {}   // s433: a faixa mudou de altura, o vão também
   const inp = document.getElementById('ctxCustoInput');
