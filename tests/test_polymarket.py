@@ -247,6 +247,33 @@ def test_indice_informado_com_cota_cheia_continua_vitoria():
     assert polymarket._payouts_por_lado([], activity, mov) == {"0xC": {"A1": 1.0}}
 
 
+def test_resgate_do_lado_perdedor_paga_zero_e_e_derrota():
+    # Dado real (s433, Zagreb, Dedura-Palomero vs Ivanisevic): comprou 214,29 cotas do
+    # lado 1 por US$ 15,42 e RESGATOU o lado perdedor por US$ 0. O índice do resgate é o
+    # do lado resgatado, não o do vencedor: lido como vencedor, a derrota virava W @13,9.
+    activity = [_act(size=214.285713, price=0.07, usdcSize=15.418489, outcomeIndex=1),
+                {"type": "REDEEM", "conditionId": "0xC", "outcomeIndex": 1, "size": 214.285713,
+                 "usdcSize": 0, "timestamp": 200}]
+    mov = polymarket._movimento_por_lado(activity)
+    assert polymarket._payouts_por_lado([], activity, mov) == {"0xC": {"A1": 0.0}}
+
+
+def test_dois_lados_resgatados_cada_um_pelo_proprio_dinheiro():
+    # Dado real (s433, KT × Kiwoom DRX): comprou os dois lados e resgatou os dois; o KT
+    # pagou US$ 0 e o Kiwoom US$ 1 por cota. Com os dois índices "informados", os dois
+    # viravam vitória cheia.
+    activity = [
+        _act(asset="A1", outcomeIndex=1, size=189.254628, price=0.528, usdcSize=101.41, timestamp=100),
+        _act(asset="A2", outcomeIndex=0, size=165.306121, price=0.49, usdcSize=82.24, timestamp=110),
+        {"type": "REDEEM", "conditionId": "0xC", "outcomeIndex": 0, "size": 165.306121,
+         "usdcSize": 0, "timestamp": 300},
+        {"type": "REDEEM", "conditionId": "0xC", "outcomeIndex": 1, "size": 189.254628,
+         "usdcSize": 189.254628, "timestamp": 300},
+    ]
+    mov = polymarket._movimento_por_lado(activity)
+    assert polymarket._payouts_por_lado([], activity, mov) == {"0xC": {"A1": 1.0, "A2": 0.0}}
+
+
 def test_indice_999_com_total_do_lado_e_vitoria_cheia():
     # negative-risk: o resgate passa pelo adaptador e o índice vem 999, mas pagou $1/cota.
     # Ler 999 como "anulado" cortava a vitória pela metade (regressão pega no gate real).

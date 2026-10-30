@@ -198,6 +198,11 @@ vir de tipsters diferentes) e uma ganha enquanto a outra perde.
   o `outcomeIndex` do lado comprado e `usdcSize` = metade do `size`; confiar no índice
   gravava vitória cheia (s397: 3 de 261 resgates do Feca, US$ 260,42 a mais no P/L,
   achados pela Caixa). `_payouts_por_lado` lê `usdcSize ÷ size` antes do índice.
+- **O índice do REDEEM é o do lado RESGATADO, não o do vencedor.** A Polymarket deixa
+  resgatar o lado perdedor, que paga US$ 0 (`usdcSize: 0`, `size` = as cotas). Lido como
+  vencedor, a derrota virava vitória cheia (s433: 8 mercados do Feca, US$ 767,95 a mais
+  no P/L, achados pela Caixa). Por isso o payout é **por lado resgatado**: cada índice
+  paga `usdcSize ÷ size` dele, e quem não foi resgatado sai do `/positions`.
 - Sem arredondamento; a grade recebe a precisão cheia.
 
 ---

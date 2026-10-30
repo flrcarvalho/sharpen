@@ -686,13 +686,17 @@ def _payouts_por_lado(positions: list, activity: list, mov: dict) -> dict:
         cid = a.get("conditionId")
         if not cid:
             continue
-        slot = resgates.setdefault(cid, {"usd": 0.0, "cotas": 0.0, "indices": set()})
+        slot = resgates.setdefault(cid, {"usd": 0.0, "cotas": 0.0, "indices": set(), "por_indice": {}})
         # O DINHEIRO do resgate é o `usdcSize`; o `size` é a quantidade de COTAS
         # resgatadas. Na vitória cheia os dois coincidem ($1 por cota), e por isso
         # ler `size` passou despercebido; no mercado anulado o `usdcSize` é metade.
-        slot["usd"] += _f(a, "usdcSize", "size", "amount")
-        slot["cotas"] += _f(a, "size")
+        usd, cts = _f(a, "usdcSize", "size", "amount"), _f(a, "size")
+        slot["usd"] += usd
+        slot["cotas"] += cts
         slot["indices"].add(a.get("outcomeIndex"))
+        par = slot["por_indice"].setdefault(a.get("outcomeIndex"), [0.0, 0.0])
+        par[0] += usd
+        par[1] += cts
 
     for cid, rg in resgates.items():
         cotas = {asset: _cotas_vivas(mov, cid, asset) for asset in lados.get(cid, {})}
@@ -710,7 +714,24 @@ def _payouts_por_lado(positions: list, activity: list, mov: dict) -> dict:
             tab[cid] = {a: 0.5 for a in cotas}          # anulado: metade para todo lado
             continue
         if informados:
-            tab[cid] = {a: (1.0 if lados[cid].get(a) in informados else 0.0) for a in cotas}
+            # O índice do resgate é o do lado RESGATADO, não o do vencedor: a Polymarket
+            # deixa resgatar o lado perdedor, que paga US$ 0 (s433: 8 derrotas do Feca
+            # gravadas como vitória cheia, US$ 767,95 a mais no P/L, achadas pela Caixa).
+            # Então cada lado resgatado diz o próprio payout pelo DINHEIRO dele.
+            pago_i = {i: (_payout_de_liquidacao(u / c) if c > _DUST_COTAS else None)
+                      for i, (u, c) in rg["por_indice"].items() if i in informados}
+            if 1.0 in pago_i.values():
+                venc = {i for i, p in pago_i.items() if p == 1.0}
+                tab[cid] = {a: (1.0 if lados[cid].get(a) in venc else 0.0) for a in cotas}
+            elif pago_i and all(p == 0.0 for p in pago_i.values()):
+                # Só o lado perdedor foi resgatado. O lado não resgatado fica sem payout
+                # aqui: se ainda está na carteira, o `/positions` abaixo diz quanto vale.
+                perd = set(pago_i)
+                sub = {a: 0.0 for a in cotas if lados[cid].get(a) in perd}
+                if sub:
+                    tab[cid] = sub
+            else:
+                tab[cid] = {a: (1.0 if lados[cid].get(a) in informados else 0.0) for a in cotas}
             continue
         pago = rg["usd"]
         if _quase(pago, 0.5 * total):
