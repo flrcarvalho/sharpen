@@ -64,6 +64,7 @@ const CASA_HOSTS = {
   "Faz1bet":    ["faz1.bet.br"],      // 3ª casa BetConstruct (s284) · o domínio não tem o "bet"
   "MyStake":    ["mystake.bet", "mystake.com", "mystake2.com"],   // 4ª BetConstruct (s392)
   "Jack":       ["jack.com"],         // 5ª BetConstruct, espelho da MyStake (s424)
+  "GoldenBet":  ["goldenbet.com"],    // 6ª BetConstruct, espelho da MyStake, conta em USD (s436)
   "Betnacional": ["betnacional.bet.br"],
   "Jonbet":     ["jonbet.bet.br"],
   "Betboom":    ["betboom.bet.br"],   // espelho da Jonbet · mesmo motor BetBy (sptpub.com)
@@ -354,6 +355,8 @@ async function capturar() {
                 : casa === "MyStake" ? "tv_inject.js"
                 // Jack: 5ª casa do mesmo motor (s424), espelho da MyStake. MESMO inject.
                 : casa === "Jack" ? "tv_inject.js"
+                // GoldenBet: 6ª casa do mesmo motor (s436), espelho da MyStake. MESMO inject.
+                : casa === "GoldenBet" ? "tv_inject.js"
                 : casa === "VaideBet" ? "vb_inject.js"
                 // Espelho da VaideBet (Altenar/BIA, mesmo gateway): MESMO inject.
                 : casa === "Esportiva" ? "vb_inject.js"

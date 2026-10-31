@@ -1455,7 +1455,7 @@
       // então o roboScroll genérico viraria um bloco só e a IA perderia o resto em silêncio
       // (lição da KTO, s192).
       blocos = await roboBNCPassive(ctx);
-    } else if (casa === "tivo" || casa === "betfast" || casa === "faz1bet" || casa === "mystake" || casa === "jack") {
+    } else if (casa === "tivo" || casa === "betfast" || casa === "faz1bet" || casa === "mystake" || casa === "jack" || casa === "goldenbet") {
       // Passivo + replay de UMA chamada (tv_inject). O histórico não tem paginação: a casa
       // devolve a conta inteira com `Count`. SEM fallback de texto — a lista da Tivo é uma
       // tabela sem linha em branco entre bilhetes, então o roboScroll genérico viraria um
@@ -1747,6 +1747,7 @@
         // 5ª casa do mesmo motor (s424), espelho da MyStake: o toast diz a casa em que o
         // operador está.
         jack:       { nome: "Jack",       hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
+        goldenbet:  { nome: "GoldenBet",  hook: tvHookVivo, resp: tvRespostas, vistos: tvById.size },
         vaidebet:   { nome: "VaideBet",   hook: vbHookVivo, resp: vbRespostas, vistos: vbById.size },
         // Espelho da VaideBet: mesmo inject, mesmos contadores. Só o nome muda, para o
         // operador não ler "VaideBet: 0 bilhetes" estando na Esportiva.
@@ -6194,8 +6195,8 @@
     const pre = t.cashout ? "Cash Out · " : "";
     if (t.resultado === 3 || ret === 0) return pre + "Perdeu → L";
     if (Math.abs(ret - st) < 0.005) return pre + "Devolvida/void (retorno = stake) → V";
-    if (ret > st) return pre + "Ganho → W (retorno R$ " + _brl(ret) + ")";
-    return pre + "Retorno parcial (R$ " + _brl(ret) + " · conferir HW/HL ou cashout)";
+    if (ret > st) return pre + "Ganho → W (retorno " + _dinTV(t, ret) + ")";
+    return pre + "Retorno parcial (" + _dinTV(t, ret) + " · conferir HW/HL ou cashout)";
   }
 
   function _tipoTV(t) {
@@ -6235,6 +6236,15 @@
   // à derrota cheia; só a API distingue. O P/L vem do bilhete, isto é só a descrição da perna.
   const _RESULT_PERNA_TV = { 0: "pendente", 1: "anulada/devolvida", 2: "ganhou", 3: "perdeu", 6: "meia derrota" };
 
+  // Dinheiro na moeda que o BILHETE informa (`CurrencySTR`), a convenção do `_dinJB` (s391).
+  // A GoldenBet (s435) é a 1ª casa da família com conta em dólar: "R$" fixo punha rótulo
+  // errado na frente da IA. Real (`BRL`, `R$` ou vazio) sai exatamente como sempre — é o que
+  // mantém byte a byte o bloco da Tivo, Betfast, Faz1bet e MyStake e o hash do `bloco_visto`.
+  function _dinTV(t, v) {
+    const m = _moedaNaoReal(t && t.moeda);
+    return m ? _brl(v) + " " + m : "R$ " + _brl(v);
+  }
+
   function formatTicketTV(t) {
     const L = [];
     L.push("[Código: " + t.id + "]");
@@ -6253,8 +6263,11 @@
     if (dev) L.push("Data (evento mais recente): " + dev);
     const dh = _dhTV(t.colocada);
     if (dh) L.push("Data (colocação): " + dh);
-    if (t.stake != null) L.push("Stake: R$ " + _brl(t.stake));
+    if (t.stake != null) L.push("Stake: " + _dinTV(t, t.stake));
     _linhaMoeda(L, t.moeda);
+    // Em conta de outra moeda, o carimbo decide o DIA DA COTAÇÃO no servidor (s391); em real
+    // não escreve nada. `colocada` é epoch em ms (`ActionTime`), o carimbo pede segundos.
+    _linhaCarimbo(L, typeof t.colocada === "number" ? t.colocada / 1000 : null, t.moeda);
     L.push("Status: " + _resultadoTV(t));
     // Enum CRU da API — é ele que a CASA_TIVO.md traduz. Sem isso, um estado novo (cashout,
     // recusado, meio-ganho) viraria chute a partir do dinheiro.
@@ -6263,12 +6276,12 @@
     if (odd != null) L.push("Odd: " + _oddTxtTV(odd));
     const tipo = _tipoTV(t);
     if (tipo) L.push("Tipo: " + tipo);
-    if (_abertaTV(t) && t.potencial != null) L.push("Retorno potencial: R$ " + _brl(t.potencial));
+    if (_abertaTV(t) && t.potencial != null) L.push("Retorno potencial: " + _dinTV(t, t.potencial));
     if (t.bonus) L.push("Marcação da casa: aposta com bônus (IsBonus)");
     const bo = _bonusOddTV(t);
     if (bo > 0) {
-      L.push("Bônus de odd da casa: +" + _numTxtTV(Math.round(t.bonusOdd * 10000) / 100) + "% sobre o lucro = R$ " +
-             _brl(bo) + " (já somado ao retorno do Status; a odd é retorno ÷ stake)");
+      L.push("Bônus de odd da casa: +" + _numTxtTV(Math.round(t.bonusOdd * 10000) / 100) + "% sobre o lucro = " +
+             _dinTV(t, bo) + " (já somado ao retorno do Status; a odd é retorno ÷ stake)");
     }
     // FREEBET (`TicketType 3`, s392): a aposta INTEIRA foi com dinheiro da casa. O rótulo é o
     // mesmo que a Superbet já emite para freebet parcial, para a regra global de freebet ler

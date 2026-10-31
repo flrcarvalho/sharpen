@@ -288,6 +288,12 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0770",
+      "v": "v0.7.70",
+      "data": "2026-10-31",
+      "texto": "**GoldenBet na captura automática.** É só atualizar a extensão e cadastrar a conta em dólar."
+    },
+    {
       "id": "su-0769",
       "v": "v0.7.69",
       "data": "2026-10-30",

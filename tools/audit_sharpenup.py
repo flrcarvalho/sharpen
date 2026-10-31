@@ -86,6 +86,8 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # ⚠ EMPRESTADO da MyStake (s424): a Jack entrou sem conta e sem bilhete na base. É o
     # mesmo espaço de IDs do motor (numérico de 9 dígitos); trocar pelo 1º id real da Jack.
     "JACK":       "306558258",
+    # id real da conta (s436): a simples de badminton de 29/10, 75 USD, perdida.
+    "GOLDENBET":  "309877580",
     "VAIDEBET":   "5234878919",
     # id real da conta (o W de 09/08 na Bahia × Vasco, stake 124 → retorno 198,40). A
     # Esportiva é espelho da VaideBet e compartilha o espaço de IDs do motor Altenar:
