@@ -14,3 +14,5 @@ pymupdf>=1.24.0,<2.0.0
 # `contain` sobre fundo transparente. Não dá para reusar o pymupdf que já está aqui:
 # o MuPDF não decodifica WEBP, que o SPEC pede explicitamente.
 pillow>=10.4.0,<12.0.0
+# Assinatura das chamadas à Kalshi (s435): Ed25519 ou RSA-PSS com a chave do usuário.
+cryptography>=42.0.0,<49.0.0
