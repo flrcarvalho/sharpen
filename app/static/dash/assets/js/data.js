@@ -72,6 +72,7 @@ const CASA_ICONS={
   'MyStake':'https://www.google.com/s2/favicons?sz=128&domain=mystake.bet',
   'Jack':'https://www.google.com/s2/favicons?sz=128&domain=jack.com',
   'Polymarket':'https://www.google.com/s2/favicons?sz=128&domain=polymarket.com',
+  'Kalshi':'https://www.google.com/s2/favicons?sz=128&domain=kalshi.com',
   // s372: `betboo.com` → `betboo.bet.br` (operação regulada), ao entrar na captura. Os dois
   // devolvem o MESMO ícone (sha256 idêntico, 791 bytes) — o visual não muda.
   'Betboo':'https://www.google.com/s2/favicons?sz=128&domain=betboo.bet.br',
@@ -196,6 +197,7 @@ const HOUSE_DOMAIN={
   'MyStake':'mystake.bet',     // 4ª casa BetConstruct (s392)
   'Jack':'jack.com',           // 5ª casa BetConstruct, espelho da MyStake (s424)
   'Polymarket':'polymarket.com',
+  'Kalshi':'kalshi.com',       // s435: casa por API, irmã da Polymarket
   'Betboo':'betboo.bet.br',   // s372 — regulada, ao entrar na captura (era betboo.com)
   'Betbra':'betbra.bet.br',
   'BETesporte':'betesporte.bet.br',

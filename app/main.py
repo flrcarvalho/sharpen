@@ -386,6 +386,7 @@ _CASA_DISPLAY: dict[str, str] = {
     # medido em 18/10/2026), não a da marca no site (`Melbet`).
     "MELBET":         "MelBet",
     "POLYMARKET":     "Polymarket",
+    "KALSHI":         "Kalshi",          # s435: casa por API, irmã da Polymarket (aval do Feca, 30/10)
     # 2ª e 3ª casas do motor Rogue (s335), espelho do Betão acima.
     #
     # ⚠ A R7 tinha GÊMEA no banco: `R7` (40 bilhetes de 2 donos, 3 contas, 17 correções)

@@ -1788,6 +1788,25 @@ só props liquidadas (15) e apostas comuns abertas (3, Fórmula 1). Sem amostra:
 usa cópia literal das queries da página: se a casa mudar o schema, a query inteira falha (o erro da
 casa sobe no autodiagnóstico). Falta a 1ª captura pela extensão instalada.
 
+### 4.0w Kalshi: coletor, painel com popup, Caixa (s435). **VIVA, etapa 1 feita**
+
+Casa por API, irmã da Polymarket (`casas/CASA_KALSHI.md`, recon de 30/10/2026 na conta do
+Feca: 1 combo L, 1 depósito, Caixa fecha em US$ 0,0000). Decisões do Feca de 30/10: chave
+SÓ LEITURA (`Read all data`, sem `Full access`); stake COM a taxa (régua da Polymarket),
+taxa guardada à parte só como informação. Etapas abertas, uma por vez:
+- **2. Coletor** `app/kalshi.py` + chave cifrada no Postgres por dono (env var do Railway
+  como chave de cifra, nunca devolvida à tela) + rota `/kalshi/sync`. Ensaio sem gravar
+  contra a conta do Feca antes. Precisa de `cryptography` no `app/requirements.txt`.
+- **3. Painel + popup passo a passo** com os prints da Kalshi (a 2ª tela mostra a chave
+  privada do Feca: **borrar** antes de usar), pelo `/nova-ui`.
+- **4. Caixa** automática (`/portfolio/balance`, `/deposits`, `/withdrawals`).
+- **`main.py` é da Ficha:** a linha `"KALSHI"` no `_CASA_DISPLAY` entrou com aval do Feca
+  (30/10). A etapa 2 precisa de mais um ponto de registro (a rota); pedir de novo.
+- **Não medido:** unidade de `revenue` do settlement (só veio 0), venda antes de liquidar,
+  mercado anulado/escalar, `fee_cents` de depósito. Conferir na 1ª W.
+- **HUMANA:** a chave usada no recon apareceu inteira num print na conversa. É só leitura,
+  mas o Feca apaga e cria outra quando o desenvolvimento acabar.
+
 ### 4.0v Sportaza: 1ª captura pela extensão instalada e a virada da Ficha (s434). **VIVA, harness com fixture real**
 
 Entrou na 0.7.69, 11ª Altenar, espelho da Vavada, recon LOGADO na conta do Feca (USD,
