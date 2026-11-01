@@ -22,7 +22,7 @@
   do Gabriel, `gfatuch@gmail.com [Fatuch]`, criada em 29/10/2026, moeda `USDT`, nenhum bilhete).
   O `_norm_casa` **não** tira o ponto, então `Locas.bet` e `Locasbet` seriam duas casas: a linha
   `"Locas.bet": "Locasbet"` foi acrescentada ao `scripts/unificar_casas.py` (relatório: 1 conta,
-  1 `casas_meta`, 0 bilhetes, 0 colisão). **Rodar `--aplicar` é o que liga a conta à captura.**
+  1 `casas_meta`, 0 bilhetes, 0 colisão). **Aplicado em 01/11/2026** e conferido: a conta é `Locasbet`.
 - **Domínios.** `locas.bet` é o fixo da marca (200, o domínio que o Gabriel cadastrou). O espelho
   `locasbetNN.com` **troca o número**: em 01/11/2026 o link do Feca era `locasbet12.com`, e
   responderam também `13`, `14` e a raiz `locasbet.com` (403 de fora). Do 1 ao 11 e do 15 ao 20,
@@ -182,8 +182,7 @@ Mesmo conjunto das irmãs (`CASA_MYSTAKE §12`): placeholder `{p1_r}`, `Team1Sco
 
 ## 16. O que falta medir (a 1ª captura real é o recon)
 
-0. **Antes:** `python scripts/unificar_casas.py --aplicar` (conta `Locas.bet` → `Locasbet`) e
-   Ctrl+Shift+R no painel e na aba da casa.
+0. **Antes:** Ctrl+Shift+R no painel e na aba da casa (a grafia já foi unificada em 01/11).
 1. **O `gethistory` logado:** mesma forma `{Error, Tickets, Count}` e o `Company` da Locasbet.
 2. **A moeda** (`CurrencySTR`): a conta está cadastrada em `USDT`; conferir se o bilhete diz o mesmo.
 3. **O código** (9 dígitos?) e o card: trocar o `CODIGO_EXEMPLO` emprestado pelo id real.

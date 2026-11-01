@@ -1723,17 +1723,15 @@ endereço da Jack e compara os blocos byte a byte.
   o botão Conectar em produção.
 - A Jack não está em `FICHA_CASAS_VIRADAS`: vai pela IA até a 1ª captura provar o cru.
 
-### 4.0x Locasbet: unificar a grafia, validar ao vivo, trocar a fixture emprestada (s437). **VIVA, só no harness**
+### 4.0x Locasbet: validar ao vivo e trocar a fixture emprestada (s437). **VIVA, só no harness**
 
 A Locasbet entrou na 0.7.71 como 7ª casa BetConstruct, espelho da MyStake (`CASA_LOCASBET.md`),
 **sem conta**, pelo caminho da Jack: 401 contra 404 no `messagetosport` em `locasbet12.com` e
 `locas.bet`, mesmo `helpers.js` com o mesmo hash. O harness serve a fixture da MyStake em três
 hosts da casa e compara os blocos byte a byte.
 
-- **1º, antes de qualquer captura:** `python scripts/unificar_casas.py --aplicar`. A base tem a
-  conta do Gabriel como `Locas.bet` (29/10, USDT, 0 bilhetes) e o registro é `Locasbet`; sem
-  isso a conta fica sem Conectar e a captura iria para uma casa paralela. Relatório de 01/11:
-  1 `parceiros`, 1 `casas_meta`, 0 bilhetes, 0 colisão. Não rodar com deploy em andamento.
+- Grafia já unificada (01/11): a conta do Gabriel era `Locas.bet` e virou `Locasbet` pelo
+  `unificar_casas.py --aplicar` (1 `parceiros`, 1 `casas_meta`, 0 bilhetes), conferido na base.
 - **Domínio que roda o número:** registrados `locas.bet`, `locasbet.com` e `locasbet12` a `20`.
   Se a casa passar do 20, acrescentar em `_HOSTS_POR_CASA`, manifest e popup (`CASA_LOCASBET §1`).
 - 1ª captura ao vivo (o Gabriel tem a conta): roteiro no `CASA_LOCASBET §16`. Conferir a moeda
