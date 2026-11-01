@@ -65,6 +65,8 @@ const CASA_HOSTS = {
   "MyStake":    ["mystake.bet", "mystake.com", "mystake2.com"],   // 4ª BetConstruct (s392)
   "Jack":       ["jack.com"],         // 5ª BetConstruct, espelho da MyStake (s424)
   "GoldenBet":  ["goldenbet.com"],    // 6ª BetConstruct, espelho da MyStake, conta em USD (s436)
+  // 7ª BetConstruct, espelho da MyStake (s437). `locas.bet` é o fixo; o `locasbetNN.com` RODA o número (12 a 20 adiantados).
+  "Locasbet":   ["locas.bet", "locasbet.com", "locasbet12.com", "locasbet13.com", "locasbet14.com", "locasbet15.com", "locasbet16.com", "locasbet17.com", "locasbet18.com", "locasbet19.com", "locasbet20.com"],
   "Betnacional": ["betnacional.bet.br"],
   "Jonbet":     ["jonbet.bet.br"],
   "Betboom":    ["betboom.bet.br"],   // espelho da Jonbet · mesmo motor BetBy (sptpub.com)
@@ -357,6 +359,8 @@ async function capturar() {
                 : casa === "Jack" ? "tv_inject.js"
                 // GoldenBet: 6ª casa do mesmo motor (s436), espelho da MyStake. MESMO inject.
                 : casa === "GoldenBet" ? "tv_inject.js"
+                // Locasbet: 7ª casa do mesmo motor (s437), espelho da MyStake. MESMO inject.
+                : casa === "Locasbet" ? "tv_inject.js"
                 : casa === "VaideBet" ? "vb_inject.js"
                 // Espelho da VaideBet (Altenar/BIA, mesmo gateway): MESMO inject.
                 : casa === "Esportiva" ? "vb_inject.js"

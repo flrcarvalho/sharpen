@@ -103,6 +103,10 @@ MAPA = {
     # (Feca, realtrial; 10 bilhetes) × `BingoPlus` (LavaPessoal, Diogo; 7). Escolha do Feca:
     # `BingoPlus`, como a marca escreve.
     "Bingoplus":     "BingoPlus",
+    # s437: a conta do Gabriel (29/10, 0 bilhetes) nasceu como `Locas.bet`, e o `_norm_casa`
+    # não tira o ponto: seria outra casa, que o registro `Locasbet` não enxerga (sem Conectar,
+    # captura numa casa paralela). Escolha do Feca: `Locasbet`.
+    "Locas.bet":     "Locasbet",
 }
 
 # Contas de typo que ficaram vazias. Só some se tiver ZERO bilhete (conferido em tempo de execução).

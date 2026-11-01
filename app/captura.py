@@ -62,6 +62,10 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # GOLDENBET: 6ª casa do mesmo motor (s436), espelho da MyStake. Provado LOGADO: o mesmo
 # `gethistory` em `goldenbet.com/api/game/p/messagetosport`, mesmas chaves, `Company: 73`.
 # 1ª conta da família em DÓLAR (`CurrencySTR: "USD"`). Mesmo inject.
+# LOCASBET: 7ª casa do mesmo motor (s437), espelho da MyStake. Provado por fora, sem conta,
+# como a Jack: na aba de `locasbet12.com` o `messagetosport` responde 401 e uma rota falsa 404,
+# e a página carrega o mesmo `scripts/common/helpers.js`. `locas.bet` (domínio da conta do
+# Gabriel) passa na mesma prova e serve o mesmo `helpers.js`, com o mesmo hash. Mesmo inject.
 # O motor foi provado ANTES de registrar: 401 no `messagetosport` contra 404 numa rota falsa,
 # `sbloader.js` 200, e os 118 campos do payload real são subconjunto exato dos das outras
 # duas. O harness roda a fixture dela pelos TRÊS hosts e compara os blocos byte a byte.
@@ -75,7 +79,7 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # histórico dispara o `widgetExpandedBetHistory` sozinha, na window de topo, e o clone passivo
 # resolve. O que ela tem de próprio é o CORS do gateway, que recusa `credentials:"include"`
 # para o tenant dela; quem trata é o `pedirPagina` do `vb_inject.js`. Mesmo inject.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "BLAZE": "texto", "BETPANDA": "texto", "BETFURY": "texto", "DUEL": "texto", "BETCOIN": "texto","DEXSPORT": "texto", "SHUFFLE": "texto", "1WIN": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "BETREBELS": "texto", "BETMARTINI": "texto", "VAVADA": "texto", "KIKOBET": "texto", "TORNADOBET": "texto", "SPORTAZA": "texto","PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto", "SAPPHIREBET": "texto", "PARIPESA": "texto", "MEGAPARI": "texto", "1XBIT": "texto", "MELBET": "texto", "MYSTAKE": "texto", "JACK": "texto", "GOLDENBET": "texto","VAVE": "texto", "20BET": "texto", "SPORTSBETIO": "texto", "STAKECOM": "texto", "THUNDERPICK": "texto",
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "BLAZE": "texto", "BETPANDA": "texto", "BETFURY": "texto", "DUEL": "texto", "BETCOIN": "texto","DEXSPORT": "texto", "SHUFFLE": "texto", "1WIN": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "BETREBELS": "texto", "BETMARTINI": "texto", "VAVADA": "texto", "KIKOBET": "texto", "TORNADOBET": "texto", "SPORTAZA": "texto","PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto", "SAPPHIREBET": "texto", "PARIPESA": "texto", "MEGAPARI": "texto", "1XBIT": "texto", "MELBET": "texto", "MYSTAKE": "texto", "JACK": "texto", "GOLDENBET": "texto", "LOCASBET": "texto","VAVE": "texto", "20BET": "texto", "SPORTSBETIO": "texto", "STAKECOM": "texto", "THUNDERPICK": "texto",
                    # Betboo (s372) — espelho da SportingBet: mesmo inject, mesmo formatador,
                    # logo o mesmo modo. So muda a marca.
                    "BETBOO": "texto",
@@ -232,6 +236,12 @@ _HOSTS_POR_CASA = {
     # 6ª casa BetConstruct (s436), espelho da MyStake, provada logada. Sportsbook em
     # `/eng/sportsbook` (o `/br/sportsbook` dá 404). Fora do `.bet.br`, conta em dólar.
     "GOLDENBET":  ("goldenbet.com",),
+    # 7ª casa BetConstruct (s437), espelho da MyStake, sem conta. ⚠ DOMÍNIO QUE RODA: a casa
+    # troca o número (`locasbet12.com` em 01/11/2026; responderam também 13, 14 e a raiz
+    # `locasbet.com`, que dá 403 de fora; `locas.bet` é o domínio fixo da marca, 200. Do 1 ao 11
+    # e do 15 ao 20, nada). Do 12 ao 20 entra adiantado. Número novo
+    # fora da lista: acrescentar aqui, no manifest e no popup (CASA_LOCASBET §1).
+    "LOCASBET":   ("locas.bet", "locasbet.com", "locasbet12.com", "locasbet13.com", "locasbet14.com", "locasbet15.com", "locasbet16.com", "locasbet17.com", "locasbet18.com", "locasbet19.com", "locasbet20.com"),
     # A API vive em prod-betnacional-bets.bet6.com.br, mas a ABA (origem da captura) é o
     # site da casa — o backstop casa↔site olha o host da aba, não o da API.
     "BETNACIONAL": ("betnacional.bet.br",),

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SharpenUp",
-  "version": "0.7.70",
+  "version": "0.7.71",
   "description": "A perninha do Sharpen: captura seus bilhetes na casa e sobe pro painel do sharpen.bet via pareamento por código.",
   "action": {
     "default_popup": "popup.html",
@@ -120,6 +120,13 @@
     },
     {
       "matches": ["*://*.goldenbet.com/*", "*://goldenbet.com/*"],
+      "js": ["tv_inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": ["*://*.locas.bet/*", "*://locas.bet/*", "*://*.locasbet.com/*", "*://locasbet.com/*", "*://*.locasbet12.com/*", "*://locasbet12.com/*", "*://*.locasbet13.com/*", "*://locasbet13.com/*", "*://*.locasbet14.com/*", "*://locasbet14.com/*", "*://*.locasbet15.com/*", "*://locasbet15.com/*", "*://*.locasbet16.com/*", "*://locasbet16.com/*", "*://*.locasbet17.com/*", "*://locasbet17.com/*", "*://*.locasbet18.com/*", "*://locasbet18.com/*", "*://*.locasbet19.com/*", "*://locasbet19.com/*", "*://*.locasbet20.com/*", "*://locasbet20.com/*"],
       "js": ["tv_inject.js"],
       "run_at": "document_start",
       "world": "MAIN",

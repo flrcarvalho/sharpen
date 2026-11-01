@@ -297,6 +297,9 @@ _CASA_DISPLAY: dict[str, str] = {
     # Grafia MEDIDA na base antes de registrar (s436): nenhuma variante de GoldenBet em
     # base nenhuma (`audit_grafias`), então a grafia é a da casa nova, verbatim.
     "GOLDENBET":      "GoldenBet",
+    # Grafia decidida pelo Feca (s437): `Locasbet`. Conferida na base antes de registrar
+    # (CASA_LOCASBET §1).
+    "LOCASBET":       "Locasbet",
     "BETNACIONAL":    "Betnacional",
     # ⚠ NÃO confundir com `PixBet`, que é OUTRA casa e tem 56 bilhetes na base (medido s258).
     # `PIXBET` não está neste mapa, então o round-trip dela segue verbatim e nada é
@@ -1151,7 +1154,7 @@ _SUPERBET_ID_RE = re.compile(r'^\[Código:\s*([^\]\r\n]+?)\s*\]', re.MULTILINE)
 # texto+extrato sem marcador) e é roteada POR CONTEÚDO (`"[Código:" in texto`), não por casa.
 _CASAS_MARCADOR_CODIGO = frozenset({
     "SUPERBET", "BETESPORTE", "BETANO", "BET365", "KTO", "PINNACLE", "TIVO", "VAIDEBET",
-    "BETFAST", "FAZ1BET", "MYSTAKE", "JACK", "GOLDENBET", "BETNACIONAL", "JONBET", "BETBOOM", "ESPORTIVA", "JOGODEOURO", "STAKE",
+    "BETFAST", "FAZ1BET", "MYSTAKE", "JACK", "GOLDENBET", "LOCASBET", "BETNACIONAL", "JONBET", "BETBOOM", "ESPORTIVA", "JOGODEOURO", "STAKE",
     # Blaze (s336) — 3ª casa BetBy. Mesmo espaço de IDs do motor da Jonbet/Betboom:
     # numérico de 19 dígitos, o mesmo número que o card estampa em "ID da aposta".
     "BLAZE",
