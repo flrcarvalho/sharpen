@@ -5086,20 +5086,24 @@ async def exportar_csv(dono: str = Depends(dono_leitura)):
 
 class DeletarRequest(BaseModel):
     ids: list[int]
+    # Fase 7 (s438): qual botão da Extração excluiu (`selecionadas`/`desfazer_analise`); vira o
+    # motivo da lixeira. Chave fora da lista = `selecionadas` (o texto é do servidor).
+    motivo: Optional[str] = None
 
 
 @app.delete("/bilhetes")
 async def deletar_bilhetes_route(body: DeletarRequest, dono: str = Depends(dono_efetivo_ou_bot)):
     if not body.ids:
         raise HTTPException(400, "Lista de IDs vazia.")
-    linhas = await deletar_bilhetes(body.ids, dono)
+    linhas = await deletar_bilhetes(body.ids, dono, body.motivo or "")
     # `linhas` volta ao cliente para o undo por toast (Desfazer → POST /bilhetes/restaurar).
+    # Fase 7: as linhas estão na lixeira, cada uma com o seu `lixeira_id`.
     return {"deletados": len(linhas), "linhas": linhas}
 
 
 @app.delete("/bilhetes/{bilhete_id}")
 async def deletar_bilhete_route(bilhete_id: int, dono: str = Depends(dono_efetivo)):
-    linhas = await deletar_bilhetes([bilhete_id], dono)
+    linhas = await deletar_bilhetes([bilhete_id], dono, "uma")
     if not linhas:
         raise HTTPException(404, "Bilhete não encontrado.")
     return {"deletado": True, "linhas": linhas}

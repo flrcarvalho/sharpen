@@ -13,7 +13,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
-const HTML = readFileSync(join(AQUI, '..', '..', 'app', 'static', 'index.html'), 'utf8');
+// CRLF (checkout com `core.autocrlf`) quebraria o recorte: normaliza antes.
+const HTML = readFileSync(join(AQUI, '..', '..', 'app', 'static', 'index.html'), 'utf8')
+  .split('\r\n').join('\n');
 const m = HTML.match(/async function _avisarNaoLidas\(card, casa\) \{[\s\S]*?\n\}\n/);
 if (!m) { console.error('FAIL: _avisarNaoLidas sumiu do index.html'); process.exit(1); }
 

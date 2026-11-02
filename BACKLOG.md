@@ -1520,6 +1520,13 @@ Os dois saíram do replay do fiscal que passou a ler a linha `Retorno:`
   Novibet `347813`:** W @ 1,001, stake 51,00, retorno 51,05, que o fiscal lê como V porque testa
   V antes de W com folga de R$ 0,10 (P/L −R$ 0,05). **Rever depois da Ficha.**
 
+### 3.22 Tipster padrão da conta (s438, 01/11/2026). **VIVA, anotada pelo Feca**
+
+Conta que é toda de um tipster só pede um tipster padrão aplicado às apostas NOVAS (Ficha e IA).
+Medido: o Gabriel marca toda aposta da Shuffle como `Coxadoido`, à mão, de 1 a 9 por dia de 09/10 a
+31/10 (cerca de 100 marcações em `correcoes`), e remarcou as 109 em 01/11 depois de recapturar. O
+"Sugerir tipsters" e a casa dedicada só agem quando alguém clica. Decisão do Feca: anotar, sem data.
+
 ## 4. Dívida técnica medida
 
 ### 4.0a A Extração dispara ~63 `GET /parceiros` por carga (s433). **VIVA, medida nos logs HTTP**
@@ -1540,18 +1547,6 @@ reusou o componente como está para não criar um segundo estilo; trocar é uma 
 para todas as telas de uma vez.
 
 > Achado, com arquivo e linha, e não corrigido. Aqui a referência é pista, não endereço.
-
-### 4.19 `DELETE /bilhetes` apaga sem lixeira, e foram dois lotes em 4 dias (s423). **VIVA, medida — decisão do Feca: fica para depois**
-`deletar_bilhetes` (`repository.py`) faz `DELETE … RETURNING` direto: o undo é só o toast de 7 s,
-no navegador. Fora dele, nada volta pelo banco, e o rastro em `correcoes` passa a apontar para id
-que não existe. Medido nos logs do Railway: Jaao26, Shuffle, 14/10 07:27 (27 apostas, uma a uma,
-ids 382997 a 383023, 25 da Ficha) e LavaPessoal, Megapari, 17/10 ~04:37 UTC (`DELETE /bilhetes` em
-lote: as 52 regravadas pela D30, cujo rastro de 14/10 ficou órfão; recapturadas pela IA às 04:38,
-ids 388621 a 388672). Mais: Jaao26, 1win, 16/10 (48 ids, 386190 a 386237). O desenho já existe para
-conta (`lixeira_contas`, 7 dias, CLAUDE.md "Excluir dado: mova para tabela isolada"); a
-`lixeira_bilhetes` existe, mas só os scripts de reparo a alimentam (`reparar_duplicatas_*`,
-`remover_lote_conta_errada.py`, `excluir_historico_fora_do_corte.py`), nunca a rota. Ver também a memória "Desfazer análise apaga de
-verdade" (s266).
 
 ### 4.17 O popup do tipster ignora o filtro de Operador (s421). **VIVA, lida no código, não medida na tela**
 Mesma família do popup da casa consertado na s421 (`openCasaDrill` passou a aplicar `sp_`,

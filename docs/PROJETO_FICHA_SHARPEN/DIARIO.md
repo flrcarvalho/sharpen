@@ -5,6 +5,32 @@
 
 ---
 
+## 2026-11-01 · s438 · Fase 7: toda exclusão de aposta passa pela lixeira
+
+**Onde está:** Fase 7 aprovada para deploy. Ordem do Feca daqui em diante: scripts e expurgo
+(90 dias) da lixeira, D40, D42, D43, D44 ("Conferir conta com a casa"), D41.
+
+**Por que o Gabriel apagou e recapturou a Shuffle (31/10):** a Caixa de 17/10 projetava −US$ 305,94
+contra US$ 250,29 na casa, e ele lançou ajuste de +US$ 556,23 (`caixa_mov` 1454/1455). A tela não
+tem como corrigir base gravada (recapturar não conserta linha resolvida, o UPSERT congela), então a
+saída foi apagar. Hoje os 109 códigos da casa estão no banco. O que estava errado antes não dá para
+saber: as linhas foram apagadas sem lixeira. O tipster não era o motivo (o "Editar selecionadas"
+existe; ele remarcou 86 no mesmo minuto). Viraram a D44 e o BACKLOG 3.22.
+
+**O que mudou:** `repository._mover_para_lixeira` (DELETE … RETURNING e INSERT na
+`lixeira_bilhetes` numa instrução só, com `lixeira_id` de volta); `deletar_bilhetes` e
+`remover_bilhetes_supersedidos` passam por ela; motivo escolhido por chave, texto do servidor; o
+"Desfazer" do toast tira da lixeira a linha que voltou (a que colidiu fica: o dado novo mandou); o
+"sem linha" da D39 lê também a `lixeira_contas`; o aviso do "Desfazer análise" diz lixeira, não
+"apaga do banco". Gates: `tests/test_lixeira_sempre.py` (AST, nenhum `DELETE FROM bilhetes` no app
+fora das três funções que guardam) e 5 testes no harness; mutações 5/5. BACKLOG 4.19 fechado.
+
+**Ferramenta:** o `write_text` do Python tinha convertido 13 arquivos editados nesta sessão para
+CRLF (o git normaliza no commit; o teste JS do aviso quebrou localmente). Voltados para LF e o teste
+ficou imune a CRLF. Mesma família da memória `escrita_por_script_converte_lf_em_crlf`.
+
+---
+
 ## 2026-11-01 · s438 · D39: falta de cru nunca vai à IA, e aposta nunca some em silêncio
 
 **Onde está:** D39 escrita, testada e aprovada pelo Feca para deploy (com a proteção da extensão

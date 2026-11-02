@@ -2932,3 +2932,107 @@ def test_d39_segurada_ha_24h_vai_a_ia(monkeypatch):
               "WHERE codigo = $1", aceita))
     lidos, _ = _run(_virada_segunda_captura(sess, mudou, envelhecer=False))
     assert aceita in lidos
+
+
+
+# ── s438 · Fase 7: toda exclusão de aposta passa pela lixeira ─────────────────────────────
+# Mutações provadas (aplicadas, teste ao lado vermelho):
+#   F7a. `deletar_bilhetes` volta a apagar de vez             → f7_extracao_vai_para_a_lixeira
+#   F7b. o "Desfazer" não tira a linha da lixeira             → f7_desfazer_tira_da_lixeira
+#   F7c. o texto do motivo vem do cliente                     → f7_motivo_e_do_servidor
+#   F7d. a Polymarket volta a apagar de vez                   → f7_polymarket_vai_para_a_lixeira
+#   F7e. o "sem linha" não olha a `lixeira_contas`            → f7_conta_excluida_nao_vira_sem_linha
+# O gate estático (nenhum DELETE de aposta fora da lixeira) é `tests/test_lixeira_sempre.py`.
+
+async def _lixeira(dono):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return [dict(r) for r in await conn.fetch(
+            "SELECT id, motivo, bilhete->>'codigo_bilhete' AS codigo FROM lixeira_bilhetes "
+            "WHERE dono = $1 ORDER BY id", dono)]
+
+
+def test_f7_extracao_vai_para_a_lixeira():
+    """A exclusão da tela de Extração (que apagava de vez) guarda cada linha na lixeira, com o
+    motivo do botão, e devolve o `lixeira_id` de cada uma para o "Desfazer"."""
+    async def body():
+        await _reset()
+        await _sql("DELETE FROM lixeira_bilhetes WHERE dono = 'TDonoF'")
+        await repository.upsert_bilhetes([_row(codigo_bilhete="X1"), _row(codigo_bilhete="X2")],
+                                         "TDonoF")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            ids = [r["id"] for r in await conn.fetch(
+                "SELECT id FROM bilhetes WHERE dono = 'TDonoF' ORDER BY id")]
+        linhas = await repository.deletar_bilhetes(ids, "TDonoF", "desfazer_analise")
+        return linhas, await _lixeira("TDonoF"), await _count("TDonoF")
+    linhas, lix, n = _run(body())
+    assert n == 0 and sorted(x["codigo"] for x in lix) == ["X1", "X2"]
+    assert {x["motivo"] for x in lix} == {"desfazer análise (tela de Extração) (2)"}
+    assert sorted(x["lixeira_id"] for x in linhas) == sorted(x["id"] for x in lix)
+    assert {x["codigo_bilhete"] for x in linhas} == {"X1", "X2"}
+
+
+def test_f7_desfazer_tira_da_lixeira_o_que_voltou():
+    """O "Desfazer" do toast devolve a aposta e tira a cópia dela da lixeira; a que colidiu (o
+    código voltou por outra captura nesse meio tempo) fica lá: o dado novo mandou."""
+    async def body():
+        await _reset()
+        await _sql("DELETE FROM lixeira_bilhetes WHERE dono = 'TDonoF'")
+        await repository.upsert_bilhetes([_row(codigo_bilhete="X1"), _row(codigo_bilhete="X2")],
+                                         "TDonoF")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            ids = [r["id"] for r in await conn.fetch(
+                "SELECT id FROM bilhetes WHERE dono = 'TDonoF' ORDER BY id")]
+        linhas = await repository.deletar_bilhetes(ids, "TDonoF", "selecionadas")
+        await repository.upsert_bilhetes([_row(codigo_bilhete="X2")], "TDonoF")   # voltou
+        n = await repository.restaurar_bilhetes(linhas, "TDonoF")
+        return n, await _lixeira("TDonoF"), await _count("TDonoF")
+    n, lix, total = _run(body())
+    assert n == 1 and total == 2
+    assert [x["codigo"] for x in lix] == ["X2"]
+
+
+def test_f7_motivo_e_do_servidor():
+    """O motivo da lixeira é um texto do servidor; chave desconhecida vira "selecionadas"."""
+    async def body():
+        await _reset()
+        await _sql("DELETE FROM lixeira_bilhetes WHERE dono = 'TDonoF'")
+        await repository.upsert_bilhetes([_row(codigo_bilhete="X1")], "TDonoF")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            i = await conn.fetchval("SELECT id FROM bilhetes WHERE dono = 'TDonoF'")
+        await repository.deletar_bilhetes([i], "TDonoF", "<script>qualquer coisa")
+        return await _lixeira("TDonoF")
+    assert [x["motivo"] for x in _run(body())] == ["exclusão pela tela de Extração (selecionadas) (1)"]
+
+
+def test_f7_polymarket_vai_para_a_lixeira():
+    """A limpeza automática da fatia duplicada da Polymarket também guarda a linha."""
+    async def body():
+        await _reset()
+        await _sql("DELETE FROM lixeira_bilhetes WHERE dono = 'TDonoF'")
+        await repository.upsert_bilhetes([
+            _row(casa="Polymarket", parceiro="carteira", codigo_bilhete="0xabc", resultado=""),
+            _row(casa="Polymarket", parceiro="carteira", codigo_bilhete="0xabc__0")], "TDonoF")
+        fora = await repository.remover_bilhetes_supersedidos("TDonoF", "Polymarket", "carteira",
+                                                              ["0xabc"])
+        return fora, await _lixeira("TDonoF")
+    fora, lix = _run(body())
+    assert [x["codigo_bilhete"] for x in fora] == ["0xabc"]
+    assert [(x["codigo"], x["motivo"]) for x in lix] == [
+        ("0xabc", "fatia duplicada da Polymarket (automático)")]
+
+
+def test_f7_conta_excluida_nao_vira_sem_linha(monkeypatch):
+    """O aviso "sem linha" da D39 (c) reconhece a aposta que saiu junto com a CONTA
+    (`lixeira_contas`): excluir a conta não pode deixar as apostas dela pendentes para sempre."""
+    sess, sem_ela, recusada = _sem_linha_cenario(monkeypatch)
+    _run(_sql("DELETE FROM lixeira_contas WHERE dono = $1", sess.dono))
+    _run(_sql("INSERT INTO lixeira_contas (dono, casa, parceiro, arquivado, n_bilhetes, bilhetes) "
+              "VALUES ($1, 'Vavada', 'x', FALSE, 1, jsonb_build_array(jsonb_build_object("
+              "'codigo_bilhete', $2::text, 'casa', 'Vavada')))", sess.dono, recusada))
+    _run(_virada_segunda_captura(sess, sem_ela, envelhecer=False))
+    _run(_sql("DELETE FROM lixeira_contas WHERE dono = $1", sess.dono))
+    assert recusada not in _run(_avisos_ficha(sess.dono))

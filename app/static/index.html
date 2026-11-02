@@ -11166,7 +11166,7 @@ document.getElementById('btn-deletar-sel').addEventListener('click', async () =>
   try {
     const r = await fetch('/bilhetes', {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids })
+      body: JSON.stringify({ ids, motivo: 'selecionadas' })
     });
     if (!r.ok) throw new Error();
     const d = await r.json().catch(() => ({}));
@@ -11179,7 +11179,8 @@ document.getElementById('btn-deletar-sel').addEventListener('click', async () =>
   }
 });
 
-// "Desfazer análise" APAGA (DELETE em `bilhetes`, sem lixeira — `deletar_bilhetes`).
+// "Desfazer análise" EXCLUI as apostas da análise (`deletar_bilhetes`; desde a Fase 7, s438,
+// elas vão para a `lixeira_bilhetes` com o motivo do botão, como toda exclusão de aposta).
 // Duas faltas que se somaram na s266 e custaram ~152 bilhetes recém-capturados: o botão
 // não dizia QUANTOS ia apagar (o rótulo sugere "voltar atrás", não "excluir em massa"), e
 // descartava o `linhas` que a rota JÁ devolve para o undo — o irmão `btn-deletar-sel`
@@ -11190,11 +11191,11 @@ document.getElementById('btn-desfazer').addEventListener('click', async () => {
   const ids = [...ultimaAnaliseIds];
   const n = ids.length;
   if (!confirm(`Excluir ${n} aposta${n === 1 ? '' : 's'} desta análise?\n\n`
-             + `Isto APAGA do banco — não é só tirar da tela.`)) return;
+             + `Elas saem da conta e vão para a lixeira (dá para desfazer em seguida).`)) return;
   try {
     const r = await fetch('/bilhetes', {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids })
+      body: JSON.stringify({ ids, motivo: 'desfazer_analise' })
     });
     if (!r.ok) throw new Error();
     const d = await r.json().catch(() => ({}));

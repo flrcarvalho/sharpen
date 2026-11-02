@@ -2343,19 +2343,47 @@ _COLS_RESTAURAR = (
 )
 
 
-async def deletar_bilhetes(ids: list[int], dono: str) -> list[dict]:
-    """Apaga os bilhetes e RETORNA as linhas apagadas (para o undo por toast).
+# Fase 7 (s438; Feca, 01/11/2026): TODA exclusão de aposta passa pela lixeira. A tela de
+# Extração ("Excluir N selecionadas", "Desfazer análise", a lixeira da linha) apagava de vez:
+# em 31/10 a Shuffle inteira do Gabriel sumiu assim, e a prova do que estava errado nela (a
+# Caixa de 17/10 tinha divergido US$ 556) sumiu junto. Sem lixeira, o aviso "sem linha" da D39
+# também não distingue a aposta apagada de propósito da que se perdeu.
+# Gate: `tests/test_lixeira_sempre.py` (nenhum `DELETE FROM bilhetes` no app fora daqui, do
+# `excluir_bilhetes_lote` e do `excluir_parceiro`, que guarda na `lixeira_contas`).
+MOTIVOS_EXCLUSAO = {
+    "selecionadas": "exclusão pela tela de Extração (selecionadas)",
+    "desfazer_analise": "desfazer análise (tela de Extração)",
+    "uma": "exclusão de uma aposta pela tela",
+}
 
-    Antes devolvia só a contagem; agora devolve os dicts com as colunas de
-    `_COLS_RESTAURAR`, que o cliente segura para oferecer 'Desfazer'."""
-    pool = await get_pool()
-    cols = ", ".join(_COLS_RESTAURAR)
-    async with pool.acquire() as conn:
-        recs = await conn.fetch(
-            f"DELETE FROM bilhetes WHERE id = ANY($1) AND dono = $2 RETURNING {cols}",
-            ids, dono,
-        )
+
+async def _mover_para_lixeira(conn, where: str, params: list, motivo: str) -> list[dict]:
+    """Apaga de `bilhetes` (alias `b`) o que `where` casa e GUARDA cada linha na
+    `lixeira_bilhetes`, numa instrução só (snapshot e DELETE são a mesma operação; CLAUDE.md,
+    "Excluir dado"). Devolve as colunas de `_COLS_RESTAURAR` de cada linha e o `lixeira_id`
+    dela, para o "Desfazer" tirar da lixeira o que voltou."""
+    n = len(params)
+    cols = ", ".join(f"sai.{c}" for c in _COLS_RESTAURAR)
+    recs = await conn.fetch(
+        f"""WITH sai AS (DELETE FROM bilhetes b WHERE {where} RETURNING b.*),
+                 lix AS (INSERT INTO lixeira_bilhetes (dono, motivo, mantido_id, bilhete)
+                         SELECT sai.dono, ${n + 1}, NULL, to_jsonb(sai.*) FROM sai
+                         RETURNING id, (bilhete->>'id')::bigint AS bid)
+            SELECT {cols}, lix.id AS lixeira_id FROM sai JOIN lix ON lix.bid = sai.id""",
+        *params, motivo,
+    )
     return [dict(r) for r in recs]
+
+
+async def deletar_bilhetes(ids: list[int], dono: str, motivo: str = "") -> list[dict]:
+    """Exclui os bilhetes pela tela de Extração: MOVE para a `lixeira_bilhetes` (Fase 7) e
+    RETORNA as linhas (com `lixeira_id`) para o "Desfazer" do toast. `motivo` = uma chave de
+    `MOTIVOS_EXCLUSAO`; o texto é do servidor, nunca do cliente."""
+    pool = await get_pool()
+    texto = MOTIVOS_EXCLUSAO.get(motivo, MOTIVOS_EXCLUSAO["selecionadas"])
+    async with pool.acquire() as conn:
+        return await _mover_para_lixeira(conn, "b.id = ANY($1) AND b.dono = $2",
+                                         [ids, dono], f"{texto} ({len(ids)})")
 
 
 async def excluir_bilhetes_lote(ids: list[int], dono: str, confirmar: int) -> dict:
@@ -2399,7 +2427,9 @@ async def excluir_bilhetes_lote(ids: list[int], dono: str, confirmar: int) -> di
 
 async def restaurar_bilhetes(linhas: list[dict], dono: str) -> int:
     """Re-insere bilhetes apagados (undo). Idempotente: se a linha ainda existir
-    (ou colidir na unique), o ON CONFLICT DO NOTHING a ignora. `dono` vem da sessão."""
+    (ou colidir na unique), o ON CONFLICT DO NOTHING a ignora. `dono` vem da sessão.
+    Fase 7: a linha que VOLTOU sai da lixeira (`lixeira_id`, do mesmo dono e da mesma
+    assinatura); a que colidiu fica lá, porque o dado novo mandou e a cópia ainda vale."""
     if not linhas:
         return 0
     pool = await get_pool()
@@ -2427,6 +2457,12 @@ async def restaurar_bilhetes(linhas: list[dict], dono: str) -> int:
             )
             if rec:
                 restaurados += 1
+                lix = l.get("lixeira_id")
+                if lix is not None:
+                    await conn.execute(
+                        "DELETE FROM lixeira_bilhetes WHERE id = $1 AND dono = $2 "
+                        "AND bilhete->>'assinatura' IS NOT DISTINCT FROM $3",
+                        int(lix), dono, l.get("assinatura"))
     return restaurados
 
 
@@ -4359,25 +4395,22 @@ async def remover_bilhetes_supersedidos(dono: str, casa: str, parceiro: str,
 
     A remoção é auto-verificável no próprio SQL: só apaga o código cru se JÁ existirem
     fatias irmãs dele na mesma conta (`split_part` em vez de `LIKE`, que trataria o `_`
-    do sufixo como curinga). Se o upsert das fatias falhou, nada é apagado."""
+    do sufixo como curinga). Se o upsert das fatias falhou, nada é apagado.
+    Fase 7 (s438): a linha sai pela lixeira, como toda exclusão de aposta."""
     if not cids:
         return []
     pool = await get_pool()
-    cols = ", ".join(f"b.{c}" for c in _COLS_RESTAURAR)
     async with pool.acquire() as conn:
-        recs = await conn.fetch(
-            f"""DELETE FROM bilhetes b
-                WHERE b.dono = $1 AND b.casa = $2 AND b.parceiro = $3
-                  AND b.codigo_bilhete = ANY($4::text[])
-                  AND EXISTS (SELECT 1 FROM bilhetes s
-                              WHERE s.dono = b.dono AND s.casa = b.casa
-                                AND s.parceiro = b.parceiro
-                                AND s.codigo_bilhete <> b.codigo_bilhete
-                                AND split_part(s.codigo_bilhete, '__', 1) = b.codigo_bilhete)
-                RETURNING {cols}""",
-            dono, casa, parceiro, cids,
-        )
-    return [dict(r) for r in recs]
+        return await _mover_para_lixeira(
+            conn,
+            """b.dono = $1 AND b.casa = $2 AND b.parceiro = $3
+               AND b.codigo_bilhete = ANY($4::text[])
+               AND EXISTS (SELECT 1 FROM bilhetes s
+                           WHERE s.dono = b.dono AND s.casa = b.casa
+                             AND s.parceiro = b.parceiro
+                             AND s.codigo_bilhete <> b.codigo_bilhete
+                             AND split_part(s.codigo_bilhete, '__', 1) = b.codigo_bilhete)""",
+            [dono, casa, parceiro, cids], "fatia duplicada da Polymarket (automático)")
 
 
 async def limpar_ativos_tipster(dono: str, codigos: list[str]) -> int:

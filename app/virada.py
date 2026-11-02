@@ -439,8 +439,13 @@ def contradiz(f, bloco) -> bool:
 
 _LINHA_NA_CASA = (f"EXISTS (SELECT 1 FROM bilhetes b WHERE b.dono = f.dono "
                   f"AND b.codigo_bilhete = f.codigo AND {_KB} = f.casa)")
-_NA_LIXEIRA = ("EXISTS (SELECT 1 FROM lixeira_bilhetes l WHERE l.dono = f.dono "
-               "AND l.bilhete->>'codigo_bilhete' = f.codigo)")
+# Excluída de propósito: pela lixeira de apostas (toda exclusão da tela, desde a Fase 7) ou junto
+# com a conta inteira (`lixeira_contas.bilhetes`, um array das linhas; Fase 7, s438).
+_NA_LIXEIRA = ("(EXISTS (SELECT 1 FROM lixeira_bilhetes l WHERE l.dono = f.dono "
+               "AND l.bilhete->>'codigo_bilhete' = f.codigo) "
+               "OR EXISTS (SELECT 1 FROM lixeira_contas lc WHERE lc.dono = f.dono "
+               "AND lc.bilhetes @> jsonb_build_array(jsonb_build_object('codigo_bilhete', "
+               "f.codigo))))")
 
 
 async def _saida(conn, dono: str, casa_key: str, quer: dict) -> tuple[set, dict, set]:
