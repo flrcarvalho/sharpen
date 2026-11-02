@@ -35,6 +35,17 @@ A Shuffle do Gabriel foi apagada pelo próprio Gabriel (confirmado pelo Feca), p
 apagar e recapturar. **Corrige a Parte 1**, que tinha dado corrida de commit (o `criado_em` é o
 `submitted_at` do clique, não a hora do INSERT).
 
+**Apostas perdidas (01/11, depois do deploy da Extra).**
+- **Duel 2728364620980039864 (Feca): ficou cerca de 22 h fora do banco** (de 31/10 23:58 a 01/11
+  21:41) e só voltou porque houve uma nova captura depois da liquidação: a **3ª ida à IA**. Nas duas
+  primeiras o leitor recusou a linha da IA (a 2ª com a odd na coluna do código), e nenhuma das duas
+  virou pendente. Voltou como id 412424, R$ 161,35 (30 USDT) @ 13, L, dinheiro igual ao cru; a IA
+  gravou categoria `Múltipla` numa simples (a Ficha diz `ML`). **É o caso que a D39 tem de fechar.**
+- **1win 338677290 (Jaao26): gravada pela Ficha** com o OK do Feca
+  (`scripts/recuperar_aposta_perdida_s438.py --aplicar`, 01/11 22:18): id 413103, conta `1win` (não
+  `Old`: a `Old` só tem 26/09 a 10/10), 13/10/2026, Futebol, Gols, `Under 4.5 [Noruega (f) v Roménia
+  (f)]`, R$ 250 @ 2,16, L, origem `ficha`; rastro em `correcoes` (campo `recuperacao`, origem `ficha`).
+
 **Extra.** `init_db` com `SET LOCAL lock_timeout = '5s'`, 6 tentativas e 10 s de pausa;
 `healthcheckPath = "/healthz"` e `healthcheckTimeout = 300` no `railway.toml`. Mutações 5 de 6; a
 inócua (`SET` × `SET LOCAL`) está escrita no teste.
