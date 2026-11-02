@@ -57,9 +57,10 @@ import unicodedata
 PERNAS = " // "
 SEP = " | "                      # esporte da casa | mercado da casa
 _NUM = re.compile(r"\d+(?:[.,]\d+)*")
-_LADO = {"over": "Over", "acima": "Over", "mais": "Over", ">": "Over",
+_LADO = {"over": "Over", "acima": "Over", "mais": "Over", "más": "Over", ">": "Over",
          "under": "Under", "abaixo": "Under", "menos": "Under", "<": "Under"}
-_PAL_LADO = r"over|under|acima|abaixo|mais|menos"
+# D42 (E3, s438): `más` (espanhol) também é lado; sem ele a seleção inteira virava `{ent}`
+_PAL_LADO = r"over|under|acima|abaixo|mais|más|menos"
 # seleção com lado: `Over 92.5`, `mais de 6.5`, `Patrick Queen (PIT) under 3.5`, `Abaixo` (+ linha)
 _SEL_LADO = re.compile(rf"^(?P<ent>.*?)\s*\b(?P<lado>{_PAL_LADO})\b(?:\s+de)?\s*"
                        r"(?P<num>[+-]?\d+(?:[.,]\d+)*)?$", re.I)
@@ -77,6 +78,31 @@ _CODIGO = {"1": 0, "2": 1, "w1": 0, "w2": 1, "v1": 0, "v2": 1, "p1": 0, "p2": 1}
 _EMPATE = {"x", "empate", "draw"}
 _SEP_JOGO = (" vs. ", " vs ", " v ", " - ")
 _SUFIXO = re.compile(r"\s+(\d+\.[ªº]\s+\w+)$")          # `1.ª parte`, `3.º quarto` (1xBet)
+# D42 (E2, s438): o período e a prorrogação que a Megapari escreve no nome do time 2
+# (`Dallas Cowboys 2 Half`, `Houston Texans (Including Overtime)`, `(Incluindo prorrogação)`) são
+# subjogo, como o `1.ª parte`: saem do time e entram no mercado. `(Feminino)`/`(Women)` ficam.
+_SUFIXO_PERIODO = re.compile(r"\s+(\d+\s+(?:half|metade|tempo|per[ií]odo|period|quarter|quarto|"
+                             r"set|parte))$", re.I)
+_SUFIXO_PRORROG = re.compile(r"\s*(\((?:including|incluindo|incl\.?|inc\.)[^)]*\))$", re.I)
+# D42 (s438): o prefixo comum só sai quando é SUBJOGO da 1xBet (`Cantos A - Cantos B`). Medido em
+# 7 dias: 344 pernas perdiam nome de time (`Los Angeles Lakers - Los Angeles Clippers` virava
+# `[Lakers v Clippers]`, `FC Slavia Mozyr - FC Torpedo` perdia o `FC`); as de subjogo são estas.
+_SUBJOGO = ("estatísticas dos jogadores", "estatísticas do jogador", "players' stats",
+            "remates enquadrados", "escanteios", "cantos", "corners", "cartões", "cards")
+# D42 (s438): prova contra `Winner` não é confronto (Duel, F1: `Mexican Grand Prix Practice 1 vs
+# Winner` virava `[… v Winner]`). O colchete é a prova, como a IA escreve.
+_PROVA = re.compile(r"^(?P<prova>.+?)\s+vs\.?\s+(?:winner|vencedor)$", re.I)
+# D42 (E4, s438): ordinal POR EXTENSO antes de um período vira número (`Primeiro set - total jogos`
+# → `1 set …`); a IA escreve `1º Set`, e o número que sobrava derrubava o voto.
+_ORDINAL = re.compile(r"\b(primeir[oa]|segund[oa]|terceir[oa]|quart[oa]|quint[oa]|first|second|"
+                      r"third|fourth|fifth)\s+(?=(?:set|tempo|quarto|per[ií]odo|metade|half|quarter|"
+                      r"period|mapa|map|inning|entrada|parte)\b)", re.I)
+_ORD_NUM = {"primeir": "1", "first": "1", "segund": "2", "second": "2", "terceir": "3",
+            "third": "3", "quart": "4", "fourth": "4", "quint": "5", "fifth": "5"}
+# D42 (s438): linha asiática `1.5/2` é a média (1.75), como a IA escreve
+_ASIATICA = re.compile(r"(?<![\d.])(\d+(?:\.\d+)?)/(\d+(?:\.\d+)?)(?![\d.])")
+# D42 (E3, s438): seleção que é só Sim/Não não ensina descrição que seja só ela (`Sim [jogo]`)
+_SIM_NAO = frozenset({"sim", "não", "nao", "yes", "no"})
 # s415: `Individual Total 1 (0.5)` (Megapari) também diz QUAL time
 _INDICE = re.compile(r"\b(equipa|team|time|individual total|individual|handicap)\s+([12])\b",
                      re.I)
@@ -145,6 +171,11 @@ def _variantes(nome: str) -> list[str]:
     for v in ("/".join(partes), " / ".join(vira), "/".join(vira)):
         if v not in out:
             out.append(v)
+    # D42 (E5, s438): `Kheresko Vsevolod` × `Vsevolod Kheresko`, sem vírgula (só 2 palavras: com
+    # mais, inverter não diz qual é o sobrenome)
+    ws = nome.split()
+    if "," not in nome and "/" not in nome and len(ws) == 2 and (v := f"{ws[1]} {ws[0]}") not in out:
+        out.append(v)
     return out
 
 
@@ -172,6 +203,8 @@ def _times(evento: str) -> tuple[str, str, str, str]:
     nome do jogo (`Cantos A - Cantos B 1.ª parte`): o prefixo comum e o sufixo de período saem
     dos times e entram no mercado. Só no jogo com ` - `, o separador dela."""
     ev = _limpo(evento)
+    if _PROVA.match(ev):
+        return "", "", "", ""                         # prova, não confronto (D42)
     for sep in _SEP_JOGO:
         if sep in ev:
             a, b = ev.split(sep, 1)
@@ -180,15 +213,23 @@ def _times(evento: str) -> tuple[str, str, str, str]:
         return "", "", "", ""
     pre = suf = ""
     if sep == " - ":
-        m = _SUFIXO.search(b)
+        # a prorrogação sai do time 2 (o jogo da IA vem sem ela), mas NÃO entra no mercado: a
+        # chave que o dicionário já aprendeu para esses mercados não tinha o sufixo
+        m = _SUFIXO_PRORROG.search(b)
         if m:
-            suf, b = m.group(1), b[:m.start()]
-        wa, wb = a.split(), b.split()
-        n = 0
-        while n < min(len(wa), len(wb)) - 1 and wa[n] == wb[n]:
-            n += 1
-        if n:
-            pre, a, b = " ".join(wa[:n]), " ".join(wa[n:]), " ".join(wb[n:])
+            b = b[:m.start()]
+        for rx in (_SUFIXO, _SUFIXO_PERIODO):          # o período é mercado: entra na chave
+            m = rx.search(b)
+            if m:
+                suf, b = m.group(1), b[:m.start()]
+                break
+        ca, cb = a.casefold(), b.casefold()
+        for frase in sorted(_SUBJOGO, key=len, reverse=True):
+            if ca.startswith(frase + " ") and cb.startswith(frase + " "):
+                n = len(frase.split())
+                pre = " ".join(a.split()[:n])
+                a, b = " ".join(a.split()[n:]), " ".join(b.split()[n:])
+                break
     return a.strip(), b.strip(), pre, suf
 
 
@@ -197,12 +238,19 @@ def jogo(evento: str) -> str:
     a descrição fica sem colchete (`MASTER_DESCRICAO §8`). O nome fica como o cru manda: a IA
     vira `Leclerc, Charles` em metade das vezes e na outra não (medido, s413), e o
     `MASTER_DESCRICAO §9` manda não mexer em entidade."""
+    m = _PROVA.match(_limpo(evento))
+    if m:
+        return m.group("prova")                       # D42: `[Mexican Grand Prix Practice 1]`
     t1, t2, _, _ = _times(evento)
     return f"{t1} v {t2}" if t1 and t2 else ""
 
 
 def _mesmo_jogo(a: str, b: str) -> bool:
-    pa, pb = re.split(r"\s+v\s+", a), re.split(r"\s+v\s+", b)
+    """O jogo do cru e o da IA são o mesmo. A prorrogação (`(Including Overtime)`) não conta: a
+    IA a escreve ora dentro do colchete, ora fora, e o `jogo` do cru já a tirou (D42, s438)."""
+    def partes(s):
+        return [_SUFIXO_PRORROG.sub("", x).strip() for x in re.split(r"\s+v\s+", s)]
+    pa, pb = partes(a), partes(b)
     return len(pa) == len(pb) and all(_canon_nome(x) == _canon_nome(y) for x, y in zip(pa, pb))
 
 
@@ -266,13 +314,38 @@ def mercado_com_time(p: dict) -> str | None:
     return merc if trocou else None
 
 
-def decompor(p: dict) -> dict:
+def _ordinais(merc: str) -> str:
+    """`Primeiro set - total jogos` → `1 set - total jogos` (E4, D42)."""
+    def num(m):
+        w = m.group(1).casefold()
+        return next(v for k, v in _ORD_NUM.items() if w.startswith(k)) + " "
+    return _ORDINAL.sub(num, merc or "")
+
+
+def _asiatica(s: str) -> str:
+    """`Menos de 1.5/2` → `Menos de 1.75` (a média das duas linhas, como a IA escreve; D42)."""
+    def media(m):
+        v = (float(m.group(1)) + float(m.group(2))) / 2
+        return f"{v:.2f}".rstrip("0").rstrip(".")
+    return _ASIATICA.sub(media, s or "")
+
+
+def _so_sim_nao(d: dict, valor: str) -> bool:
+    """A seleção é Sim/Não e o valor é só ela (`{ent}`, sem palavra de mercado): `Sim [jogo]`
+    não diz de que mercado é o sim (o Gabriel corrigiu esse caso à mão em 18/10). E3, D42."""
+    return d["ent"].casefold() in _SIM_NAO and not _palavras(valor)
+
+
+def decompor(p: dict, ordinais: bool = True) -> dict:
     """As peças de uma perna, sem IA: seleção, lado e linha, handicap, `N+`, times, jogador, e
-    o mercado efetivo (com o subjogo da 1xBet) de onde saem a chave e os `{nK}`."""
+    o mercado efetivo (com o subjogo da 1xBet) de onde saem a chave e os `{nK}`.
+    `ordinais=False`: o mercado como era antes do E4 (D42), para achar a chave aprendida na
+    forma antiga (`primeiro quarto - total`); só a montagem usa, como segunda tentativa."""
     t1, t2, pre, suf = _times(p.get("evento"))
-    sel = _limpo(p.get("selecao_casa"))
+    sel = _asiatica(_limpo(p.get("selecao_casa")))
     merc = _limpo(p.get("mercado_casa")).translate(_HOMOGLIFOS)
-    linha = _limpo(p.get("linha"))
+    merc = _ordinais(merc) if ordinais else merc
+    linha = _asiatica(_limpo(p.get("linha")))
     d = {"t1": t1, "t2": t2, "ent": "", "ou": "", "hc": "", "mais": "", "time": "",
          "codigo": False, "jogador": _jogador(merc, (t1, t2))}
     alvo = sel or merc                                # 1xBet: a seleção mora no mercado
@@ -639,14 +712,23 @@ def montar(f: dict, termos: dict, propria=None,
         d = decompor(p)
         # s415: o mercado de QUALQUER jogador vem primeiro; a chave com o nome dele é a do
         # Feca, se um dia ele corrigir um jogador só (a semente não vota mais nela, D29)
-        ks = [chave(p, d, jogador=True)] if d["jogador"] else []
-        ks.append(chave(p, d))
+        ks = [(chave(p, d, jogador=True), d)] if d["jogador"] else []
+        ks.append((chave(p, d), d))
+        # E4 (D42): a chave aprendida ANTES do ordinal virar número (`primeiro quarto - total`)
+        # segue valendo até a nova ser aprendida; 113 pernas da semana de 26/10 dependiam dela
+        if _ordinais(p.get("mercado_casa") or "") != (p.get("mercado_casa") or ""):
+            dv = decompor(p, ordinais=False)
+            ks += [(chave(p, dv, jogador=True), dv)] if dv["jogador"] else []
+            ks.append((chave(p, dv), dv))
         valor = None
-        for k in ks:
+        for k, dk in ks:
             if (valor := termos.get(("descricao", k))) is not None:
+                d = dk
                 break
-        k = ks[0] if valor is None else k
+        k = ks[0][0] if valor is None else k
         esporte = termos.get(("esporte", " ".join(str(p.get("esporte_casa") or "").lower().split())))
+        if valor is not None and _so_sim_nao(d, valor):
+            valor = None                              # E3 (D42): `Sim [jogo]` não é descrição
         x = montar_perna(p, valor, d, esporte) if valor is not None else None
         if x is None:
             faltam.append(k)
@@ -687,7 +769,7 @@ def votos(f: dict, descricao: str) -> list[tuple[str, str]]:
         d = decompor(p)
         k = chave(p, d)
         v = aprender(p, t, d, k)
-        if v is None or montar_perna(p, v, d) is None:
+        if v is None or montar_perna(p, v, d) is None or _so_sim_nao(d, v):
             continue
         if "{jogador}" in v:
             # s415: a IA escreveu o jogador do cru, e o voto vai para a chave de QUALQUER

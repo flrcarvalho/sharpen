@@ -563,3 +563,106 @@ def test_montar_com_texto_da_casa_so_na_perna_sem_par():
     assert D.montar({"pernas": [a, b]}, termos) == (None, ["futebol | mercado novo"])
     assert D.montar({"pernas": [a, b]}, termos, texto_da_casa_se_faltar=True) == (
         "A [A v B] // Mercado novo - Sim [C v D]", ["futebol | mercado novo"])
+
+
+
+# ── D42, commit 2 (s438): a leitura da descrição ──────────────────────────────────────────
+# Exemplos reais da semana de 26/10 a 01/11 (replay sem banco), salvo onde dito. Replay contra o
+# dicionário de produção: votos da IA 3.257 → 3.529; 46 apostas passam a ser cobertas; perdem a
+# cobertura só 4, todas do E3 (`Sim [jogo]`, que não diz o mercado). Mutações provadas:
+#   C2a. prefixo comum volta a ser cortado sempre           → prefixo_so_de_subjogo
+#   C2b. sem o sufixo de período no time 2                  → sufixo_de_periodo_e_prorrogacao
+#   C2c. a prorrogação volta a entrar na chave              → jogador_depois_do_subjogo_da_megapari
+#   C2d. `_mesmo_jogo` sem ignorar a prorrogação            → jogador_depois_do_subjogo_da_megapari
+#   C2e. prova da F1 volta a virar confronto                → prova_da_f1_nao_e_confronto
+#   C2f. sem `más` no lado                                  → mas_e_lado
+#   C2g. `Sim` sozinho volta a ensinar/montar               → sim_nao_sozinho_nao_e_descricao
+#   C2h. sem o ordinal por extenso                          → ordinal_por_extenso
+#   C2i. sem a chave antiga como 2ª tentativa (E4)          → ordinal_chave_antiga_segue_valendo
+#   C2j. sem a linha asiática                               → linha_asiatica
+#   C2k. sem o nome invertido de 2 palavras (E5)            → nome_invertido_sem_virgula
+# Sem exemplo medido na semana (teste sintético): `más` (E3) e o nome invertido sem vírgula (E5).
+
+def test_prefixo_so_de_subjogo():
+    assert D._times("Los Angeles Lakers - Los Angeles Clippers")[:3] == \
+        ("Los Angeles Lakers", "Los Angeles Clippers", "")
+    assert D.jogo("FC Slavia Mozyr - FC Torpedo-BelAZ Zhodino") == \
+        "FC Slavia Mozyr v FC Torpedo-BelAZ Zhodino"
+    assert D._times("Cantos Monterrey - Cantos Pachuca")[:3] == ("Monterrey", "Pachuca", "Cantos")
+    assert D._times("Cantos VfL Wolfsburg - Cantos VfL Osnabruck")[:3] == \
+        ("VfL Wolfsburg", "VfL Osnabruck", "Cantos")
+    assert D._times("Estatísticas dos jogadores Miami Heat - Estatísticas dos jogadores Dallas "
+                    "Mavericks")[2] == "Estatísticas dos jogadores"
+
+
+def test_sufixo_de_periodo_e_prorrogacao():
+    assert D._times("Green Bay Packers - Dallas Cowboys 2 Half") == \
+        ("Green Bay Packers", "Dallas Cowboys", "", "2 Half")
+    assert D._times("Jacksonville Jaguars - Houston Texans (Including Overtime)") == \
+        ("Jacksonville Jaguars", "Houston Texans", "", "")
+    assert D._times("San Francisco 49ers - Washington Commanders 1 Half")[3] == "1 Half"
+    assert D._times("Atlanta Dream (Feminino) - Golden State Walkiries (Feminino)")[1] == \
+        "Golden State Walkiries (Feminino)"
+    p = _p("American Football", "Green Bay Packers - Dallas Cowboys 2 Half", "Handicap 2 (-0.5)",
+           None)
+    assert D.chave(p) == "american football | handicap {hc} {n} half"
+    assert D.aprender(p, "Dallas Cowboys -0.5 2º Tempo [Green Bay Packers v Dallas Cowboys]") == \
+        "{time} {hc} {n1}º Tempo"
+
+
+def test_prova_da_f1_nao_e_confronto():
+    ev = "Mexican Grand Prix Practice 1 vs Winner"
+    assert D.jogo(ev) == "Mexican Grand Prix Practice 1" and D._times(ev) == ("", "", "", "")
+    p = _p("Formula 1", ev, "Winner", "Hadjar, Isack")
+    assert D.aprender(p, "Hadjar, Isack [Mexican Grand Prix Practice 1]") == "{ent}"
+    assert D.texto_da_casa(p) == "Winner - Hadjar, Isack [Mexican Grand Prix Practice 1]"
+
+
+def test_mas_e_lado():
+    assert D.decompor(_p("Futebol", "A vs B", "Total", "Más de 2.5"))["ou"] == "Over 2.5"
+
+
+def test_sim_nao_sozinho_nao_e_descricao():
+    p = _p("Futebol", "NK Carda vs NK Limbus Pekre", "Ambas as equipes marcam", "Sim")
+    assert D.votos({"pernas": [p]}, "Sim [NK Carda v NK Limbus Pekre]") == []
+    assert D.votos({"pernas": [p]}, "Ambas Marcam - Sim [NK Carda v NK Limbus Pekre]") == \
+        [("futebol | ambas as equipes marcam", "Ambas Marcam - {ent}")]
+    termos = {("descricao", "futebol | ambas as equipes marcam"): "{ent}"}
+    assert D.montar({"pernas": [p]}, termos)[0] is None
+    assert D.montar({"pernas": [p]}, termos, texto_da_casa_se_faltar=True)[0] == \
+        "Ambas as equipes marcam - Sim [NK Carda v NK Limbus Pekre]"
+
+
+def test_ordinal_por_extenso():
+    assert D._ordinais("Primeiro set - total jogos") == "1 set - total jogos"
+    assert D._ordinais("Quarto quarto - handicap (incl. prorrogação)") == \
+        "4 quarto - handicap (incl. prorrogação)"
+    assert D._ordinais("Quarto de final") == "Quarto de final"          # sem período depois
+    p = _p("tennis", "Terence Atmane vs. Soonwoo Kwon", "Primeiro set - total jogos", "Menos de 9.5")
+    assert D.aprender(p, "Under 9.5 Games 1º Set [Terence Atmane v Soonwoo Kwon]") == \
+        "{ou} Games {n1}º Set"
+
+
+def test_ordinal_chave_antiga_segue_valendo():
+    """A chave aprendida antes do E4 (`primeiro quarto - total`) monta até a nova existir."""
+    p = _p("sporttypeid 2", "Tortona vs. Cb San Pablo Burgos", "Primeiro quarto - total",
+           "Mais de 41.5")
+    antiga = {("descricao", "sporttypeid 2 | primeiro quarto - total"): "{ou} Pontos 1º Quarto"}
+    assert D.montar({"pernas": [p]}, antiga)[0] == \
+        "Over 41.5 Pontos 1º Quarto [Tortona v Cb San Pablo Burgos]"
+    nova = {("descricao", "sporttypeid 2 | {n} quarto - total"): "{ou} Pontos {n1}º Quarto"}
+    assert D.montar({"pernas": [p]}, nova)[0] == \
+        "Over 41.5 Pontos 1º Quarto [Tortona v Cb San Pablo Burgos]"
+
+
+def test_linha_asiatica():
+    p = _p("Futebol", "GC Mascara - NA Hussein Dey", "Total Asiático", "Menos de 1.5/2")
+    d = D.decompor(p)
+    assert d["ou"] == "Under 1.75" and d["fieis"] == ["1.75"]
+    assert D.aprender(p, "Under 1.75 Gols [GC Mascara v NA Hussein Dey]") == "{ou} Gols"
+
+
+def test_nome_invertido_sem_virgula():
+    assert "Vsevolod Kheresko" in D._variantes("Kheresko Vsevolod")
+    assert D._achar("Vsevolod Kheresko - 1º Set", "Kheresko Vsevolod") == (0, len("Kheresko Vsevolod"))
+    assert len(D._variantes("Jan Blazek Junior")) == 1                    # 3 palavras: não inverte

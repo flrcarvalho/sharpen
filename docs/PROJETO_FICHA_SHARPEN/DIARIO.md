@@ -5,6 +5,34 @@
 
 ---
 
+## 2026-11-02 · s438 · D42, commit 2: a leitura da descrição (deploy autônomo)
+
+**Onde está:** no ar sob a autorização noturna do Feca (02/11, "pode seguir sozinha, uma etapa por
+vez"). Próximo: commit 3 (`semente_recusa`).
+
+O que muda em `app/descricao_ficha.py`, com exemplo real da semana de 26/10 a 01/11 em cada:
+- **Prefixo comum** só sai quando é subjogo da 1xBet (Cantos, Corners, Escanteios, Cartões, Cards,
+  Remates enquadrados, Estatísticas dos jogadores, Players' stats): 344 pernas perdiam nome de time
+  (`Los Angeles Lakers - Los Angeles Clippers` virava `[Lakers v Clippers]`; `FC Slavia Mozyr` perdia
+  o `FC`; `Cantos VfL Wolfsburg` cortava o `VfL`).
+- **Sufixo no time 2 (E2):** o período (`2 Half`, `1 Metade`) entra na chave do mercado (antes um
+  handicap do 2º tempo caía na chave do jogo inteiro); a prorrogação (`(Including Overtime)`) só sai
+  do time, para não deixar órfã a chave já aprendida, e `_mesmo_jogo` a ignora nos dois lados.
+- **F1:** `Mexican Grand Prix Practice 1 vs Winner` é prova, não confronto; o colchete é a prova.
+- **E3:** `más` é lado; seleção Sim/Não não ensina nem monta descrição que seja só ela (`Sim [jogo]`,
+  o caso que o Gabriel corrigiu em 18/10): vira texto da casa (D40).
+- **E4:** ordinal por extenso antes de período vira número (`Primeiro set` → `1 set`). A chave
+  aprendida na forma antiga segue valendo como 2ª tentativa: sem isso, 113 pernas perdiam a
+  descrição do dicionário (medido no replay).
+- **Linha asiática:** `1.5/2` é 1.75, como a IA escreve. **E5:** nome de 2 palavras também invertido.
+
+Replay contra o dicionário de produção (sem banco): votos que a IA consegue dar 3.257 → 3.529; 46
+apostas passam a ser cobertas; 4 perdem a cobertura, todas do E3 e intencionais; 9 descrições da F1
+mudam (o colchete). Mutações 12/12. Sem exemplo medido na semana (teste sintético): `más` e o nome
+invertido sem vírgula. Nada muda em odd, stake ou resultado; nenhum ALTER.
+
+---
+
 ## 2026-11-02 · s438 · D42, commit 1: a semente para de esquecer (E1)
 
 **Onde está:** aprovado pelo Feca para deploy. Próximo: commit 2 da D42 (leitura da descrição: E2 a
