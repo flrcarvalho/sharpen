@@ -5,6 +5,42 @@
 
 ---
 
+## 2026-11-01 · s438 · D39: falta de cru nunca vai à IA, e aposta nunca some em silêncio
+
+**Onde está:** D39 escrita, testada e aprovada pelo Feca para deploy (com a proteção da extensão
+sem cru e a saída do segurado). Próximo: conferir o deploy e a 1ª captura de casa virada com a
+métrica nova; depois a **Fase 7** (toda exclusão pela lixeira), antes da D40, porque o aviso "sem
+linha" marcaria para sempre as apostas apagadas pela tela de Extração.
+
+**1ª captura depois da Extra:** Vavada do Feca, 01/11 22:54 (`virada_log`): 151 capturadas, 145 já
+no banco, 5 pela Ficha, 1 à IA (US$ 0,035); 7 linhas da Ficha gravadas.
+
+**As regras (`app/virada.py`, bloco "D39"):**
+- (a) cru guardado **liquidado**: a Ficha grava, sem IA. Base: 963 de 976 "texto mudou sem cru
+  novo" tinham cru final, 100% iguais ao que a IA gravou. Trava contra reliquidação: o veredito do
+  próprio texto (`Status: … → X`, as 13 casas viradas o escrevem); só a CLASSE conta (W/HW, L/HL, V).
+- (b) cru **aberto** com texto mudado, ou cru que não chegou: **segurado** (fora da IA), pendente
+  com o aviso "captura incompleta: atualize a aba da casa (F5) e extraia de novo". Só segura cru
+  ausente se a casa mandou cru ao dono nos últimos 7 dias (extensão sem cru: vai à IA; OK do Feca).
+  **Saída:** segurado há 2 `/extrair` da mesma casa e dono, ou há mais de 24 h, vai à IA **uma
+  vez** (`captura incompleta esgotada`, coluna `captura_esgotada`); "uma vez" é por impressão do
+  cru, para o cashout na tela não ir à IA a cada 3 capturas. Log com contagem para o aviso diário
+  da D42.
+- (c) foi à IA num `/extrair` anterior e **não virou linha** (o caso da Duel): pendente "sem
+  linha", só avisa; sai quando a linha existe, quando vai para a lixeira ou quando a Ficha grava.
+  Só vale para decisões a partir de 01/11 22:00.
+- (d) chave da casa sem espaço, **ponto e acento** (`app/casa_chave.py`): Sportsbet.io, Stake.com,
+  Betão e Vitória Bet não batiam; o aviso de não lidas nunca funcionou nas casas com ponto, e a
+  semente gravava chaves paralelas (somem na rodada das 04h, que regrava a semente).
+
+**Gates:** `test_virada.py` 43, harness de banco 105, suíte pura 2.128 (a falha de
+`test_recorte_custos` é anterior), `tests/js/aviso_captura_incompleta.mjs`. **Mutações 19/19 em
+Python + 1 em JS.** Duas escaparam no caminho e eram defeito do teste ou do código, não inócuas: a
+lixeira conferida em dois lugares (ficou só na soltura) e o teste das 24 h que a contagem de
+`/extrair` mascarava. Backup em `Backups/s438_d39_falta_de_cru_e_grafia/`.
+
+---
+
 ## 2026-11-01 · s438 · Consultoria 022: Parte 1, Fase 0 e a Extra (lock_timeout + healthcheck)
 
 **Onde está:** ordem aprovada pelo Feca (01/11/2026): Extra, D39 (com a grafia com ponto), Fase 7,

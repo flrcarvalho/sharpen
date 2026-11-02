@@ -20,8 +20,12 @@ Dois caminhos chegam aqui, e os dois chamam o mesmo `aplicar`:
 tira o código da fila da IA se o cru usado é DESTA captura (chegou DEPOIS do último `/extrair`
 da mesma casa e dono; R32, s416) ou se o bloco de texto não mudou desde a última leitura (a
 barreira de hoje). Texto
-mudado sem cru novo (a extensão recarregada sem F5 na aba da casa manda o texto e não o cru) vai
-para a IA, e o `virada_log` o conta à parte (`sem_cru_novo`).
+mudado sem cru novo (a extensão recarregada sem F5 na aba da casa manda o texto e não o cru):
+**desde a D39 (01/11/2026) a falta de cru nunca vai à IA.** Cru guardado já LIQUIDADO grava pela
+Ficha (cru final não esconde liquidação; o veredito do texto confere); cru ABERTO, ou que não
+chegou, segura a aposta como pendente com o aviso "captura incompleta"; e o código que foi à IA e
+não virou linha também vira pendente. Só a Ficha RECUSADA com texto mudado segue para a IA
+(`sem_cru_novo` no `virada_log`). Ver o bloco "D39" mais abaixo.
 
 **Esporte e categoria passam pelo Master antes de gravar** (`app/taxonomia.py`; R27): valor fora
 dele vai para a IA (`fora do Master`). O dicionário vale para todos os usuários da casa.
@@ -54,8 +58,10 @@ import logging
 import os
 import re
 import time
+from datetime import datetime, timezone
 
 import cambio as _cambio
+import casa_chave as _cc
 import descricao_ficha as _desc
 import dicionario as _dic
 import ficha as _ficha
@@ -93,8 +99,14 @@ def virada(casa_key: str) -> bool:
 
 
 def chave_da_casa(casa: str) -> str:
-    """Nome de exibição → chave (`DEX Sport` → `DEXSPORT`), a mesma régua da sessão."""
-    return re.sub(r"\s+", "", casa or "").upper()
+    """Nome de exibição → chave (`DEX Sport` → `DEXSPORT`, `Sportsbet.io` → `SPORTSBETIO`), a
+    mesma régua da sessão (`casa_chave.chave`; s438 tirou também o ponto e o acento)."""
+    return _cc.chave(casa)
+
+
+# A chave de `bilhetes.casa`/`parceiros.casa` no SQL, pela MESMA regra (s438, D39).
+_K = _cc.sql("casa")
+_KB = _cc.sql("b.casa")
 
 
 def _limpo(v) -> str:
@@ -216,7 +228,9 @@ MOTIVOS = {
     "recusada no /salvar": "recusada_salvar",
     "cru não chegou": "cru_nao_chegou",
     "texto mudou sem cru novo": "sem_cru_novo",
+    "captura incompleta esgotada": "captura_esgotada",      # D39: a saída do segurado
 }
+ESGOTADA = "captura incompleta esgotada"
 
 
 def no_master(esporte: str | None, categoria: str | None) -> bool:
@@ -233,7 +247,7 @@ async def _liquidados(conn, dono: str, casa_key: str, codigos: list[str]) -> set
     rows = await conn.fetch(
         "SELECT DISTINCT codigo_bilhete FROM bilhetes WHERE dono = $1 "
         "AND codigo_bilhete = ANY($2::text[]) AND extraction_state = 'resolvida' "
-        "AND upper(replace(casa, ' ', '')) = $3",
+        f"AND {_K} = $3",
         dono, codigos, casa_key)
     return {r["codigo_bilhete"] for r in rows}
 
@@ -246,7 +260,7 @@ async def _no_banco(conn, dono: str, casa_key: str, codigos: list[str]) -> set[s
         return set()
     rows = await conn.fetch(
         "SELECT DISTINCT codigo_bilhete FROM bilhetes WHERE dono = $1 "
-        "AND codigo_bilhete = ANY($2::text[]) AND upper(replace(casa, ' ', '')) = $3",
+        f"AND codigo_bilhete = ANY($2::text[]) AND {_K} = $3",
         dono, codigos, casa_key)
     return {r["codigo_bilhete"] for r in rows}
 
@@ -360,37 +374,168 @@ async def ultimo_extrair(conn, dono: str, casa_key: str):
                                "casa = $2", dono, (casa_key or "").upper())
 
 
+# ── D39 (Feca, 01/11/2026): falta de cru nunca vai à IA, e aposta nunca some em silêncio ───
+# Medido (parecer 022): dos 976 códigos cujo último motivo foi "texto mudou sem cru novo", 963
+# tinham o cru guardado JÁ LIQUIDADO, e o resultado dele bate 100% com o que a IA gravou (762 L,
+# 209 W, 5 V); só 4, de cru ainda aberto, viraram L (a liquidação que a N3 protege). Então:
+#   (a) cru guardado LIQUIDADO: a Ficha grava, sem IA. Cru final não esconde liquidação. A
+#       conferência contra uma reliquidação é o veredito que o próprio texto traz
+#       (`Status: … → X`, as 13 casas viradas o escrevem): se ele contradiz o cru, a aposta
+#       espera um cru novo, como no (b);
+#   (b) cru guardado ABERTO com texto mudado, ou cru que não chegou: a aposta NÃO vai à IA e
+#       fica pendente com o aviso "captura incompleta" (atualizar a aba da casa e extrair de novo
+#       traz o cru). Ficha RECUSADA continua com a IA: ali só o texto lê;
+#   (c) código que foi à IA num `/extrair` ANTERIOR e não virou linha (o leitor recusou a linha
+#       da IA, o `/salvar` a recusou, ou o lote nem foi salvo): pendente com o mesmo aviso. Duel
+#       2728364620980039864, 31/10: duas idas à IA, duas linhas recusadas pelo leitor, 22 h fora
+#       do banco, de volta só na 3ª ida. Aqui só AVISA: regravar sozinho recriaria a aposta que
+#       o usuário apagou de propósito (a tela de Extração apaga sem lixeira até a Fase 7).
+# Sem trava de envio duplo (decisão do Feca, 01/11): ela pularia a aposta recapturada depois de
+# apagada. `ficha_virada.aviso` diz POR QUE a aposta está pendente; `pendente_desde`, desde quando.
+AVISO_NAO_LIDA = "nao_lida"                  # s423: a Ficha recusou e o texto não trouxe
+AVISO_INCOMPLETA = "captura_incompleta"      # (b)
+AVISO_SEM_LINHA = "sem_linha"                # (c)
+# (c) só olha decisão tomada depois da D39: as de antes incluem apostas que o usuário apagou ou
+# refez à mão (os 16 de 14/10 do Jaao26), e avisar delas seria ruído sem saída.
+D39_DESDE = datetime(2026, 11, 2, 1, 0, tzinfo=timezone.utc)      # 01/11/2026 22:00 de Brasília
+# (c) dá tempo ao `/salvar` da leitura anterior (a IA leva até ~1 min; o `/salvar` vem depois).
+SEM_LINHA_FOLGA = 300.0
+# (b) A SAÍDA do segurado (Feca, 01/11/2026): a extensão não reenvia cru igual, então a aposta
+# aberta cujo texto muda sem o cru mudar (cashout na tela) ou cujo cru nunca vem (histórico
+# antigo) ficaria segurada para sempre, e sem linha ela nunca entraria na base. Segurada há
+# `SEGURADA_EXTRAIRS` `/extrair` da mesma casa e dono (sem cru novo, ou não estaria segurada) ou
+# há mais de `SEGURADA_HORAS`, ela vai à IA UMA vez, com motivo próprio (`ESGOTADA`). "Uma vez"
+# é por cru: a ida fica gravada com a impressão do cru, e enquanto o cru for o mesmo a aposta não
+# vai de novo nem volta a ser segurada (vale a linha da IA; sem linha, o (c) avisa). Sem isso o
+# cashout na tela, que muda o texto a cada captura, iria à IA a cada 3 capturas.
+SEGURADA_EXTRAIRS = 2
+SEGURADA_HORAS = 24
+# (b) "cru que não chegou" só segura a aposta se a casa MANDA cru para este dono: extensão velha
+# (sem cru nenhum) segurando tudo deixaria a aposta sem leitor, e F5 não resolveria.
+CRU_RECENTE_DIAS = 7
+
+_VEREDITO = re.compile(r"Status:[^\n]*→\s*(HW|HL|W|L|V)\b")
+_CLASSE = {"W": "+", "HW": "+", "L": "-", "HL": "-", "V": "0"}
+
+
+def cru_final(f) -> bool:
+    """A Ficha do cru guardado já está liquidada (qualquer status que não seja `aberta`)."""
+    return bool(f) and f.get("status") not in (None, "", "aberta")
+
+
+def contradiz(f, bloco) -> bool:
+    """O veredito do texto (`Status: … → X`) contradiz o resultado do cru guardado? Só a CLASSE
+    conta (ganhou, perdeu, devolveu): o texto escreve `W` também para meia vitória (`_resultadoB3`)
+    e quem decide a meia é o cru. Sem veredito no texto, não contradiz."""
+    m = _VEREDITO.search(bloco or "")
+    if not m:
+        return False
+    try:
+        res = _ficha.derivar(f)["resultado"]
+    except Exception:  # noqa: BLE001 — cru que não se deriva não é prova de nada: espera
+        return True
+    return _CLASSE.get(res) != _CLASSE[m.group(1)]
+
+
+_LINHA_NA_CASA = (f"EXISTS (SELECT 1 FROM bilhetes b WHERE b.dono = f.dono "
+                  f"AND b.codigo_bilhete = f.codigo AND {_KB} = f.casa)")
+_NA_LIXEIRA = ("EXISTS (SELECT 1 FROM lixeira_bilhetes l WHERE l.dono = f.dono "
+               "AND l.bilhete->>'codigo_bilhete' = f.codigo)")
+
+
+async def _saida(conn, dono: str, casa_key: str, quer: dict) -> tuple[set, dict, set]:
+    """Para os códigos que a D39 (b) seguraria (`quer` = {código: impressão do cru guardado, ou
+    "" sem cru}): (segurar, {código: impressão} que ESGOTARAM e vão à IA uma vez, os que já
+    foram à IA uma vez com ESTE cru e só saem do lote)."""
+    if not quer:
+        return set(), {}, set()
+    rows = await conn.fetch(
+        "SELECT f.codigo, f.impressao, f.motivo, (f.aviso = $4 AND (f.pendente_desde < "
+        "NOW() - make_interval(hours => $5) OR (SELECT count(*) FROM virada_log v "
+        "WHERE v.dono = f.dono AND v.casa = f.casa AND v.criado_em > f.pendente_desde) >= $6)) "
+        "AS esgotada FROM ficha_virada f WHERE f.dono = $1 AND f.casa = $2 "
+        "AND f.codigo = ANY($3::text[])", dono, casa_key, list(quer), AVISO_INCOMPLETA,
+        SEGURADA_HORAS, SEGURADA_EXTRAIRS)
+    antes = {r["codigo"]: r for r in rows}
+    segurar, esgotou, ja_foi = set(), {}, set()
+    for cod, imp in quer.items():
+        r = antes.get(cod)
+        if r is not None and r["motivo"] == ESGOTADA and (r["impressao"] or "") == imp:
+            ja_foi.add(cod)
+        elif r is not None and r["esgotada"]:
+            esgotou[cod] = imp
+        else:
+            segurar.add(cod)
+    if esgotou:
+        logger.warning("virada: %s %s · %d aposta(s) com captura incompleta esgotada vão à IA "
+                       "uma vez (sem cru novo há %d /extrair ou %d h)", dono, casa_key,
+                       len(esgotou), SEGURADA_EXTRAIRS, SEGURADA_HORAS)
+    return segurar, esgotou, ja_foi
+
+
+async def _segurar(conn, dono: str, casa_key: str, codigos) -> None:
+    """(b): a aposta fica fora da IA e pendente com o aviso de captura incompleta. Não mexe na
+    última decisão (`estado`, `motivo`, `atualizado_em`): é ela que diz, depois, que a aposta
+    foi decidida de novo (e o aviso sai)."""
+    for cod in codigos:
+        await conn.execute(
+            """INSERT INTO ficha_virada (dono, casa, codigo, estado, motivo, aviso, pendente_desde)
+               VALUES ($1, $2, $3, 'ia', 'captura incompleta', $4, NOW())
+               ON CONFLICT (dono, casa, codigo) DO UPDATE SET aviso = EXCLUDED.aviso,
+                 pendente_desde = COALESCE(ficha_virada.pendente_desde, NOW())""",
+            dono, casa_key, cod, AVISO_INCOMPLETA)
+
+
+async def _marcar_sem_linha(conn, dono: str, casa_key: str, ultimo) -> None:
+    """(c): `ia` decidido num `/extrair` ANTERIOR (até o último, depois da D39 e há mais de
+    `SEM_LINHA_FOLGA`) e sem linha na casa. Roda ANTES de decidir os códigos desta captura, que
+    reescrevem o `atualizado_em` dos que voltam no texto. A aposta excluída pela lixeira sai na
+    soltura do `_pendentes`, na mesma captura (um lugar só; a mesma conferência aqui seria
+    redundante, e a mutação dela escapava, s438)."""
+    if ultimo is None:
+        return
+    await conn.execute(
+        "UPDATE ficha_virada f SET pendente_desde = NOW(), aviso = $3 WHERE f.dono = $1 "
+        "AND f.casa = $2 AND f.estado = 'ia' AND f.pendente_desde IS NULL "
+        "AND f.atualizado_em <= $4::timestamptz AND f.atualizado_em >= $5::timestamptz "
+        "AND f.atualizado_em <= NOW() - make_interval(secs => $6) "
+        f"AND NOT {_LINHA_NA_CASA}",
+        dono, casa_key, AVISO_SEM_LINHA, ultimo, D39_DESDE, float(SEM_LINHA_FOLGA))
+
+
 async def _pendentes(conn, dono: str, casa_key: str, casa: str, no_texto: list[str],
-                     ultimo, janela: float) -> tuple[set[str], int]:
+                     ultimo, janela: float) -> tuple[set[str], dict]:
     """A aposta que ninguém lê (s423; Feca: "nenhuma aposta é descartada em silêncio").
 
     A rota do cru decide TODO código que a casa mandou; o texto da mesma captura pode trazer
     menos (Jaao26, Shuffle, 14/10: 43 crus, 9 códigos no texto). O código que a Ficha recusou
     e que o texto não trouxe não chega à IA, e some sem erro. Aqui, em ordem:
 
-      1. **tenta de novo** os já pendentes que o texto também não trouxe, pelo cru guardado
-         mais recente (o dicionário pode ter aprendido o termo desde então), na conta do cru;
-      2. **marca** os novos: `ia` decididos NESTA captura (depois do último `/extrair`, a
-         régua do R32; sem nenhum, a `JANELA_CRU`), fora do texto e sem linha no banco. Os
-         decididos antes do último `/extrair` NUNCA entram: é o que deixa os 16 de 14/10 do
-         Jaao26 de fora (ele refez o histórico à mão por print; recuperá-los duplicaria);
-      3. **solta** o que deixou de ser pendente: virou Ficha, veio no texto (a IA lê), ou já
-         tem linha no banco.
+      1. **tenta de novo** os pendentes `nao_lida` que o texto também não trouxe, pelo cru
+         guardado mais recente (o dicionário pode ter aprendido o termo desde então). Os da D39
+         (`captura_incompleta`, `sem_linha`) NÃO: esperam o cru novo ou só avisam;
+      2. **marca** os novos `nao_lida`: `ia` decididos NESTA captura (depois do último
+         `/extrair`, a régua do R32; sem nenhum, a `JANELA_CRU`), fora do texto e sem linha no
+         banco. Os decididos antes do último `/extrair` NUNCA entram aqui: é o que deixa os 16 de
+         14/10 do Jaao26 de fora (ele refez o histórico à mão por print; recuperá-los duplicaria);
+      3. **solta** o que deixou de ser pendente, pela regra de cada aviso:
+         `nao_lida` (ou sem aviso, de antes da D39): virou Ficha, veio no texto (a IA lê) ou tem
+         linha; `captura_incompleta`: foi decidido de novo depois de segurado (cru novo chegou);
+         `sem_linha`: tem linha, foi para a lixeira, ou a Ficha o gravou depois.
 
-    "Tem linha no banco" é na MESMA casa (`bilhetes.casa` é o nome de exibição; a régua é a do
-    dicionário, sem espaço e em maiúsculas): código igual noutra casa não é esta aposta.
+    "Tem linha no banco" é na MESMA casa (`casa_chave`: sem espaço, ponto e acento, em
+    maiúsculas): código igual noutra casa não é esta aposta.
 
-    Devolve (códigos que a Ficha resolveu agora, quantos seguem pendentes nesta casa)."""
+    Devolve (códigos que a Ficha resolveu agora, {"nao_lidas": n, "incompletas": n})."""
     ck = (casa_key or "").upper()
     resolvidos: set[str] = set()
     velhos = await conn.fetch(
         "SELECT DISTINCT ON (c.codigo) c.codigo, c.familia, c.parceiro, c.cru::text AS cru "
         "FROM ficha_virada f JOIN captura_crua c ON c.dono = f.dono AND c.casa = f.casa "
         "AND c.codigo = f.codigo WHERE f.dono = $1 AND f.casa = $2 AND f.estado = 'ia' "
-        "AND f.pendente_desde IS NOT NULL AND NOT (f.codigo = ANY($3::text[])) "
-        "AND NOT EXISTS (SELECT 1 FROM bilhetes b WHERE b.dono = f.dono "
-        "                AND b.codigo_bilhete = f.codigo AND upper(replace(b.casa, ' ', '')) = f.casa) "
-        "ORDER BY c.codigo, c.id DESC", dono, ck, list(no_texto))
+        "AND f.pendente_desde IS NOT NULL AND coalesce(f.aviso, $4) = $4 "
+        f"AND NOT (f.codigo = ANY($3::text[])) AND NOT {_LINHA_NA_CASA} "
+        "ORDER BY c.codigo, c.id DESC", dono, ck, list(no_texto), AVISO_NAO_LIDA)
     por_conta: dict[str, dict] = {}
     for c in velhos:
         por_conta.setdefault(c["parceiro"] or "", {})[c["codigo"]] = _ficha.montar_ficha(
@@ -399,61 +544,81 @@ async def _pendentes(conn, dono: str, casa_key: str, casa: str, no_texto: list[s
         feitos, _ = await aplicar(conn, dono, ck, casa, conta, cands)
         resolvidos |= feitos
     await conn.execute(
-        "UPDATE ficha_virada f SET pendente_desde = NOW() WHERE f.dono = $1 AND f.casa = $2 "
-        "AND f.estado = 'ia' AND f.pendente_desde IS NULL AND NOT (f.codigo = ANY($3::text[])) "
+        "UPDATE ficha_virada f SET pendente_desde = NOW(), aviso = $6 WHERE f.dono = $1 "
+        "AND f.casa = $2 AND f.estado = 'ia' AND f.pendente_desde IS NULL "
+        "AND NOT (f.codigo = ANY($3::text[])) "
         "AND (CASE WHEN $4::timestamptz IS NULL "
         "          THEN f.atualizado_em >= NOW() - make_interval(secs => $5) "
         "          ELSE f.atualizado_em > $4::timestamptz END) "
-        "AND NOT EXISTS (SELECT 1 FROM bilhetes b WHERE b.dono = f.dono "
-        "                AND b.codigo_bilhete = f.codigo AND upper(replace(b.casa, ' ', '')) = f.casa)",
-        dono, ck, list(no_texto), ultimo, float(janela))
+        f"AND NOT {_LINHA_NA_CASA}",
+        dono, ck, list(no_texto), ultimo, float(janela), AVISO_NAO_LIDA)
     await conn.execute(
-        "UPDATE ficha_virada f SET pendente_desde = NULL WHERE f.dono = $1 AND f.casa = $2 "
-        "AND f.pendente_desde IS NOT NULL AND (f.estado <> 'ia' OR f.codigo = ANY($3::text[]) "
-        "OR EXISTS (SELECT 1 FROM bilhetes b WHERE b.dono = f.dono "
-        "           AND b.codigo_bilhete = f.codigo AND upper(replace(b.casa, ' ', '')) = f.casa))",
-        dono, ck, list(no_texto))
-    n = await conn.fetchval(
-        "SELECT count(*) FROM ficha_virada WHERE dono = $1 AND casa = $2 "
-        "AND pendente_desde IS NOT NULL", dono, ck)
-    if n:
+        "UPDATE ficha_virada f SET pendente_desde = NULL, aviso = NULL WHERE f.dono = $1 "
+        "AND f.casa = $2 AND f.pendente_desde IS NOT NULL AND ("
+        f" (coalesce(f.aviso, $4) = $4 AND (f.estado <> 'ia' OR f.codigo = ANY($3::text[]) "
+        f"   OR {_LINHA_NA_CASA}))"
+        " OR (f.aviso = $5 AND f.atualizado_em > f.pendente_desde)"
+        f" OR (f.aviso = $6 AND ({_LINHA_NA_CASA} OR {_NA_LIXEIRA} "
+        "   OR (f.estado = 'ficha' AND f.atualizado_em > f.pendente_desde))))",
+        dono, ck, list(no_texto), AVISO_NAO_LIDA, AVISO_INCOMPLETA, AVISO_SEM_LINHA)
+    n = await _contar_avisos(conn, dono, ck)
+    if n["nao_lidas"]:
         logger.warning("virada: %s %s · %d aposta(s) não lida(s): a Ficha recusou e o texto "
-                       "da captura não as trouxe", dono, ck, n)
-    return resolvidos, int(n or 0)
+                       "da captura não as trouxe", dono, ck, n["nao_lidas"])
+    if n["incompletas"]:
+        logger.warning("virada: %s %s · %d aposta(s) com captura incompleta (cru que não chegou "
+                       "ou leitura que não virou linha)", dono, ck, n["incompletas"])
+    return resolvidos, n
 
 
-async def nao_lidas(dono: str, casa_key: str) -> int:
-    """Quantas apostas desta casa estão pendentes (`_pendentes`), para o aviso da tela."""
+async def _contar_avisos(conn, dono: str, casa_key: str) -> dict:
+    r = await conn.fetchrow(
+        "SELECT count(*) FILTER (WHERE coalesce(aviso, $3) = $3) AS nao_lidas, "
+        "count(*) FILTER (WHERE aviso IN ($4, $5)) AS incompletas FROM ficha_virada "
+        "WHERE dono = $1 AND casa = $2 AND pendente_desde IS NOT NULL",
+        dono, (casa_key or "").upper(), AVISO_NAO_LIDA, AVISO_INCOMPLETA, AVISO_SEM_LINHA)
+    return {"nao_lidas": int(r["nao_lidas"] or 0), "incompletas": int(r["incompletas"] or 0)}
+
+
+async def avisos(dono: str, casa_key: str) -> dict:
+    """Quantas apostas desta casa estão pendentes, por aviso, para a tela: `nao_lidas` (s423) e
+    `incompletas` (D39: captura incompleta ou leitura que não virou linha)."""
     if not virada(casa_key):
-        return 0
+        return {"nao_lidas": 0, "incompletas": 0}
     pool = await _pool_conn()
     async with pool.acquire() as conn:
-        return int(await conn.fetchval(
-            "SELECT count(*) FROM ficha_virada WHERE dono = $1 AND casa = $2 "
-            "AND pendente_desde IS NOT NULL", dono, (casa_key or "").upper()) or 0)
+        return await _contar_avisos(conn, dono, casa_key)
 
 
 async def resolver_no_extrair(dono: str, casa_key: str, casa: str, parceiro: str,
                               codigos: list[str], inalterados=frozenset(),
-                              no_texto: list[str] | None = None, info: dict | None = None
-                              ) -> tuple[set[str], float, dict]:
+                              no_texto: list[str] | None = None, info: dict | None = None,
+                              blocos: dict | None = None
+                              ) -> tuple[set[str], float, dict, set[str]]:
     """`/extrair` da casa virada: espera o cru, monta a Ficha do cru GUARDADO mais recente de
-    cada código e devolve (os que a Ficha resolveu, que saem do lote da IA; segundos de
-    espera; {código: motivo} dos que ficam com a IA). Nunca levanta.
+    cada código e devolve (os que a Ficha resolveu, que saem do lote da IA; segundos de espera;
+    {código: motivo} dos que ficam com a IA; os SEGURADOS, que também saem do lote e ficam
+    pendentes, D39 b). Nunca levanta.
 
-    `inalterados` = códigos cujo bloco de texto é igual ao da última leitura. Para os OUTROS,
-    só o cru desta captura vale (N3): cru anterior com texto mudado é a liquidação que o cru
-    velho esconderia, e o código vai para a IA. Desta captura = chegou depois do último
-    `/extrair` desta casa e dono (`virada_log`; R32), ou, sem nenhum, na `JANELA_CRU`."""
+    `inalterados` = códigos cujo bloco de texto é igual ao da última leitura. Para os OUTROS, o
+    cru tem de ser desta captura (N3) ou, desde a D39, estar LIQUIDADO e não contradizer o
+    veredito do texto (`blocos` = {código: bloco de texto}). Cru velho ABERTO com texto mudado,
+    ou cru que não chegou, segura a aposta. Desta captura = chegou depois do último `/extrair`
+    desta casa e dono (`virada_log`; R32), ou, sem nenhum, na `JANELA_CRU`."""
     if not virada(casa_key):
-        return set(), 0.0, {}
+        return set(), 0.0, {}, set()
     espera = 0.0
-    resolvidos, fica = set(), {}
+    resolvidos, fica, segurados = set(), {}, set()
+    ck = casa_key.upper()
     try:
         espera = await esperar_cru(dono, casa_key)
         pool = await _pool_conn()
         async with pool.acquire() as conn:
             ultimo = await ultimo_extrair(conn, dono, casa_key)
+            try:                                       # (c), antes de decidir esta captura
+                await _marcar_sem_linha(conn, dono, ck, ultimo)
+            except Exception:  # noqa: BLE001 — só deixa de avisar
+                logger.exception("virada: (c) sem linha de %s/%s não conferido", dono, ck)
             if codigos:
                 crus = await conn.fetch(
                     "SELECT DISTINCT ON (codigo) codigo, familia, cru::text AS cru, "
@@ -461,46 +626,70 @@ async def resolver_no_extrair(dono: str, casa_key: str, casa: str, parceiro: str
                     "      THEN recebido_em >= NOW() - make_interval(secs => $4) "
                     "      ELSE recebido_em > $5::timestamptz END) AS fresco FROM captura_crua "
                     "WHERE dono = $1 AND casa = $2 AND codigo = ANY($3::text[]) "
-                    "ORDER BY codigo, id DESC", dono, casa_key.upper(), list(codigos),
+                    "ORDER BY codigo, id DESC", dono, ck, list(codigos),
                     float(JANELA_CRU + espera), ultimo)
-                candidatas, velhos = {}, {}
+                candidatas, velhos, quer = {}, {}, {}
                 for c in crus:
-                    if not c["fresco"] and c["codigo"] not in inalterados:
-                        fica[c["codigo"]] = "texto mudou sem cru novo"
-                        velhos[c["codigo"]] = ("", "ia", "texto mudou sem cru novo")
+                    cod = c["codigo"]
+                    fm = _ficha.montar_ficha(c["familia"], json.loads(c["cru"]), ck)
+                    if not c["fresco"] and cod not in inalterados:
+                        f, mot = fm
+                        if f is None or mot:           # Ficha recusa: só o texto lê
+                            fica[cod] = "texto mudou sem cru novo"
+                            velhos[cod] = ("", "ia", "texto mudou sem cru novo")
+                        elif cru_final(f) and not contradiz(f, (blocos or {}).get(cod)):
+                            candidatas[cod] = fm       # (a) cru liquidado: Ficha, sem IA
+                        else:
+                            quer[cod] = f.get("impressao") or ""   # (b) cru aberto, ou desmentido
                         continue
-                    candidatas[c["codigo"]] = _ficha.montar_ficha(
-                        c["familia"], json.loads(c["cru"]), casa_key.upper())
-                for cod in codigos:
-                    if cod not in candidatas and cod not in fica:
-                        fica[cod] = "cru não chegou"
-                await _gravar_estados(conn, dono, casa_key.upper(), velhos)
+                    candidatas[cod] = fm
+                faltam = [cod for cod in codigos if cod not in candidatas and cod not in fica
+                          and cod not in quer]
+                if faltam:
+                    manda_cru = await conn.fetchval(
+                        "SELECT EXISTS (SELECT 1 FROM captura_crua WHERE dono = $1 AND casa = $2 "
+                        "AND recebido_em >= NOW() - make_interval(days => $3))",
+                        dono, ck, CRU_RECENTE_DIAS)
+                    for cod in faltam:
+                        if manda_cru:
+                            quer[cod] = ""             # (b) cru que não chegou
+                        else:
+                            fica[cod] = "cru não chegou"   # extensão sem cru: a IA lê
+                segurar, esgotou, ja_foi = await _saida(conn, dono, ck, quer)
+                for cod, imp in esgotou.items():       # a saída: à IA uma vez
+                    fica[cod] = ESGOTADA
+                    velhos[cod] = (imp, "ia", ESGOTADA)
+                segurados = segurar | ja_foi           # os dois saem do lote da IA
+                await _gravar_estados(conn, dono, ck, velhos)
+                if segurar:
+                    await _segurar(conn, dono, ck, segurar)
                 resolvidos, fica_ficha = await aplicar(conn, dono, casa_key, casa, parceiro,
                                                        candidatas)
                 fica.update(fica_ficha)
-            # Depois de decidir os do texto: a aposta que o texto não trouxe (s423). Falha aqui
-            # não tira nada do lote da IA: só deixa de avisar e de tentar de novo.
+            # Depois de decidir os do texto: a aposta que o texto não trouxe (s423) e a soltura
+            # dos avisos. Falha aqui não tira nada do lote da IA: só deixa de avisar.
             try:
                 _, n = await _pendentes(conn, dono, casa_key, casa,
                                         list(no_texto if no_texto is not None else codigos),
                                         ultimo, JANELA_CRU + espera)
                 if info is not None:
-                    info["nao_lidas"] = n
+                    info.update(n)
             except Exception:  # noqa: BLE001
                 logger.exception("virada: pendentes de %s/%s não conferidos", dono, casa_key)
-        return resolvidos, espera, fica
+        return resolvidos, espera, fica, segurados
     except Exception:  # noqa: BLE001 — na dúvida, a IA lê tudo, como antes da virada
         logger.exception("virada: falha no /extrair de %s/%s; o lote vai inteiro à IA",
                          dono, casa_key)
-        return set(), espera, {}
+        return set(), espera, {}, set()
 
 
 async def registrar(dono: str, casa_key: str, capturadas: int, ja_no_banco: int,
                     pela_ficha: int, inalterados: int, para_ia: int, espera: float = 0.0,
-                    motivos: dict | None = None) -> None:
+                    motivos: dict | None = None, segurados: int = 0) -> None:
     """Uma linha por `/extrair` da casa virada: a métrica antes × depois
     (`medicoes/medir_virada_custo.py`), com o motivo de cada código que foi para a IA
-    (`motivos` = {motivo: n}, as chaves de `MOTIVOS`). Falha aqui não importa para a captura."""
+    (`motivos` = {motivo: n}, as chaves de `MOTIVOS`) e, desde a D39, quantos ficaram fora da IA
+    esperando cru (`captura_incompleta`). Falha aqui não importa para a captura."""
     m = [(motivos or {}).get(mot, 0) for mot in MOTIVOS]
     try:
         pool = await _pool_conn()
@@ -508,10 +697,10 @@ async def registrar(dono: str, casa_key: str, capturadas: int, ja_no_banco: int,
             await conn.execute(
                 f"""INSERT INTO virada_log (dono, casa, capturadas, ja_no_banco, pela_ficha,
                                             inalterados, para_ia, espera_s,
-                                            {", ".join(MOTIVOS.values())})
-                    VALUES ({", ".join(f"${i}" for i in range(1, 9 + len(MOTIVOS)))})""",
+                                            {", ".join(MOTIVOS.values())}, captura_incompleta)
+                    VALUES ({", ".join(f"${i}" for i in range(1, 10 + len(MOTIVOS)))})""",
                 dono, (casa_key or "").upper(), capturadas, ja_no_banco, pela_ficha,
-                inalterados, para_ia, round(espera, 2), *m)
+                inalterados, para_ia, round(espera, 2), *m, segurados)
     except Exception:  # noqa: BLE001
         logger.exception("virada: não registrou a métrica de %s/%s", dono, casa_key)
 
@@ -574,7 +763,7 @@ async def vigia_candidatos(conn, dono: str, casa_key: str, codigos: list[str],
         return []
     rows = await conn.fetch(
         "SELECT b.codigo_bilhete FROM bilhetes b WHERE b.dono = $1 AND b.origem = 'ficha' "
-        "AND upper(replace(b.casa, ' ', '')) = $2 AND b.codigo_bilhete = ANY($3::text[]) "
+        f"AND {_KB} = $2 AND b.codigo_bilhete = ANY($3::text[]) "
         "AND NOT EXISTS (SELECT 1 FROM vigia_ficha v WHERE v.dono = b.dono AND v.casa = $2 "
         "  AND v.codigo = b.codigo_bilhete "
         "  AND coalesce(v.ficha->>'resultado', '') = coalesce(b.resultado, '')) "
@@ -676,7 +865,7 @@ async def vigia_registrar(conn, dono: str, casa_key: str, codigos: list[str], ts
     conta em dólar. A moeda da IA é a que o cru disse para o código, senão a da conta."""
     ia = _linhas_por_codigo(tsv)
     conta = await conn.fetchval(
-        "SELECT moeda FROM parceiros WHERE dono = $1 AND upper(replace(casa, ' ', '')) = $2 "
+        f"SELECT moeda FROM parceiros WHERE dono = $1 AND {_K} = $2 "
         "AND nome = $3 LIMIT 1", dono, (casa_key or "").upper(), parceiro or "") or _cambio.BRL
     do_cru = await _ficha.moedas_do_cru_conn(conn, dono, casa_key, parceiro, list(codigos))
     for cod, linha in ia.items():
@@ -685,7 +874,7 @@ async def vigia_registrar(conn, dono: str, casa_key: str, codigos: list[str], ts
     for cod in codigos:
         b = await conn.fetchrow(
             "SELECT stake, odd, resultado, descricao, moeda, stake_orig FROM bilhetes "
-            "WHERE dono = $1 AND codigo_bilhete = $2 AND upper(replace(casa, ' ', '')) = $3 "
+            f"WHERE dono = $1 AND codigo_bilhete = $2 AND {_K} = $3 "
             "ORDER BY id DESC LIMIT 1", dono, cod, (casa_key or "").upper())
         if not b:
             continue

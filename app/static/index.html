@@ -7484,13 +7484,19 @@ function createExtractionCard(parceiro, thumbUrls = [], fileNames = []) {
 // recusou e que o texto da captura não trouxe não chega à IA. O servidor a guarda como
 // pendente e a tenta de novo a cada captura; a tela diz quantas são. Falha aqui não muda o
 // resultado da extração: só deixa de avisar.
+// D39 (s438, Feca 01/11/2026): falta de cru nunca vai à IA. A aposta cujo cru não chegou (ou
+// cuja leitura não virou linha) fica pendente no servidor, e a tela diz o que fazer: a aba da
+// casa recarregada manda o cru de novo. Mesmo componente do aviso de cima, sem estilo novo.
 async function _avisarNaoLidas(card, casa) {
   if (!casa) return;
   try {
     const r = await fetch('/ficha/nao_lidas?casa=' + encodeURIComponent(casa));
     if (!r.ok) return;
-    const n = (await r.json()).nao_lidas || 0;
+    const d = await r.json();
+    const n = d.nao_lidas || 0, inc = d.incompletas || 0;
     if (n > 0) card.acrescentar(` · ⚠️ ${n} aposta(s) não lida(s) nesta casa, capture de novo`);
+    if (inc > 0) card.acrescentar(` · ⚠️ captura incompleta (${inc} aposta(s) esperando): `
+                                  + 'atualize a aba da casa (F5) e extraia de novo');
   } catch (_) {}
 }
 

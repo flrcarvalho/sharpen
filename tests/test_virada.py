@@ -52,6 +52,13 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   W2. o vigia compara a odd crua também na perdida        → test_vigia_compara_o_dinheiro_nao_a_forma
   s416 (D28 e R32; o resto no harness de banco):
   W9. a reserva da casa sempre livre                      → test_vigia_uma_chamada_por_casa…
+  s438 (D39; o resto no harness de banco):
+  D39a. cru velho liquidado volta a ser segurado          → cru_velho_liquidado_grava_pela_ficha
+  D39b. contradiz() sempre falso                          → liquidado_que_o_texto_desmente
+  D39c. cru velho aberto volta a ir à IA (regra antiga)   → cru_velho_aberto_com_texto_mudado
+  D39d. sem cru vai sempre à IA                           → extrair_resolve_pelo_cru_guardado
+  D39e. sem cru segura mesmo sem cru recente da casa      → sem_cru_so_segura_se_a_casa_manda_cru
+  D39f. chave da casa sem tirar o ponto / o acento        → chave_da_casa_bate_com_o_registro
 Inócua (registrada, não é buraco): `virada()` aceitar `*` — o `casas_viradas()` já tira o `*`
 da lista antes, então o código segue certo sem a linha.
 
@@ -353,13 +360,16 @@ def _registros():
 class _Conn:
     """Banco dublado: dicionário, códigos liquidados, `ficha_virada` e `captura_crua`."""
 
-    def __init__(self, termos=None, liquidados=(), estado=None, crus=(), no_banco=()):
+    def __init__(self, termos=None, liquidados=(), estado=None, crus=(), no_banco=(),
+                 manda_cru=True):
         self.termos = termos if termos is not None else {
             **{k: "Futebol" for k in dicionario.chaves(_ficha("5508528206"))}, **DESC}
         self.liquidados, self.crus = list(liquidados), list(crus)
         self.no_banco = list(no_banco)            # códigos com linha em `bilhetes` (s429)
         self.estado = dict(estado or {})          # código → (impressão, estado)
         self.motivos = {}
+        self.manda_cru = manda_cru                # D39: a casa manda cru para este dono
+        self.segurados = set()                    # D39 (b): `_segurar`
 
     async def fetch(self, sql, *a):
         if "dicionario_termos" in sql:
@@ -377,11 +387,18 @@ class _Conn:
         raise AssertionError(sql)
 
     async def fetchval(self, sql, *a):
+        if "captura_crua" in sql:                 # D39: houve cru desta casa e dono há pouco?
+            return self.manda_cru
         assert "virada_log" in sql                # R32: o último `/extrair` (o `fresco` do cru
         return None                               # dublado já vem decidido)
 
     async def execute(self, sql, *a):
         assert "ficha_virada" in sql
+        if sql.lstrip().startswith("UPDATE"):     # avisos (D39/s423): regra no harness de banco
+            return
+        if "aviso" in sql:                        # D39 (b): `_segurar`
+            self.segurados.add(a[2])
+            return
         _, _, cod, imp, est, motivo = a
         self.estado[cod] = (imp, est)
         self.motivos[cod] = motivo
@@ -504,7 +521,7 @@ def test_casa_nao_virada_nao_grava(monkeypatch):
     monkeypatch.setattr(virada, "_pool_conn", falso)
     assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 0
     assert asyncio.run(virada.resolver_no_extrair("TDono", "VAVADA", "Vavada", "c", ["1"])) \
-        == (set(), 0.0, {})
+        == (set(), 0.0, {}, set())
 
 
 def test_falha_ao_gravar_nao_derruba_a_rota(monkeypatch):
@@ -523,35 +540,118 @@ def test_falha_ao_gravar_nao_derruba_a_rota(monkeypatch):
 
 def test_extrair_resolve_pelo_cru_guardado(monkeypatch):
     """A extensão não reenvia cru igual: no `/extrair`, a aposta aberta que a IA gravou antes
-    da virada passa para a Ficha pelo cru GUARDADO. O que não tem cru fica com a IA."""
+    da virada passa para a Ficha pelo cru GUARDADO. D39 (s438): o código SEM cru não vai mais à
+    IA; fica segurado ("captura incompleta") enquanto a casa manda cru para este dono."""
     monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
     monkeypatch.setattr(virada, "FOLGA", 0.0)
-    _banco(monkeypatch, crus=[{"codigo": "5508528206", "familia": "vb", "fresco": True,
-                               "cru": json.dumps(CRUS["5508528206"])}])
+    conn = _banco(monkeypatch, crus=[{"codigo": "5508528206", "familia": "vb", "fresco": True,
+                                      "cru": json.dumps(CRUS["5508528206"])}])
     vistos = _gravador(monkeypatch)
-    feitos, _, fica = asyncio.run(virada.resolver_no_extrair(
+    feitos, _, fica, seg = asyncio.run(virada.resolver_no_extrair(
         "TDono", "VAVADA", "Vavada", "c", ["5508528206", "5500000003"]))
     assert feitos == {"5508528206"} and [v[0] for v in vistos] == ["5508528206"]
-    assert fica == {"5500000003": "cru não chegou"}
+    assert fica == {} and seg == {"5500000003"} and conn.segurados == {"5500000003"}
 
 
-def test_extrair_cru_velho_so_vale_com_o_texto_igual(monkeypatch):
-    """N3 (parecer 012): cru de captura ANTERIOR só resolve se o bloco de texto não mudou desde
-    a última leitura. Texto mudado + cru velho = a liquidação que o cru esconderia: vai à IA."""
+def test_d39_sem_cru_so_segura_se_a_casa_manda_cru(monkeypatch):
+    """D39: extensão velha (nenhum cru desta casa e dono há 7 dias) segurando tudo deixaria a
+    aposta sem leitor, e F5 não resolveria: aí o código sem cru segue para a IA, como antes."""
     monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
     monkeypatch.setattr(virada, "FOLGA", 0.0)
-    cru = {"codigo": "5508528206", "familia": "vb", "fresco": False,
-           "cru": json.dumps(CRUS["5508528206"])}
-    conn = _banco(monkeypatch, crus=[cru])
+    conn = _banco(monkeypatch, manda_cru=False)
+    _gravador(monkeypatch)
+    feitos, _, fica, seg = asyncio.run(virada.resolver_no_extrair(
+        "TDono", "VAVADA", "Vavada", "c", ["5500000003"]))
+    assert fica == {"5500000003": "cru não chegou"} and seg == set() and conn.segurados == set()
+
+
+def _cru_velho(status=None):
+    cru = CRUS["5508528206"] if status is None else dict(CRUS["5508528206"], status=status)
+    return {"codigo": "5508528206", "familia": "vb", "fresco": False, "cru": json.dumps(cru)}
+
+
+def test_extrair_cru_velho_aberto_com_texto_mudado_e_segurado(monkeypatch):
+    """N3 (parecer 012) + D39: cru de captura ANTERIOR ainda ABERTO, com o bloco de texto
+    mudado, é a liquidação que o cru esconderia. Antes da D39 ia à IA; agora fica fora dela,
+    segurado ("captura incompleta"), até o cru novo chegar. Texto igual: a Ficha resolve."""
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
+    monkeypatch.setattr(virada, "FOLGA", 0.0)
+    conn = _banco(monkeypatch, crus=[_cru_velho(status=0)])
     vistos = _gravador(monkeypatch)
-    feitos, _, fica = asyncio.run(virada.resolver_no_extrair(
+    feitos, _, fica, seg = asyncio.run(virada.resolver_no_extrair(
         "TDono", "VAVADA", "Vavada", "c", ["5508528206"]))
-    assert feitos == set() and vistos == []
-    assert fica == {"5508528206": "texto mudou sem cru novo"}
-    assert conn.motivos["5508528206"] == "texto mudou sem cru novo"
-    feitos, _, fica = asyncio.run(virada.resolver_no_extrair(
+    assert feitos == set() and vistos == [] and fica == {}
+    assert seg == {"5508528206"} and conn.segurados == {"5508528206"}
+    feitos, _, fica, seg = asyncio.run(virada.resolver_no_extrair(
         "TDono", "VAVADA", "Vavada", "c", ["5508528206"], {"5508528206"}))
-    assert feitos == {"5508528206"} and fica == {}
+    assert feitos == {"5508528206"} and fica == {} and seg == set()
+
+
+def test_d39_cru_velho_liquidado_grava_pela_ficha_sem_ia(monkeypatch):
+    """D39 (a): cru guardado JÁ LIQUIDADO não esconde liquidação nenhuma. Medido (parecer 022):
+    963 de 976 "texto mudou sem cru novo" tinham cru final, 100% iguais ao que a IA gravou.
+    Shuffle do Gabriel, 31/10: 108 apostas à IA duas vezes, US$ 1,51, por esta regra."""
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
+    monkeypatch.setattr(virada, "FOLGA", 0.0)
+    _banco(monkeypatch, crus=[_cru_velho()])
+    vistos = _gravador(monkeypatch)
+    bloco = {"5508528206": "[Código: 5508528206]\nStatus: Ganhou → W\n"}
+    feitos, _, fica, seg = asyncio.run(virada.resolver_no_extrair(
+        "TDono", "VAVADA", "Vavada", "c", ["5508528206"], blocos=bloco))
+    assert feitos == {"5508528206"} and [v[0] for v in vistos] == ["5508528206"]
+    assert fica == {} and seg == set()
+
+
+def test_d39_cru_velho_liquidado_que_o_texto_desmente_e_segurado(monkeypatch):
+    """D39 (a), a trava: se o veredito do texto contradiz o cru guardado (a casa reliquidou), a
+    Ficha não grava o resultado velho: a aposta espera o cru novo."""
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
+    monkeypatch.setattr(virada, "FOLGA", 0.0)
+    _banco(monkeypatch, crus=[_cru_velho()])
+    vistos = _gravador(monkeypatch)
+    bloco = {"5508528206": "[Código: 5508528206]\nStatus: Perdeu → L\n"}
+    feitos, _, fica, seg = asyncio.run(virada.resolver_no_extrair(
+        "TDono", "VAVADA", "Vavada", "c", ["5508528206"], blocos=bloco))
+    assert feitos == set() and vistos == [] and seg == {"5508528206"}
+
+
+def test_d39_contradiz_so_pela_classe_do_resultado():
+    """O texto escreve `W` também para meia vitória: só a CLASSE conta. Sem veredito, não
+    contradiz; cru que não se deriva é tratado como contradito (espera)."""
+    f = _ficha("5508528206")
+    assert ficha.derivar(f)["resultado"] == "W"
+    assert not virada.contradiz(f, "Status: Ganhou → W")
+    assert not virada.contradiz(f, "Status: Meio ganho → HW")
+    assert virada.contradiz(f, "Status: Perdeu → L") and virada.contradiz(f, "Status: x → V")
+    assert not virada.contradiz(f, "Status: Ganhou") and not virada.contradiz(f, None)
+    assert virada.contradiz({"status": "inexistente"}, "Status: a → W")
+
+
+def test_d39_ficha_recusada_com_texto_mudado_segue_para_a_ia(monkeypatch):
+    """Ficha RECUSADA não tem como gravar: com o texto mudado, só a IA lê o bloco atual."""
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
+    monkeypatch.setattr(virada, "FOLGA", 0.0)
+    conn = _banco(monkeypatch, crus=[_cru_velho(status=7)])     # status 7: recusa
+    _gravador(monkeypatch)
+    feitos, _, fica, seg = asyncio.run(virada.resolver_no_extrair(
+        "TDono", "VAVADA", "Vavada", "c", ["5508528206"]))
+    assert fica == {"5508528206": "texto mudou sem cru novo"} and seg == set()
+    assert conn.motivos["5508528206"] == "texto mudou sem cru novo"
+
+
+def test_chave_da_casa_bate_com_o_registro_inteiro():
+    """D39 (d): a chave sem espaço, PONTO e acento. Só sem espaço, `Sportsbet.io`, `Stake.com`,
+    `Betão` e `Vitória Bet` não batiam com a chave do registro, e a virada não via a linha que
+    já estava no banco. Confere as casas do `_CASA_DISPLAY` (62 em 01/11/2026)."""
+    import ast
+    import re
+    src = (Path(__file__).resolve().parents[1] / "app" / "main.py").read_text(encoding="utf-8")
+    reg = ast.literal_eval(re.search(r"^_CASA_DISPLAY[^=]*=\s*(\{.*?^\})", src,
+                                     re.M | re.S).group(1))
+    assert len(reg) >= 60
+    assert {k: v for k, v in reg.items() if virada.chave_da_casa(v) != k} == {}
+    assert virada.chave_da_casa("Sportsbet.io") == "SPORTSBETIO"
+    assert virada.chave_da_casa(" Vitória  Bet ") == "VITORIABET"
 
 
 def test_categoria_fora_do_master_fica_com_a_ia(monkeypatch):

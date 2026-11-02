@@ -260,6 +260,10 @@ def _master() -> tuple[frozenset, frozenset]:
     return frozenset(taxonomia.esportes_canonicos()), frozenset(taxonomia.categorias_canonicas())
 
 
+import casa_chave as _casa_chave  # noqa: E402  (s438: a chave da casa, sem ponto)
+
+_CHAVE_B = _casa_chave.sql("b.casa")
+
 MAIORIA = 0.9                    # P7: com 90% ou mais dos votos, fica a maioria
 
 
@@ -377,8 +381,11 @@ async def pares(conn) -> tuple[list, list, dict]:
                               "FROM captura_crua ORDER BY id"):
         ultimo[(r["dono"], r["casa"], r["parceiro"], r["codigo"])] = r
     codigos = [k[3] for k in ultimo]
+    # s438 (D39): a chave pela régua da virada (sem espaço, ponto e acento). Só sem espaço,
+    # `Sportsbet.io` virava `SPORTSBET.IO`, nunca achava a linha da IA e votava pela sombra,
+    # sem a trava da aposta editada à mão.
     nomes = {r["k"]: r["casa"] for r in await conn.fetch(
-        "SELECT DISTINCT upper(replace(casa, ' ', '')) AS k, casa FROM bilhetes")}
+        f"SELECT DISTINCT {_casa_chave.sql('casa')} AS k, casa FROM bilhetes")}
     # Aposta editada à mão (`correcoes` com `esporte`, `aposta` ou `descricao`) não vota (R27): o dicionário
     # vale para todos os usuários da casa, e com 1 voto uma edição viraria regra para todos.
     # Também não cai para a `sombra_rotulos`: a decisão da IA ali é a que alguém corrigiu.
@@ -425,7 +432,9 @@ async def pares(conn) -> tuple[list, list, dict]:
             continue
         termos = esportes_do_texto(s["bruto"])
         if termos:
-            texto.append(((s["casa"] or "").replace(" ", "").upper(), termos, s["ia_esporte"]))
+            # s438: a mesma chave da virada; sem o ponto, a semente gravava `SPORTSBET.IO`,
+            # `STAKE.COM` e `BETÃO` como casas paralelas no dicionário
+            texto.append((_casa_chave.chave(s["casa"]), termos, s["ia_esporte"]))
     fontes["texto (esporte)"] = len(texto)
     return out, texto, dict(fontes)
 
@@ -628,7 +637,7 @@ async def regravar_mes(conn, casa: str = "*", aplicar: bool = False, hoje=None, 
                 "ARRAY(SELECT DISTINCT c.campo FROM correcoes c WHERE c.bilhete_id = b.id "
                 "      AND c.origem IS DISTINCT FROM 'ficha') AS ed "
                 "FROM bilhetes b WHERE b.dono = $1 AND b.codigo_bilhete = $2 "
-                "AND upper(replace(b.casa, ' ', '')) = $3 AND b.origem = 'ficha'",
+                f"AND {_CHAVE_B} = $3 AND b.origem = 'ficha'",
                 fv["dono"], fv["codigo"], fv["casa"]):
             if _mes(b["data"]) != mes:
                 continue

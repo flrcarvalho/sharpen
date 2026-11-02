@@ -1014,6 +1014,10 @@ CREATE TABLE IF NOT EXISTS ficha_virada (
 -- recebeu (Jaao26, Shuffle, 14/10: 16 de 43). `pendente_desde` a marca; a tela avisa e cada
 -- `/extrair` seguinte da casa a tenta de novo pela Ficha (`virada._pendentes`). NULL = não pendente.
 ALTER TABLE ficha_virada ADD COLUMN IF NOT EXISTS pendente_desde TIMESTAMPTZ;
+-- D39 (s438, 01/11/2026): POR QUE a aposta está pendente. NULL ou `nao_lida` = s423 (acima);
+-- `captura_incompleta` = cru guardado aberto com texto mudado, ou cru que não chegou: a aposta não
+-- vai à IA e espera o cru novo; `sem_linha` = foi à IA e não virou linha. Regras em `virada.py`.
+ALTER TABLE ficha_virada ADD COLUMN IF NOT EXISTS aviso TEXT;
 
 -- Uma linha por `/extrair` de casa virada (s411): a métrica de cada virada, antes × depois
 -- (`docs/PROJETO_FICHA_SHARPEN/medicoes/medir_virada_custo.py`). `capturadas` = códigos
@@ -1040,6 +1044,10 @@ ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS fora_do_master INTEGER NOT NULL 
 ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS recusada_salvar INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS cru_nao_chegou INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS sem_cru_novo   INTEGER NOT NULL DEFAULT 0;
+-- D39 (s438): quantos códigos ficaram FORA da IA esperando cru ("captura incompleta").
+ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS captura_incompleta INTEGER NOT NULL DEFAULT 0;
+-- D39, a saída: quantos SEGURADOS esgotaram (2 `/extrair` ou 24 h sem cru novo) e foram à IA.
+ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS captura_esgotada INTEGER NOT NULL DEFAULT 0;
 
 -- Uma linha por rodada da semente do dicionário (s412): `gatilho` = diaria (04h de Brasília),
 -- extrair (logo depois de um `/extrair` de casa virada que mandou termo novo à IA) ou manual.

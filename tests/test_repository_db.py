@@ -1629,15 +1629,16 @@ async def _virada_ponta_a_ponta(sess, payload, texto, antes=None, virar_no_extra
 
 
 def test_virada_tres_bilhetes_chegam_ao_banco(monkeypatch):
-    """Casa virada: a Ficha aceita grava pela Ficha e SAI do lote da IA; a recusada e a sem
-    cru vão para a IA pelo texto. Os três terminam em `bilhetes`, nenhum some."""
+    """Casa virada: a Ficha aceita grava pela Ficha e SAI do lote da IA; a recusada vai para a
+    IA pelo texto. D39 (s438): a SEM cru não vai mais à IA; fica pendente com o aviso "captura
+    incompleta". Nenhum some: dois no banco, o terceiro pendente e avisado."""
     aceita, recusada, sem_cru = _VIRADA
-    resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(
-        *_virada_cenario(monkeypatch, "VAVADA")))
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
+    resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(sess, payload, texto))
     assert resp["fichas"] == {"aceitas": 1, "recusadas": 1} and resp["na_planilha"] == 1
-    assert (lidos, cortados) == (sorted([recusada, sem_cru]), 1)
-    assert banco == {aceita: ("ficha", "W"), recusada: ("extracao", "L"),
-                     sem_cru: ("extracao", "L")}
+    assert (lidos, cortados) == ([recusada], 2)
+    assert banco == {aceita: ("ficha", "W"), recusada: ("extracao", "L")}
+    assert _run(_avisos_ficha(sess.dono)) == {sem_cru: "captura_incompleta"}
 
 
 def test_virada_semente_nao_vota_na_linha_da_propria_ficha(monkeypatch):
@@ -1658,7 +1659,8 @@ def test_virada_metrica_por_captura(monkeypatch):
     """Métrica de cada virada (Feca, 12/10): capturadas, quantas a IA não leu, quantas foram."""
     sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
     _run(_virada_ponta_a_ponta(sess, payload, texto))
-    assert sess.log == [{"capturadas": 3, "ja_no_banco": 1, "pela_ficha": 0, "para_ia": 2}]
+    # D39 (s438): o código SEM cru não vai mais à IA; fica pendente ("captura incompleta").
+    assert sess.log == [{"capturadas": 3, "ja_no_banco": 1, "pela_ficha": 0, "para_ia": 1}]
 
 
 def test_virada_aberta_sai_da_ia_na_origem(monkeypatch):
@@ -1667,8 +1669,9 @@ def test_virada_aberta_sai_da_ia_na_origem(monkeypatch):
     sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA", aberta=True)
     resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(sess, payload, texto))
     assert resp["na_planilha"] == 1 and banco[aceita] == ("ficha", None)
-    assert (lidos, cortados) == (sorted([recusada, sem_cru]), 1)
-    assert sess.log == [{"capturadas": 3, "ja_no_banco": 0, "pela_ficha": 1, "para_ia": 2}]
+    # D39 (s438): o código SEM cru não vai mais à IA; fica pendente ("captura incompleta").
+    assert (lidos, cortados) == ([recusada], 2)
+    assert sess.log == [{"capturadas": 3, "ja_no_banco": 0, "pela_ficha": 1, "para_ia": 1}]
 
 
 def test_virada_cru_guardado_antes_da_virada(monkeypatch):
@@ -1679,7 +1682,8 @@ def test_virada_cru_guardado_antes_da_virada(monkeypatch):
     resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(
         sess, payload, texto, virar_no_extrair="VAVADA"))
     assert resp["na_planilha"] == 0
-    assert banco[aceita] == ("ficha", "W") and (lidos, cortados) == (sorted([recusada, sem_cru]), 1)
+    # D39 (s438): o código SEM cru não vai mais à IA; fica pendente ("captura incompleta").
+    assert banco[aceita] == ("ficha", "W") and (lidos, cortados) == ([recusada], 2)
 
 
 def test_virada_termo_fora_do_dicionario_vai_para_a_ia(monkeypatch):
@@ -1688,8 +1692,9 @@ def test_virada_termo_fora_do_dicionario_vai_para_a_ia(monkeypatch):
     resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(
         *_virada_cenario(monkeypatch, "VAVADA", termos=False)))
     assert resp["fichas"] == {"aceitas": 1, "recusadas": 1} and resp["na_planilha"] == 0
-    assert (lidos, cortados) == (sorted(_VIRADA), 0)
-    assert {o for o, _ in banco.values()} == {"extracao"} and len(banco) == 3
+    # D39 (s438): o código SEM cru não vai mais à IA; fica pendente ("captura incompleta").
+    assert (lidos, cortados) == (sorted(_VIRADA[:2]), 1)
+    assert {o for o, _ in banco.values()} == {"extracao"} and len(banco) == 2
 
 
 def test_virada_aberta_da_ia_passa_para_a_ficha(monkeypatch):
@@ -1699,8 +1704,9 @@ def test_virada_aberta_da_ia_passa_para_a_ficha(monkeypatch):
     resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(
         *_virada_cenario(monkeypatch, "VAVADA"), antes=(aceita, "")))
     assert resp["na_planilha"] == 1
-    assert (lidos, cortados) == (sorted([recusada, sem_cru]), 1)
-    assert banco[aceita] == ("extracao", "W") and len(banco) == 3
+    # D39 (s438): o código SEM cru não vai mais à IA; fica pendente ("captura incompleta").
+    assert (lidos, cortados) == ([recusada], 2)
+    assert banco[aceita] == ("extracao", "W") and len(banco) == 2
 
 
 def test_virada_d10_liquidada_nao_e_reescrita(monkeypatch):
@@ -1710,7 +1716,8 @@ def test_virada_d10_liquidada_nao_e_reescrita(monkeypatch):
     resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(
         *_virada_cenario(monkeypatch, "VAVADA"), antes=(aceita, "L")))
     assert resp["na_planilha"] == 0
-    assert (lidos, cortados) == (sorted([recusada, sem_cru]), 1)
+    # D39 (s438): o código SEM cru não vai mais à IA; fica pendente ("captura incompleta").
+    assert (lidos, cortados) == ([recusada], 2)
     assert banco[aceita] == ("extracao", "L")
 
 
@@ -1727,14 +1734,16 @@ async def _virada_segunda_captura(sess, texto, envelhecer=True):
     para_ia, _ = await main._dedup_superbet_text(texto, sess.dono, sess.casa, sess.parceiro)
     await asyncio.sleep(0.1)
     async with pool.acquire() as conn:
-        log = await conn.fetchrow("SELECT pela_ficha, para_ia, sem_cru_novo FROM virada_log "
-                                  "ORDER BY id DESC LIMIT 1")
+        log = await conn.fetchrow("SELECT pela_ficha, para_ia, sem_cru_novo, captura_incompleta "
+                                  "FROM virada_log ORDER BY id DESC LIMIT 1")
     return repository.codigos_do_texto(para_ia), dict(log)
 
 
-def test_virada_n3_texto_mudou_sem_cru_novo_vai_para_a_ia(monkeypatch):
+def test_virada_n3_texto_mudou_sem_cru_novo_fica_pendente(monkeypatch):
     """Furo N3 (parecer 012): aposta aberta com Ficha; o texto chega RESOLVIDO e nenhum cru
-    novo chega. O cru guardado (aberto) não pode esconder a liquidação: a IA lê o bloco."""
+    novo chega. O cru guardado (aberto) não pode esconder a liquidação. Antes da D39 a IA lia
+    o bloco; desde a D39 (s438) a aposta NÃO vai à IA: fica aberta no banco, pendente com o
+    aviso "captura incompleta", esperando o cru novo (a sem cru, idem)."""
     aceita, recusada, sem_cru = _VIRADA
     sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA", aberta=True)
     _run(_virada_ponta_a_ponta(sess, payload, texto))
@@ -1742,8 +1751,10 @@ def test_virada_n3_texto_mudou_sem_cru_novo_vai_para_a_ia(monkeypatch):
                           f"[Código: {aceita}]\nStake: 10\nStatus: Ganho")
     assert mudou != texto
     lidos, log = _run(_virada_segunda_captura(sess, mudou))
-    assert aceita in lidos
-    assert log == {"pela_ficha": 0, "para_ia": 1, "sem_cru_novo": 1}
+    assert lidos == []
+    assert log == {"pela_ficha": 0, "para_ia": 0, "sem_cru_novo": 0, "captura_incompleta": 2}
+    assert _run(_avisos_ficha(sess.dono)) == {aceita: "captura_incompleta",
+                                              sem_cru: "captura_incompleta"}
 
 
 def test_virada_r32_cru_32s_antes_do_extrair_e_desta_captura(monkeypatch):
@@ -2275,12 +2286,12 @@ def test_s423_nao_lida_vira_pendente_e_a_proxima_captura_a_grava(monkeypatch):
     async def body():
         pool = await _shuffle_reset()
         lidos, n = await _shuffle_captura(sess, texto, payload)
-        n_tela = await virada.nao_lidas(sess.dono, "SHUFFLE")
+        n_tela = (await virada.avisos(sess.dono, "SHUFFLE"))["nao_lidas"]
         banco1 = await _banco_shf(pool, sess.dono)
         await _shuffle_aprende(pool, crus, _SHF_FORA)
         lidos2, n2 = await _shuffle_captura(sess, texto)
         return (lidos, n, n_tela, banco1, lidos2, n2, await _banco_shf(pool, sess.dono),
-                await virada.nao_lidas(sess.dono, "SHUFFLE"))
+                (await virada.avisos(sess.dono, "SHUFFLE"))["nao_lidas"])
     lidos, n, n_tela, banco1, lidos2, n2, banco2, n_fim = _run(body())
     assert lidos == sorted(_SHF_TEXTO) and n == 1 and n_tela == 1
     assert _SHF_FORA not in banco1 and set(banco1) == set(_SHF_TEXTO)
@@ -2691,3 +2702,233 @@ def test_s438_o_lock_timeout_nao_vaza_para_a_conexao_do_pool():
             for conn in conns:
                 await pool.release(conn)
     _run(body())
+
+
+
+# ── s438 · D39: falta de cru nunca vai à IA, e aposta nunca some em silêncio ─────────────
+# Mutações provadas (aplicadas, teste ao lado vermelho):
+#   D39g. o cru velho liquidado volta a ser segurado         → d39_cru_liquidado_regrava
+#   D39h. `contradiz` sempre falso                           → d39_texto_desmente_o_cru
+#   D39i. a soltura do `captura_incompleta` some             → d39_cru_novo_solta_o_aviso
+#   D39j. sem o `_marcar_sem_linha`                          → d39_ia_sem_linha_vira_pendente
+#   D39k. a soltura do `sem_linha` sem "tem linha"           → d39_ia_sem_linha_vira_pendente
+#   D39l. a soltura do `sem_linha` sem olhar a lixeira       → d39_ia_sem_linha_na_lixeira
+#   D39m. a chave SQL da virada volta a tirar só o espaço    → d39_grafia_com_ponto_acha_a_linha
+#   D39n. o voto do texto volta a tirar só o espaço          → d39_semente_vota_na_chave_sem_ponto
+#   D39p. sem a saída do segurado (nunca esgota)              → d39_segurada_esgota
+#   D39q. sem o "uma vez" (esgota de novo com o mesmo cru)    → d39_segurada_esgota
+#   D39r. a saída sem a regra das 24 h                        → d39_segurada_ha_24h
+#   D39s. a saída sem a contagem de `/extrair`                → d39_segurada_esgota
+# Não cobre: o tempo real (D39_DESDE e SEM_LINHA_FOLGA são zerados aqui) e o aviso na tela
+# (`tests/js/aviso_captura_incompleta.mjs`).
+
+async def _avisos_ficha(dono):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return {r["codigo"]: r["aviso"] for r in await conn.fetch(
+            "SELECT codigo, aviso FROM ficha_virada WHERE dono = $1 AND pendente_desde "
+            "IS NOT NULL", dono)}
+
+
+async def _sql(q, *a):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.execute(q, *a)
+
+
+def test_d39_cru_liquidado_regrava_a_aposta_apagada_sem_ia(monkeypatch):
+    """Shuffle do Gabriel, 31/10: as apostas foram apagadas e recapturadas sem cru novo; o cru
+    guardado já estava LIQUIDADO e as 108 foram à IA duas vezes (US$ 1,51). D39 (a): a Ficha as
+    regrava do cru guardado, e o veredito do texto (`→ W`) confere com o cru."""
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    _run(_sql("DELETE FROM bilhetes WHERE codigo_bilhete = $1", aceita))
+    mudou = texto.replace(f"[Código: {aceita}]\nStake: 10\nStatus: Perdido",
+                          f"[Código: {aceita}]\nStake: 10\nStatus: Ganhou → W")
+    lidos, log = _run(_virada_segunda_captura(sess, mudou))
+    assert aceita not in lidos and log["pela_ficha"] == 1 and log["sem_cru_novo"] == 0
+
+    async def origem():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            return await conn.fetchval("SELECT origem || ' ' || resultado FROM bilhetes "
+                                       "WHERE codigo_bilhete = $1", aceita)
+    assert _run(origem()) == "ficha W"
+
+
+def test_d39_texto_desmente_o_cru_guardado_e_a_aposta_espera(monkeypatch):
+    """D39 (a), a trava: o texto diz `→ L` e o cru guardado diz ganha (a casa reliquidou depois
+    do último cru). A Ficha não grava o resultado velho e a IA não lê: a aposta espera o cru."""
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    _run(_sql("DELETE FROM bilhetes WHERE codigo_bilhete = $1", aceita))
+    mudou = texto.replace(f"[Código: {aceita}]\nStake: 10\nStatus: Perdido",
+                          f"[Código: {aceita}]\nStake: 10\nStatus: Perdeu → L")
+    lidos, log = _run(_virada_segunda_captura(sess, mudou))
+    assert aceita not in lidos and log["pela_ficha"] == 0
+    assert _run(_avisos_ficha(sess.dono))[aceita] == "captura_incompleta"
+
+
+def test_d39_cru_novo_solta_o_aviso_e_a_ficha_grava(monkeypatch):
+    """(b): a aberta segurada sai do aviso quando o cru novo chega e a Ficha a decide."""
+    import ficha
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA", aberta=True)
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    mudou = texto.replace(f"[Código: {aceita}]\nStake: 10\nStatus: Perdido",
+                          f"[Código: {aceita}]\nStake: 10\nStatus: Ganho")
+    _run(_virada_segunda_captura(sess, mudou))
+    assert aceita in _run(_avisos_ficha(sess.dono))
+    import json as _json
+    crus = _json.loads((Path(__file__).resolve().parent / "ficha_crus_familias.json")
+                       .read_text(encoding="utf-8"))
+    _run(ficha.receber({"token": "t", "versao": "0.7.71", "familia": "vb",
+                        "itens": [{"codigo": aceita, "cru": crus[aceita]}]}))   # liquidado
+    lidos, log = _run(_virada_segunda_captura(sess, mudou, envelhecer=False))
+    assert aceita not in lidos and aceita not in _run(_avisos_ficha(sess.dono))
+
+
+def _sem_linha_cenario(monkeypatch):
+    """1ª captura: a recusada vai à IA e vira linha; aqui a linha some (o leitor recusou, o
+    `/salvar` não aconteceu). A 2ª captura não traz a recusada no texto."""
+    import virada
+    monkeypatch.setattr(virada, "D39_DESDE", virada.datetime(2020, 1, 1, tzinfo=virada.timezone.utc))
+    monkeypatch.setattr(virada, "SEM_LINHA_FOLGA", 0.0)
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    _run(_sql("DELETE FROM bilhetes WHERE codigo_bilhete = $1", recusada))
+    # o `_reset` não limpa a lixeira, e o teste da lixeira deixa a linha dele no banco de teste
+    _run(_sql("DELETE FROM lixeira_bilhetes WHERE dono = $1", sess.dono))
+    sem_ela ="\n\n".join(b for b in texto.split("\n\n") if recusada not in b)
+    return sess, sem_ela, recusada
+
+
+def test_d39_ia_sem_linha_vira_pendente_e_sai_quando_a_linha_chega(monkeypatch):
+    """(c): Duel 2728364620980039864, 31/10: foi à IA duas vezes, o leitor recusou as duas
+    linhas, e a aposta ficou 22 h fora do banco sem aviso nenhum. Agora a captura seguinte a
+    marca pendente ("sem linha"), a tela conta como captura incompleta, e o aviso sai quando
+    a linha existe."""
+    import virada
+    sess, sem_ela, recusada = _sem_linha_cenario(monkeypatch)
+    _run(_virada_segunda_captura(sess, sem_ela, envelhecer=False))
+    assert _run(_avisos_ficha(sess.dono))[recusada] == "sem_linha"
+    assert _run(virada.avisos(sess.dono, "VAVADA"))["incompletas"] >= 1
+    import main
+    _run(main.gravar_tsv(main.SalvarRequest(
+        tsv=f"10/10/2026\tFutebol\t\t{sess.casa}\t{sess.parceiro}\tML\tTime A [A vs B]"
+            f"\t10\t2\tL\t{recusada}", casa=sess.casa, parceiro=sess.parceiro),
+        sess.dono, sess.dono))
+    _run(_virada_segunda_captura(sess, sem_ela, envelhecer=False))
+    assert recusada not in _run(_avisos_ficha(sess.dono))
+
+
+def test_d39_ia_sem_linha_na_lixeira_nao_vira_pendente(monkeypatch):
+    """(c) só avisa: a aposta que o usuário excluiu pela lixeira não vira pendente."""
+    sess, sem_ela, recusada = _sem_linha_cenario(monkeypatch)
+    _run(_sql("INSERT INTO lixeira_bilhetes (dono, motivo, bilhete) VALUES ($1, 'teste', "
+              "jsonb_build_object('codigo_bilhete', $2::text))", sess.dono, recusada))
+    _run(_virada_segunda_captura(sess, sem_ela, envelhecer=False))
+    assert recusada not in _run(_avisos_ficha(sess.dono))
+
+
+def test_d39_chave_sql_igual_a_do_python_no_registro_inteiro():
+    """(d): a mesma regra nos dois lados. Se o SQL e o Python divergirem numa casa, a virada
+    deixa de ver a linha dela em silêncio."""
+    import ast
+    import re
+    import casa_chave
+    src = (Path(__file__).resolve().parents[1] / "app" / "main.py").read_text(encoding="utf-8")
+    reg = ast.literal_eval(re.search(r"^_CASA_DISPLAY[^=]*=\s*(\{.*?^\})", src,
+                                     re.M | re.S).group(1))
+    nomes = sorted(set(reg.values()) | {" Vitória  Bet ", "Stake.com", "sportsbet.io"})
+
+    async def body():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            return {r["n"]: r["k"] for r in await conn.fetch(
+                f"SELECT n, {casa_chave.sql('n')} AS k FROM unnest($1::text[]) AS n", nomes)}
+    sql = _run(body())
+    assert {n: (sql[n], casa_chave.chave(n)) for n in nomes if sql[n] != casa_chave.chave(n)} == {}
+
+
+def test_d39_grafia_com_ponto_acha_a_linha_no_banco():
+    """(d): `Sportsbet.io` no banco é a casa `SPORTSBETIO` da virada. Antes, `_liquidados` e
+    `_no_banco` não achavam a linha (6 apostas da Stake.com do Feca davam "sem linha")."""
+    import virada
+
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_row(casa="Sportsbet.io", codigo_bilhete="SBI1")],
+                                         "TDonoG")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            return (await virada._liquidados(conn, "TDonoG", "SPORTSBETIO", ["SBI1"]),
+                    await virada._no_banco(conn, "TDonoG", "SPORTSBETIO", ["SBI1"]))
+    assert _run(body()) == ({"SBI1"}, {"SBI1"})
+
+
+def test_d39_semente_vota_na_chave_sem_ponto():
+    """(d): o voto do texto (`sombra_rotulos`) da `Sportsbet.io` vai para a chave `SPORTSBETIO`;
+    antes ia para `SPORTSBET.IO`, uma casa paralela no dicionário que a virada nunca lia."""
+    import dicionario
+
+    async def body():
+        await _reset()
+        await _sql("TRUNCATE sombra_rotulos")
+        await _sql("INSERT INTO sombra_rotulos (dono, casa, codigo, bruto, ia_esporte) VALUES "
+                   "('TDonoG', 'Sportsbet.io', 'SBI2', $1, 'Futebol')",
+                   "[Código: SBI2]\nTipo: Simples\nEsporte: soccer\n")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            return (await dicionario.pares(conn))[1]
+    assert _run(body()) == [("SPORTSBETIO", ["soccer"], "Futebol")]
+
+
+
+def test_d39_segurada_esgota_depois_de_2_extrair_e_vai_a_ia_uma_vez(monkeypatch):
+    """A saída do segurado (Feca, 01/11): a extensão não reenvia cru igual, então a aposta cujo
+    texto muda sem o cru mudar (cashout na tela) ficaria segurada para sempre. Segurada há 2
+    `/extrair` da mesma casa e dono, ela vai à IA UMA vez (`captura incompleta esgotada`); na
+    captura seguinte, com o MESMO cru, não vai de novo nem volta a ser segurada."""
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA", aberta=True)
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    mudou = texto.replace(f"[Código: {aceita}]\nStake: 10\nStatus: Perdido",
+                          f"[Código: {aceita}]\nStake: 10\nStatus: Cashout 7,50")
+    # a sem cru já está segurada desde a 1ª captura; a aberta é segurada na 2ª
+    lidos2, _ = _run(_virada_segunda_captura(sess, mudou))                    # segura a aberta
+    assert lidos2 == [] and aceita in _run(_avisos_ficha(sess.dono))
+    lidos3, _ = _run(_virada_segunda_captura(sess, mudou, envelhecer=False))  # a sem cru esgota
+    assert lidos3 == [sem_cru] and aceita in _run(_avisos_ficha(sess.dono))
+    lidos4, log4 = _run(_virada_segunda_captura(sess, mudou, envelhecer=False))  # a aberta esgota
+
+    async def esgotadas():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            return await conn.fetchval("SELECT captura_esgotada FROM virada_log "
+                                       "ORDER BY id DESC LIMIT 1")
+    assert lidos4 == [aceita] and _run(esgotadas()) == 1
+    assert aceita not in _run(_avisos_ficha(sess.dono))
+    lidos5, log5 = _run(_virada_segunda_captura(sess, mudou, envelhecer=False))  # uma vez só
+    assert lidos5 == [] and aceita not in _run(_avisos_ficha(sess.dono))
+
+
+def test_d39_segurada_ha_24h_vai_a_ia(monkeypatch):
+    """A outra porta da saída: segurada há mais de 24 h vai à IA, mesmo sem 2 `/extrair`. A
+    contagem de `/extrair` fica desligada aqui: recuar o `pendente_desde` faz as capturas
+    anteriores contarem, e a regra das 24 h ficava sem prova (a mutação dela escapava, s438)."""
+    import virada
+    monkeypatch.setattr(virada, "SEGURADA_EXTRAIRS", 99)
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA", aberta=True)
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    mudou = texto.replace(f"[Código: {aceita}]\nStake: 10\nStatus: Perdido",
+                          f"[Código: {aceita}]\nStake: 10\nStatus: Cashout 7,50")
+    assert _run(_virada_segunda_captura(sess, mudou))[0] == []
+    _run(_sql("UPDATE ficha_virada SET pendente_desde = NOW() - interval '25 hours' "
+              "WHERE codigo = $1", aceita))
+    lidos, _ = _run(_virada_segunda_captura(sess, mudou, envelhecer=False))
+    assert aceita in lidos

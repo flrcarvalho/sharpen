@@ -1444,8 +1444,10 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     # sempre como "sem mudança" (MyStake 308613169). Ver `blocos_conhecidos`.
     conhecidos = await blocos_conhecidos(dono, casa, codigos, parceiro, gravados=True)
     # O de-para de hash usa o MESMO recorte do gravador. Ver o aviso do docstring.
-    por_codigo = {k: hash_bloco(v) for k, v in blocos_por_codigo(text).items()}
+    blocos_txt = blocos_por_codigo(text)
+    por_codigo = {k: hash_bloco(v) for k, v in blocos_txt.items()}
     pela_ficha: set[str] = set()
+    segurados: set[str] = set()
     espera, fica_ia = 0.0, {}
     if virou:
         # N3 (parecer 012): a Ficha só tira o código se o cru é desta captura OU se o bloco
@@ -1456,11 +1458,14 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
         iguais = {c for c in codigos if por_codigo.get(c) is not None
                   and vistos_hash.get(c) == por_codigo[c]}
         # `no_texto` + `info` (s423): o código que a Ficha recusou e que ESTE texto não traz
-        # vira pendente, e `info["nao_lidas"]` volta para o aviso da tela.
-        pela_ficha, espera, fica_ia = await _virada.resolver_no_extrair(
+        # vira pendente, e `info["nao_lidas"]` volta para o aviso da tela. D39 (01/11/2026):
+        # `segurados` = sem cru novo e sem cru liquidado (ou cru que não chegou): saem do lote
+        # da IA como os da Ficha e ficam pendentes ("captura incompleta", `info["incompletas"]`).
+        # `blocos_txt` leva o veredito do texto para conferir o cru guardado liquidado.
+        pela_ficha, espera, fica_ia, segurados = await _virada.resolver_no_extrair(
             dono, casa_key, casa, parceiro, [c for c in dict.fromkeys(codigos)
                                              if c not in ja_resolvidos], iguais,
-            no_texto=list(dict.fromkeys(codigos)), info=info)
+            no_texto=list(dict.fromkeys(codigos)), info=info, blocos=blocos_txt)
 
     mantidos: list[str] = []
     vistos: set[str] = set()
@@ -1473,6 +1478,10 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
             if bid in pela_ficha:
                 vistos.add(bid)
                 n_ficha += 1
+                skipped += 1
+                continue
+            if bid in segurados:               # D39: espera o cru, nunca vai à IA
+                vistos.add(bid)
                 skipped += 1
                 continue
             atual = por_codigo.get(bid)
@@ -1489,16 +1498,17 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     if virou:
         # O motivo de cada código que de fato seguiu para a IA (um código, um motivo).
         motivos: dict[str, int] = {}
-        for bid in vistos - pela_ficha:
+        for bid in vistos - pela_ficha - segurados:
             if (m := fica_ia.get(bid)):
                 motivos[m] = motivos.get(m, 0) + 1
-        logger.info("virada: %s/%s · %d capturada(s), %d pela Ficha, %d à IA (espera %.1f s) %s",
-                    dono, casa, len(set(codigos)), n_ficha, len(mantidos), espera, motivos)
+        logger.info("virada: %s/%s · %d capturada(s), %d pela Ficha, %d à IA, %d esperando cru "
+                    "(espera %.1f s) %s", dono, casa, len(set(codigos)), n_ficha, len(mantidos),
+                    len(segurados), espera, motivos)
         if info is not None:
             info["motivos"] = motivos   # página de Logs, parte só do admin (s433)
         _fire(_virada.registrar(dono, casa_key, len(set(codigos)),
                                 len(set(codigos) & ja_resolvidos), n_ficha, inalterados,
-                                len(mantidos), espera, motivos))
+                                len(mantidos), espera, motivos, len(segurados)))
         if motivos.get("termo fora do dicionário") or motivos.get("descrição fora do dicionário"):
             _virada.marcar_termo_novo(dono, casa)
         # A Ficha LEU estes blocos: sem o `bloco_visto` deles, a captura seguinte (texto igual,
@@ -5147,10 +5157,12 @@ async def painel_da_conta(casa: str, parceiro: str, dono: str = Depends(dono_lei
 
 @app.get("/ficha/nao_lidas")
 async def ficha_nao_lidas(casa: str, dono: str = Depends(dono_leitura)):
-    """Apostas desta casa que a Ficha recusou e que o texto da captura não trouxe (s423,
-    `virada._pendentes`): a tela avisa "capture de novo". Casa não virada = 0."""
+    """Apostas pendentes desta casa (`virada._pendentes`), para o aviso da tela:
+    `nao_lidas` = a Ficha recusou e o texto da captura não trouxe (s423, "capture de novo");
+    `incompletas` = D39, cru que não chegou ou leitura que não virou linha ("captura
+    incompleta: atualize a aba da casa (F5) e extraia de novo"). Casa não virada = 0 e 0."""
     import virada as _virada
-    return {"nao_lidas": await _virada.nao_lidas(dono, _virada.chave_da_casa(casa))}
+    return await _virada.avisos(dono, _virada.chave_da_casa(casa))
 
 
 # ── Bloco de tipster na sidebar: perfil + logo da conta (s362) ────────────────
