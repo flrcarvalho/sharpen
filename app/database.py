@@ -1136,10 +1136,45 @@ async def get_pool() -> asyncpg.Pool:
     return _pool
 
 
+# O DDL do startup não pode esperar lock para sempre (s438; a queda de 25/10/2026). Os ~58
+# `ALTER TABLE` do SCHEMA_SQL pedem lock EXCLUSIVO mesmo quando a coluna já existe (o
+# `IF NOT EXISTS` é conferido depois do lock). Com uma transação longa segurando a tabela
+# (um script de banco rodando à mão), o ALTER esperava sem fim e, atrás dele, toda consulta a
+# `bilhetes` enfileirava: o Sharpen inteiro parava em "Waiting for application startup".
+# Agora cada tentativa desiste do lock em `DDL_LOCK_TIMEOUT`, faz rollback do schema inteiro
+# (o SCHEMA_SQL já era atômico: um script só, uma transação) e tenta de novo depois de
+# `DDL_PAUSA`. Esgotadas as tentativas, o boot FALHA, e com o healthcheck do `railway.toml`
+# o deploy anterior continua no ar em vez de mandar tráfego para um container travado.
+# `SET LOCAL`, nunca `SET`: a conexão volta ao pool e não pode levar o timeout para as
+# consultas do app.
+# Não cobre: o backfill de `parceiros.adquirida_em` (bloco `DO … EXCEPTION WHEN others`)
+# ENGOLE o estouro de lock como WARNING e segue; ele roda de novo no próximo boot.
+DDL_LOCK_TIMEOUT = "5s"
+DDL_TENTATIVAS = 6
+DDL_PAUSA = 10.0
+
+
 async def init_db() -> None:
+    import asyncio
+    import logging
     pool = await get_pool()
-    async with pool.acquire() as conn:
-        await conn.execute(SCHEMA_SQL)
+    for tentativa in range(1, DDL_TENTATIVAS + 1):
+        try:
+            async with pool.acquire() as conn:
+                async with conn.transaction():
+                    await conn.execute(f"SET LOCAL lock_timeout = '{DDL_LOCK_TIMEOUT}'")
+                    await conn.execute(SCHEMA_SQL)
+            return
+        except asyncpg.exceptions.LockNotAvailableError:
+            if tentativa >= DDL_TENTATIVAS:
+                logging.getLogger("scanner").error(
+                    "init_db: lock do schema não saiu em %d tentativas; o boot falha e o "
+                    "deploy anterior segue no ar", DDL_TENTATIVAS)
+                raise
+            logging.getLogger("scanner").warning(
+                "init_db: tabela travada por outra transação (tentativa %d de %d); "
+                "nova tentativa em %.0f s", tentativa, DDL_TENTATIVAS, DDL_PAUSA)
+            await asyncio.sleep(DDL_PAUSA)
 
 
 async def seed_usuarios() -> None:

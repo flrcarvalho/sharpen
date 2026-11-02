@@ -5,3 +5,9 @@ dockerfilePath = "Dockerfile"
 [deploy]
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
+# s438 (queda de 25/10/2026): sem healthcheck a Railway mandava o tráfego para o container
+# novo ainda travado em "Waiting for application startup". Com ele, o deploy anterior fica
+# no ar até o `/healthz` responder, e o `/healthz` só responde depois do `init_db`
+# (lifespan). O teto cobre o pior caso do `init_db` (6 × (5 s de lock + 10 s de pausa)).
+healthcheckPath = "/healthz"
+healthcheckTimeout = 300

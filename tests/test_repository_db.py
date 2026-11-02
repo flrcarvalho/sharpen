@@ -2568,3 +2568,78 @@ def test_s433_faixa_e_painel_seguem_a_regra_da_freebet():
         assert p["dias"][0]["pl"] == 0.0 and p["atual"] == 0.0
         assert p["tipsters"][0]["pl"] == 0.0
     _run(body())
+
+
+# ── s438 (Extra): o DDL do startup não espera lock para sempre (queda de 25/10/2026) ──────
+# Não cobre: o tempo real da Railway (healthcheck), que é config (`test_deploy_config.py`);
+# nem o backfill `DO … EXCEPTION`, que engole o estouro por desenho (comentário no database).
+
+async def _segura_bilhetes():
+    """Uma conexão FORA do pool com transação aberta lendo `bilhetes`: AccessShareLock, que
+    basta para o `ALTER TABLE` do SCHEMA_SQL esperar (como o script de 25/10)."""
+    import asyncpg
+    c = await asyncpg.connect(TEST_DB)
+    tr = c.transaction()
+    await tr.start()
+    await c.fetchval("SELECT count(*) FROM bilhetes")
+    return c, tr
+
+
+def test_s438_init_db_desiste_do_lock_em_vez_de_esperar_para_sempre(monkeypatch):
+    """Com a tabela travada, o `init_db` levanta LockNotAvailable no timeout. Sem o
+    `SET LOCAL lock_timeout` ele esperaria até a outra transação acabar (o `wait_for` estoura)."""
+    import asyncpg
+    monkeypatch.setattr(database, "DDL_LOCK_TIMEOUT", "300ms")
+    monkeypatch.setattr(database, "DDL_TENTATIVAS", 1)
+
+    async def body():
+        await init_db()                                   # schema pronto antes de travar
+        c, tr = await _segura_bilhetes()
+        try:
+            with pytest.raises(asyncpg.exceptions.LockNotAvailableError):
+                await asyncio.wait_for(init_db(), timeout=5)
+        finally:
+            await tr.rollback()
+            await c.close()
+    _run(body())
+
+
+def test_s438_init_db_tenta_de_novo_quando_o_lock_sai(monkeypatch):
+    """A 1ª tentativa estoura; a trava sai durante a pausa; a 2ª passa e o boot segue."""
+    monkeypatch.setattr(database, "DDL_LOCK_TIMEOUT", "300ms")
+    monkeypatch.setattr(database, "DDL_TENTATIVAS", 3)
+    monkeypatch.setattr(database, "DDL_PAUSA", 0.5)
+
+    async def body():
+        await init_db()
+        c, tr = await _segura_bilhetes()
+
+        async def soltar():
+            await asyncio.sleep(0.6)                      # depois do 1º estouro (300 ms)
+            await tr.rollback()
+        solta = asyncio.ensure_future(soltar())
+        try:
+            await asyncio.wait_for(init_db(), timeout=10)  # não levanta
+        finally:
+            await solta
+            await c.close()
+    _run(body())
+
+
+def test_s438_o_lock_timeout_nao_vaza_para_a_conexao_do_pool():
+    """`SET LOCAL`: depois do `init_db`, as conexões do pool estão com o lock_timeout padrão
+    (0 = sem limite). Um `SET` de sessão faria as consultas do app desistirem em 5 s.
+    Mutação INÓCUA medida (s438): trocar `SET LOCAL` por `SET` não quebra este teste, porque
+    o pool do asyncpg roda `RESET ALL` ao devolver a conexão. O teste fica como guarda do dia
+    em que alguém mudar o reset do pool (`reset=` / `setup=` no `create_pool`)."""
+    async def body():
+        await init_db()
+        pool = await get_pool()
+        conns = [await pool.acquire() for _ in range(pool.get_size())]
+        try:
+            for conn in conns:
+                assert await conn.fetchval("SHOW lock_timeout") == "0"
+        finally:
+            for conn in conns:
+                await pool.release(conn)
+    _run(body())

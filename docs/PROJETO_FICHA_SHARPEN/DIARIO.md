@@ -5,6 +5,42 @@
 
 ---
 
+## 2026-11-01 · s438 · Consultoria 022: Parte 1, Fase 0 e a Extra (lock_timeout + healthcheck)
+
+**Onde está:** ordem aprovada pelo Feca (01/11/2026): Extra, D39 (com a grafia com ponto), Fase 7,
+D40, D42, D43, D41. A Extra foi escrita, testada e aprovada para deploy. Próximo: conferir o deploy,
+gravar a aposta perdida da Duel (com prévia) e preparar a do Jaao26; depois a D39.
+
+**Parte 1 (só leitura; consultas em `Auditorias/consultoria_ficha_2026-10`, painel de 01/11).**
+- IA estável (1.316 contra 1.317, `virada_log`, semanas de 19 a 25/10 e de 26/10 a 01/11) por
+  compensação: as casas antigas caíram cerca de 405; Shuffle +247 (216 do caso de 31/10) e Sportsbet.io
+  +180 (casa nova). A Ficha caiu porque havia menos aposta aberta no texto (Vavada 1.235 para 648,
+  capturando mais), não por piora.
+- **Cru final esconde nada:** dos 976 códigos cujo último motivo foi "texto mudou sem cru novo", 963
+  tinham o cru guardado já liquidado e o resultado bate 100% com o da IA (762 L, 209 W, 5 V); só 4
+  de cru aberto viraram L, que é o caso que a N3 protege. É a base da D39.
+- Custo: titular das casas viradas, de 26/10 a 01/11, US$ 16,58 / 1.321 envios = US$ 0,0126 por aposta.
+- Descrição (7 dias): 314 de 318 códigos são múltiplas; 228 pernas sem par: sufixo no time 2 73,
+  prefixo 16, IA sem o time 49 (erro da IA, a recusa está certa), número que sobrou e marca faltando
+  42, jogo que não pareia por outro motivo 45.
+- D41 medida com o dicionário de hoje: a família acrescenta 9 apostas por semana; 145 dos 318 códigos
+  de descrição já passam só com a casa (a semente aprendeu depois).
+
+**Fase 0.** Das 7 "sem linha": 6 Stake.com do Feca existem sob a grafia com ponto (`STAKE.COM` ≠
+`STAKECOM`). Perdidas de fato: 1win 338677290 do Jaao26 (R$ 250 L; lote de 116 com a conta `Old`
+criada 1 min antes, 115 gravadas; o log de 16/10 expirou) e Duel 2728364620980039864 do Feca (o
+leitor recusou a linha da IA duas vezes, a 2ª com a odd na coluna do código; nunca virou pendente).
+A Shuffle do Gabriel foi apagada pelo próprio Gabriel (confirmado pelo Feca), pela tela de Extração,
+`DELETE /bilhetes` sem lixeira, em 31/10 às 19:54 e às 19:56; as 108 foram pagas duas vezes por
+apagar e recapturar. **Corrige a Parte 1**, que tinha dado corrida de commit (o `criado_em` é o
+`submitted_at` do clique, não a hora do INSERT).
+
+**Extra.** `init_db` com `SET LOCAL lock_timeout = '5s'`, 6 tentativas e 10 s de pausa;
+`healthcheckPath = "/healthz"` e `healthcheckTimeout = 300` no `railway.toml`. Mutações 5 de 6; a
+inócua (`SET` × `SET LOCAL`) está escrita no teste.
+
+---
+
 ## 2026-10-23 · s427 · As 6 casas com adaptador viradas, e a Vave na Ficha (adaptador `vv`)
 
 **Onde está:** BETREBELS, SAPPHIREBET, BETFURY, BETCOIN, MELBET e JACK viradas (deploy `ebd2ce2b`,
