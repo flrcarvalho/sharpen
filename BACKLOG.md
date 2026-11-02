@@ -1805,15 +1805,15 @@ só props liquidadas (15) e apostas comuns abertas (3, Fórmula 1). Sem amostra:
 usa cópia literal das queries da página: se a casa mudar o schema, a query inteira falha (o erro da
 casa sobe no autodiagnóstico). Falta a 1ª captura pela extensão instalada.
 
-### 4.0w Kalshi: falta a 1ª sincronização real (s439). **VIVA**
+### 4.0w Kalshi: no ar e sincronizando; restam os casos não medidos (s439). **VIVA**
 
 Casa por API, irmã da Polymarket (`casas/CASA_KALSHI.md`). Construída na s435 (coletor) e
 na s439 (chave cifrada, `/kalshi/sync`, painel com o passo a passo, Caixa automática), com
 aval do Feca para o `include_router` no `main.py` (01/11). O que segue aberto:
 - **`KALSHI_CHAVE_CIFRA` criada** na Railway pelo Feca (01/11, 22:40). **Trocar o valor
   invalida toda chave guardada** (o usuário reconecta).
-- **1ª sincronização real** na conta do Feca, conferindo contra o golden (`§15`: combo L,
-  US$ 19,9785, odd 11,5995) e a Caixa (US$ 279,6515). `ensaio: true` lê sem gravar.
+- **1ª sincronização real feita** na conta do Feca (01/11, à noite): aposta e Caixa
+  conferidas por ele na tela ("parece ter sincronizado e estar certinho").
 - **Tolerância da Caixa:** a Kalshi guarda 4 casas e o Sharpen centavos, como a
   Polymarket, mas o `_caixa_tol` (`repository.py`, da Ficha) só abre a faixa √n para a
   Polymarket. Com poucas apostas o meio centavo basta; com centenas, deve virar
