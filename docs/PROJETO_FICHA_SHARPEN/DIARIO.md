@@ -5,6 +5,51 @@
 
 ---
 
+## 2026-11-02 · s438 · Manhã depois da autorização noturna: o que entrou, o que parou, o que falta
+
+**Onde está:** D42 (commits 2 a 5) e D43 no ar. D44 e D41 só em código local, sem commit (limite
+do Feca). Próximo: as 3 decisões do `PLANO_D41_D44.md` e a primeira captura de casa virada pós-D39.
+
+**No ar, cada um com healthcheck aprovado e "Application startup complete":**
+
+| Etapa | Commit | Deploy |
+|---|---|---|
+| D42 c2 · leitura da descrição | `1d78d8d` | `ae52454c` |
+| D42 c3 · `semente_recusa` | `d3c893d` | `e72cd6f5` |
+| D42 c4 · aviso diário | `c6f331b` | `c140c34a` |
+| D42 c5 · vigia como fonte de voto | `a12398d` | `614833cb` |
+| D43 · Bet Builder pela Ficha (Sportsbet.io) | `a8d8ec3` | `5c0372b7` |
+
+**O que parou e por quê:** só a 1ª tentativa de commit da D43, barrada porque o teste carregava os
+crus de produção dos 5 aprovados. O arquivo saiu e os testes foram refeitos com a fixture do
+harness e pernas sintéticas; nada foi para o ar com dado de produção. Nenhuma etapa deixou de subir.
+
+**Telegram:** a mensagem "teste do aviso diário da semente" saiu em 02/11 00:39:13 (`aviso_admin`
+teste-s438, ok). Falta o Feca confirmar que chegou no celular.
+
+**Semente e aviso das 04h (SELECT às 04:35):**
+- `semente_log` id 450, `diaria`, 04:00:49: 2.424 termos na rodada, 205 preservados pelo E1.
+- 1º aviso diário real: `aviso_admin` diario-2026-11-02, ok, 04:00:49. 174 chaves com recusa
+  repetida (≥3 na rodada); as três primeiras são da MEGAPARI, "perna sem trecho da IA do mesmo
+  jogo" (96, 77 e 74). É o primeiro alvo de ajuste da leitura.
+- `semente_recusa`: 1.881 linhas, 3.129 recusas somadas, todas `origem='semente'`.
+
+**Vigia da primeira captura pós-D39:** nenhuma captura de casa virada entre o deploy (01/11 23:02)
+e 04:35 de 02/11 (`virada_log` e `ficha_virada` vazios no período). A vigia segue aberta; a
+medição sai na primeira captura do dia. Também nenhuma aposta Sportsbet.io pela Ficha ainda (D43).
+
+**D44 e D41, só local:** testes e mutações verdes (D44 6/6, suíte pura 2162, banco 128; D41 7/7,
+pura 2158, banco 126). Patches em `Planilhador/Backups/s438_d41_d44_local/`, plano em
+`Auditorias/consultoria_ficha_2026-10/PLANO_D41_D44.md`. Decisões com o Feca: (1) convenção da tela
+da D44 (`fmtSaldo`?); (2) medição só leitura na produção por um caminho novo, fora do `db_ro.py`;
+(3) correção feita pelo botão vira "corrigida à mão" numa reliquidação, aceitar ou marcar a origem
+em `correcoes`. Na D41: 105 termos em que as irmãs divergem (vb 73), quase tudo estilo.
+
+**Alarme falso registrado:** o Git Bash mostrou UTC rotulado como horário de Brasília e por alguns
+minutos pareceu que a semente das 04h tinha falhado. Eram 01:30. Hora se lê do `now()` do banco.
+
+---
+
 ## 2026-11-02 · s438 · D43: Bet Builder pela Ficha, Sportsbet.io (deploy autônomo)
 
 **Onde está:** no ar sob a autorização noturna do Feca. Próximo: D44 e D41 só como plano e código
