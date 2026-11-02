@@ -453,18 +453,62 @@ async def coletar(cred: Credencial, parceiro: str) -> dict:
         linhas.sort(key=lambda r: r["_sort"])
 
         caixa = await _coletar_caixa(client, cred)
+        if not caixa.get("erro"):
+            # A Caixa nasce no 1º dia da conta: o 1º depósito, ou a 1ª ordem se vier antes.
+            datas = [m["data"] for m in caixa["movimentos"]]
+            datas += [d for d in (_iso_brt(o["criada"]) for o in ordens.values()) if d]
+            caixa["inicio"] = min(datas) if datas else datetime.now(BRT).date().isoformat()
     return {"linhas": linhas, "alertas": alertas, "caixa": caixa,
             "nao_mapeado": {k: sorted(v) for k, v in nao_mapeado.items()}}
 
 
 async def _coletar_caixa(client, cred) -> dict:
-    """Saldo e movimentos da conta (etapa 4 usa; aqui só lê). Nunca derruba as apostas."""
+    """Saldo e movimentos da conta, já traduzidos para a Caixa. Nunca derruba as apostas:
+    falha vira `{"erro": …}` e o chamador avisa."""
     try:
         bal = await _get(client, cred, "portfolio/balance")
         dep = await _paginar(client, cred, "portfolio/deposits", "deposits")
         saq = await _paginar(client, cred, "portfolio/withdrawals", "withdrawals")
+        movs, alertas = movimentos_caixa(dep, saq)
     except KalshiErro as exc:
         return {"erro": str(exc)}
-    return {"saldo": _f(bal.get("balance_dollars")),
-            "depositos": [d for d in dep if d.get("status") == "applied"],
-            "saques": [w for w in saq if w.get("status") == "applied"]}
+    saldo = bal.get("balance_dollars")
+    if saldo is None:
+        return {"erro": "o saldo da conta não veio em balance_dollars"}
+    return {"saldo": _f(saldo), "movimentos": movs, "alertas": alertas}
+
+
+def movimentos_caixa(depositos: list[dict], saques: list[dict]) -> tuple[list[dict], list[str]]:
+    """Depósitos e saques da Kalshi → lançamentos da Caixa (`caixa_mov`), PURO.
+
+    Formato medido no recon de 30/10/2026 (1 depósito): `amount_cents` inteiro em
+    CENTAVOS, `created_ts` em segundos, `id`, `status`, `fee_cents`. Só `applied` conta.
+    O saque nunca foi visto: ele é lido com o MESMO formato e, se faltar campo, levanta
+    em vez de chutar a unidade. `fee_cents` diferente de zero não foi medido (a taxa sai
+    do valor ou é cobrada à parte?): o lançamento entra pelo `amount_cents` e o sync avisa,
+    para a conferência apontar se a escolha estiver errada."""
+    movs: list[dict] = []
+    alertas: list[str] = []
+    for tipo, lista in (("deposito", depositos), ("saque", saques)):
+        for m in lista:
+            if (m.get("status") or "") != "applied":
+                continue
+            cents, ts, mid = m.get("amount_cents"), m.get("created_ts"), m.get("id")
+            if not isinstance(cents, int) or not isinstance(ts, (int, float)) or not mid:
+                raise KalshiErro(f"formato de {tipo} não medido (sem amount_cents, created_ts ou id)")
+            if m.get("fee_cents"):
+                alertas.append(f"{'Depósito' if tipo == 'deposito' else 'Saque'} de "
+                               f"{_iso_to_br(_data_ts(ts))} teve taxa de US$ "
+                               f"{_fmt_money(m['fee_cents'] / 100)}, caso ainda não medido: "
+                               "confira a Caixa.")
+            movs.append({"tipo": tipo, "data": _data_ts(ts), "valor": round(cents / 100, 2),
+                         "ref": f"kalshi:{tipo}:{mid}",
+                         "obs": f"Automático: {'depósito' if tipo == 'deposito' else 'saque'} "
+                                "lido da conta Kalshi"})
+    movs.sort(key=lambda x: (x["data"], x["ref"]))
+    return movs, alertas
+
+
+def _data_ts(ts: float) -> str:
+    """Segundos Unix → data ISO no fuso de Brasília (a data em que o dinheiro mexeu)."""
+    return datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(BRT).date().isoformat()

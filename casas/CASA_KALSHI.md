@@ -44,6 +44,15 @@ carregada.
 - O usuário **não precisa do arquivo baixado**: a tela final da Kalshi mostra o
   `API key id` e a `Private key` com botão de copiar. No Sharpen são dois campos de colar.
 - A chave privada aparece **uma vez só** na Kalshi. Perdeu, apaga e cria outra.
+- **Onde ela mora (s439):** `kalshi_chave`, uma por CONTA (`parceiros.id`, CASCADE).
+  A chave privada entra **cifrada** (Fernet; o segredo é a env var `KALSHI_CHAVE_CIFRA`,
+  nunca o banco) e **nunca volta à tela**: o `GET /kalshi/chave` devolve só os 8 primeiros
+  caracteres do ID. O `POST /kalshi/chave` confere NA KALSHI (autentica e é só leitura)
+  antes de gravar; chave recusada não é guardada. Rotas em `app/kalshi_rotas.py`.
+- **Painel (s439):** na Extração a casa troca o upload pelo bloco `Conta Kalshi`:
+  `Conectar chave` (modal com o passo a passo da tela da Kalshi) e `Sincronizar`. O
+  auto-sync roda ao entrar na conta e ao voltar à aba, no máximo a cada 5 min, pela marca
+  `ultimo_sync` do servidor. `POST /kalshi/sync` com `ensaio: true` lê sem gravar.
 
 ### 2.3 Endpoints
 
@@ -258,8 +267,14 @@ Mesmo desenho da Polymarket (`CASA_POLYMARKET §17`): a cada Sincronizar a Caixa
 o Sharpen com a conta.
 
 - **Depósito / saque** = `/portfolio/deposits` e `/portfolio/withdrawals`, gravados em
-  `caixa_mov` com `ref` = `id` do movimento (o sync regrava sem duplicar). Só
-  `status: applied` conta.
+  `caixa_mov` com `ref` = `kalshi:<tipo>:<id>` (o sync regrava sem duplicar). Só
+  `status: applied` conta. Formato medido (depósito, 30/10): `amount_cents` **inteiro em
+  centavos**, `created_ts` em segundos (a data é a de Brasília), `id`, `fee_cents`. O saque
+  é lido com o mesmo formato e, sem esses campos, a Caixa não é atualizada (o sync avisa)
+  em vez de chutar a unidade (`kalshi.movimentos_caixa`).
+- **Gravação:** `kalshi_rotas.caixa_kalshi_sync`, o mesmo desenho do
+  `caixa_polymarket_sync` sem a trava da blockchain: aqui a lista vem da própria conta, e a
+  conferência é a trava. Gate: `test_caixa_kalshi_golden_confere_e_nao_duplica`.
 - **Saldo observado** = `balance_dollars`.
 - **Inicial** = 0 no 1º dia da conta: o extrato de depósitos traz tudo.
 - **Medido em 30/10/2026:** 1 depósito (US$ 299,63) − 1 aposta perdida (US$ 19,9785) =

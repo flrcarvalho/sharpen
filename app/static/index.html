@@ -1676,6 +1676,17 @@ button.pc-dia:focus-visible { outline: 2px solid var(--accent); outline-offset: 
   font-size:12px; font-family:var(--font-mono); outline:none; transition:border-color .12s;
 }
 .poly-wallet-input:focus { border-color:var(--accent); box-shadow:var(--glow); }
+/* s439: a conta da Kalshi usa a moldura da carteira (.pcart). O estado da chave é
+   metadado (12px --ink-soft); a frase de ajuda diz o que fazer na tela (13px --ink-soft). */
+.kx-chave { flex: 1 1 160px; min-width: 0; font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft); }
+.kx-chave b { color: var(--ink); font-weight: 600; }
+.kx-ajuda { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+.kx-ajuda:empty { display: none; }
+/* Passo a passo do modal da chave: lista numerada, um passo por linha. */
+.kx-passos { grid-column: 1 / -1; margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+.kx-passos b { color: var(--ink); font-weight: 600; }
+.kx-erro { grid-column: 1 / -1; margin: 0; font-size: 13px; line-height: 1.5; color: var(--neg); }
+.kx-erro[hidden] { display: none; }
 .data-ref-label {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 11px; color: var(--ink-mute); cursor: default;
@@ -3052,6 +3063,20 @@ td.c-res.res-HL { color: var(--warn); }
       </div>
     </section>
 
+    <!-- s439: a CONTA da Kalshi. Mesmo lugar e mesma moldura da carteira da Polymarket:
+         na Kalshi o gesto da tela é conectar a chave uma vez e Sincronizar, não colar.
+         A chave privada nunca volta do servidor; a tela só sabe o começo do ID. -->
+    <section class="pcart" id="kalshi-painel" style="display:none" aria-label="Conta Kalshi">
+      <div class="pcart__hd">
+        <span class="sec-t">Conta Kalshi</span>
+        <span class="kx-chave" id="kx-chave"></span>
+        <button class="btn btn-ghost btn-sm" id="btn-kx-chave" type="button">Conectar chave</button>
+        <button class="btn btn-primary btn-sm" id="btn-kx-sync" type="button" disabled>↻ Sincronizar</button>
+        <span class="status-msg" id="kx-status"></span>
+      </div>
+      <p class="kx-ajuda" id="kx-ajuda"></p>
+    </section>
+
     <!-- Inputs -->
     <div class="input-section" id="upload-section">
       <!-- Etapa 2: duas caixas iguais lado a lado (Colar texto | Print ou imagem) + barra de ação abaixo -->
@@ -3332,6 +3357,34 @@ td.c-res.res-HL { color: var(--warn); }
     <div class="modal-foot">
       <button class="btn btn-ghost btn-sm" id="edit-cancel" type="button">Cancelar</button>
       <button class="btn btn-primary btn-sm" id="edit-save" type="button">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- s439: conectar a chave da Kalshi. Passo a passo escrito com os rótulos da tela de
+     criação da chave na Kalshi (recon de 30/10). Os prints daquela tela mostram a chave
+     privada do Feca e por isso NÃO entram aqui. A chave vai ao servidor, que confere na
+     Kalshi se é só leitura antes de guardar (cifrada); nada fica no navegador. -->
+<div class="modal-overlay" id="kalshi-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Conectar a conta Kalshi</span>
+      <button class="modal-close" id="kx-close" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <ol class="kx-passos">
+        <li>Na Kalshi, entre na sua conta e abra a área de <b>API keys</b> (configurações da conta). Clique em <b>Create API key</b>.</li>
+        <li>Em <b>Nickname</b> escreva <b>Sharpen</b>. Em <b>Key type</b> deixe <b>Ed25519</b>.</li>
+        <li>Em <b>Permissions</b> marque <b>só Read all data</b>. Deixe <b>Full access</b>, <b>Trade</b> e <b>Transfers</b> desmarcados: o Sharpen recusa chave que pode operar a conta.</li>
+        <li>Clique em <b>Create</b>. Na tela <b>Keep your key safe</b>, copie o <b>API key id</b> e a <b>Private key</b> inteira para os campos abaixo. A Kalshi mostra a chave uma vez só.</li>
+      </ol>
+      <div class="modal-field full"><label for="kx-keyid">API key id</label><input type="text" id="kx-keyid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" spellcheck="false" autocomplete="off"></div>
+      <div class="modal-field full"><label for="kx-pem">Private key</label><textarea id="kx-pem" rows="5" placeholder="-----BEGIN PRIVATE KEY----- … -----END PRIVATE KEY-----" spellcheck="false" autocomplete="off"></textarea></div>
+      <p class="kx-erro" id="kx-erro" hidden></p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="kx-cancel" type="button">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="kx-save" type="button">Conferir e conectar</button>
     </div>
   </div>
 </div>
@@ -6314,10 +6367,14 @@ function _casaConectavel(casa) { return CASAS_CONECTAVEIS.has((casa || '').norma
 // ── Polymarket: sincronização via API ───────────────────────────────────────────
 function aplicarModoCasa(casa) {
   const isPoly = casa === 'Polymarket';
+  const isKalshi = casa === 'Kalshi';   // s439: casa por API, sem print (CASA_KALSHI §1)
   const up = document.getElementById('upload-section');
   const headSync = document.getElementById('poly-head-sync');
   const dash = document.getElementById('polymarket-dashboard');
-  if (up) up.style.display = isPoly ? 'none' : '';
+  const kx = document.getElementById('kalshi-painel');
+  if (up) up.style.display = (isPoly || isKalshi) ? 'none' : '';
+  if (kx) kx.style.display = isKalshi ? '' : 'none';
+  if (isKalshi) kalshiCarregarChave(); else _kxEstado = null;
   if (headSync) headSync.style.display = isPoly ? '' : 'none';
   if (dash) dash.style.display = isPoly ? '' : 'none';
   // s398: na Polymarket o card da conta leva a carteira, os saldos entram na grade dos
@@ -6521,6 +6578,199 @@ document.addEventListener('visibilitychange', () => {
     carregarDashboardPoly();
     _polyAutoSyncSePreciso();
   }
+});
+
+// ── Kalshi: chave da conta + Sincronizar (s439) ───────────────────────────────
+// A conta é privada: o servidor guarda a chave SÓ LEITURA (cifrada) e lê a Kalshi com ela.
+// A tela só sabe se há chave e o começo do ID dela. O auto-sync segue a régua da Polymarket
+// (ao entrar e ao voltar à aba, no máximo a cada 5 min), mas a marca d'água é o
+// `ultimo_sync` do SERVIDOR, não o navegador: vale em qualquer máquina.
+var _kxEstado = null;    // { tem, key_id, ultimo_sync } | { erro } | null (carregando)
+var _kxToken = 0;
+var kxSyncing = false;
+const KX_SYNC_TTL = 5 * 60 * 1000;
+
+function setKxStatus(msg, kind) {
+  const el = document.getElementById('kx-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'status-msg' + (kind ? ' ' + kind : '');
+}
+
+function _kxQuando(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function _kxRender() {
+  const chave = document.getElementById('kx-chave'), aj = document.getElementById('kx-ajuda');
+  const btnC = document.getElementById('btn-kx-chave'), btnS = document.getElementById('btn-kx-sync');
+  if (!chave || !aj || !btnC || !btnS) return;
+  const e = _kxEstado;
+  if (!e) {
+    chave.textContent = 'conferindo a chave…'; aj.textContent = '';
+    btnS.disabled = true;
+    return;
+  }
+  if (e.erro) {
+    chave.textContent = ''; aj.textContent = e.erro;
+    btnS.style.display = 'none';
+    return;
+  }
+  if (!e.tem) {
+    chave.textContent = 'nenhuma chave conectada';
+    btnC.textContent = 'Conectar chave'; btnC.className = 'btn btn-primary btn-sm';
+    btnS.style.display = 'none';
+    aj.textContent = 'Conecte uma chave só leitura da Kalshi. Com ela, Sincronizar traz as apostas, '
+      + 'os depósitos e o saldo da conta, sem print e sem colar texto.';
+    return;
+  }
+  chave.innerHTML = 'chave <b>' + esc(e.key_id || '') + '</b> · só leitura · '
+    + (e.ultimo_sync ? 'sincronizada em ' + esc(_kxQuando(e.ultimo_sync)) : 'ainda não sincronizada');
+  btnC.textContent = 'Trocar chave'; btnC.className = 'btn btn-ghost btn-sm';
+  btnS.style.display = ''; btnS.disabled = kxSyncing;
+  aj.textContent = e.ultimo_sync ? '' : 'Clique em Sincronizar para trazer o histórico da conta.';
+}
+
+async function kalshiCarregarChave() {
+  const conta = parceiroSelecionado && parceiroSelecionado.nome;
+  if (!conta) return;
+  const tk = ++_kxToken;
+  _kxEstado = null;
+  setKxStatus('', '');
+  _kxRender();
+  try {
+    const r = await fetch('/kalshi/chave?parceiro=' + encodeURIComponent(conta));
+    const d = await r.json().catch(() => ({}));
+    if (tk !== _kxToken) return;
+    _kxEstado = r.ok ? d : { erro: d.detail || 'Não foi possível conferir a chave desta conta.' };
+  } catch (_) {
+    if (tk !== _kxToken) return;
+    _kxEstado = { erro: 'Sem conexão com o servidor. Recarregue a página.' };
+  }
+  _kxRender();
+  _kxAutoSyncSePreciso();
+}
+
+function _kxAutoSyncSePreciso() {
+  if (casaSelecionada !== 'Kalshi' || document.visibilityState !== 'visible') return;
+  const e = _kxEstado;
+  if (kxSyncing || !e || !e.tem) return;
+  if (e.ultimo_sync && (Date.now() - Date.parse(e.ultimo_sync)) < KX_SYNC_TTL) return;
+  sincronizarKalshi();
+}
+
+async function sincronizarKalshi() {
+  if (kxSyncing || !parceiroSelecionado || casaSelecionada !== 'Kalshi') return;
+  if (!_kxEstado || !_kxEstado.tem) return;
+  const conta = parceiroSelecionado.nome;
+  kxSyncing = true;
+  _kxRender();
+  const t0 = Date.now();
+  const timer = setInterval(
+    () => setKxStatus(`Sincronizando com a Kalshi… (${Math.round((Date.now() - t0) / 1000)}s)`, ''), 250);
+  try {
+    const rs = await fetch('/kalshi/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parceiro: conta }),
+    });
+    clearInterval(timer);
+    const d = await rs.json().catch(() => ({}));
+    if (!rs.ok) throw new Error(d.detail || ('HTTP ' + rs.status));
+    if (!parceiroSelecionado || parceiroSelecionado.nome !== conta) return;   // trocou de conta no meio
+    if (_kxEstado && _kxEstado.tem) _kxEstado.ultimo_sync = new Date().toISOString();
+    const partes = [];
+    if (d.inseridos) partes.push(`${d.inseridos} nova(s)`);
+    if (d.atualizados) partes.push(`${d.atualizados} atualizada(s)`);
+    const base = `✓ ${partes.join(' · ') || 'nada novo'} · ${d.coletados || 0} lidas na Kalshi`;
+    // Todos os avisos, não só o 1º: aqui eles dizem o que ficou FORA do lote.
+    if ((d.alertas || []).length) setKxStatus(base + ' · ' + d.alertas.join(' '), 'warn');
+    else setKxStatus(base, 'ok');
+    paginaAtual = 0;
+    await carregarGrade();
+    atualizarIncompletos();
+    carregarCaixa();   // o sync acabou de conferir a Caixa da Kalshi
+  } catch (e) {
+    clearInterval(timer);
+    setKxStatus('✗ ' + e.message, 'err');
+  } finally {
+    kxSyncing = false;
+    _kxRender();
+  }
+}
+
+function kalshiAbrirModal() {
+  const ov = document.getElementById('kalshi-modal');
+  if (!ov || !parceiroSelecionado) return;
+  document.getElementById('kx-keyid').value = '';
+  document.getElementById('kx-pem').value = '';
+  _kxErro('');
+  ov.classList.add('open');
+  _modalBaseline(ov);
+  setTimeout(() => document.getElementById('kx-keyid').focus(), 30);
+}
+function kalshiFecharModal() {
+  const ov = document.getElementById('kalshi-modal');
+  if (ov) ov.classList.remove('open');
+  // A chave não fica no DOM depois de fechar.
+  const pem = document.getElementById('kx-pem');
+  if (pem) pem.value = '';
+}
+function _kxErro(msg) {
+  const el = document.getElementById('kx-erro');
+  if (!el) return;
+  el.textContent = msg;
+  el.hidden = !msg;
+}
+
+async function kalshiSalvarChave() {
+  if (!parceiroSelecionado) return;
+  const key_id = document.getElementById('kx-keyid').value.trim();
+  const pem = document.getElementById('kx-pem').value.trim();
+  if (!key_id || !pem) { _kxErro('Preencha o API key id e a Private key.'); return; }
+  const btn = document.getElementById('kx-save');
+  const conta = parceiroSelecionado.nome;
+  btn.disabled = true; btn.textContent = 'Conferindo na Kalshi…';
+  _kxErro('');
+  try {
+    const rs = await fetch('/kalshi/chave', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parceiro: conta, key_id, pem }),
+    });
+    const d = await rs.json().catch(() => ({}));
+    // O erro aparece no formulário que falhou, não longe dele (CLAUDE.md, s327).
+    if (!rs.ok) { _kxErro(d.detail || ('Erro ' + rs.status + '. Tente de novo.')); return; }
+    kalshiFecharModal();
+    if (!parceiroSelecionado || parceiroSelecionado.nome !== conta) return;
+    _kxEstado = { tem: true, key_id: d.key_id, ultimo_sync: null };
+    setKxStatus('✓ Chave conectada.', 'ok');
+    _kxRender();
+    sincronizarKalshi();
+  } catch (_) {
+    _kxErro('Sem conexão com o servidor. Tente de novo.');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Conferir e conectar';
+  }
+}
+
+document.getElementById('btn-kx-chave').addEventListener('click', kalshiAbrirModal);
+document.getElementById('btn-kx-sync').addEventListener('click', () => sincronizarKalshi());
+document.getElementById('kx-close').addEventListener('click', kalshiFecharModal);
+document.getElementById('kx-cancel').addEventListener('click', kalshiFecharModal);
+document.getElementById('kx-save').addEventListener('click', kalshiSalvarChave);
+(function () {
+  const ov = document.getElementById('kalshi-modal');
+  // Modal preenchido não fecha por gesto acidental (fundo/Esc); ✕ e Cancelar fecham.
+  ov.addEventListener('click', e => { if (e.target === ov) _modalFecharSeLimpo(ov, kalshiFecharModal); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && ov.classList.contains('open')) _modalFecharSeLimpo(ov, kalshiFecharModal);
+  });
+})();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && casaSelecionada === 'Kalshi') _kxAutoSyncSePreciso();
 });
 
 // ── Upload ────────────────────────────────────────────────────────────────────
@@ -8476,7 +8726,10 @@ function renderCaixa(d) {
   if (!box || !d) return;
   // Polymarket (s397): a Caixa é AUTOMÁTICA — sem saldo a digitar, sem conferência
   // à mão, sem depósito/saque lançado pelo dono (viriam em dobro com os da blockchain).
-  const poly = d.casa === 'Polymarket';
+  // s439: a Kalshi tem a mesma Caixa automática (depósitos, saques e saldo pela API da
+  // conta). `poly` passou a significar "Caixa automática"; o texto diz a fonte de cada uma.
+  const kalshi = d.casa === 'Kalshi';
+  const poly = d.casa === 'Polymarket' || kalshi;
   box.classList.toggle('alerta', d.estado === 'divergente');
   const [pcls, ptxt] = _CX_PILL[d.estado] || ['', ''];
   // Polymarket: a Caixa é automática e, batendo, a mensagem "bate com a carteira" não diz
@@ -8484,7 +8737,9 @@ function renderCaixa(d) {
   // centavos (s397: nunca um zero que não houve) fica no title da pílula. As notas fixas
   // (moeda, "automática") moram no "i" ao lado do título.
   const ajudaPoly = 'Caixa em ' + _cxSigla(d.moeda) + ': saldo, lançamentos e apostas na moeda da conta, sem conversão. '
-    + 'Depósitos, saques e a conferência vêm da carteira na blockchain a cada Sincronizar. Não lance à mão, ou entra em dobro.';
+    + (kalshi ? 'Depósitos, saques e a conferência vêm da conta na Kalshi a cada Sincronizar.'
+              : 'Depósitos, saques e a conferência vêm da carteira na blockchain a cada Sincronizar.')
+    + ' Não lance à mão, ou entra em dobro.';
   const polyBate = poly && d.estado === 'confere';
   const pTit = polyBate ? ` title="${_cxDiver(d).replace(/<\/b>/, ': ').replace(/<[^>]+>/g, '').trim()}"` : '';
   const head = '<div class="cx__hd"><span class="t">Caixa Inteligente</span>'
@@ -8496,7 +8751,9 @@ function renderCaixa(d) {
   if (!d.ligada && poly) {
     box.innerHTML = head
       + '<div class="cx__empty">'
-      + '<p>A Caixa da Polymarket liga sozinha no próximo Sincronizar. Depósitos, saques e o saldo vêm da carteira na blockchain, e o Sharpen confere as apostas contra eles.</p>'
+      + (kalshi
+        ? '<p>A Caixa da Kalshi liga sozinha no próximo Sincronizar. Depósitos, saques e o saldo vêm da própria conta na Kalshi, e o Sharpen confere as apostas contra eles.</p>'
+        : '<p>A Caixa da Polymarket liga sozinha no próximo Sincronizar. Depósitos, saques e o saldo vêm da carteira na blockchain, e o Sharpen confere as apostas contra eles.</p>')
       + '</div>';
     return;
   }
@@ -8518,7 +8775,7 @@ function renderCaixa(d) {
   // O corte é editável: quem informa o saldo de hoje e depois lembra que ele era de
   // ontem não pode ficar sem saída a não ser desligar a caixa pelo extrato.
   let corpo = poly
-    ? linha('Início da carteira', _cxDataBR(d.data_corte), _fs(d.inicial))
+    ? linha(kalshi ? 'Início da conta' : 'Início da carteira', _cxDataBR(d.data_corte), _fs(d.inicial))
     : '<div class="cx__row cx__row--edit" role="button" tabindex="0"'
     + ' title="Editar o saldo inicial e a data do corte" onclick="caixaAbrirModal(&quot;inicial&quot;)">'
     + '<span class="k">Saldo inicial <i>' + _cxDataBR(d.data_corte) + '</i>'
@@ -8600,7 +8857,9 @@ function _cxDiver(d) {
   const _fs = (v, sg) => fmtSaldo(v, sg, d && d.moeda);
   const _ft = (v) => _cxTxt(v, d && d.moeda);
   const c = d.conferencia;
-  const poly = d.casa === 'Polymarket';
+  const kalshi = d.casa === 'Kalshi';               // s439: Caixa automática pela API da conta
+  const poly = d.casa === 'Polymarket' || kalshi;
+  const fonte = kalshi ? 'conta na Kalshi' : 'carteira';
   if (!c && poly) return '<div class="cx__diver nt">Ainda não conferida: a conferência roda sozinha no próximo Sincronizar.</div>';
   if (!c) return '<div class="cx__diver nt">Nunca conferida. Abra a casa, veja o saldo disponível e digite acima — é esse confronto que denuncia dinheiro saindo sem registro.</div>';
   const quando = _cxDataBR(c.data);
@@ -8612,16 +8871,16 @@ function _cxDiver(d) {
   // "bate" aceita o arredondamento (`tolerancia`) — e a tela diz a diferença REAL,
   // nunca um zero que não houve.
   if (d.estado === 'confere' && d.tolerancia && c.divergencia)
-    return `<div class="cx__diver ok"><b>Bate com a carteira</b>diferença ${_ft(c.divergencia)}, arredondamento de centavos · conferido em ${quando}</div>`;
+    return `<div class="cx__diver ok"><b>Bate com a ${fonte}</b>diferença ${_ft(c.divergencia)}, arredondamento de centavos · conferido em ${quando}</div>`;
   if (d.estado === 'confere')
-    return `<div class="cx__diver ok"><b>Bate com a ${poly ? 'carteira' : 'casa'}</b>diferença ${_ft(0)} · conferido em ${quando}</div>`;
+    return `<div class="cx__diver ok"><b>Bate com a ${poly ? fonte : 'casa'}</b>diferença ${_ft(0)} · conferido em ${quando}</div>`;
   if (d.estado === 'reconferir')
     return `<div class="cx__diver nt">Houve lançamento depois da conferência de ${quando}. Confira de novo para fechar.</div>`;
   const div = c.divergencia || 0;
   const falta = div < 0;
   return '<div class="cx__diver al">'
     + `<b>${falta ? 'Faltam' : 'Sobram'} ${_ft(Math.abs(div))} na conta</b>`
-    + `a ${poly ? 'carteira tinha' : 'casa mostrava'} ${_ft(c.valor)} em ${quando} e o Sharpen projetava ${_ft(c.projetado)}.`
+    + `a ${poly ? fonte + (kalshi ? ' mostrava' : ' tinha') : 'casa mostrava'} ${_ft(c.valor)} em ${quando} e o Sharpen projetava ${_ft(c.projetado)}.`
     + ` ${poly ? 'Depósitos e saques vêm da carteira: a diferença está nas apostas.'
          : falta ? 'Confira se houve saque não lançado.' : 'Confira se houve depósito ou aposta não capturada.'}`
     + '<button class="cx__aceitar" type="button" onclick="caixaAceitarDivergencia()">Lançar como ajuste</button>'
@@ -9243,6 +9502,7 @@ async function corretoraExcluirMov(movId, cid) {
 function _cxCorrVisivelPara(tipo) {
   const d = caixaAtual;
   return !!d && d.casa !== 'Polymarket' && !!d.moeda && d.moeda !== 'BRL'
+    && d.casa !== 'Kalshi'   // s439: Caixa automática, como a da Polymarket
     && (tipo === 'saque' || tipo === 'deposito');
 }
 const _CX_HINT_TRANSF = {

@@ -1115,6 +1115,20 @@ CREATE TABLE IF NOT EXISTS vigia_ficha (
     campos      TEXT[] NOT NULL DEFAULT '{}'
 );
 CREATE INDEX IF NOT EXISTS vigia_ficha_casa ON vigia_ficha (casa, criado_em);
+
+-- s439: a chave da API da Kalshi, uma por CONTA (`app/kalshi_rotas.py`). A conta é privada
+-- e toda leitura vai assinada com a chave do usuário, então ela precisa morar no servidor.
+-- A chave privada entra CIFRADA (Fernet, segredo na env var `KALSHI_CHAVE_CIFRA`, nunca no
+-- banco) e nunca volta para a tela: o GET devolve só o começo do `key_id`. Só é aceita
+-- chave SÓ LEITURA (`kalshi.conferir_chave`). Excluir a conta apaga a chave junto (CASCADE).
+CREATE TABLE IF NOT EXISTS kalshi_chave (
+    parceiro_id  INTEGER PRIMARY KEY REFERENCES parceiros(id) ON DELETE CASCADE,
+    dono         TEXT NOT NULL,
+    key_id       TEXT NOT NULL,
+    pem_cifrado  TEXT NOT NULL,
+    conferida_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ultimo_sync  TIMESTAMPTZ
+);
 """
 
 

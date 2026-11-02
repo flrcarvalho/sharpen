@@ -1805,25 +1805,28 @@ só props liquidadas (15) e apostas comuns abertas (3, Fórmula 1). Sem amostra:
 usa cópia literal das queries da página: se a casa mudar o schema, a query inteira falha (o erro da
 casa sobe no autodiagnóstico). Falta a 1ª captura pela extensão instalada.
 
-### 4.0w Kalshi: coletor, painel com popup, Caixa (s435). **VIVA, etapa 1 feita**
+### 4.0w Kalshi: falta o segredo da cifra no ar e a 1ª sincronização real (s439). **VIVA**
 
-Casa por API, irmã da Polymarket (`casas/CASA_KALSHI.md`, recon de 30/10/2026 na conta do
-Feca: 1 combo L, 1 depósito, Caixa fecha em US$ 0,0000). Decisões do Feca de 30/10: chave
-SÓ LEITURA (`Read all data`, sem `Full access`); stake COM a taxa (régua da Polymarket),
-taxa guardada à parte só como informação. Etapas abertas, uma por vez:
-- **2. Coletor** `app/kalshi.py` + chave cifrada no Postgres por dono (env var do Railway
-  como chave de cifra, nunca devolvida à tela) + rota `/kalshi/sync`. Ensaio sem gravar
-  contra a conta do Feca antes. Precisa de `cryptography` no `app/requirements.txt`.
-- **3. Painel + popup passo a passo** com os prints da Kalshi (a 2ª tela mostra a chave
-  privada do Feca: **borrar** antes de usar), pelo `/nova-ui`.
-- **4. Caixa** automática (`/portfolio/balance`, `/deposits`, `/withdrawals`).
-- **`main.py` é da Ficha:** a linha `"KALSHI"` no `_CASA_DISPLAY` entrou com aval do Feca
-  (30/10). A etapa 2 precisa de mais um ponto de registro (a rota); pedir de novo.
+Casa por API, irmã da Polymarket (`casas/CASA_KALSHI.md`). Construída na s435 (coletor) e
+na s439 (chave cifrada, `/kalshi/sync`, painel com o passo a passo, Caixa automática), com
+aval do Feca para o `include_router` no `main.py` (01/11). O que segue aberto:
+- **HUMANA, antes de tudo:** criar `KALSHI_CHAVE_CIFRA` no serviço `extrator` da Railway
+  (uma chave Fernet). Sem ela as rotas respondem 503 com "guarda de chaves não
+  configurada" e nada é gravado. **Trocar o valor depois invalida toda chave guardada**
+  (o usuário reconecta). O modo automático do Claude Code barra escrever segredo.
+- **1ª sincronização real** na conta do Feca, conferindo contra o golden (`§15`: combo L,
+  US$ 19,9785, odd 11,5995) e a Caixa (US$ 279,6515). `ensaio: true` lê sem gravar.
+- **Tolerância da Caixa:** a Kalshi guarda 4 casas e o Sharpen centavos, como a
+  Polymarket, mas o `_caixa_tol` (`repository.py`, da Ficha) só abre a faixa √n para a
+  Polymarket. Com poucas apostas o meio centavo basta; com centenas, deve virar
+  divergência de arredondamento. Pedir a linha ao dono do `repository.py`.
 - **Não medido:** unidade de `revenue` do settlement (só veio 0), venda antes de liquidar,
-  mercado anulado/escalar, `fee_cents` de depósito. Conferir na 1ª W.
+  mercado anulado/escalar, saque, `fee_cents` de depósito, `/historical/positions`.
+  Conferir na 1ª W e no 1º saque.
+- **Popup sem prints:** os prints da tela de criação da chave mostram a chave privada do
+  Feca; o passo a passo saiu só em texto, com os rótulos da tela. Print borrado é opcional.
 - **HUMANA:** a chave usada no recon apareceu inteira num print na conversa. É só leitura,
-  mas o Feca apaga e cria outra quando o desenvolvimento acabar.
-
+  mas o Feca apaga e cria outra (e conecta a nova pelo painel).
 ### 4.0v Sportaza: 1ª captura pela extensão instalada e a virada da Ficha (s434). **VIVA, harness com fixture real**
 
 Entrou na 0.7.69, 11ª Altenar, espelho da Vavada, recon LOGADO na conta do Feca (USD,

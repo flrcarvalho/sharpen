@@ -887,6 +887,11 @@ from ficha import router as _ficha_router  # noqa: E402
 from ficha import moedas_do_cru, registrar_alerta_moeda  # noqa: E402
 app.include_router(_ficha_router)
 
+# Kalshi (s439): chave cifrada, Sincronizar e Caixa automática. Único ponto de registro,
+# no molde da Ficha: tudo mora em `app/kalshi_rotas.py` (aval do Feca, 01/11).
+from kalshi_rotas import router as _kalshi_router  # noqa: E402
+app.include_router(_kalshi_router)
+
 
 # ── Cabeçalhos de segurança (CSP + hardening) ─────────────────────────────────
 # Defesa em profundidade junto do escaping do frontend. A CSP restringe as origens

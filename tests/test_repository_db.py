@@ -298,6 +298,54 @@ def test_caixa_polymarket_lanca_confere_e_nao_duplica():
     _run(body())
 
 
+def test_caixa_kalshi_golden_confere_e_nao_duplica():
+    """s439: a Caixa da Kalshi com o golden REAL do recon de 30/10 (`CASA_KALSHI §15`):
+    1 depósito US$ 299,63 − 1 combo perdido US$ 19,9785 (gravado 19,98) = 279,65 contra o
+    `balance_dollars` 279,6515. Rodar de novo não duplica; outro dono não é tocado; a chave
+    some com a conta (CASCADE)."""
+    import kalshi
+    import kalshi_rotas
+
+    async def body():
+        await _reset()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM parceiros WHERE dono IN ('TDonoA', 'TDonoB')")
+            pid = await conn.fetchval(
+                "INSERT INTO parceiros (dono, casa, nome, moeda) VALUES "
+                "('TDonoA', 'Kalshi', 'Feca [Eu]', 'USD') RETURNING id")
+            await conn.execute(
+                "INSERT INTO kalshi_chave (parceiro_id, dono, key_id, pem_cifrado) "
+                "VALUES ($1, 'TDonoA', 'k', 'cifrado')", pid)
+        await repository.upsert_bilhetes([_row(
+            casa="Kalshi", parceiro="Feca [Eu]", codigo_bilhete="01a18a7b-b308-7092-9090-73f505ebce19",
+            resultado="L", stake="107,95", odd="11,5995", data="29/10/2026",
+            moeda="USD", stake_orig=19.98, cotacao=5.403)], "TDonoA", origem="sync")
+        movs, _ = kalshi.movimentos_caixa([{
+            "amount_cents": 29963, "created_ts": 1793298479, "fee_cents": 0,
+            "id": "01a188eb-6066-7116-8f93-37fdfa2b842e", "status": "applied"}], [])
+        dados = {"movimentos": movs, "saldo": 279.6515, "inicio": "2026-10-29"}
+        r1 = await kalshi_rotas.caixa_kalshi_sync("TDonoA", pid, dados)
+        assert r1["ok"] and r1["novos"] == 1
+        cx = r1["caixa"]
+        assert cx["ligada"] and cx["moeda"] == "USD" and cx["data_corte"] == "2026-10-29"
+        assert cx["disponivel"] == 279.65 and cx["estado"] == "confere"
+        r2 = await kalshi_rotas.caixa_kalshi_sync("TDonoA", pid, dados)
+        assert r2["novos"] == 0
+        async with pool.acquire() as conn:
+            n = await conn.fetch("SELECT tipo, count(*) c FROM caixa_mov WHERE dono = 'TDonoA' "
+                                 "AND parceiro_id = $1 GROUP BY tipo", pid)
+            assert {x["tipo"]: x["c"] for x in n} == {"inicial": 1, "deposito": 1, "conferencia": 1}
+            # Saldo que mudou na Kalshi sem aposta nova = divergência registrada, não absorvida.
+        r3 = await kalshi_rotas.caixa_kalshi_sync("TDonoA", pid, {**dados, "saldo": 250.0})
+        assert r3["caixa"]["estado"] == "divergente"
+        assert not (await kalshi_rotas.caixa_kalshi_sync("TDonoB", pid, dados))["ok"]
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM parceiros WHERE id = $1", pid)
+            assert await conn.fetchval("SELECT count(*) FROM kalshi_chave WHERE parceiro_id = $1", pid) == 0
+    _run(body())
+
+
 def test_cambio_corretora_transferencia_venda_e_bolso():
     """s398 (passo 6): a corretora, o saque com destino e taxa, a venda que realiza e o
     bolso pelo `cambio_visao`, no SQL de verdade. Cotação fixa (5,00 em todo dia, 4,50
