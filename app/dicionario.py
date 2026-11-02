@@ -619,8 +619,10 @@ async def semear_agora(gatilho: str = "extrair") -> None:
                 async with pool.acquire() as conn:
                     r = await semear(conn, gatilho)
                 logging.getLogger("scanner").info("dicionário: semente (%s), %s", gatilho, r)
-            except Exception:  # noqa: BLE001
+            except Exception as e:  # noqa: BLE001
                 logging.getLogger("scanner").exception("dicionário: a semente (%s) falhou", gatilho)
+                import aviso_diario                # D42: entra no aviso do dia seguinte
+                aviso_diario.registrar_falha(f"semente ({gatilho})", e)
             if not _de_novo:
                 break
     finally:
@@ -780,10 +782,18 @@ async def diario() -> None:
     log = logging.getLogger("scanner")
     while True:
         await asyncio.sleep(segundos_ate(HORA_UTC))
+        import aviso_diario
         try:
             pool = await get_pool()
             async with pool.acquire() as conn:
                 r = await semear(conn, "diaria")
             log.info("dicionário: semente diária, %s", r)
-        except Exception:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             log.exception("dicionário: a semente diária falhou; vale a de ontem")
+            aviso_diario.registrar_falha("semente diária", e)
+        try:                                       # D42: o aviso do dia ao Feca, rodou ou não
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                await aviso_diario.enviar_diario(conn)
+        except Exception:  # noqa: BLE001
+            log.exception("dicionário: aviso diário não enviado")

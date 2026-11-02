@@ -3285,3 +3285,115 @@ def test_c3_perna_sem_par_vai_para_a_recusa(monkeypatch):
     _run(de_novo())
     rec = [x for x in _run(_recusas()) if x["origem"] == "gravacao"]
     assert [x["n"] for x in rec] == [2]
+
+
+
+# ── s438 · D42 commit 4: o aviso diário ao Feca (`app/aviso_diario.py`) ───────────────────
+# Mutações provadas: sem a reserva da `aviso_admin` (manda duas vezes) → c4_um_aviso_por_dia e
+# c4_teste_uma_vez; sem a seção de pendentes → c4_aviso_conta_sem_dado_pessoal; sem a de captura
+# esgotada → idem; agrupando por dono (vaza o usuário) → idem; a falha da semente não entra →
+# c4_falha_da_semente_entra; dia quieto manda mesmo assim → c4_dia_quieto_nao_manda.
+# Não cobre: a entrega no Telegram de verdade (o `avisar_admin` é dublado) e o horário das 04h.
+
+async def _aviso_limpo():
+    import aviso_diario
+    aviso_diario._falhas.clear()
+    await _reset()                                   # schema atual (init_db)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        for t in ("semente_recusa", "aviso_admin", "virada_log", "ficha_virada", "semente_log"):
+            await conn.execute(f"TRUNCATE {t}")
+        await conn.execute("INSERT INTO semente_log (gatilho, termos, fontes) VALUES "
+                           "('diaria', 10, '{\"preservadas\": 3}')")
+    return pool
+
+
+def _avisar_dublado(monkeypatch):
+    import main
+    enviados = []
+
+    async def falso(texto):
+        enviados.append(texto)
+        return True
+    monkeypatch.setattr(main, "avisar_admin", falso)
+    return enviados
+
+
+def test_c4_dia_quieto_nao_manda(monkeypatch):
+    import aviso_diario
+    enviados = _avisar_dublado(monkeypatch)
+
+    async def rodar():
+        pool = await _aviso_limpo()
+        async with pool.acquire() as conn:
+            return await aviso_diario.montar(conn), await aviso_diario.enviar_diario(conn)
+    texto, ok = _run(rodar())
+    assert texto is None and ok is False and enviados == []
+
+
+def test_c4_aviso_conta_sem_dado_pessoal(monkeypatch):
+    """As cinco seções saem com contagem por casa, e o nome do usuário nunca aparece."""
+    import aviso_diario
+
+    async def rodar():
+        pool = await _aviso_limpo()
+        async with pool.acquire() as conn:
+            await conn.execute("INSERT INTO semente_recusa (casa, tipo, chave, motivo, n, origem) "
+                               "VALUES ('VAVADA', 'descricao', 'futebol | x', 'IA sem {time} (A)', 5, "
+                               "'semente'), ('DUEL', 'descricao', 'f1 | winner', 'sem par', 2, "
+                               "'gravacao')")
+            await conn.execute("INSERT INTO ficha_virada (dono, casa, codigo, estado, aviso, "
+                               "pendente_desde) VALUES ('TDonoSecreto', 'SHUFFLE', 'c1', 'ia', "
+                               "'captura_incompleta', NOW() - interval '25 hours')")
+            await conn.execute("INSERT INTO virada_log (dono, casa, capturadas, ja_no_banco, "
+                               "pela_ficha, inalterados, para_ia, captura_esgotada) VALUES "
+                               "('TDonoSecreto', 'MEGAPARI', 3, 0, 0, 0, 1, 2)")
+            return await aviso_diario.montar(conn)
+    t = _run(rodar())
+    assert "Recusas repetidas" in t and "VAVADA · descricao · futebol | x" in t
+    assert "Mercados gravados com o texto da casa" in t and "DUEL · f1 | winner (2)" in t
+    assert "Pendentes há mais de 24 h: 1 (SHUFFLE: 1)" in t
+    assert "Captura incompleta esgotada (24 h): 2 (MEGAPARI: 2)" in t
+    assert "Semente das 04h: 10 termo(s) na rodada, 3 preservada(s)" in t
+    assert "TDonoSecreto" not in t
+
+
+def test_c4_falha_da_semente_entra(monkeypatch):
+    import aviso_diario
+
+    async def rodar():
+        pool = await _aviso_limpo()
+        aviso_diario.registrar_falha("semente diária", RuntimeError("banco fora"))
+        async with pool.acquire() as conn:
+            return await aviso_diario.montar(conn)
+    t = _run(rodar())
+    aviso_diario._falhas.clear()
+    assert "A semente FALHOU 1 vez(es): semente diária: RuntimeError banco fora" in t
+
+
+def test_c4_um_aviso_por_dia(monkeypatch):
+    import aviso_diario
+    enviados = _avisar_dublado(monkeypatch)
+
+    async def rodar():
+        pool = await _aviso_limpo()
+        async with pool.acquire() as conn:
+            await conn.execute("INSERT INTO semente_recusa (casa, tipo, chave, motivo, n) VALUES "
+                               "('VAVADA', 'descricao', 'k', 'm', 4)")
+            r1 = await aviso_diario.enviar_diario(conn)
+            r2 = await aviso_diario.enviar_diario(conn)
+            ok = await conn.fetchval("SELECT ok FROM aviso_admin WHERE chave LIKE 'diario-%'")
+            return r1, r2, ok
+    r1, r2, ok = _run(rodar())
+    assert (r1, r2, ok) == (True, False, True) and len(enviados) == 1
+
+
+def test_c4_teste_uma_vez(monkeypatch):
+    import aviso_diario
+    enviados = _avisar_dublado(monkeypatch)
+
+    async def rodar():
+        await _aviso_limpo()
+        return await aviso_diario.teste_uma_vez(), await aviso_diario.teste_uma_vez()
+    assert _run(rodar()) == (True, False)
+    assert enviados == ["teste do aviso diário da semente"]

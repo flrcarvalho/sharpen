@@ -1053,6 +1053,16 @@ ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS captura_esgotada INTEGER NOT NUL
 -- silêncio), e a perna que a Ficha grava com o texto da casa por falta de par (`origem =
 -- 'gravacao'`). Uma linha por (casa, tipo, chave, motivo): `n` = quantas vezes na última rodada
 -- da semente (ou, na gravação, o total). É o que o aviso diário ao Feca lê (`dicionario.py`).
+-- D42 (s438): o aviso ao Feca pelo TELEGRAM_ALERTA_* (`app/aviso_diario.py`). A linha é RESERVADA
+-- antes do envio (`ON CONFLICT DO NOTHING`): no máximo um aviso por `chave` (`diario-AAAA-MM-DD`,
+-- `teste-s438`), mesmo com duas réplicas ou reinício. `ok` = o Telegram confirmou a entrega.
+CREATE TABLE IF NOT EXISTS aviso_admin (
+    chave       TEXT PRIMARY KEY,
+    criado_em   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ok          BOOLEAN,
+    texto       TEXT
+);
+
 CREATE TABLE IF NOT EXISTS semente_recusa (
     casa        TEXT NOT NULL,
     tipo        TEXT NOT NULL,

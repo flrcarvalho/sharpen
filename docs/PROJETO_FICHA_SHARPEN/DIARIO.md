@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-11-02 · s438 · D42, commit 4: o aviso diário ao Feca (deploy autônomo)
+
+**Onde está:** no ar sob a autorização noturna do Feca. Próximo: commit 5 (o vigia como fonte de voto).
+
+- `app/aviso_diario.py`, chamado logo depois da semente das 04h (`dicionario.diario`), manda ao canal
+  `TELEGRAM_ALERTA_*` (o do aviso de cadastro, `main.avisar_admin`): recusas repetidas (≥3 na rodada,
+  da `semente_recusa`), mercados gravados com o texto da casa nas últimas 24 h, se a semente rodou
+  (termos, preservadas) ou falhou (as falhas da semente diária e da semente logo depois da IA entram
+  pelo `registrar_falha`), apostas pendentes há mais de 24 h e captura incompleta esgotada em 24 h.
+- Só contagens por casa e chaves de mercado: nenhum usuário (teste com dono `TDonoSecreto` confere).
+  Dia quieto não manda. No máximo um por dia: tabela nova `aviso_admin`, reservada antes do envio
+  (`ON CONFLICT DO NOTHING`); o envio que falha fica com `ok = false` e não se repete no dia.
+- A mensagem de teste que o Feca pediu ("teste do aviso diário da semente") sai UMA vez, pelo próprio
+  app ao subir (`teste_uma_vez`, chave `teste-s438`): ninguém toca no token.
+- Mutações 7/7. Não cobre a entrega real do Telegram (dublada nos testes) nem o horário das 04h.
+
+---
+
 ## 2026-11-02 · s438 · D42, commit 3: a `semente_recusa` (deploy autônomo)
 
 **Onde está:** no ar sob a autorização noturna do Feca. Próximo: commit 4 (aviso diário).

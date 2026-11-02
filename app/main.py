@@ -874,6 +874,9 @@ async def lifespan(_app: FastAPI):
     # Ficha (s411): o dicionário de termos refaz a semente sozinho uma vez por dia.
     import dicionario as _dicionario
     asyncio.create_task(_dicionario.diario())
+    # D42 (s438): a mensagem de teste do aviso diário, UMA vez na vida do banco (`aviso_admin`)
+    import aviso_diario as _aviso_diario
+    asyncio.create_task(_aviso_diario.teste_uma_vez())
     yield
 
 
