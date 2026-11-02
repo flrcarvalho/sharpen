@@ -32,7 +32,8 @@ dele vai para a IA (`fora do Master`). O dicionário vale para todos os usuário
 
 **A descrição sai do dicionário de descrição** (s413, `app/descricao_ficha.py`; regra do Feca:
 chamada extra à IA só para a descrição, nunca): o mercado aprendido monta a descrição como a IA
-monta. Mercado sem par vai para a IA (`descrição fora do dicionário`), e a semente o aprende logo
+monta. Desde a D40 (01/11/2026) o mercado sem par grava com o texto da casa e NÃO vai à IA
+(`descricao_para_gravar`); antes ia (`descrição fora do dicionário`), e a semente o aprendia logo
 depois, com 1 voto (D24).
 
 Quando a aposta liquida, é a Ficha que grava o resultado: o cru muda, chega pela rota, e o
@@ -151,10 +152,24 @@ async def esperar_cru(dono: str, casa_key: str, maximo: float = ESPERA_MAX,
 # ── a linha da planilha ─────────────────────────────────────────────────────────────────
 
 def descricao(f: dict, termos: dict) -> str | None:
-    """A descrição da Ficha pelo dicionário de descrição (`descricao_ficha.montar`): perna por
+    """A descrição da Ficha SÓ pelo dicionário de descrição (`descricao_ficha.montar`): perna por
     perna, unidas por ` // `, com a forma fixada pelo Feca (`dicionario.descricao_perna`) na
-    frente. None = algum mercado sem par: a aposta vai para a IA."""
+    frente. None = algum mercado sem par. É a forma ESTRITA, de quem pergunta "o dicionário
+    cobre?" (a regravação da semente, os scripts); quem GRAVA usa `descricao_para_gravar`."""
     return _desc.montar(f, termos, _dic.descricao_perna)[0]
+
+
+def descricao_para_gravar(f: dict, termos: dict) -> str | None:
+    """D40 (Feca, 01/11/2026): descrição desconhecida nunca manda a aposta à IA. A perna sem par
+    grava com o texto da casa (`<mercado da casa> - <seleção da casa> [A v B]`,
+    `descricao_ficha.texto_da_casa`), sem marca para corrigir; as outras saem do dicionário. None
+    só se uma perna não tem nem mercado nem seleção (aí a IA lê).
+
+    A regravação da semente (`dicionario.regravar_mes`) continua ESTRITA de propósito: quando o
+    dicionário aprende o mercado, ela troca o texto da casa pela forma do dicionário; e se uma
+    chave sumir do dicionário (o defeito E1 da D42), ela não troca uma descrição boa pelo texto
+    da casa."""
+    return _desc.montar(f, termos, _dic.descricao_perna, texto_da_casa_se_faltar=True)[0]
 
 
 def _sistema(f: dict) -> str:
@@ -301,7 +316,7 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
         if not no_master(esporte, categoria):
             ia(cod, "fora do Master")
             continue
-        desc = descricao(f, termos)
+        desc = descricao_para_gravar(f, termos)        # D40: perna sem par, texto da casa
         if not desc:
             ia(cod, "descrição fora do dicionário")
             continue

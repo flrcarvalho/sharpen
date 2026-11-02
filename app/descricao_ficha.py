@@ -23,7 +23,10 @@ e depois de aprendido nenhuma variação dele vai à IA.
     para mostrar ao Feca (`Escanteios 1º Tempo`).
   • montagem (`montar`): perna por perna, `<valor> [A v B]`, unidas por ` // `. Mercado sem
     valor, valor que pede uma marca que a perna não tem, ou número do cru (a linha) que não
-    chegou à descrição: None, e a aposta vai para a IA (`descrição fora do dicionário`).
+    chegou à descrição: None. **Desde a D40 (01/11/2026) isso não manda mais a aposta à IA:** na
+    gravação da Ficha a perna sem par entra com o texto da casa (`texto_da_casa`), e as outras
+    saem do dicionário. A forma estrita (None) segue valendo para quem pergunta "o dicionário
+    cobre?": a regravação da semente (`dicionario.regravar_mes`) e os scripts.
 
 Voto (`votos`, a semente em `dicionario.votar`): a descrição da IA só ensina quando FECHA com o
 cru: o mesmo jogo, a mesma linha, o mesmo lado, a mesma seleção. A IA escreve o MESMO mercado de
@@ -603,11 +606,32 @@ def montar_perna(p: dict, valor: str, d: dict | None = None,
     return f"{out} [{j}]" if j else out
 
 
-def montar(f: dict, termos: dict, propria=None) -> tuple[str | None, list[str]]:
+def texto_da_casa(p: dict) -> str | None:
+    """D40 (Feca, 01/11/2026): a perna que o dicionário de descrição não conhece grava com o
+    texto da CASA, `<mercado da casa> - <seleção da casa> [A v B]`, limpo de espaço e quebra (e de
+    TAB, que deslocaria as colunas do TSV). Sem marca para corrigir: é a descrição da linha. Sem
+    seleção (a 1xBet escreve a seleção no mercado) fica só o mercado; evento que não é confronto
+    fica sem colchete, como na forma do dicionário (`jogo`). Sem mercado e sem seleção, None."""
+    corpo = " - ".join(x for x in (_limpo(p.get("mercado_casa")), _limpo(p.get("selecao_casa")))
+                       if x)
+    if not corpo:
+        return None
+    j = jogo(p.get("evento"))
+    return f"{corpo} [{j}]" if j else corpo
+
+
+def montar(f: dict, termos: dict, propria=None,
+           texto_da_casa_se_faltar: bool = False) -> tuple[str | None, list[str]]:
     """(descrição, chaves que faltam). `termos` = o dicionário da casa ({("descricao", chave):
     valor}). `propria(perna)` = a forma fixada pelo Feca (`dicionario.descricao_perna`), que
-    vence o dicionário."""
+    vence o dicionário.
+
+    Estrita por padrão: perna sem par = None (é a pergunta "o dicionário cobre?", da regravação da
+    semente e dos scripts). `texto_da_casa_se_faltar` (D40, só na GRAVAÇÃO da Ficha,
+    `virada.descricao_para_gravar`): a perna sem par entra com o `texto_da_casa` e as outras saem
+    do dicionário; `faltam` continua dizendo quais pernas não tinham par."""
     partes, faltam = [], []
+    perdida = False
     for p in f.get("pernas") or []:
         if propria and (x := propria(p)):
             partes.append(x)
@@ -626,11 +650,16 @@ def montar(f: dict, termos: dict, propria=None) -> tuple[str | None, list[str]]:
         x = montar_perna(p, valor, d, esporte) if valor is not None else None
         if x is None:
             faltam.append(k)
+            casa = texto_da_casa(p) if texto_da_casa_se_faltar else None
+            if casa:
+                partes.append(casa)                   # D40: a perna sem par, como a casa escreve
+            else:
+                perdida = True
         else:
             partes.append(x)
-    if faltam or not partes:
+    if perdida or not partes:
         return None, faltam
-    return PERNAS.join(partes), []
+    return PERNAS.join(partes), faltam
 
 
 def alinhar(pernas: list[dict], descricao: str) -> list[tuple[dict, str]]:

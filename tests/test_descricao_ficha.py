@@ -535,3 +535,28 @@ def test_total_puro_da_1win_sai_com_v_no_jogo():
     assert dicionario.descricao_perna(p) == "Over 3 [FK Atyrau v Fc Yelimai]"
     p = _p("soccer", "A vs. B", "Total", "Under 2.5")
     assert dicionario.descricao_perna(p) == "Under 2.5 [A v B]"
+
+
+
+# ── D40 (s438, Feca 01/11/2026): a perna sem par grava com o texto da casa ───────────────
+# Mutações provadas: sem o `_limpo` (TAB e quebra chegam ao TSV) → texto_da_casa_limpo;
+# colchete sem o `jogo` (fica `vs.`) → texto_da_casa_limpo; perna sem par derruba a múltipla
+# inteira de novo → montar_com_texto_da_casa.
+
+def test_texto_da_casa_limpo_e_no_formato_aprovado():
+    p = _p("Futebol", "Vicenza  vs.\nPisa", "Total\tcantos", "Mais de\n11.5")
+    assert D.texto_da_casa(p) == "Total cantos - Mais de 11.5 [Vicenza v Pisa]"
+    assert "\t" not in D.texto_da_casa(p) and "\n" not in D.texto_da_casa(p)
+    assert D.texto_da_casa(_p("Futebol", "A vs B", "Total acima de (2.5)", None)) == \
+        "Total acima de (2.5) [A v B]"                       # 1xBet: a seleção mora no mercado
+    assert D.texto_da_casa(_p("F1", "Corrida", "Winner", "Norris, Lando")) == "Winner - Norris, Lando"
+    assert D.texto_da_casa(_p("F", "A vs B", "", "")) is None
+
+
+def test_montar_com_texto_da_casa_so_na_perna_sem_par():
+    termos = {("descricao", "futebol | vencedor"): "{ent}"}
+    a = _p("Futebol", "A vs B", "Vencedor", "A")
+    b = _p("Futebol", "C vs D", "Mercado novo", "Sim")
+    assert D.montar({"pernas": [a, b]}, termos) == (None, ["futebol | mercado novo"])
+    assert D.montar({"pernas": [a, b]}, termos, texto_da_casa_se_faltar=True) == (
+        "A [A v B] // Mercado novo - Sim [C v D]", ["futebol | mercado novo"])

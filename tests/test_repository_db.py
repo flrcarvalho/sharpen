@@ -1946,11 +1946,11 @@ def test_corrigir_termo_regrava_so_a_ficha_do_mes_corrente(monkeypatch):
         _run(_corrigir_fora_do_master())
 
 
-def test_virada_descricao_nova_vai_a_ia_uma_vez_e_depois_nao(monkeypatch):
-    """s413 (Feca: chamada extra à IA só para a descrição, nunca). Mercado sem par de descrição:
-    a aposta vai para a IA com o motivo próprio (`descricao_fora`); a IA escreve a descrição; a
-    semente roda logo depois e aprende o mercado com 1 voto (D24); a aposta seguinte do MESMO
-    mercado, com outra linha e outro lado, fica com a Ficha e não vai à IA."""
+def test_virada_descricao_nova_grava_com_o_texto_da_casa_e_depois_aprende(monkeypatch):
+    """D40 (Feca, 01/11/2026): mercado sem par de descrição NÃO manda mais a aposta à IA (antes ia,
+    com o motivo `descricao_fora`). A Ficha grava a perna sem par com o texto da casa. Quando a IA
+    escreve a descrição daquele mercado noutra aposta (aqui: a sombra), a semente o aprende com 1
+    voto (D24) e a aposta seguinte do MESMO mercado sai inteira do dicionário."""
     import json as _json
 
     import ficha
@@ -1964,14 +1964,19 @@ def test_virada_descricao_nova_vai_a_ia_uma_vez_e_depois_nao(monkeypatch):
         resp, lidos, _, _ = await _virada_ponta_a_ponta(sess, payload, texto)
         async with pool.acquire() as conn:
             log1 = dict(await conn.fetchrow("SELECT pela_ficha, descricao_fora FROM virada_log"))
+            banco1 = dict(await conn.fetchrow("SELECT origem, descricao FROM bilhetes "
+                                              "WHERE codigo_bilhete = $1", aceita))
             # os termos de esporte/categoria do teste são do Feca: a semente só refaz a dela
             await conn.execute("UPDATE dicionario_termos SET origem = 'feca'")
             await conn.execute("TRUNCATE semente_log")
-            await conn.execute("UPDATE bilhetes SET descricao = $1 WHERE codigo_bilhete = $2",
-                               _IA_ACEITA, aceita)
         tsv = f"10/10/2026\tMúltiplos\t\t{sess.casa}\t{sess.parceiro}\tMúltipla\t{_IA_ACEITA}" \
               f"\t25\t7,6\t\t{aceita}"
-        await main._sombra_e_semente(sess.dono, sess.casa, texto, tsv)
+        # D40: nenhuma aposta foi à IA por descrição; a IA leu o mercado noutra aposta (a
+        # sombra) e a semente roda (aqui, à mão; em produção, depois de qualquer IA ou às 04h)
+        import dicionario as _dic
+        await main.registrar_sombra(sess.dono, sess.casa, texto, tsv)
+        async with pool.acquire() as conn:
+            await _dic.semear(conn, "extrair")
         async with pool.acquire() as conn:
             aprendeu = await conn.fetchval(
                 "SELECT termo_sharpen FROM dicionario_termos WHERE casa = 'VAVADA' AND "
@@ -1992,9 +1997,12 @@ def test_virada_descricao_nova_vai_a_ia_uma_vez_e_depois_nao(monkeypatch):
                 "SELECT origem, descricao FROM bilhetes WHERE codigo_bilhete = '5508528299'"))
             log2 = dict(await conn.fetchrow("SELECT pela_ficha, para_ia, descricao_fora FROM "
                                             "virada_log ORDER BY id DESC LIMIT 1"))
-        return lidos, log1, aprendeu, gat, repository.codigos_do_texto(para_ia), linha, log2
-    lidos, log1, aprendeu, gat, lidos2, linha, log2 = _run(rodar())
-    assert aceita in lidos and log1 == {"pela_ficha": 0, "descricao_fora": 1}
+        return (lidos, log1, banco1, aprendeu, gat, repository.codigos_do_texto(para_ia), linha,
+                log2)
+    lidos, log1, banco1, aprendeu, gat, lidos2, linha, log2 = _run(rodar())
+    assert aceita not in lidos and log1 == {"pela_ficha": 1, "descricao_fora": 0}
+    assert banco1 == {"origem": "ficha", "descricao": "Total cantos - Mais de 11.5 [Vicenza v Pisa]"
+                      " // Haro Rioja (F) +1.5 Sets [Haro Rioja (F) v Haris (F)]"}
     assert aprendeu == "{ou} Escanteios" and gat == ["extrair"]
     assert lidos2 == [] and log2 == {"pela_ficha": 1, "para_ia": 0, "descricao_fora": 0}
     assert linha == {"origem": "ficha", "descricao": "Under 9.5 Escanteios [Vicenza v Pisa] // "

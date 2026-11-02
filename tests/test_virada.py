@@ -59,6 +59,10 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   D39d. sem cru vai sempre à IA                           → extrair_resolve_pelo_cru_guardado
   D39e. sem cru segura mesmo sem cru recente da casa      → sem_cru_so_segura_se_a_casa_manda_cru
   D39f. chave da casa sem tirar o ponto / o acento        → chave_da_casa_bate_com_o_registro
+  s438 (D40):
+  D40a. a gravação volta a usar a descrição estrita         → d40_descricao_fora_do_dicionario
+  D40b. a forma estrita passa a usar o texto da casa        → d40_descricao_fora_do_dicionario
+  D40c. perna sem mercado nem seleção grava vazia           → d40_so_a_perna_sem_mercado
 Inócua (registrada, não é buraco): `virada()` aceitar `*` — o `casas_viradas()` já tira o `*`
 da lista antes, então o código segue certo sem a linha.
 
@@ -452,29 +456,43 @@ def test_termo_fora_do_dicionario_nao_vai_a_planilha(monkeypatch):
     assert conn.motivos["5508528206"] == "termo fora do dicionário"
 
 
-def test_descricao_fora_do_dicionario_vai_a_ia_uma_vez_e_depois_nao(monkeypatch):
-    """s413 (Feca: chamada extra à IA só para a descrição, nunca): mercado sem par de descrição
-    vai para a IA com o motivo próprio; a IA escreve a descrição, a semente aprende com 1 voto
-    (D24), e a captura seguinte do MESMO mercado, com outra linha, fica com a Ficha."""
+def test_d40_descricao_fora_do_dicionario_grava_com_o_texto_da_casa(monkeypatch):
+    """D40 (Feca, 01/11/2026): descrição desconhecida nunca manda a aposta à IA. A perna sem par
+    ("Total cantos") grava como a casa escreve, `<mercado> - <seleção> [A v B]`; a outra perna
+    sai do dicionário. Antes da D40 a aposta ia à IA (`descrição fora do dicionário`). Depois que
+    o dicionário aprende o mercado, a aposta seguinte sai inteira pelo dicionário."""
     monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
     sem = {k: v for k, v in _Conn().termos.items() if k != ("descricao", "sporttypeid 1 | total cantos")}
     conn = _banco(monkeypatch, termos=sem)
-    vistos = _gravador(monkeypatch)
-    assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 0 and vistos == []
-    assert conn.motivos["5508528206"] == "descrição fora do dicionário"
-    # a IA descreveu a aposta; a semente aprende o mercado a partir dela
+    descs = []
+
+    async def falso(dono, casa, parceiro, itens):
+        descs.extend((f["codigo"], d) for f, _, _, d in itens)
+        return {"salvos": len(itens), "rejeitados": []}
+    monkeypatch.setattr(virada, "gravar_na_planilha", falso)
+    assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 1
+    assert descs == [("5508528206", "Total cantos - Mais de 11.5 [Vicenza v Pisa] // "
+                                    "Haro Rioja (F) +1.5 Sets [Haro Rioja (F) v Haris (F)]")]
+    assert conn.estado["5508528206"][1] == "ficha" and conn.motivos["5508528206"] == ""
+    # a forma ESTRITA (regravação da semente, scripts) continua dizendo "o dicionário não cobre"
     f = _ficha("5508528206")
+    assert virada.descricao(f, sem) is None
+    # a IA de outra aposta ensina o mercado; a seguinte, com outra linha, sai do dicionário
     unanimes, _, _ = dicionario.votar([("VAVADA", f, "Múltiplos", "Múltipla", DESC_5508528206)])
     conn.termos.update({(t, k): v for (c, t, k), (v, _) in unanimes.items() if t == "descricao"})
-    assert conn.termos[("descricao", "sporttypeid 1 | total cantos")] == "{ou} Escanteios"
-    # outra aposta do mesmo mercado, com outra linha e outro lado: Ficha, sem IA
     cru = json.loads(json.dumps(CRUS["5508528206"]))
     cru["selections"][0]["name"] = "Menos de 9.5"
     g = dict(vb.adaptar(cru, "VAVADA"), impressao="y")
-    assert virada.descricao(g, conn.termos).startswith("Under 9.5 Escanteios [Vicenza v Pisa] // ")
-    assert asyncio.run(virada.gravar_aceitas(SESS, [ficha._registro(g, [])])) == 1
-    assert conn.estado["5508528206"][1] == "ficha"
+    assert virada.descricao_para_gravar(g, conn.termos).startswith(
+        "Under 9.5 Escanteios [Vicenza v Pisa] // ")
 
+
+def test_d40_so_a_perna_sem_mercado_nem_selecao_vai_a_ia():
+    """A única descrição que a D40 não monta é a da perna sem mercado E sem seleção: não há
+    texto da casa para gravar, e aí a IA lê (motivo `descrição fora do dicionário`)."""
+    vazia = {"pernas": [{"esporte_casa": "x", "evento": "A vs B", "mercado_casa": "",
+                         "selecao_casa": None}]}
+    assert virada.descricao_para_gravar(vazia, {}) is None
 
 def test_d10_liquidada_no_banco_nao_e_reescrita(monkeypatch):
     """D10 (Feca, 12/10): "não mexer no passado é não ir futricar as apostas de mês passado".

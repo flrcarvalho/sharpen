@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-11-01 · s438 · D40: descrição desconhecida nunca manda a aposta à IA
+
+**Onde está:** aprovada pelo Feca para deploy. Próximo: D42 (com o prefixo comum e o confronto
+falso da F1, pedido do Feca).
+
+- A perna sem par no dicionário de descrição grava como a casa escreve:
+  `<mercado da casa> - <seleção da casa> [A v B]` (`descricao_ficha.texto_da_casa`, limpo de
+  espaço, quebra e TAB), sem marca para corrigir. As outras pernas saem do dicionário. A aposta só
+  vai à IA com outro motivo (ou perna sem mercado e sem seleção).
+- Quem grava usa `virada.descricao_para_gravar`; `virada.descricao` segue estrita (regravação do mês
+  e scripts). Aprovado pelo Feca: quando o dicionário aprende o mercado, a regravação do mês troca o
+  texto da casa pela forma do dicionário, com rastro e respeitando edição à mão. Estrita também
+  protege contra o E1: chave que some do dicionário não rebaixa descrição boa a texto da casa.
+- Replay da semana de 26/10 a 01/11 (sem banco): das 318 apostas à IA só por descrição, 173 a Ficha
+  grava agora, 145 o dicionário de hoje já cobre, nenhuma sem montar (132 com 1 perna no texto da
+  casa, 27 com 2, 14 com 3). Mutações 6/6.
+- Herdados da forma `[A v B]` (valem também para as pernas do dicionário), para a D42: prefixo comum
+  cortado (`FC Brest [Brest v Vitebsk]`) e evento de F1 virando confronto falso
+  (`[Mexican Grand Prix Practice 1 v Winner]`).
+
+---
+
 ## 2026-11-01 · s438 · Scripts pela lixeira e expurgo de 90 dias
 
 **Onde está:** aprovado pelo Feca para deploy. Próximo: D40.
