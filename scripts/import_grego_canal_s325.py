@@ -130,6 +130,7 @@ import hashlib
 import os
 import re
 from collections import Counter
+from _lixeira import mover_para_lixeira  # Fase 7 (s438): aposta sai pela lixeira
 
 ENV_PATH = os.path.join(os.path.dirname(__file__), '..', '.env')
 PARCEIRO = 'Padrão'
@@ -700,9 +701,7 @@ async def gravar(rows: list[dict], dono: str):
                     # Idempotência por FAIXA DE CÓDIGO — não por origem. Assim
                     # este script não encosta nas 956 do tracker nem no que o bot
                     # vier a escrever.
-                    apagadas = await conn.execute(
-                        'DELETE FROM bilhetes WHERE dono=$1 AND codigo_bilhete = ANY($2::text[])',
-                        dono, codigos)
+                    apagadas = len(await mover_para_lixeira(conn, "dono=$1 AND codigo_bilhete = ANY($2::text[])", [dono, codigos], "reimport: import_grego_canal_s325.py"))
                     print(f'  [tentativa {tentativa}] limpou faixa anterior: {apagadas}')
                     await conn.executemany(
                         """

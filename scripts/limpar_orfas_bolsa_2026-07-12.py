@@ -12,6 +12,7 @@ NÃO mexe na 3351 (Folarin 25/06, arquivada, V, sem odd) — arquivada e inócua
 """
 import asyncio, os, asyncpg
 from dotenv import load_dotenv
+from _lixeira import mover_para_lixeira  # Fase 7 (s438): aposta sai pela lixeira
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 IDS = [54127, 54131, 17979]
@@ -32,7 +33,7 @@ async def main():
         print("Nada a apagar (já limpo).")
         await c.close()
         return
-    res = await c.execute("DELETE FROM bilhetes WHERE id = ANY($1)", IDS)
+    res = len(await mover_para_lixeira(c, "id = ANY($1)", [IDS], "órfãs da Bolsa (12/07/2026)"))
     print(f"\nDELETE -> {res}")
     await c.close()
 

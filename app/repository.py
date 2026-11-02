@@ -2357,20 +2357,45 @@ MOTIVOS_EXCLUSAO = {
 }
 
 
-async def _mover_para_lixeira(conn, where: str, params: list, motivo: str) -> list[dict]:
+# Expurgo da lixeira de apostas (Feca, 01/11/2026): 90 dias, não os 7 da lixeira de contas. O
+# caso do Gabriel mostra que a prova pode ser pedida semanas depois (a Caixa divergiu em 17/10, a
+# exclusão foi em 31/10). Preguiçoso, sem cron: a cada exclusão, o que DAQUELE dono passou do prazo
+# sai (o índice `lixeira_bilhetes_dono_excluido` cobre a consulta).
+LIXEIRA_BILHETES_DIAS = 90
+
+
+async def _expurgar_lixeira(conn, dono: str) -> None:
+    await conn.execute(
+        "DELETE FROM lixeira_bilhetes WHERE dono = $1 "
+        "AND excluido_em < NOW() - make_interval(days => $2)", dono, LIXEIRA_BILHETES_DIAS)
+
+
+async def _mover_para_lixeira(conn, where: str, params: list, motivo: str,
+                              mantido_id: int | None = None,
+                              snapshot: bool = False) -> list[dict]:
     """Apaga de `bilhetes` (alias `b`) o que `where` casa e GUARDA cada linha na
     `lixeira_bilhetes`, numa instrução só (snapshot e DELETE são a mesma operação; CLAUDE.md,
     "Excluir dado"). Devolve as colunas de `_COLS_RESTAURAR` de cada linha e o `lixeira_id`
-    dela, para o "Desfazer" tirar da lixeira o que voltou."""
+    dela, para o "Desfazer" tirar da lixeira o que voltou.
+
+    Também a usam os scripts (`scripts/_lixeira.py`, Fase 7): `mantido_id` = a linha que ficou no
+    lugar (reparo de duplicata); `snapshot=True` devolve a linha inteira em `bilhete` (JSONB como
+    texto), para o script gravar o backup em arquivo. O expurgo de `LIXEIRA_BILHETES_DIAS` roda
+    antes, para cada dono das linhas que vão sair."""
     n = len(params)
     cols = ", ".join(f"sai.{c}" for c in _COLS_RESTAURAR)
+    extra = ", to_jsonb(sai.*)::text AS bilhete" if snapshot else ""
+    for dono in await conn.fetch(f"SELECT DISTINCT b.dono FROM bilhetes b WHERE {where}",
+                                 *params):
+        await _expurgar_lixeira(conn, dono["dono"])
     recs = await conn.fetch(
         f"""WITH sai AS (DELETE FROM bilhetes b WHERE {where} RETURNING b.*),
                  lix AS (INSERT INTO lixeira_bilhetes (dono, motivo, mantido_id, bilhete)
-                         SELECT sai.dono, ${n + 1}, NULL, to_jsonb(sai.*) FROM sai
+                         SELECT sai.dono, ${n + 1}, ${n + 2}::int, to_jsonb(sai.*) FROM sai
                          RETURNING id, (bilhete->>'id')::bigint AS bid)
-            SELECT {cols}, lix.id AS lixeira_id FROM sai JOIN lix ON lix.bid = sai.id""",
-        *params, motivo,
+            SELECT {cols}{extra}, lix.id AS lixeira_id
+              FROM sai JOIN lix ON lix.bid = sai.id""",
+        *params, motivo, mantido_id,
     )
     return [dict(r) for r in recs]
 
@@ -2412,6 +2437,7 @@ async def excluir_bilhetes_lote(ids: list[int], dono: str, confirmar: int) -> di
     motivo = f"exclusão em massa pela tela ({len(alvo)} selecionadas)"
     pool = await get_pool()
     async with pool.acquire() as conn:
+        await _expurgar_lixeira(conn, dono)          # 90 dias (s438), como `_mover_para_lixeira`
         st = await conn.execute(
             """WITH sai AS (
                    DELETE FROM bilhetes b WHERE b.id = ANY($1) AND b.dono = $2

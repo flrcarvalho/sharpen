@@ -2943,6 +2943,9 @@ def test_d39_segurada_ha_24h_vai_a_ia(monkeypatch):
 #   F7d. a Polymarket volta a apagar de vez                   → f7_polymarket_vai_para_a_lixeira
 #   F7e. o "sem linha" não olha a `lixeira_contas`            → f7_conta_excluida_nao_vira_sem_linha
 # O gate estático (nenhum DELETE de aposta fora da lixeira) é `tests/test_lixeira_sempre.py`.
+#   F7f. sem o expurgo, ou com prazo de 99999 dias            → f7_expurgo_de_90_dias
+#   F7g. o `mantido_id` não chega à lixeira                   → f7_scripts_mantido_e_snapshot
+#   F7h. a exclusão em massa (Base Completa) sem o expurgo    → f7_expurgo_na_exclusao_em_massa
 
 async def _lixeira(dono):
     pool = await get_pool()
@@ -3036,3 +3039,66 @@ def test_f7_conta_excluida_nao_vira_sem_linha(monkeypatch):
     _run(_virada_segunda_captura(sess, sem_ela, envelhecer=False))
     _run(_sql("DELETE FROM lixeira_contas WHERE dono = $1", sess.dono))
     assert recusada not in _run(_avisos_ficha(sess.dono))
+
+
+
+def test_f7_expurgo_de_90_dias():
+    """Expurgo da lixeira de apostas (Feca, 01/11): 90 dias, não 7. O que passou do prazo sai na
+    exclusão seguinte daquele dono; o que tem 89 dias fica (a prova do Gabriel era de semanas)."""
+    async def body():
+        await _reset()
+        await _sql("DELETE FROM lixeira_bilhetes WHERE dono IN ('TDonoF', 'TDonoOutro')")
+        for dias, cod, dono in ((91, "VELHA", "TDonoF"), (89, "RECENTE", "TDonoF"),
+                                (91, "DOUTRO", "TDonoOutro")):
+            await _sql("INSERT INTO lixeira_bilhetes (dono, motivo, bilhete, excluido_em) VALUES "
+                       "($1, 't', jsonb_build_object('codigo_bilhete', $2::text), "
+                       "NOW() - make_interval(days => $3))", dono, cod, dias)
+        await repository.upsert_bilhetes([_row(codigo_bilhete="X1")], "TDonoF")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            i = await conn.fetchval("SELECT id FROM bilhetes WHERE dono = 'TDonoF'")
+        await repository.deletar_bilhetes([i], "TDonoF", "uma")
+        return (sorted(x["codigo"] for x in await _lixeira("TDonoF")),
+                [x["codigo"] for x in await _lixeira("TDonoOutro")])
+    meu, outro = _run(body())
+    assert meu == ["RECENTE", "X1"] and outro == ["DOUTRO"]
+
+
+def test_f7_scripts_mantido_e_snapshot():
+    """Os scripts de reparo guardam qual linha ficou no lugar (`mantido_id`), e os que gravam
+    backup em arquivo recebem a linha inteira (`snapshot`)."""
+    import json as _json
+
+    async def body():
+        await _reset()
+        await _sql("DELETE FROM lixeira_bilhetes WHERE dono = 'TDonoF'")
+        await repository.upsert_bilhetes([_row(codigo_bilhete="X1")], "TDonoF")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            fora = await repository._mover_para_lixeira(conn, "dono = $1", ["TDonoF"],
+                                                        "reparo teste", mantido_id=4242,
+                                                        snapshot=True)
+            mant = await conn.fetchval("SELECT mantido_id FROM lixeira_bilhetes "
+                                       "WHERE dono = 'TDonoF'")
+        return fora, mant
+    fora, mant = _run(body())
+    assert mant == 4242 and len(fora) == 1
+    assert _json.loads(fora[0]["bilhete"])["codigo_bilhete"] == "X1"
+
+
+
+def test_f7_expurgo_na_exclusao_em_massa():
+    """A exclusão em massa da Base Completa expurga pelo mesmo prazo de 90 dias."""
+    async def body():
+        await _reset()
+        await _sql("DELETE FROM lixeira_bilhetes WHERE dono = 'TDonoF'")
+        await _sql("INSERT INTO lixeira_bilhetes (dono, motivo, bilhete, excluido_em) VALUES "
+                   "('TDonoF', 't', jsonb_build_object('codigo_bilhete', 'VELHA'), "
+                   "NOW() - interval '91 days')")
+        await repository.upsert_bilhetes([_row(codigo_bilhete="X1")], "TDonoF")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            i = await conn.fetchval("SELECT id FROM bilhetes WHERE dono = 'TDonoF'")
+        await repository.excluir_bilhetes_lote([i], "TDonoF", 1)
+        return sorted(x["codigo"] for x in await _lixeira("TDonoF"))
+    assert _run(body()) == ["X1"]

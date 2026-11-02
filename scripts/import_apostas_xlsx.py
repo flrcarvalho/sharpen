@@ -28,6 +28,7 @@ import re
 from collections import Counter
 
 import openpyxl
+from _lixeira import mover_para_lixeira  # Fase 7 (s438): aposta sai pela lixeira
 
 ENV_PATH = os.path.join(os.path.dirname(__file__), '..', '.env')
 PARCEIRO = 'Padrão'          # sem coluna de titular nessas planilhas
@@ -287,8 +288,7 @@ async def importar(rows: list[dict], dono: str):
             conn = await asyncpg.connect(url, command_timeout=120)
             try:
                 async with conn.transaction():
-                    apagadas = await conn.execute(
-                        "DELETE FROM bilhetes WHERE dono=$1 AND origem='import'", dono)
+                    apagadas = len(await mover_para_lixeira(conn, "dono=$1 AND origem='import'", [dono], "reimport: import_apostas_xlsx.py"))
                     print(f'  [tentativa {tentativa}] limpou parciais: {apagadas}')
                     await conn.executemany(
                         """

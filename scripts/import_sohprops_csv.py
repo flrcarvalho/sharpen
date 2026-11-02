@@ -261,6 +261,7 @@ import re
 import sys
 import unicodedata
 from collections import Counter, defaultdict
+from _lixeira import mover_para_lixeira  # Fase 7 (s438): aposta sai pela lixeira
 
 # O relatório tem `→`, `⚠`, `✋` e acento. No Windows a saída padrão é cp1252 e
 # um `print` com seta derruba o script INTEIRO no meio do DRY (UnicodeEncodeError)
@@ -926,8 +927,7 @@ async def importar(rows: list[dict], dono: str):
                 async with conn.transaction():
                     # idempotente: reimportar não acumula (limpa só o que ESTE
                     # import escreveu — captura do bot/extensão tem outra origem)
-                    apagadas = await conn.execute(
-                        'DELETE FROM bilhetes WHERE dono=$1 AND origem=$2', dono, ORIGEM)
+                    apagadas = len(await mover_para_lixeira(conn, "dono=$1 AND origem=$2", [dono, ORIGEM], "reimport: import_sohprops_csv.py"))
                     print(f'  [tentativa {tentativa}] limpou import anterior: {apagadas}')
                     await conn.executemany(
                         """

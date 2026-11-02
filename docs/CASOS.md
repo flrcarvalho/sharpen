@@ -1118,6 +1118,15 @@ a gêmea antiga `Bingoplus`/`BingoPlus`. 30 bilhetes movidos por `unificar_casas
 > e ali ele não dá erro, dá registro que a outra metade não enxerga. Mesma família do bug da
 > s249 e da [assinatura que ficou para trás](#a-assinatura-que-ficou-para-trás--s198-e-s312).
 
+## O parser caseiro que mudava o custo conforme a tela
+
+Saiu do `CLAUDE.md` na s438 (Regra de morte §5: arquivo no teto, o caso vem para cá; a regra
+"todo valor de custo passa pelo `parseNum`" ficou lá). Há valor de custo gravado como `179.90`.
+A régua do projeto lê **179,90** (um separador só, com contagem diferente de 3 dígitos, é
+decimal); o `_c2num` da tela Custos tinha régua própria, apagava o ponto e lia **17.990**. Com
+duas linhas assim na base, o total de custo do sistema mudava de **R$ 30.884 para R$ 66.504**
+conforme a tela que lia. Hoje o `_c2num` delega ao `parseNum` (`app.js`).
+
 ## Casos de captura da bet365 → [`casos/CASOS_BET365.md`](casos/CASOS_BET365.md)
 
 O muro do histórico do navegador (a travada que o "reconectar" não curava) e a memória

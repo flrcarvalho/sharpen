@@ -55,6 +55,7 @@ load_dotenv(os.path.join(_RAIZ, ".env"))
 sys.path.insert(0, os.path.join(_RAIZ, "app"))
 
 from repository import auto_arquivar  # noqa: E402
+from _lixeira import mover_para_lixeira  # Fase 7 (s438): aposta sai pela lixeira
 
 # O console do Windows abre em cp1252 e derruba o script no primeiro caractere fora da
 # tabela — erro de encoding disfarçado de erro de operação é o pior tipo.
@@ -204,15 +205,9 @@ async def main() -> None:
         movidas = 0
         async with conn.transaction():
             for r, gemea in planos:
-                snap = await conn.fetchval(
-                    "DELETE FROM bilhetes WHERE id = $1 AND dono = $2 "
-                    "RETURNING to_jsonb(bilhetes.*)", r["id"], a.dono)
-                if snap is None:           # já saiu por outro caminho
-                    continue
-                await conn.execute(
-                    """INSERT INTO lixeira_bilhetes (dono, motivo, mantido_id, bilhete)
-                       VALUES ($1, $2, $3, $4::jsonb)""",
-                    a.dono, motivo, gemea, snap)
+                if not await mover_para_lixeira(conn, "id = $1 AND dono = $2",
+                                                [r["id"], a.dono], motivo, mantido_id=gemea):
+                    continue               # já saiu por outro caminho
                 movidas += 1
         print(f"movidas para `lixeira_bilhetes`: {movidas}")
 

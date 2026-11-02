@@ -438,9 +438,7 @@ defeito.
 > ⚠️ **Todo valor de custo passa pelo `parseNum` (`app.js`), nunca por um parser
 > caseiro.** Há valor gravado como `179.90`, e a régua do projeto lê **179,90** (um
 > separador só, com contagem diferente de 3 dígitos, é DECIMAL); um parser que apaga o
-> ponto lê **17.990**. Com duas linhas assim na base, o total de custo do sistema mudava
-> de R$ 30.884 para R$ 66.504 conforme a tela que lia — o `_c2num` da tela Custos tinha
-> régua própria e hoje delega ao `parseNum`.
+> ponto lê **17.990**. → [o caso](docs/CASOS.md#o-parser-caseiro-que-mudava-o-custo-conforme-a-tela)
 
 **Custo GERAL (VPN, ferramentas, taxas) é da operação inteira: filtro nenhum recorta**
 (`calcCustoGeralFiltrado`), mesma régua mensal do tipster, e desce no P/L como os outros.
@@ -465,8 +463,7 @@ recolhido, marca d'água de throttle) e paint instantâneo. Nunca o dado em si.
 → [o caso](docs/CASOS.md#o-custo-que-16-donos-tinham-e-o-servidor-nunca-viu--s360-s366)
 
 > Regra do Feca: *"JAMAIS, JAMAIS JAMAIS DEVEMOS ARMAZENAR CUSTO OU QUALQUER INFORMAÇÃO
-> LOCALMENTE NOS USUARIOS"*. **16 donos e 480 contas** tinham custo que o servidor nunca
-> viu, e a tela mostrava o número certo o tempo todo.
+> LOCALMENTE NOS USUARIOS"*.
 
 **O modo de falha é não ter sintoma:** o valor some numa limpeza de dados, num perfil
 novo ou noutro aparelho, **sem erro**. E **valor de exemplo cravado em código preenche o
@@ -984,9 +981,12 @@ Três coisas que a segunda vez ensinou:
 
 ## Excluir dado: mova para tabela isolada, nunca soft-delete
 
-Exclusão destrutiva **move** as linhas para uma tabela que mais nada no sistema lê
-(hoje `lixeira_contas`, alimentada pelo botão Excluir do Painel de Contas, retenção
-de 7 dias com purga preguiçosa). Nunca marque `excluido = TRUE` na tabela de origem.
+Exclusão destrutiva **move** as linhas para uma tabela que mais nada no sistema lê:
+`lixeira_bilhetes` para aposta (toda exclusão, app e `scripts/`, por
+`repository._mover_para_lixeira`; 90 dias) e `lixeira_contas` para a conta (7 dias), com
+purga preguiçosa. Nunca marque `excluido = TRUE` na tabela de origem. Gate:
+`tests/test_lixeira_sempre.py`. **Os 24 scripts da Fase 7 rodam a 1ª vez no Postgres de
+teste, só depois em produção** → [runbook](docs/RUNBOOK_SCRIPTS_DE_BANCO.md).
 
 **Por quê:** soft-delete em `bilhetes` obrigaria a filtrar em dezenas de queries
 espalhadas (dashboard, KPIs, dedup, export, P/L). Um esquecimento vira lucro
@@ -1009,7 +1009,7 @@ manda**.
 exato ser digitado, mas isso é conveniência, não segurança: um `DELETE` disparado por
 engano (histórico do navegador, script, curl) não pode apagar histórico.
 
-**Fonte canônica:** `app/repository.py` (`excluir_parceiro`, `LIXEIRA_DIAS`) e
+**Fonte canônica:** `app/repository.py` (`_mover_para_lixeira`, `excluir_parceiro`) e
 `scripts/restaurar_conta_lixeira.py`.
 
 ---

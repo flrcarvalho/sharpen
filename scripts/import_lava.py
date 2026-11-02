@@ -19,6 +19,7 @@ import hashlib
 import os
 import sys
 from collections import Counter
+from _lixeira import mover_para_lixeira  # Fase 7 (s438): aposta sai pela lixeira
 
 CSV_PATH = r'C:\Users\Fernando\Downloads\2026 Contas Pessoais - DB Apostas (9).csv'
 ENV_PATH = os.path.join(os.path.dirname(__file__), '..', '.env')
@@ -155,8 +156,7 @@ async def importar(rows: list[dict]):
             try:
                 async with conn.transaction():
                     # limpa qualquer import parcial anterior (idempotente)
-                    apagadas = await conn.execute(
-                        "DELETE FROM bilhetes WHERE dono=$1 AND origem='import'", DONO)
+                    apagadas = len(await mover_para_lixeira(conn, "dono=$1 AND origem='import'", [DONO], "reimport: import_lava.py"))
                     print(f'  [tentativa {tentativa}] limpou parciais: {apagadas}')
                     await conn.executemany(
                         """

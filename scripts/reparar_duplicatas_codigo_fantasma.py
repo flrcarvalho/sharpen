@@ -71,6 +71,7 @@ import asyncpg
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "app"))
 from repository import calcular_pl  # noqa: E402
+from _lixeira import mover_para_lixeira  # Fase 7 (s438): aposta sai pela lixeira
 
 # O console do Windows abre em cp1252 e derruba o script no primeiro caractere fora da
 # tabela — erro de ENCODING mascarado de erro de medição.
@@ -267,14 +268,9 @@ async def main() -> int:
         movidas = 0
         async with conn.transaction():
             for rid, mantido in a_remover:
-                snap = await conn.fetchval(
-                    "DELETE FROM bilhetes WHERE id = $1 RETURNING to_jsonb(bilhetes.*)", rid)
-                if snap is None:
+                if not await mover_para_lixeira(conn, "id = $1", [rid], MOTIVO,
+                                                mantido_id=mantido):
                     continue
-                await conn.execute(
-                    """INSERT INTO lixeira_bilhetes (dono, motivo, mantido_id, bilhete)
-                       VALUES ($1, $2, $3, $4::jsonb)""",
-                    json.loads(snap)["dono"], MOTIVO, mantido, snap)
                 movidas += 1
         print(f"{movidas} linha(s) movida(s) para `lixeira_bilhetes` (motivo: {MOTIVO}).")
         return 0

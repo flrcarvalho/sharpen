@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-11-01 · s438 · Scripts pela lixeira e expurgo de 90 dias
+
+**Onde está:** aprovado pelo Feca para deploy. Próximo: D40.
+
+- Os 24 scripts com `DELETE FROM bilhetes` (16 imports que se refazem, 4 reparos, 4 avulsos)
+  passam por `repository._mover_para_lixeira`, via `scripts/_lixeira.py`. A função ganhou
+  `mantido_id` (reparo de duplicata) e `snapshot` (backup em arquivo). A poda de conta saiu da
+  `lixeira_contas`.
+- Expurgo da `lixeira_bilhetes` em **90 dias** (Feca: a prova do Gabriel foi pedida semanas
+  depois), preguiçoso, por dono, na exclusão (função da lixeira e Base Completa).
+- Gate `tests/test_lixeira_sempre.py` estendido a `scripts/`; 3 testes no harness; mutações 5/5.
+- Achado e corrigido antes do commit: a troca deixou o `podar_conta_para_lista.py` imprimindo uma
+  variável que saiu (`NameError` depois de apagar); `pyflakes` limpo nos 25. E os meus executores
+  de mutação restauravam com `write_text` (CRLF): agora gravam em bytes.
+- **Regra nova do Feca:** a 1ª execução de cada um dos 24 roda antes no Postgres de teste local
+  (`docs/RUNBOOK_SCRIPTS_DE_BANCO.md`, com a tabela de quem já rodou). O `CLAUDE.md` estava no teto:
+  o relato do `_c2num` foi para o `CASOS.md` e uma frase duplicada do caso dos 16 donos saiu.
+
+---
+
 ## 2026-11-01 · s438 · Fase 7: toda exclusão de aposta passa pela lixeira
 
 **Onde está:** Fase 7 aprovada para deploy. Ordem do Feca daqui em diante: scripts e expurgo

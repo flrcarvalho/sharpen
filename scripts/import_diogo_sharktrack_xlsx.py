@@ -62,6 +62,7 @@ import openpyxl
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tipster_nomes as tn  # noqa: E402
+from _lixeira import mover_para_lixeira  # Fase 7 (s438): aposta sai pela lixeira
 
 ENV_PATH = os.path.join(os.path.dirname(__file__), '..', '.env')
 DONO = 'Diogo'
@@ -501,8 +502,7 @@ async def importar(rows: list[dict]):
                 async with conn.transaction():
                     # idempotente: reimportar não acumula. Limpa SÓ o que este
                     # import escreveu — captura da extensão tem outra origem.
-                    apagadas = await conn.execute(
-                        "DELETE FROM bilhetes WHERE dono=$1 AND origem=$2", DONO, ORIGEM)
+                    apagadas = len(await mover_para_lixeira(conn, "dono=$1 AND origem=$2", [DONO, ORIGEM], "reimport: import_diogo_sharktrack_xlsx.py"))
                     print(f'  [tentativa {tentativa}] limpou import anterior: {apagadas}')
                     await conn.executemany(
                         """

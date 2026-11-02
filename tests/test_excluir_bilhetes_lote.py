@@ -47,6 +47,9 @@ class _FakeConn:
 
     async def execute(self, sql, *a):
         self.execs.append((sql, a))
+        if "DELETE FROM lixeira_bilhetes" in sql:     # s438: o expurgo de 90 dias, antes
+            self.expurgos = getattr(self, "expurgos", 0) + 1
+            return "DELETE 0"
         assert "DELETE FROM bilhetes" in sql and "INSERT INTO lixeira_bilhetes" in sql, \
             "snapshot e DELETE precisam ser a MESMA instrução"
         assert "to_jsonb" in sql

@@ -64,6 +64,7 @@ sys.path.insert(0, str(RAIZ / "app"))
 
 import asyncpg      # noqa: E402
 import repository   # noqa: E402
+from _lixeira import mover_para_lixeira  # Fase 7 (s438): aposta sai pela lixeira
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
@@ -152,9 +153,9 @@ async def main(aplicar: bool) -> int:
             return 0
 
         async with conn.transaction():
-            n = await conn.execute(
-                "DELETE FROM bilhetes WHERE id = $1 AND dono = $2 AND extraction_state = 'aberta'"
-                " AND codigo_bilhete IS NULL", FANTASMA, DONO)
+            n = len(await mover_para_lixeira(
+                conn, "id = $1 AND dono = $2 AND extraction_state = 'aberta'"
+                " AND codigo_bilhete IS NULL", [FANTASMA, DONO], "s327: aposta fantasma da Caixa"))
             print(f"bilhete fantasma {FANTASMA}: {n}")
             await conn.execute(
                 "UPDATE caixa_mov SET abertas_corte = $1 WHERE id = $2",

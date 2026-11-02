@@ -55,6 +55,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 import asyncpg
+from _lixeira import mover_para_lixeira  # Fase 7 (s438): aposta sai pela lixeira
 
 RAIZ = Path(__file__).resolve().parent.parent
 
@@ -180,11 +181,10 @@ async def main() -> None:
         # Snapshot e DELETE são a MESMA operação (RETURNING). Ler antes e apagar depois abriria
         # janela para gravar um snapshot que não corresponde ao que saiu.
         async with conn.transaction():
-            linhas = await conn.fetch(f"""
-                DELETE FROM bilhetes b WHERE {FILTRO} RETURNING to_jsonb(b.*) AS linha
-            """, *alvo)
+            linhas = await mover_para_lixeira(conn, FILTRO, list(alvo),
+                                              "Bet365 sem confirmation (limpeza)", snapshot=True)
             destino.write_text(
-                json.dumps([json.loads(r["linha"]) for r in linhas], ensure_ascii=False,
+                json.dumps([json.loads(r["bilhete"]) for r in linhas], ensure_ascii=False,
                            indent=2, default=str),
                 encoding="utf-8")
 

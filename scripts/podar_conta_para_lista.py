@@ -23,8 +23,9 @@ POR QUE O SNAPSHOT SAI DO PRÓPRIO DELETE (`DELETE ... RETURNING to_jsonb`): ler
 antes e apagar depois abre janela para gravar uma lixeira que não corresponde ao
 que saiu (regra do CLAUDE.md, "Excluir dado"). O snapshot vai para DOIS lugares,
 de propósito:
-  · `lixeira_contas`, sob um nome de parceiro MARCADO — é o caminho que o resto do
-    sistema já conhece, mas tem retenção de 7 dias (`LIXEIRA_DIAS`);
+  · `lixeira_bilhetes`, pela `_mover_para_lixeira` do app (Fase 7, s438), com o motivo
+    "poda da conta <nome> <data>" e retenção de 90 dias (`LIXEIRA_BILHETES_DIAS`). Até a s438
+    ia para a `lixeira_contas` com o nome da conta marcado, retenção de 7 dias;
   · um arquivo `.json` em `Backups/`, que não expira. Bilhete de mês passado não
     volta pela casa (o extrato não vai tão longe): se o arquivo sumir, o dado
     sumiu junto.
@@ -62,6 +63,7 @@ load_dotenv(os.path.join(_RAIZ, ".env"))
 sys.path.insert(0, os.path.join(_RAIZ, "app"))
 
 from repository import auto_arquivar  # noqa: E402
+from _lixeira import mover_para_lixeira  # Fase 7 (s438): aposta sai pela lixeira
 
 # O console do Windows abre em cp1252 e derruba o script no primeiro caractere fora
 # da tabela — erro de encoding disfarçado de erro de operação é o pior tipo.
@@ -180,22 +182,12 @@ async def main() -> int:
 
         ids = [r["id"] for r in sai]
         async with con.transaction():
-            snap = await con.fetch(
-                "DELETE FROM bilhetes b WHERE b.id = ANY($1::int[])"
-                " RETURNING to_jsonb(b.*) AS linha",
-                ids,
-            )
-            linhas = [r["linha"] for r in snap]
-            # Nome MARCADO: a lixeira é indexada por conta, e uma entrada com o nome
-            # limpo se confundiria com a exclusão da conta inteira numa restauração.
-            marcado = f"{a.parceiro} — poda {datetime.now():%Y-%m-%d}"
-            # asyncpg devolve jsonb como str (sem codec global registrado); o array
-            # inteiro entra como texto + cast ::jsonb — mesmo padrão do repository.
-            await con.execute(
-                "INSERT INTO lixeira_contas (dono, casa, parceiro, arquivado, n_bilhetes,"
-                " bilhetes) VALUES ($1, $2, $3, FALSE, $4, $5::jsonb)",
-                a.dono, a.casa, marcado, len(linhas), "[" + ",".join(linhas) + "]",
-            )
+            # Fase 7 (s438): a lixeira de APOSTAS, com o motivo marcado (antes ia para a
+            # `lixeira_contas` com o nome da conta marcado, e o expurgo dela é de 7 dias).
+            snap = await mover_para_lixeira(
+                con, "b.id = ANY($1::int[])", [ids],
+                f"poda da conta {a.parceiro} {datetime.now():%Y-%m-%d}", snapshot=True)
+            linhas = [r["bilhete"] for r in snap]
 
         destino = os.path.join(_RAIZ, "Backups",
                                f"poda-{a.casa}-{datetime.now():%Y-%m-%d}")
@@ -210,7 +202,7 @@ async def main() -> int:
             a.dono, a.casa, a.parceiro,
         )
         print(f"\nAPLICADO: {len(linhas)} bilhetes removidos, {restam} restam na conta.")
-        print(f"  snapshot em lixeira_contas: \"{marcado}\"")
+        print(f"  snapshot em lixeira       : {len(snap)} linha(s), motivo \"poda da conta\"")
         print(f"  snapshot em arquivo       : {arq}")
         print(f"  re-arquivamento           : {n_arq} linhas ajustadas")
         if restam != len(fica):

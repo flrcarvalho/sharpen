@@ -53,6 +53,31 @@ def _chama(nome: str, alvo: str) -> bool:
                for n in ast.walk(_corpo(nome)))
 
 
+SCRIPTS = APP.parent / "scripts"
+
+
+def test_nenhum_script_apaga_aposta_fora_da_lixeira():
+    """Decisão do Feca (01/11/2026): os scripts também (imports que se refazem, reparos,
+    limpezas). Em `scripts/` não sobra nenhum `DELETE FROM bilhetes`: todos usam
+    `from _lixeira import mover_para_lixeira`, que é a mesma função do app."""
+    fora = []
+    for arq in sorted(SCRIPTS.glob("*.py")):
+        for no in ast.walk(ast.parse(arq.read_text(encoding="utf-8"))):
+            if isinstance(no, ast.Constant) and isinstance(no.value, str) \
+                    and "DELETE FROM bilhetes" in " ".join(no.value.split()):
+                fora.append(arq.name)
+    assert fora == []
+
+
+def test_o_atalho_dos_scripts_e_a_funcao_do_app():
+    import sys
+    sys.path.insert(0, str(SCRIPTS))
+    sys.path.insert(0, str(APP))
+    import _lixeira
+    import repository
+    assert _lixeira.mover_para_lixeira is repository._mover_para_lixeira
+
+
 def test_as_exclusoes_da_tela_e_da_polymarket_passam_pela_lixeira():
     assert _chama("deletar_bilhetes", "_mover_para_lixeira")
     assert _chama("remover_bilhetes_supersedidos", "_mover_para_lixeira")
