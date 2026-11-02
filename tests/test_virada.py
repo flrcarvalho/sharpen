@@ -473,7 +473,8 @@ def test_d40_descricao_fora_do_dicionario_grava_com_o_texto_da_casa(monkeypatch)
     assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 1
     assert descs == [("5508528206", "Total cantos - Mais de 11.5 [Vicenza v Pisa] // "
                                     "Haro Rioja (F) +1.5 Sets [Haro Rioja (F) v Haris (F)]")]
-    assert conn.estado["5508528206"][1] == "ficha" and conn.motivos["5508528206"] == ""
+    # D42 commit 5: a aposta com perna no texto da casa fica marcada (o vigia a escolhe primeiro)
+    assert conn.estado["5508528206"][1] == "ficha" and         conn.motivos["5508528206"] == virada.TEXTO_DA_CASA
     # a forma ESTRITA (regravação da semente, scripts) continua dizendo "o dicionário não cobre"
     f = _ficha("5508528206")
     assert virada.descricao(f, sem) is None

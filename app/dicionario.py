@@ -411,6 +411,14 @@ async def pares_completo(conn) -> tuple[list, list, dict, set]:
         "        AND c.campo IN ('esporte', 'aposta', 'descricao') "
         "        AND c.origem IS DISTINCT FROM 'ficha') AS editada FROM bilhetes b "
         "WHERE b.codigo_bilhete = ANY($1::text[]) AND b.origem IS DISTINCT FROM 'ficha'", codigos)}
+    # D42 commit 5 (s438): a descrição que o VIGIA leu pela IA numa aposta da Ficha vota, quando
+    # não há voto melhor. A D40 tirou a IA do caminho da descrição desconhecida (a perna vai com o
+    # texto da casa), e o vigia passou a ser a fonte que ainda lê essas apostas. Só a DESCRIÇÃO: o
+    # vigia não lê esporte nem categoria (`vigia_registrar` guarda stake, odd, resultado e ela).
+    vigia = {(v["dono"], v["casa"], v["codigo"]): v["descricao"] for v in await conn.fetch(
+        "SELECT DISTINCT ON (dono, casa, codigo) dono, casa, codigo, ia->>'descricao' AS descricao "
+        "FROM vigia_ficha WHERE ia IS NOT NULL AND coalesce(ia->>'descricao', '') <> '' "
+        "AND codigo = ANY($1::text[]) ORDER BY dono, casa, codigo, criado_em DESC", codigos)}
     sombra = {(s["dono"], s["codigo"]): s for s in await conn.fetch(
         "SELECT DISTINCT ON (dono, codigo) dono, codigo, ia_esporte, ia_aposta, ia_descricao "
         "FROM sombra_rotulos WHERE codigo = ANY($1::text[]) ORDER BY dono, codigo, criado_em DESC",
@@ -430,6 +438,9 @@ async def pares_completo(conn) -> tuple[list, list, dict, set]:
         elif (s := sombra.get((dono, codigo))):
             out.append((casa, f, s["ia_esporte"], s["ia_aposta"], s["ia_descricao"]))
             fontes["sombra_rotulos"] += 1
+        elif (dv := vigia.get((dono, casa, codigo))):
+            out.append((casa, f, "", "", dv))           # D42: só a descrição (ver acima)
+            fontes["vigia"] += 1
         else:
             fontes["sem par"] += 1
     # Complemento de ESPORTE: o texto do SharpenUp em `sombra_rotulos` escreve o termo da casa

@@ -234,6 +234,9 @@ async def gravar_na_planilha(dono: str, casa: str, parceiro: str, itens: list[tu
 
 # ── a decisão por código ────────────────────────────────────────────────────────────────
 
+# D42 commit 5 (s438): o `motivo` da aposta que a Ficha gravou com alguma perna no texto da casa.
+TEXTO_DA_CASA = "texto da casa"
+
 # O motivo de cada código que fica com a IA → a coluna do `virada_log` (s412).
 MOTIVOS = {
     "Ficha recusada": "ficha_recusada",
@@ -298,6 +301,7 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
                                [c for c in cods if (estado.get(c) or ("", ""))[1] == "ficha"])
     resolvidos, fica, novo_estado, gravar = set(), {}, {}, []
     sem_par: list = []            # D42: as pernas que vão com o texto da casa (`virada.py:145`)
+    com_texto_da_casa: set = set()
 
     def ia(cod, motivo):
         fica[cod] = motivo
@@ -326,9 +330,11 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
             resolvidos.add(cod)            # cru igual, já gravado pela Ficha: só sai do lote
             continue
         gravar.append((f, esporte, categoria, desc))
+        faltou = _desc.montar(f, termos, _dic.descricao_perna, True)[1]
+        if faltou:
+            com_texto_da_casa.add(cod)
         sem_par += [(casa_key, "descricao", k, "sem par no dicionário (gravada com o texto da "
-                     "casa)", None, desc) for k in _desc.montar(f, termos, _dic.descricao_perna,
-                                                                True)[1]]
+                     "casa)", None, desc) for k in faltou]
     if gravar:
         try:
             r = await gravar_na_planilha(dono, casa, parceiro, gravar)
@@ -343,7 +349,10 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
                 ia(cod, "recusada no /salvar")
             else:
                 resolvidos.add(cod)
-                novo_estado[cod] = (f.get("impressao") or "", "ficha", "")
+                # D42 commit 5: a aposta gravada com o texto da casa fica MARCADA, e o vigia
+                # a escolhe primeiro (`vigia_candidatos`): é ela que ensina o mercado à semente
+                novo_estado[cod] = (f.get("impressao") or "", "ficha",
+                                    TEXTO_DA_CASA if cod in com_texto_da_casa else "")
     await _gravar_estados(conn, dono, casa_key, novo_estado)
     if sem_par:
         try:
@@ -796,8 +805,11 @@ async def vigia_candidatos(conn, dono: str, casa_key: str, codigos: list[str],
         "AND NOT EXISTS (SELECT 1 FROM vigia_ficha v WHERE v.dono = b.dono AND v.casa = $2 "
         "  AND v.codigo = b.codigo_bilhete "
         "  AND coalesce(v.ficha->>'resultado', '') = coalesce(b.resultado, '')) "
-        "ORDER BY b.atualizado_em DESC NULLS LAST, b.id DESC LIMIT $4",
-        dono, (casa_key or "").upper(), list(codigos), vagas)
+        # D42 commit 5: a gravada com o texto da casa primeiro (o vigia ensina o mercado)
+        "ORDER BY EXISTS (SELECT 1 FROM ficha_virada fv WHERE fv.dono = b.dono AND fv.casa = $2 "
+        "  AND fv.codigo = b.codigo_bilhete AND fv.motivo = $5) DESC, "
+        "b.atualizado_em DESC NULLS LAST, b.id DESC LIMIT $4",
+        dono, (casa_key or "").upper(), list(codigos), vagas, TEXTO_DA_CASA)
     return [r["codigo_bilhete"] for r in rows]
 
 

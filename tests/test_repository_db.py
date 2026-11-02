@@ -1597,7 +1597,7 @@ async def _virada_ponta_a_ponta(sess, payload, texto, antes=None, virar_no_extra
     pool = await get_pool()
     async with pool.acquire() as conn:
         for t in ("captura_crua", "ficha_sombra", "bloco_visto", "dicionario_termos",
-                  "ficha_virada", "virada_log", "sombra_rotulos"):
+                  "ficha_virada", "virada_log", "sombra_rotulos", "vigia_ficha"):
             await conn.execute(f"TRUNCATE {t}")
         for casa, tipo, termo, sharpen in getattr(sess, "termos", []):
             await conn.execute("INSERT INTO dicionario_termos (casa, tipo, termo_casa, "
@@ -2259,7 +2259,7 @@ async def _shuffle_reset():
     pool = await get_pool()
     async with pool.acquire() as conn:
         for t in ("captura_crua", "ficha_sombra", "bloco_visto", "dicionario_termos",
-                  "ficha_virada", "virada_log", "sombra_rotulos"):
+                  "ficha_virada", "virada_log", "sombra_rotulos", "vigia_ficha"):
             await conn.execute(f"TRUNCATE {t}")
     return pool
 
@@ -3397,3 +3397,56 @@ def test_c4_teste_uma_vez(monkeypatch):
         return await aviso_diario.teste_uma_vez(), await aviso_diario.teste_uma_vez()
     assert _run(rodar()) == (True, False)
     assert enviados == ["teste do aviso diário da semente"]
+
+
+
+# ── s438 · D42 commit 5: o vigia como fonte de voto da descrição ──────────────────────────
+# Mutações provadas: a semente não lê o vigia → c5_semente_aprende_pelo_vigia; o vigia não prioriza
+# a gravada com texto da casa → c5_vigia_escolhe_o_texto_da_casa; a gravação não marca a aposta →
+# test_virada.py::test_d40_descricao_fora_do_dicionario_grava_com_o_texto_da_casa.
+
+def test_c5_semente_aprende_pelo_vigia(monkeypatch):
+    """A perna sem par foi gravada com o texto da casa (D40); o vigia leu a aposta pela IA, e a
+    descrição dele vota: a semente aprende o mercado, e a regravação do mês vai trocar o texto."""
+    import dicionario
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
+    sess.termos = [t for t in sess.termos if t[2] != "sporttypeid 1 | total cantos"]
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+
+    async def rodar():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("UPDATE dicionario_termos SET origem = 'feca'")
+            await conn.execute("INSERT INTO vigia_ficha (dono, casa, codigo, ficha, ia, divergente, "
+                               "campos) VALUES ($1, 'VAVADA', $2, '{}'::jsonb, $3::jsonb, false, "
+                               "'{}')", sess.dono, aceita,
+                               '{"descricao": "%s"}' % _IA_ACEITA)
+            r = await dicionario.semear(conn, "teste")
+            v = await conn.fetchval("SELECT termo_sharpen FROM dicionario_termos WHERE casa = "
+                                    "'VAVADA' AND tipo = 'descricao' AND termo_casa = $1",
+                                    "sporttypeid 1 | total cantos")
+            return r, v
+    r, v = _run(rodar())
+    assert r["fontes"].get("vigia") == 1 and v == "{ou} Escanteios"
+
+
+def test_c5_vigia_escolhe_o_texto_da_casa():
+    """Com 1 vaga, o vigia lê primeiro a aposta gravada com texto da casa, mesmo sendo a mais velha."""
+    import virada
+
+    async def rodar():
+        await _reset()
+        await repository.upsert_bilhetes([_row(casa="Vavada", codigo_bilhete="VELHA")], "TDonoC",
+                                         origem="ficha")
+        await repository.upsert_bilhetes([_row(casa="Vavada", codigo_bilhete="NOVA")], "TDonoC",
+                                         origem="ficha")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("TRUNCATE ficha_virada")
+            await conn.execute("TRUNCATE vigia_ficha")
+            await conn.execute("INSERT INTO ficha_virada (dono, casa, codigo, estado, motivo) VALUES "
+                               "('TDonoC', 'VAVADA', 'VELHA', 'ficha', $1), "
+                               "('TDonoC', 'VAVADA', 'NOVA', 'ficha', '')", virada.TEXTO_DA_CASA)
+            return await virada.vigia_candidatos(conn, "TDonoC", "VAVADA", ["VELHA", "NOVA"], 1)
+    assert _run(rodar()) == ["VELHA"]

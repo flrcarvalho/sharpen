@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-11-02 · s438 · D42, commit 5: o vigia como fonte de voto (deploy autônomo); D42 completa
+
+**Onde está:** D42 inteira no ar. Próximo: D43 (Bet Builder pela Ficha, no formato das 5 linhas).
+
+- **Aviso de teste:** enviado pelo app ao subir o commit 4 e confirmado pelo Telegram (`aviso_admin`,
+  chave `teste-s438`, `ok = true`, 02/11 00:39:13). O Feca confere de manhã se chegou.
+- A D40 tirou a IA do caminho da descrição desconhecida; o vigia é quem ainda lê essas apostas. A
+  semente passa a usar a descrição que o vigia leu (`vigia_ficha.ia->>'descricao'`) quando a aposta
+  não tem voto melhor (linha da IA ou sombra): só descrição, porque o vigia não lê esporte nem
+  categoria (`semente_log.fontes.vigia`).
+- A gravação da Ficha marca no `ficha_virada` a aposta com perna no texto da casa (`motivo = 'texto
+  da casa'`), e o `vigia_candidatos` a escolhe primeiro. A cota (3 por casa e dia) e a comparação de
+  dinheiro do vigia não mudam.
+- Achado de teste: a `vigia_ficha` não era limpa entre testes do harness; passou a ser.
+- Mutações 3/3. Nada muda em odd, stake ou resultado; nenhum ALTER.
+
+---
+
 ## 2026-11-02 · s438 · D42, commit 4: o aviso diário ao Feca (deploy autônomo)
 
 **Onde está:** no ar sob a autorização noturna do Feca. Próximo: commit 5 (o vigia como fonte de voto).
