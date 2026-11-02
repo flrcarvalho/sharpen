@@ -297,6 +297,7 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
     gravados = await _no_banco(conn, dono, casa_key,
                                [c for c in cods if (estado.get(c) or ("", ""))[1] == "ficha"])
     resolvidos, fica, novo_estado, gravar = set(), {}, {}, []
+    sem_par: list = []            # D42: as pernas que vão com o texto da casa (`virada.py:145`)
 
     def ia(cod, motivo):
         fica[cod] = motivo
@@ -325,6 +326,9 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
             resolvidos.add(cod)            # cru igual, já gravado pela Ficha: só sai do lote
             continue
         gravar.append((f, esporte, categoria, desc))
+        sem_par += [(casa_key, "descricao", k, "sem par no dicionário (gravada com o texto da "
+                     "casa)", None, desc) for k in _desc.montar(f, termos, _dic.descricao_perna,
+                                                                True)[1]]
     if gravar:
         try:
             r = await gravar_na_planilha(dono, casa, parceiro, gravar)
@@ -341,6 +345,11 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
                 resolvidos.add(cod)
                 novo_estado[cod] = (f.get("impressao") or "", "ficha", "")
     await _gravar_estados(conn, dono, casa_key, novo_estado)
+    if sem_par:
+        try:
+            await _dic.gravar_recusas(conn, sem_par, origem="gravacao")
+        except Exception:  # noqa: BLE001 — o registro nunca derruba a gravação
+            logger.exception("virada: semente_recusa (sem par) não gravada")
     if fica:
         logger.info("virada: %s %s · ficam com a IA: %s", dono, casa_key,
                     {m: list(fica.values()).count(m) for m in set(fica.values())})

@@ -5,6 +5,22 @@
 
 ---
 
+## 2026-11-02 · s438 · D42, commit 3: a `semente_recusa` (deploy autônomo)
+
+**Onde está:** no ar sob a autorização noturna do Feca. Próximo: commit 4 (aviso diário).
+
+- Tabela nova e pequena `semente_recusa`: uma linha por (casa, tipo, chave, motivo), com o termo, um
+  exemplo e `n`. Três fontes: o voto de descrição que a semente recusa, com o motivo exato (jogo da
+  IA diferente, IA sem o `[jogo]`, IA sem `{time}`/`{ent}`/`{ou}`, número que sobrou, nome próprio
+  sobrou, seleção Sim/Não sozinha, perna sem trecho da IA, mercado de time sem o time); o voto de
+  categoria ou esporte com valor da IA fora do Master; e a perna que a Ficha gravou com o texto da
+  casa (`origem='gravacao'`, o `faltam` que o `virada.py:145` descartava).
+- `n` da semente é o retrato da rodada (ela relê a base inteira); o da gravação soma por gravação.
+- Registrar nunca para a semente nem a gravação (try/except com log). Mutações 7/7. Sem ALTER em
+  tabela grande; nada muda em odd, stake ou resultado.
+
+---
+
 ## 2026-11-02 · s438 · D42, commit 2: a leitura da descrição (deploy autônomo)
 
 **Onde está:** no ar sob a autorização noturna do Feca (02/11, "pode seguir sozinha, uma etapa por

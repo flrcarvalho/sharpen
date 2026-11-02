@@ -267,7 +267,7 @@ _CHAVE_B = _casa_chave.sql("b.casa")
 MAIORIA = 0.9                    # P7: com 90% ou mais dos votos, fica a maioria
 
 
-def votar(pares, votos_texto=()) -> tuple[dict, dict, list]:
+def votar(pares, votos_texto=(), recusas: list | None = None) -> tuple[dict, dict, list]:
     """Semente (`04 §3`). `pares` = [(casa, Ficha, esporte da IA, categoria da IA[, descrição
     da IA])];
     `votos_texto` = [(casa, termos de esporte do texto, esporte da IA)], o complemento do
@@ -297,14 +297,25 @@ def votar(pares, votos_texto=()) -> tuple[dict, dict, list]:
     for casa, f, esp_ia, cat_ia, *resto in pares:
         casa = (casa or "").upper()
         if resto and resto[0]:
-            for k, v in descricao_ficha.votos(f, resto[0]):
+            rec = [] if recusas is not None else None
+            for k, v in descricao_ficha.votos(f, resto[0], rec):
                 votos[(casa, "descricao", k)][v] += 1
+            for k, motivo, trecho in rec or []:           # D42: a recusa não some
+                recusas.append((casa, "descricao", k, motivo, None, trecho))
         pernas = f.get("pernas") or []
         termos_esp = {_esp(p) for p in pernas} - {""}
         esp_ia, cat_ia = _limpo(esp_ia), _limpo(cat_ia)
         if len(termos_esp) == 1 and esp_ia and esp_ia != MULTIPLOS and esp_ia in esportes_m \
                 and not termos_esp & VAGOS:
             votos[(casa, "esporte", next(iter(termos_esp)))][esp_ia] += 1
+        elif recusas is not None and len(termos_esp) == 1 and esp_ia and esp_ia != MULTIPLOS \
+                and esp_ia not in esportes_m and not termos_esp & VAGOS:
+            recusas.append((casa, "esporte", next(iter(termos_esp)), "valor da IA fora do Master",
+                            esp_ia, None))
+        if recusas is not None and f.get("tipo") == "simples" and len(pernas) == 1 and cat_ia \
+                and cat_ia != MULTIPLA and cat_ia not in categorias_m:
+            recusas.append((casa, "categoria", normalizar(pernas[0].get("mercado_casa")),
+                            "valor da IA fora do Master", cat_ia, None))
         if f.get("tipo") == "simples" and len(pernas) == 1 and cat_ia and cat_ia != MULTIPLA \
                 and cat_ia in categorias_m:
             p = pernas[0]
@@ -502,6 +513,32 @@ async def gravar_semente(conn, unanimes: dict, retirar=(), contraditos=()) -> in
     return len(unanimes)
 
 
+async def gravar_recusas(conn, recusas, origem: str = "semente") -> int:
+    """D42 (s438; Feca: "todo voto recusado fica registrado com o motivo e o termo"). Uma linha
+    por (casa, tipo, chave, motivo) na `semente_recusa`, com quantas vezes aconteceu NESTA rodada
+    (`n`), o termo (o valor da IA, quando é ele que foi recusado) e um exemplo. A rodada da
+    semente relê a base inteira, então `n` é o retrato da rodada, não um acumulado; `primeira_em`
+    fica. `origem='gravacao'` (a perna que a Ficha gravou com o texto da casa, D40) soma por
+    gravação. Devolve quantas chaves distintas foram registradas."""
+    from collections import Counter
+    n, ex = Counter(), {}
+    for casa, tipo, chave, motivo, termo, exemplo in recusas:
+        k = ((casa or "").upper(), tipo, chave or "", motivo)
+        n[k] += 1
+        ex.setdefault(k, (termo, (exemplo or "")[:300]))
+    for (casa, tipo, chave, motivo), q in n.items():
+        termo, exemplo = ex[(casa, tipo, chave, motivo)]
+        await conn.execute(
+            """INSERT INTO semente_recusa (casa, tipo, chave, motivo, termo, exemplo, n, origem)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+               ON CONFLICT (casa, tipo, chave, motivo) DO UPDATE SET
+                 termo = EXCLUDED.termo, exemplo = EXCLUDED.exemplo, ultima_em = NOW(),
+                 n = CASE WHEN EXCLUDED.origem = 'gravacao' THEN semente_recusa.n + EXCLUDED.n
+                          ELSE EXCLUDED.n END""",
+            casa, tipo, chave, motivo, termo, exemplo, q, origem)
+    return len(n)
+
+
 def coberto_pelo_feca(feca, casa: str, tipo: str, termo: str) -> bool:
     """A correção do Feca vence a semente no termo E nas chaves mais específicas do mesmo
     mercado (`mercado | seleção`), na casa dela ou em todas (`*`). P5 do parecer 013: sem isso
@@ -520,7 +557,13 @@ async def semear(conn, gatilho: str = "manual", hoje=None) -> dict:
     import json
     from collections import Counter
     p, texto, fontes, retiradas = await pares_completo(conn)
-    unanimes, contraditos, revisao = votar(p, texto)
+    recusas: list = []
+    unanimes, contraditos, revisao = votar(p, texto, recusas)
+    try:                                                  # D42: falha aqui não para a semente
+        fontes = dict(fontes, recusas=await gravar_recusas(conn, recusas))
+    except Exception:  # noqa: BLE001
+        import logging
+        logging.getLogger("scanner").exception("dicionário: semente_recusa não gravada")
     feca = [(r["casa"], r["tipo"], r["termo_casa"]) for r in await conn.fetch(
         "SELECT casa, tipo, termo_casa FROM dicionario_termos WHERE origem = 'feca'")]
     unanimes = {k: v for k, v in unanimes.items() if not coberto_pelo_feca(feca, *k)}

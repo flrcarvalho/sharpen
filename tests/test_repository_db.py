@@ -3223,3 +3223,65 @@ def test_e1_edicao_a_mao_retira_a_categoria_que_a_aposta_ensinou(monkeypatch):
     antes, depois = _run(rodar())
     cat = {k: v for k, v in antes.items() if k[1] == "categoria"}
     assert cat and all(k not in depois for k in cat)
+
+
+
+# ── s438 · D42 commit 3: semente_recusa ───────────────────────────────────────────────────
+# Mutações provadas: a semente não grava as recusas → c3_semente_grava_a_recusa; a gravação da
+# Ficha não registra a perna sem par → c3_perna_sem_par_vai_para_a_recusa; o `n` da gravação deixa
+# de somar → c3_perna_sem_par_vai_para_a_recusa.
+
+async def _recusas():
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return [dict(r) for r in await conn.fetch(
+            "SELECT casa, tipo, chave, motivo, termo, n, origem FROM semente_recusa ORDER BY chave, motivo")]
+
+
+def test_c3_semente_grava_a_recusa(monkeypatch):
+    """O voto de descrição que a semente recusa fica na `semente_recusa`, com motivo e exemplo."""
+    import dicionario
+    sess, payload, texto = _virada_cenario(monkeypatch, "", sombra="VAVADA")
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+
+    async def rodar():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("TRUNCATE semente_recusa")
+            await _simples_no_banco(conn, sess)
+            # a IA escreveu a descrição de OUTRO jogo: o voto é recusado
+            await conn.execute("UPDATE bilhetes SET descricao = 'A +2.5 [X v Y]' "
+                               "WHERE codigo_bilhete = $1", _SIMPLES)
+            r = await dicionario.semear(conn, "teste")
+            await conn.execute("TRUNCATE captura_crua")
+            return r
+    r = _run(rodar())
+    rec = _run(_recusas())
+    assert r["fontes"]["recusas"] >= 1
+    assert any(x["tipo"] == "descricao" and x["origem"] == "semente" and x["n"] >= 1 for x in rec)
+
+
+def test_c3_perna_sem_par_vai_para_a_recusa(monkeypatch):
+    """A perna que a Ficha grava com o texto da casa (D40) fica registrada (`origem='gravacao'`),
+    e o `n` soma a cada gravação: é a lista de mercados que faltam no dicionário."""
+    import virada
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
+    sess.termos = [t for t in sess.termos if t[2] != "sporttypeid 1 | total cantos"]
+    _run(_sql("TRUNCATE semente_recusa"))
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    rec = [x for x in _run(_recusas()) if x["origem"] == "gravacao"]
+    assert [(x["chave"], x["n"]) for x in rec] == [("sporttypeid 1 | total cantos", 1)]
+
+    async def de_novo():
+        import json as _json
+        crus = _json.loads((Path(__file__).resolve().parent / "ficha_crus_familias.json")
+                           .read_text(encoding="utf-8"))
+        f = virada._ficha.montar_ficha("vb", crus[aceita], "VAVADA")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM bilhetes WHERE codigo_bilhete = $1", aceita)
+            await virada.aplicar(conn, sess.dono, "VAVADA", sess.casa, sess.parceiro, {aceita: f})
+    _run(de_novo())
+    rec = [x for x in _run(_recusas()) if x["origem"] == "gravacao"]
+    assert [x["n"] for x in rec] == [2]

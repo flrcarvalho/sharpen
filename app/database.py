@@ -1049,6 +1049,24 @@ ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS captura_incompleta INTEGER NOT N
 -- D39, a saída: quantos SEGURADOS esgotaram (2 `/extrair` ou 24 h sem cru novo) e foram à IA.
 ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS captura_esgotada INTEGER NOT NULL DEFAULT 0;
 
+-- D42 (s438): todo voto que a semente RECUSA fica registrado com o motivo e o termo (antes sumia em
+-- silêncio), e a perna que a Ficha grava com o texto da casa por falta de par (`origem =
+-- 'gravacao'`). Uma linha por (casa, tipo, chave, motivo): `n` = quantas vezes na última rodada
+-- da semente (ou, na gravação, o total). É o que o aviso diário ao Feca lê (`dicionario.py`).
+CREATE TABLE IF NOT EXISTS semente_recusa (
+    casa        TEXT NOT NULL,
+    tipo        TEXT NOT NULL,
+    chave       TEXT NOT NULL,
+    motivo      TEXT NOT NULL,
+    termo       TEXT,
+    exemplo     TEXT,
+    n           INTEGER NOT NULL DEFAULT 0,
+    origem      TEXT NOT NULL DEFAULT 'semente',
+    primeira_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ultima_em   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (casa, tipo, chave, motivo)
+);
+
 -- Uma linha por rodada da semente do dicionário (s412): `gatilho` = diaria (04h de Brasília),
 -- extrair (logo depois de um `/extrair` de casa virada que mandou termo novo à IA) ou manual.
 -- `novos` = termos que não estavam na semente anterior (os "novos do dia" somam as rodadas).

@@ -666,3 +666,38 @@ def test_nome_invertido_sem_virgula():
     assert "Vsevolod Kheresko" in D._variantes("Kheresko Vsevolod")
     assert D._achar("Vsevolod Kheresko - 1º Set", "Kheresko Vsevolod") == (0, len("Kheresko Vsevolod"))
     assert len(D._variantes("Jan Blazek Junior")) == 1                    # 3 palavras: não inverte
+
+
+
+# ── D42, commit 3 (s438): o voto recusado não some ────────────────────────────────────────
+# Mutações provadas: o motivo do `aprender` não chega às recusas → recusas_com_motivo; a perna
+# sem trecho da IA não é registrada → recusas_com_motivo; o `votar` não repassa → votar_registra.
+
+def test_recusas_com_motivo():
+    a = _p("Futebol", "A vs B", "Total cantos", "Mais de 9.5")
+    b = _p("Futebol", "C vs D", "Vencedor", "C")
+    rec = []
+    assert D.votos({"pernas": [a, b]}, "Over 9.5 Escanteios [X v Y] // C [C v D]", rec) == \
+        [("futebol | vencedor", "{ent}")]
+    assert rec == [("futebol | total cantos", "perna sem trecho da IA do mesmo jogo",
+                    "Over 9.5 Escanteios [X v Y] // C [C v D]")]
+    rec = []
+    t = _p("Futebol", "Stjernen vs. Storhamar", "Stjernen total", "Over 1.5")
+    D.votos({"pernas": [t]}, "Over 1.5 [Stjernen v Storhamar]", rec)
+    assert rec[0][1] == "IA sem {time} (Stjernen)"
+    rec = []
+    q = _p("tennis", "A vs B", "Total jogos", "Menos de 9.5")
+    D.votos({"pernas": [q]}, "Under 9.5 Games 1º Set [A v B]", rec)
+    assert rec[0][1] == "número que sobrou (1)"
+    rec = []
+    s1 = _p("Futebol", "A vs B", "Ambas as equipes marcam", "Sim")
+    D.votos({"pernas": [s1]}, "Sim [A v B]", rec)
+    assert rec[0][1] == "seleção Sim/Não sozinha"
+
+
+def test_votar_registra_valor_fora_do_master():
+    f = {"tipo": "simples", "pernas": [_p("Futebol", "A vs B", "Mercado X", "1")]}
+    rec = []
+    dicionario.votar([("CASA", f, "Futebol", "Categoria Que Não Existe", "")], (), rec)
+    assert ("CASA", "categoria", "mercado x", "valor da IA fora do Master",
+            "Categoria Que Não Existe", None) in rec

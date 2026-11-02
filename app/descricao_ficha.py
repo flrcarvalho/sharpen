@@ -443,18 +443,24 @@ def chaves_da_perna(p: dict) -> set[str]:
     return {chave(p, d), chave(p, d, jogador=True)}
 
 
-def aprender(p: dict, desc_perna: str, d: dict | None = None, k: str | None = None) -> str | None:
+def aprender(p: dict, desc_perna: str, d: dict | None = None, k: str | None = None,
+             por_que: list | None = None) -> str | None:
     """O valor que a descrição da IA ensina para a chave desta perna, ou None quando a
-    descrição não fecha com o cru (jogo, lado, linha ou seleção diferentes: o voto não vale)."""
+    descrição não fecha com o cru (jogo, lado, linha ou seleção diferentes: o voto não vale).
+    `por_que` (D42, s438): recebe o MOTIVO da recusa, para a `semente_recusa`."""
+    def nao(motivo):
+        if por_que is not None:
+            por_que.append(motivo)
+        return None
     d = d or decompor(p)
     s = _limpo(desc_perna)
     m = re.search(r"\s*\[([^\[\]]*)\]$", s)
     if m:
         if not _mesmo_jogo(_limpo(m.group(1)), jogo(p.get("evento"))):
-            return None
+            return nao("jogo da IA diferente do jogo do cru")
         s = s[:m.start()]
     elif d["t1"]:
-        return None                                   # jogo no cru e não na descrição
+        return nao("IA sem o [jogo]")                 # jogo no cru e não na descrição
     usados = set()
     for marca, valor in (("{ou}", d["ou"]), ("{hc}", d["hc"]), ("{mais}", d["mais"]),
                          ("{jogador}", d["jogador"]), ("{ent}", d["ent"]), ("{time}", d["time"]),
@@ -464,13 +470,13 @@ def aprender(p: dict, desc_perna: str, d: dict | None = None, k: str | None = No
         i, n = _achar(s, valor)
         if i < 0:
             if marca in ("{ou}", "{hc}", "{mais}", "{ent}", "{time}"):
-                return None                           # a IA não escreveu o que o cru diz
+                return nao(f"IA sem {marca} ({valor})")   # a IA não escreveu o que o cru diz
             continue
         s = s[:i] + marca + s[i + n:]
         usados.add(valor)
     # o jogo fora dos colchetes não é mercado (`MASTER_DESCRICAO §4`)
     if "{t1} v {t2}" in s or "{t1} v {ent}" in s or "{ent} v {t2}" in s:
-        return None
+        return nao("jogo fora do colchete")
     # número que sobrou tem de ser um número do mercado (o período: `Set 1` → `{n1}`)
     nums = [_forma_num(x) for x in d["nums"]]
 
@@ -482,15 +488,15 @@ def aprender(p: dict, desc_perna: str, d: dict | None = None, k: str | None = No
     try:
         s = "".join(x if _MARCA.fullmatch(x) else _NUM.sub(trocar, x)
                     for x in re.split(r"(\{[a-z0-9]+\})", s))
-    except ValueError:
-        return None
+    except ValueError as e:
+        return nao(f"número que sobrou ({e})")
     s = " ".join(s.split())
     # nome próprio do jogo que sobrou no valor: aposta de outro jogo ou leitura errada
     resto = _sem_acento(_MARCA.sub(" ", s))
     for t in (d["t1"], d["t2"], d["ent"]):
         for w in re.findall(r"[^\W\d_]{4,}", t or ""):
             if re.search(rf"\b{re.escape(_sem_acento(w))}\b", resto):
-                return None
+                return nao(f"nome próprio sobrou ({w})")
     return s or None
 
 
@@ -761,15 +767,30 @@ def alinhar(pernas: list[dict], descricao: str) -> list[tuple[dict, str]]:
     return out
 
 
-def votos(f: dict, descricao: str) -> list[tuple[str, str]]:
+def votos(f: dict, descricao: str, recusas: list | None = None) -> list[tuple[str, str]]:
     """[(chave, valor)] que uma descrição da IA ensina, perna a perna. Só vota o que, montado
-    de volta, dá uma descrição (o valor não pede o que a perna não tem)."""
+    de volta, dá uma descrição (o valor não pede o que a perna não tem).
+
+    `recusas` (D42, s438): recebe (chave, motivo, trecho da IA) de cada perna que NÃO votou, para
+    a `semente_recusa`. Antes a recusa sumia em silêncio."""
     out = []
-    for p, t in alinhar(f.get("pernas") or [], descricao):
+    pernas = f.get("pernas") or []
+    pares = alinhar(pernas, descricao)
+    if recusas is not None and descricao:
+        com_par = {id(p) for p, _ in pares}
+        for p in pernas:
+            if id(p) not in com_par:
+                recusas.append((chave(p), "perna sem trecho da IA do mesmo jogo", descricao))
+    for p, t in pares:
         d = decompor(p)
         k = chave(p, d)
-        v = aprender(p, t, d, k)
+        por_que = []
+        v = aprender(p, t, d, k, por_que)
         if v is None or montar_perna(p, v, d) is None or _so_sim_nao(d, v):
+            if recusas is not None:
+                motivo = (por_que[0] if por_que else "o valor não monta de volta" if v is None
+                          or montar_perna(p, v, d) is None else "seleção Sim/Não sozinha")
+                recusas.append((k, motivo, t))
             continue
         if "{jogador}" in v:
             # s415: a IA escreveu o jogador do cru, e o voto vai para a chave de QUALQUER
@@ -779,6 +800,8 @@ def votos(f: dict, descricao: str) -> list[tuple[str, str]]:
         # mercado do LADO sem o time: errado (o do NOME do time já cai no `aprender`, que exige
         # o `{time}` que o cru tem)
         if _DO_TIME.search(k) and not _MARCA_TIME.search(v):
+            if recusas is not None:
+                recusas.append((k, "mercado de time e a IA sem o time", t))
             continue
         out.append((k, v))
     return out
