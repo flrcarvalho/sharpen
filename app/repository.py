@@ -1447,8 +1447,10 @@ async def campos_corrigidos(ids: list[int], campos: tuple[str, ...]) -> set[int]
         rows = await conn.fetch(
             "SELECT DISTINCT bilhete_id FROM correcoes "
             "WHERE bilhete_id = ANY($1) AND campo = ANY($2) "
-            # s423: o rastro da Ficha (`_rastro_ficha`) é robô, não decisão do dono
-            "AND origem IS DISTINCT FROM 'ficha'", list(ids), list(campos))
+            # s423: o rastro da Ficha (`_rastro_ficha`) é robô, não decisão do dono; D44:
+            # a correção do "Conferir conta com a casa" também (`ORIGENS_DE_ROBO`)
+            "AND COALESCE(origem, '') <> ALL($3::text[])",
+            list(ids), list(campos), list(ORIGENS_DE_ROBO))
     return {r["bilhete_id"] for r in rows}
 
 
@@ -1800,6 +1802,12 @@ def _freebet_da_linha(row: dict, codigo: str, freebets: dict | None) -> Decimal 
 # deixado rastro de moeda. `origem='ficha'` em `correcoes` NÃO é correção humana
 # (`campos_corrigidos` a ignora), e o dicionário só lê esporte/aposta/descrição.
 _ORIGEM_FICHA = "ficha"
+# D44 (Feca, 02/11/2026): a correção feita pelo "Conferir conta com a casa" também é robô. Ela
+# grava `origem='conferir'` e NÃO conta como correção humana: a reliquidação da casa (e o próprio
+# botão) continua podendo corrigir a linha depois. A que o dono digita (origem NULL) segue
+# intocável.
+_ORIGEM_CONFERIR = "conferir"
+ORIGENS_DE_ROBO = (_ORIGEM_FICHA, _ORIGEM_CONFERIR)
 _RASTRO_FICHA = ("odd", "stake", "moeda", "cotacao")
 
 
@@ -5259,16 +5267,18 @@ def _correcoes_diff(antes, safe: dict) -> list[tuple]:
     return out
 
 
-async def _registrar_correcoes(conn, bilhete_id: int, dono: str, antes, safe: dict) -> None:
+async def _registrar_correcoes(conn, bilhete_id: int, dono: str, antes, safe: dict,
+                               origem: str | None = None) -> None:
     """Grava em `correcoes` cada campo alterado (semente do cache aprendido — Fase 3).
+    `origem` NULL = correção humana; robô declara a sua (`ORIGENS_DE_ROBO`).
     NUNCA falha a edição: qualquer erro aqui é engolido e logado."""
     try:
         casa, desc = antes.get("casa"), antes.get("descricao")
         for campo, antigo, novo in _correcoes_diff(antes, safe):
             await conn.execute(
-                "INSERT INTO correcoes (bilhete_id, dono, casa, campo, "
-                "valor_anterior, valor_novo, descricao) VALUES ($1,$2,$3,$4,$5,$6,$7)",
-                bilhete_id, dono, casa, campo, antigo, novo, desc)
+                "INSERT INTO correcoes (bilhete_id, dono, casa, campo, valor_anterior, "
+                "valor_novo, descricao, origem) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+                bilhete_id, dono, casa, campo, antigo, novo, desc, origem)
     except Exception:
         logger.exception("registro de correção falhou (não-fatal)")
 
@@ -5325,7 +5335,9 @@ def _origem_pos_edicao(antes, safe: dict, stake_orig=None) -> dict:
     return {"stake_orig": round(novo / cot, 2)}
 
 
-async def atualizar_bilhete(bilhete_id: int, campos: dict, dono: str) -> bool:
+async def atualizar_bilhete(bilhete_id: int, campos: dict, dono: str,
+                            rastro: str | None = None) -> bool:
+    """A edição de sempre. `rastro` = a origem gravada em `correcoes` (None = humana)."""
     safe = _campos_editaveis(campos)
     # `stake_orig` (s398) não é coluna editável direta: ela vira `stake` + `stake_orig` lá
     # dentro, depois de ler a cotação da linha. Sozinha ela também é uma edição.
@@ -5333,7 +5345,7 @@ async def atualizar_bilhete(bilhete_id: int, campos: dict, dono: str) -> bool:
         return False
     pool = await get_pool()
     async with pool.acquire() as conn:
-        ok = await _atualizar_bilhete_conn(conn, bilhete_id, campos, safe, dono)
+        ok = await _atualizar_bilhete_conn(conn, bilhete_id, campos, safe, dono, rastro)
     # Cadastro automático: editar o tipster de um bilhete faz o tipster existir na base.
     if ok and safe.get("tipster"):
         await garantir_tipster(dono, safe["tipster"])
@@ -5406,7 +5418,7 @@ async def flags_pos_edicao_lote(ids: list[int], dono: str, campos: set[str]) -> 
 
 
 async def _atualizar_bilhete_conn(conn, bilhete_id: int, campos: dict,
-                                  safe: dict, dono: str) -> bool:
+                                  safe: dict, dono: str, rastro: str | None = None) -> bool:
     """O miolo da edição de UM bilhete, sobre uma conexão já aberta.
 
     Existe separado só para o lote poder reusá-lo sem abrir N conexões — e para haver UMA
@@ -5490,7 +5502,7 @@ async def _atualizar_bilhete_conn(conn, bilhete_id: int, campos: dict,
         result = await _exec(sets_base, params_base)
     ok = result.split()[-1] == "1"
     if ok and antes is not None:
-        await _registrar_correcoes(conn, bilhete_id, dono, antes, safe)
+        await _registrar_correcoes(conn, bilhete_id, dono, antes, safe, rastro)
     return ok
 
 

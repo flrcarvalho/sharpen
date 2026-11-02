@@ -5155,6 +5155,34 @@ async def resumo_da_conta(
     return await resumo_conta(dono, casa, parceiro)
 
 
+class ConferirContaRequest(BaseModel):
+    casa: str
+    parceiro: str
+    ids: list[int]
+
+
+@app.get("/conta/conferir")
+async def conferir_conta_route(casa: str, parceiro: str, dono: str = Depends(dono_efetivo)):
+    """D44: confere cada aposta da conta contra o cru que a casa mandou (sem IA, régua do
+    vigia) e lista onde o dinheiro diverge. Só lê."""
+    import conferir_conta
+    from database import get_pool
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conferir_conta.divergencias(conn, dono, casa, parceiro)
+
+
+@app.post("/conta/conferir/aplicar")
+async def conferir_conta_aplicar_route(body: ConferirContaRequest,
+                                       dono: str = Depends(dono_efetivo)):
+    """D44: corrige as divergências marcadas. O cliente manda só os ids: o servidor confere
+    de novo e escreve pela edição de sempre (rastro em `correcoes`)."""
+    import conferir_conta
+    if not body.ids:
+        raise HTTPException(400, "Nenhuma aposta marcada.")
+    return await conferir_conta.aplicar(dono, body.casa, body.parceiro, body.ids[:500])
+
+
 @app.get("/conta/painel")
 async def painel_da_conta(casa: str, parceiro: str, dono: str = Depends(dono_leitura)):
     """Painel da conta na Extração (s433, 2.2): curva do P/L com topo e mínima, dias para o

@@ -3450,3 +3450,128 @@ def test_c5_vigia_escolhe_o_texto_da_casa():
                                "('TDonoC', 'VAVADA', 'NOVA', 'ficha', '')", virada.TEXTO_DA_CASA)
             return await virada.vigia_candidatos(conn, "TDonoC", "VAVADA", ["VELHA", "NOVA"], 1)
     assert _run(rodar()) == ["VELHA"]
+
+
+# ── D44 (s438, LOCAL): "Conferir conta com a casa" ───────────────────────────────────────
+_D44_COD = "6add3525bf9e9d0001ae48c4"          # Sportsbet.io da fixture: 30,01 @ 4,75, perdida
+
+
+async def _d44_cenario(conn):
+    import json as _json
+
+    from adaptadores import sbi
+    fix = Path(__file__).resolve().parent.parent / "extensor" / "harness" / "fixtures"
+    crus = {sbi.codigo(c): c for c in sbi.bilhetes_da_resposta(
+        _json.loads((fix / "sportsbetio.settled.json").read_text(encoding="utf-8")))}
+    await conn.execute("TRUNCATE captura_crua RESTART IDENTITY")
+    await conn.execute("TRUNCATE correcoes RESTART IDENTITY")
+    await conn.execute("INSERT INTO captura_crua (dono, casa, parceiro, familia, codigo, hash, cru) "
+                       "VALUES ('TDonoD', 'SPORTSBETIO', 'conta [Op]', 'sbi', $1, 'h', $2::jsonb)",
+                       _D44_COD, _json.dumps(crus[_D44_COD]))
+    # a conta é em USDT, como o cru: a linha guarda a stake da casa em `stake_orig`
+    await conn.execute("DELETE FROM parceiros WHERE dono = 'TDonoD'")
+    await conn.execute("INSERT INTO parceiros (dono, casa, nome, moeda) "
+                       "VALUES ('TDonoD', 'Sportsbet.io', 'conta [Op]', 'USDT')")
+    await conn.execute("UPDATE bilhetes SET moeda = 'USDT', stake_orig = 30.01, cotacao = 5, "
+                       "stake = '150,05' WHERE dono = 'TDonoD' AND codigo_bilhete = $1", _D44_COD)
+
+
+def test_d44_confere_corrige_e_deixa_rastro():
+    """A linha gravada como W (a casa diz L) aparece, é corrigida pelo id e deixa rastro em
+    `correcoes`; a aposta sem cru só conta. Depois de corrigida, a conta confere."""
+    import conferir_conta
+
+    async def rodar():
+        await _reset()
+        rows = [_row(casa="Sportsbet.io", parceiro="conta [Op]", codigo_bilhete=_D44_COD,
+                     stake="30,01", odd="4,75", resultado="W"),
+                _row(casa="Sportsbet.io", parceiro="conta [Op]", codigo_bilhete="SEMCRU")]
+        await repository.upsert_bilhetes(rows, "TDonoD")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await _d44_cenario(conn)
+            antes = await conferir_conta.divergencias(conn, "TDonoD", "Sportsbet.io", "conta [Op]")
+        bid = antes["divergentes"][0]["id"]
+        feito = await conferir_conta.aplicar("TDonoD", "Sportsbet.io", "conta [Op]", [bid, 999999])
+        async with pool.acquire() as conn:
+            depois = await conferir_conta.divergencias(conn, "TDonoD", "Sportsbet.io", "conta [Op]")
+            linha = await conn.fetchrow("SELECT resultado, odd, extraction_state FROM bilhetes "
+                                        "WHERE id = $1", bid)
+            rastro = await conn.fetch("SELECT campo, valor_anterior, valor_novo, origem "
+                                      "FROM correcoes WHERE bilhete_id = $1", bid)
+        return antes, feito, depois, linha, rastro
+
+    antes, feito, depois, linha, rastro = _run(rodar())
+    assert (antes["conferidas"], antes["sem_cru"]) == (1, 1)
+    assert [d["campos"] for d in antes["divergentes"]] == [["resultado"]]
+    assert antes["divergentes"][0]["oferecida"]
+    assert feito["corrigidas"] == 1
+    assert feito["recusadas"] == [{"id": 999999, "motivo": "já confere com a casa"}]
+    assert linha["resultado"] == "L" and linha["extraction_state"] != "aberta"
+    assert ("resultado", "W", "L", "conferir") in [tuple(r) for r in rastro]
+    assert depois["divergentes"] == []
+
+
+def test_d44_correcao_do_botao_nao_trava():
+    """Feca, 02/11: a correção feita pelo botão (`origem='conferir'`) não é correção humana. Se a
+    linha voltar a divergir (a casa reliquidou), o botão oferece de novo e a resolução por
+    carimbo (`campos_corrigidos`) não a trava. Uma correção HUMANA depois disso trava."""
+    import conferir_conta
+
+    async def rodar():
+        await _reset()
+        await repository.upsert_bilhetes(
+            [_row(casa="Sportsbet.io", parceiro="conta [Op]", codigo_bilhete=_D44_COD,
+                  stake="30,01", odd="4,75", resultado="W")], "TDonoD")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await _d44_cenario(conn)
+            bid = await conn.fetchval("SELECT id FROM bilhetes WHERE dono = 'TDonoD'")
+        assert (await conferir_conta.aplicar("TDonoD", "Sportsbet.io", "conta [Op]",
+                                             [bid]))["corrigidas"] == 1
+        travado = await repository.campos_corrigidos([bid], ("resultado", "odd", "stake"))
+        async with pool.acquire() as conn:
+            # a linha volta a divergir sem passar pela edição (como uma recaptura)
+            await conn.execute("UPDATE bilhetes SET resultado = 'W' WHERE id = $1", bid)
+            de_novo = await conferir_conta.divergencias(conn, "TDonoD", "Sportsbet.io",
+                                                        "conta [Op]")
+        assert await repository.atualizar_bilhete(bid, {"resultado": "V"}, "TDonoD")
+        humano = await repository.campos_corrigidos([bid], ("resultado", "odd", "stake"))
+        async with pool.acquire() as conn:
+            depois = await conferir_conta.divergencias(conn, "TDonoD", "Sportsbet.io",
+                                                       "conta [Op]")
+        return bid, travado, de_novo, humano, depois
+
+    bid, travado, de_novo, humano, depois = _run(rodar())
+    assert travado == set()
+    assert de_novo["divergentes"][0]["oferecida"]
+    assert humano == {bid}
+    assert depois["divergentes"][0]["motivo"] == "corrigida à mão"
+
+
+def test_d44_correcao_humana_nao_e_desfeita():
+    """Quem corrigiu o resultado à mão manda: a divergência aparece, mas o aplicar recusa."""
+    import conferir_conta
+
+    async def rodar():
+        await _reset()
+        await repository.upsert_bilhetes(
+            [_row(casa="Sportsbet.io", parceiro="conta [Op]", codigo_bilhete=_D44_COD,
+                  stake="30,01", odd="4,75", resultado="L")], "TDonoD")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await _d44_cenario(conn)
+            bid = await conn.fetchval("SELECT id FROM bilhetes WHERE dono = 'TDonoD'")
+        assert await repository.atualizar_bilhete(bid, {"resultado": "W"}, "TDonoD")
+        async with pool.acquire() as conn:
+            visto = await conferir_conta.divergencias(conn, "TDonoD", "Sportsbet.io", "conta [Op]")
+        feito = await conferir_conta.aplicar("TDonoD", "Sportsbet.io", "conta [Op]", [bid])
+        async with pool.acquire() as conn:
+            res = await conn.fetchval("SELECT resultado FROM bilhetes WHERE id = $1", bid)
+        return visto, feito, res
+
+    visto, feito, res = _run(rodar())
+    d = visto["divergentes"][0]
+    assert not d["oferecida"] and d["motivo"] == "corrigida à mão"
+    assert feito == {"corrigidas": 0, "recusadas": [{"id": d["id"], "motivo": "corrigida à mão"}]}
+    assert res == "W"

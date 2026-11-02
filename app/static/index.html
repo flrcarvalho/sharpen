@@ -1107,6 +1107,13 @@ body.cap-off .cx__body { display: none; }
 .cxe-tag { display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; border-radius: var(--r-pill); padding: 2px 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); margin-left: 6px; }
 .cxe-tag.al { border-color: rgba(var(--warn-rgb),.4); background: rgba(var(--warn-rgb),.10); color: var(--warn); }
 .cxe-tag.ok { border-color: rgba(var(--pos-rgb),.35); background: rgba(var(--pos-rgb),.08); color: var(--pos); }
+/* Conferir conta com a casa (D44, s438): o extrato da Caixa (.cxe-*) com uma coluna de marcar.
+   Mais largo que o .modal de 600px porque banco e casa ficam lado a lado na mesma linha. */
+#conferir-modal .modal { width: 880px; }
+.cf-desc { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-lado, #cf-wrap .cxe-tag { white-space: nowrap; }
+.cf-v.dif { color: var(--warn); font-weight: 600; }   /* o campo que diverge */
+.cf-chk { accent-color: var(--accent); cursor: pointer; }
 
 /* ── Banca no Painel de Contas (s314, Caixa Inteligente) — reusa .painel-kpi ── */
 .painel-kpi-val.aviso { color: var(--warn); }
@@ -3322,6 +3329,11 @@ td.c-res.res-HL { color: var(--warn); }
     <div class="pc-corpo" id="pcCorpo">
       <div class="pc-card" id="pcCurva"></div>
       <div class="pc-card" id="pcCal"></div>
+      <div class="pc-card" id="pcConferir">
+        <div class="pc-card-h"><span class="sec-t">Conferir com a casa</span></div>
+        <div class="pc-vazio">Compara cada aposta desta conta com o que a casa mandou na captura, sem IA, e mostra onde stake, odd ou resultado não batem.</div>
+        <button class="btn btn-ghost btn-sm" id="pcConferirBtn" type="button">Conferir com a casa</button>
+      </div>
     </div>
   </aside>
 
@@ -3684,6 +3696,26 @@ td.c-res.res-HL { color: var(--warn); }
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost btn-sm" id="cxe-fechar" type="button">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Conferir conta com a casa (D44, s438): a lista das apostas em que o dinheiro gravado não
+     bate com o cru que a casa mandou. O servidor recalcula tudo ao corrigir: daqui só vão ids. -->
+<div class="modal-overlay" id="conferir-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="cf-title">Conferir com a casa</span>
+      <button class="modal-close" id="cf-close" type="button">✕</button>
+    </div>
+    <div class="modal-body cxe-body">
+      <div class="cxe-wrap" id="cf-wrap"></div>
+      <div class="cxm-hint" id="cf-nota"></div>
+      <div class="cxm-erro" id="cf-erro" hidden></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="cf-fechar" type="button">Fechar</button>
+      <button class="btn btn-primary btn-sm" id="cf-ok" type="button" disabled>Corrigir</button>
     </div>
   </div>
 </div>
@@ -9188,6 +9220,124 @@ async function caixaExcluirMov(id, tipo) {
   document.getElementById('cxe-close').addEventListener('click', fechar);
   document.getElementById('cxe-fechar').addEventListener('click', fechar);
   ex.addEventListener('click', e => { if (e.target === ex) fechar(); });
+})();
+
+// ── Conferir conta com a casa (D44, s438) ─────────────────────────────────────────
+// `GET /conta/conferir` compara cada aposta da conta com o cru guardado (régua do vigia, sem
+// IA) e devolve onde o dinheiro diverge. A correção manda SÓ os ids: o servidor confere de novo
+// e grava pela edição de sempre, com rastro (`correcoes`, origem 'conferir'). Dinheiro em
+// `fmtSaldo` (2 casas, sem cor, na moeda da casa: é conferência, como a Caixa; Feca, 02/11).
+let _cfDados = null, _cfConta = null;
+function _cfErro(msg) {
+  const el = document.getElementById('cf-erro');
+  el.textContent = msg || '';
+  el.hidden = !msg;
+}
+function _cfLado(l, campos) {
+  const parte = (k, html) => `<span class="cf-v${campos.includes(k) ? ' dif' : ''}">${html}</span>`;
+  return parte('resultado', esc(l.resultado || 'aberta')) + ' · '
+    + parte('odd', esc(l.odd || '—')) + ' · '
+    + parte('stake', fmtSaldo(_numBR(l.stake), false, l.moeda));
+}
+function _cfMarcadas() {
+  return [...document.querySelectorAll('#cf-wrap .cf-chk:checked')].map(c => Number(c.dataset.id));
+}
+function _cfBotao() {
+  const n = _cfMarcadas().length, b = document.getElementById('cf-ok');
+  b.disabled = n === 0;
+  b.textContent = n ? `Corrigir ${n}` : 'Corrigir';
+}
+function _cfRender() {
+  const d = _cfDados, host = document.getElementById('cf-wrap');
+  const comCru = d.conferidas + d.cru_recusado + d.cru_aberto + (d.bonus || 0);
+  const divs = d.divergentes || [];
+  if (!comCru) {
+    host.innerHTML = '<div class="painel-empty">Esta conta ainda não tem aposta com captura guardada para comparar. '
+      + 'A conferência usa o que a casa mandou pelo SharpenUp; aposta lida por print fica de fora.</div>';
+  } else if (!divs.length) {
+    host.innerHTML = `<div class="painel-empty">Tudo confere: as ${d.conferidas} apostas comparadas batem com a casa em stake, odd e resultado.</div>`;
+  } else {
+    host.innerHTML = '<table class="cxe-tbl"><thead><tr>'
+      + '<th></th><th>Data</th><th>Aposta</th><th>No Sharpen</th><th>Na casa</th><th>O que diverge</th>'
+      + '</tr></thead><tbody>'
+      + divs.map(x => '<tr>'
+        + `<td><input type="checkbox" class="cf-chk" data-id="${x.id}"${x.oferecida ? ' checked' : ' disabled'} aria-label="Corrigir esta aposta"></td>`
+        + `<td class="mono">${esc(x.data || '')}</td>`
+        + `<td class="cf-desc" title="${esc(x.descricao || '')}">${esc(x.descricao || x.codigo || '')}</td>`
+        + `<td class="mono cf-lado">${_cfLado(x.banco, x.campos)}</td>`
+        + `<td class="mono cf-lado">${_cfLado(x.casa, x.campos)}</td>`
+        + '<td>' + (x.oferecida
+          ? `<span class="cxe-tag">${esc(x.campos.join(', '))}</span>`
+          : `<span class="cxe-tag al">${esc(x.motivo)}</span>`) + '</td></tr>').join('')
+      + '</tbody></table>';
+  }
+  const fora = [];
+  if (d.sem_cru) fora.push(`<b>${d.sem_cru}</b> sem captura guardada (print, texto colado ou de antes da captura)`);
+  if (d.cru_recusado) fora.push(`<b>${d.cru_recusado}</b> que a captura não deixou ler`);
+  if (d.cru_aberto) fora.push(`<b>${d.cru_aberto}</b> que a casa ainda mostrava em aberto na última captura`);
+  if (d.bonus) fora.push(`<b>${d.bonus}</b> em que a diferença é bônus da casa no retorno (bônus não é odd)`);
+  document.getElementById('cf-nota').innerHTML =
+    `<b>${d.conferidas}</b> apostas comparadas.` + (fora.length ? ' Fora da conta: ' + fora.join(' · ') + '.' : '')
+    + ' Só aparece o que muda dinheiro. Corrigir grava o valor da casa pela edição de sempre e fica registrado;'
+    + ' o que alguém corrigiu à mão aparece, mas não é corrigido daqui.';
+  _cfBotao();
+}
+async function conferirAbrir() {
+  if (!parceiroSelecionado) return;
+  _cfConta = { casa: parceiroSelecionado.casa, parceiro: parceiroSelecionado.nome };
+  document.getElementById('cf-title').textContent =
+    'Conferir com a casa · ' + (NOMES[_cfConta.casa] || _cfConta.casa) + ' · ' + _cfConta.parceiro;
+  document.getElementById('cf-wrap').innerHTML = '<div class="painel-empty">Comparando com a casa…</div>';
+  document.getElementById('cf-nota').innerHTML = '';
+  _cfErro('');
+  document.getElementById('cf-ok').disabled = true;
+  document.getElementById('conferir-modal').classList.add('open');
+  try {
+    const r = await fetch(`/conta/conferir?casa=${encodeURIComponent(_cfConta.casa)}&parceiro=${encodeURIComponent(_cfConta.parceiro)}`);
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.detail || 'Não foi possível comparar agora.');
+    _cfDados = j;
+    _cfRender();
+  } catch (e) {
+    document.getElementById('cf-wrap').innerHTML = '';
+    _cfErro(e.message || 'Não foi possível comparar agora.');
+  }
+}
+async function conferirAplicar() {
+  const ids = _cfMarcadas();
+  if (!ids.length || !_cfConta) return;
+  const b = document.getElementById('cf-ok');
+  b.disabled = true;
+  _cfErro('');
+  try {
+    const r = await fetch('/conta/conferir/aplicar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ casa: _cfConta.casa, parceiro: _cfConta.parceiro, ids }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.detail || 'Não foi possível corrigir.');
+    const rec = (j.recusadas || []).length;
+    setStatus(`${j.corrigidas} aposta(s) corrigida(s) com o valor da casa`
+      + (rec ? ` · ${rec} não corrigida(s): ${j.recusadas.map(x => x.motivo).join(', ')}` : '') + '.',
+      rec ? 'warn' : 'ok');
+    await carregarGrade();
+    carregarPainelConta();
+    await conferirAbrir();   // a lista volta conferida de novo, do servidor
+  } catch (e) {
+    _cfErro(e.message || 'Não foi possível corrigir.');
+    _cfBotao();
+  }
+}
+(function setupConferir() {
+  const ov = document.getElementById('conferir-modal');
+  const fechar = () => ov.classList.remove('open');
+  document.getElementById('pcConferirBtn').addEventListener('click', conferirAbrir);
+  document.getElementById('cf-close').addEventListener('click', fechar);
+  document.getElementById('cf-fechar').addEventListener('click', fechar);
+  document.getElementById('cf-ok').addEventListener('click', conferirAplicar);
+  document.getElementById('cf-wrap').addEventListener('change', e => {
+    if (e.target.classList && e.target.classList.contains('cf-chk')) _cfBotao();
+  });
+  ov.addEventListener('click', e => { if (e.target === ov) fechar(); });
 })();
 
 // ── Câmbio e corretoras (s398, passo 6 do docs/PLANO_MOEDA_POR_CONTA.md) ──────────

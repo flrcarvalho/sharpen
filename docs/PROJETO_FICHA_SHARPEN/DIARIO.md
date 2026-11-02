@@ -5,6 +5,57 @@
 
 ---
 
+## 2026-11-02 · s438 · D44: Conferir conta com a casa
+
+**Onde está:** no ar com o "pode" do Feca, só a ferramenta. Nenhuma correção aplicada: o Feca clica
+depois de olhar. Próximo: D41 (dicionário por família), com "pode" antes do commit; depois, origem em
+todo caminho automático que grava `correcoes` (a liquidação automática do `main.py` primeiro).
+
+- **Tela:** cartão "Conferir com a casa" no painel da conta (Extração) e um modal com a lista: data,
+  aposta, o que está no Sharpen, o que está na casa e o que diverge (o campo em `--warn`). Valores em
+  `fmtSaldo`, na moeda da casa (decisão do Feca). As oferecidas vêm marcadas; "Corrigir N".
+- **Régua:** a do vigia (`vigia_comparar`), as duas pontas na moeda da casa, contra o cru mais
+  recente de cada código. O cliente manda só ids; o servidor confere de novo e grava pela edição de
+  sempre (`atualizar_bilhete`).
+- **Origem da correção (decisão do Feca):** `correcoes.origem` já existia (s415, `'ficha'`). O botão
+  grava `'conferir'`, e `ORIGENS_DE_ROBO` faz o `campos_corrigidos` e o próprio botão ignorarem as
+  duas: a reliquidação da casa continua corrigindo. Origem nula é correção humana e não é oferecida.
+  Sem ALTER.
+- **Fora da lista, cada um com a sua contagem:**
+  - cru aberto contra linha liquidada (o cru é de antes da liquidação): 25;
+  - só a odd diverge e o P/L muda menos de 1,00 (Shuffle e Sportsbet.io guardam stake com 7 a 8 casas):
+    6 que eram ruído de centavo;
+  - bônus da casa no retorno, com a linha na odd da casa (Feca: "bônus não é odd"): Vavada 5520005256
+    (1,29) e 5602432981 (4,68).
+- **Medição antes do deploy** (uma consulta pelo `db_ro.py`, conferência local pela mesma função):
+  Feca 3.060 conferidas de 3.101, **2 oferecidas** (Vavada 5579339795 L→W, 5581722163 W→L); Gabriel
+  2.155 de 2.207, **1 oferecida** (MyStake 307657834 W→L), 16 corrigidas à mão. Das 16, 14 são da DEX
+  marcadas V em 23/10 14:14: certas, a casa cancelou tudo, devolveu e encerrou a conta (Feca).
+- **Testes:** 13 puros (`tests/test_conferir_conta.py`) e 3 no banco (`test_d44_*`). Mutações C7 a
+  C13 detectadas; C13b (sem a trava de status no bônus) é inócua, porque cashout nunca paga acima de
+  stake × odd. Suíte pura 2.166 e harness de banco 129 verdes.
+- Achado para a etapa seguinte: há 67.428 correções com origem nula, e a liquidação automática
+  (`main.py`, `_resolver_abertas`) grava sem origem. Não dá para separar o humano do automático no
+  passado; o código passa a gravar daqui para a frente.
+
+---
+
+## 2026-11-02 · s438 · Primeira captura depois da D39: tudo pela Ficha
+
+**Onde está:** a vigia da D39 fechou. Próximo: D44 com as decisões do Feca (diff e medição à espera do "pode").
+
+- Gabriel, 02/11 07:47 a 07:54 (`virada_log`, SELECT pelo `db_ro.py`, conferido pela consultoria):
+  1WIN 49 capturadas, 39 no banco, **10 pela Ficha**; VAVADA 138, 136, **2**; SPORTSBETIO 44, 43, **1**.
+  13 apostas novas, todas pela Ficha, **nenhuma para a IA**; `cru_nao_chegou`, `sem_cru_novo`,
+  `captura_incompleta` e `captura_esgotada` em zero. 7 das 13 gravaram perna com o texto da casa (D40).
+- Telegram: o Feca confirmou as duas mensagens (o teste às 00:39 e o aviso diário às 04:00).
+- Decisões do Feca para a D44 e a D41 (02/11): valores da D44 em `fmtSaldo`; a medição só pelo
+  `db_ro.py`, nada de caminho novo de conexão; a correção feita pelo botão leva origem própria e não
+  trava a reliquidação, a digitada à mão continua intocável; na D41 os 105 termos em que as irmãs
+  divergem não passam de uma casa para a outra.
+
+---
+
 ## 2026-11-02 · s438 · Manhã depois da autorização noturna: o que entrou, o que parou, o que falta
 
 **Onde está:** D42 (commits 2 a 5) e D43 no ar. D44 e D41 só em código local, sem commit (limite
