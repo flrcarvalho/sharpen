@@ -368,6 +368,11 @@ def votar(pares, votos_texto=()) -> tuple[dict, dict, list]:
 # ── semente (`04 §3`): os pares que já existem ─────────────────────────────────────────
 
 async def pares(conn) -> tuple[list, list, dict]:
+    """Os pares que votam (ver `pares_completo`, que devolve também os votos retirados)."""
+    return (await pares_completo(conn))[:3]
+
+
+async def pares_completo(conn) -> tuple[list, list, dict, set]:
     """([(casa_key, Ficha, esporte da IA, categoria da IA, descrição da IA)], um por aposta com cru;
     [(casa_key, termos de esporte do texto, esporte da IA)], um por bilhete da sombra;
     contagem por fonte). Linha gravada pela própria Ficha (`origem = 'ficha'`) NÃO vota: o
@@ -399,7 +404,7 @@ async def pares(conn) -> tuple[list, list, dict]:
         "SELECT DISTINCT ON (dono, codigo) dono, codigo, ia_esporte, ia_aposta, ia_descricao "
         "FROM sombra_rotulos WHERE codigo = ANY($1::text[]) ORDER BY dono, codigo, criado_em DESC",
         codigos)}
-    out, fontes = [], Counter()
+    out, fontes, retiradas = [], Counter(), set()
     for (dono, casa, parceiro, codigo), r in ultimo.items():
         f, motivos = ficha.montar_ficha(r["familia"], json.loads(r["cru"]), casa)
         if f is None or motivos:
@@ -407,6 +412,7 @@ async def pares(conn) -> tuple[list, list, dict]:
         b = bil.get((dono, nomes.get(casa, casa), parceiro, codigo))
         if b and b["editada"]:
             fontes["editada à mão"] += 1
+            retiradas |= chaves_que_votaria(casa, f)      # E1: a edição desfaz o que ela ensinou
         elif b:
             out.append((casa, f, b["esporte"], b["aposta"], b["descricao"]))
             fontes["bilhetes"] += 1
@@ -429,6 +435,9 @@ async def pares(conn) -> tuple[list, list, dict]:
             "FROM sombra_rotulos WHERE codigo IS NOT NULL ORDER BY dono, casa, codigo, "
             "criado_em DESC"):
         if (s["dono"], s["codigo"]) in editadas:
+            for t in esportes_do_texto(s["bruto"]) or []:
+                k = normalizar(t, numeros=False)
+                retiradas |= {(_casa_chave.chave(s["casa"]), "esporte", k), ("*", "esporte", k)}
             continue
         termos = esportes_do_texto(s["bruto"])
         if termos:
@@ -436,20 +445,60 @@ async def pares(conn) -> tuple[list, list, dict]:
             # `STAKE.COM` e `BETÃO` como casas paralelas no dicionário
             texto.append((_casa_chave.chave(s["casa"]), termos, s["ia_esporte"]))
     fontes["texto (esporte)"] = len(texto)
-    return out, texto, dict(fontes)
+    return out, texto, dict(fontes), retiradas
 
 
-async def gravar_semente(conn, unanimes: dict) -> int:
-    """Refaz a semente inteira numa transação. Linha `origem = 'feca'` nunca é tocada; semente
-    que deixou de ser unânime some (a aposta volta para a IA)."""
+def chaves_que_votaria(casa: str, f: dict) -> set:
+    """As chaves (casa, tipo, termo) em que esta Ficha votaria, QUALQUER que fosse o valor:
+    esporte (da casa e o `*`), categoria (simples) e descrição de cada perna. É o que a edição à
+    mão da aposta RETIRA da semente (R27, E1), quando nenhum outro voto sustenta a chave."""
+    import descricao_ficha
+    casa = (casa or "").upper()
+    out = set()
+    for t, k in chaves(f):
+        out.add((casa, t, k))
+        if t == "esporte":
+            out.add(("*", t, k))
+    for p in f.get("pernas") or []:
+        out |= {(casa, "descricao", k) for k in descricao_ficha.chaves_da_perna(p)}
+    return out
+
+
+async def gravar_semente(conn, unanimes: dict, retirar=(), contraditos=()) -> int:
+    """Grava a rodada da semente numa transação. Linha `origem = 'feca'` nunca é tocada.
+
+    E1 (D42, s438; Feca, 01/11/2026): a semente NÃO esquece. Ela era refeita do zero a cada
+    rodada (DELETE de toda a semente e INSERT do que esta rodada votou), e a chave cuja fonte
+    sumiu (linha apagada, aposta que passou a ser da Ficha, leitura que mudou) sumia junto:
+    medido em 01/11, 350 chaves aprendidas e ausentes, 86 que saíram e voltaram com o mesmo valor.
+    Agora a rodada só ACRESCENTA ou ATUALIZA (`unanimes`), e uma chave sai só com prova contra:
+      • ficou contraditória nesta rodada (`contraditos`, esporte e categoria): a aposta volta
+        para a IA, como sempre;
+      • o voto que a sustentava veio de uma aposta EDITADA À MÃO (`retirar`, R27) e nenhum voto
+        não editado a sustenta nesta rodada. Com 1 voto, a edição viraria regra para todos;
+      • a casa é de grafia antiga (`SPORTSBET.IO`, `STAKE.COM`, `BETÃO`, antes da `casa_chave`):
+        não some mais sozinha, então sai aqui."""
+    import casa_chave
+    fica = set(unanimes)
     async with conn.transaction():
-        await conn.execute("DELETE FROM dicionario_termos WHERE origem = 'semente'")
+        for r in await conn.fetch("SELECT DISTINCT casa FROM dicionario_termos "
+                                  "WHERE origem = 'semente'"):
+            if r["casa"] != "*" and casa_chave.chave(r["casa"]) != r["casa"]:
+                await conn.execute("DELETE FROM dicionario_termos WHERE origem = 'semente' "
+                                   "AND casa = $1", r["casa"])
+        for c, t, termo in (set(retirar) | set(contraditos)) - fica:
+            await conn.execute(
+                "DELETE FROM dicionario_termos WHERE origem = 'semente' AND casa = $1 "
+                "AND tipo = $2 AND termo_casa = $3", c, t, termo)
         for (c, t, termo), (sharpen, n) in unanimes.items():
             await conn.execute(
                 """INSERT INTO dicionario_termos (casa, tipo, termo_casa, termo_sharpen,
                                                   origem, ocorrencias)
                    VALUES ($1, $2, $3, $4, 'semente', $5)
-                   ON CONFLICT (casa, tipo, termo_casa) DO NOTHING""", c, t, termo, sharpen, n)
+                   ON CONFLICT (casa, tipo, termo_casa) DO UPDATE
+                     SET termo_sharpen = EXCLUDED.termo_sharpen,
+                         ocorrencias = EXCLUDED.ocorrencias, atualizado_em = NOW()
+                     WHERE dicionario_termos.origem = 'semente'""", c, t, termo, sharpen, n)
     return len(unanimes)
 
 
@@ -470,7 +519,7 @@ async def semear(conn, gatilho: str = "manual", hoje=None) -> dict:
     gravar, regrava a DESCRIÇÃO das apostas da Ficha do mês corrente (`regravar_mes`)."""
     import json
     from collections import Counter
-    p, texto, fontes = await pares(conn)
+    p, texto, fontes, retiradas = await pares_completo(conn)
     unanimes, contraditos, revisao = votar(p, texto)
     feca = [(r["casa"], r["tipo"], r["termo_casa"]) for r in await conn.fetch(
         "SELECT casa, tipo, termo_casa FROM dicionario_termos WHERE origem = 'feca'")]
@@ -479,7 +528,9 @@ async def semear(conn, gatilho: str = "manual", hoje=None) -> dict:
     antes = {(r["casa"], r["tipo"], r["termo_casa"]): r["termo_sharpen"] for r in await conn.fetch(
         "SELECT casa, tipo, termo_casa, termo_sharpen FROM dicionario_termos "
         "WHERE origem = 'semente'")}
-    n = await gravar_semente(conn, unanimes)
+    n = await gravar_semente(conn, unanimes, retiradas, contraditos)
+    depois = await conn.fetchval("SELECT count(*) FROM dicionario_termos WHERE origem = 'semente'")
+    fontes = dict(fontes, preservadas=int(depois) - len(unanimes))   # E1: o que antes sumia
     por_casa = Counter(c for c, _, _ in unanimes)
     novos = [{"casa": c, "tipo": t, "termo": k, "para": v}
              for (c, t, k), (v, _) in sorted(unanimes.items()) if antes.get((c, t, k)) != v]

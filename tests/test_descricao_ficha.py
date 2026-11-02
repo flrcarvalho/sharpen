@@ -265,16 +265,16 @@ def test_semente_log_descricao_nao_fica_contradita_e_o_empate_vai_para_a_revisao
     de contraditos, e o termo que o Feca já corrigiu sai das duas listas (s415)."""
     f = {"tipo": "simples", "pernas": [_p("Baseball", "A vs B", "Total hits", "over 9.5")]}
 
-    async def pares(conn):
+    async def pares(conn):        # s438 (E1): `semear` lê `pares_completo` (+ votos retirados)
         return ([("DUEL", f, "Baseball", "Pontos", "Over 9.5 Hits [A v B]"),
-                 ("DUEL", f, "Baseball", "Corridas", "Over 9.5 Rebatidas [A v B]")], [], {})
+                 ("DUEL", f, "Baseball", "Corridas", "Over 9.5 Rebatidas [A v B]")], [], {}, set())
 
     async def nada(*a, **k):
         return []
 
-    async def grava(conn, u):
+    async def grava(conn, u, *a):
         return len(u)
-    monkeypatch.setattr(dicionario, "pares", pares)
+    monkeypatch.setattr(dicionario, "pares_completo", pares)
     monkeypatch.setattr(dicionario, "regravar_mes", nada)
     monkeypatch.setattr(dicionario, "gravar_semente", grava)
 
@@ -284,6 +284,9 @@ def test_semente_log_descricao_nao_fica_contradita_e_o_empate_vai_para_a_revisao
 
         async def execute(self, sql, *a):
             self.args = a
+
+        async def fetchval(self, sql, *a):    # s438 (E1): a contagem das chaves preservadas
+            return 0
     c = _C()
     asyncio.run(dicionario.semear(c, "teste"))
     contra, revisao = json.loads(c.args[3]), json.loads(c.args[6])

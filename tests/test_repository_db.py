@@ -3110,3 +3110,116 @@ def test_f7_expurgo_na_exclusao_em_massa():
         await repository.excluir_bilhetes_lote([i], "TDonoF", 1)
         return sorted(x["codigo"] for x in await _lixeira("TDonoF"))
     assert _run(body()) == ["X1"]
+
+
+
+# ── s438 · D42 / E1: a semente para de esquecer ───────────────────────────────────────────
+# Mutações provadas (aplicadas, teste ao lado vermelho):
+#   E1a. volta o DELETE de toda a semente a cada rodada        → e1_semente_nao_esquece
+#   E1b. ON CONFLICT DO NOTHING (a chave não muda de valor)    → e1_voto_novo_atualiza
+#   E1c. a grafia antiga não sai                               → e1_grafia_antiga_sai
+#   E1d. a edição à mão não retira mais a chave (R27)          → e1_edicao_retira_a_categoria
+#        (no teste da R27 o esporte também sai pelo voto do texto: a mutação escapava ali)
+# Não cobre: a chave errada aprendida com 1 voto e cuja fonte sumiu SEM edição à mão fica até
+# um voto novo ou a correção do Feca (`corrigir_termo`), como manda o D24.
+
+async def _semente(conn):
+    import dicionario
+    return {(r["casa"], r["tipo"], r["termo_casa"]): r["termo_sharpen"] for r in await conn.fetch(
+        "SELECT casa, tipo, termo_casa, termo_sharpen FROM dicionario_termos "
+        "WHERE origem = 'semente'")}
+
+
+def test_e1_semente_nao_esquece_quando_a_fonte_some(monkeypatch):
+    """A chave aprendida fica quando a aposta que a ensinou sai do banco (apagada, ou passou a
+    ser da Ficha): antes a rodada seguinte a apagava e a aposta voltava à IA."""
+    import dicionario
+    sess, payload, texto = _virada_cenario(monkeypatch, "", sombra="VAVADA")
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+
+    async def rodar():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM dicionario_termos WHERE origem = 'semente'")
+            await _simples_no_banco(conn, sess)
+            await dicionario.semear(conn, "teste")
+            antes = await _semente(conn)
+            await conn.execute("DELETE FROM bilhetes WHERE codigo_bilhete = $1", _SIMPLES)
+            r = await dicionario.semear(conn, "teste")
+            depois = await _semente(conn)
+            await conn.execute("TRUNCATE captura_crua")
+            return antes, depois, r
+    antes, depois, r = _run(rodar())
+    k = ("VAVADA", "esporte", "badminton")
+    assert antes.get(k) == "Badminton" and depois.get(k) == "Badminton"
+    assert r["fontes"]["preservadas"] >= 1
+
+
+def test_e1_voto_novo_atualiza_a_chave(monkeypatch):
+    """Acumular não é congelar: voto novo e unânime troca o valor da chave da semente."""
+    import dicionario
+    sess, payload, texto = _virada_cenario(monkeypatch, "", sombra="VAVADA")
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+
+    async def rodar():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM dicionario_termos WHERE origem = 'semente'")
+            await conn.execute("INSERT INTO dicionario_termos (casa, tipo, termo_casa, "
+                               "termo_sharpen, origem) VALUES ('VAVADA', 'esporte', 'badminton', "
+                               "'Tênis', 'semente')")
+            await _simples_no_banco(conn, sess)
+            await dicionario.semear(conn, "teste")
+            d = await _semente(conn)
+            await conn.execute("TRUNCATE captura_crua")
+            return d
+    assert _run(rodar()).get(("VAVADA", "esporte", "badminton")) == "Badminton"
+
+
+def test_e1_grafia_antiga_sai_da_semente(monkeypatch):
+    """`SPORTSBET.IO` e cia. não somem mais sozinhas (a semente acumula): saem na gravação."""
+    import dicionario
+
+    async def rodar():
+        await _reset()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("TRUNCATE captura_crua")
+            await conn.execute("DELETE FROM dicionario_termos")
+            await conn.execute("INSERT INTO dicionario_termos (casa, tipo, termo_casa, "
+                               "termo_sharpen, origem) VALUES ('SPORTSBET.IO', 'esporte', 'soccer', "
+                               "'Futebol', 'semente'), ('VAVADA', 'esporte', 'x', 'Futebol', "
+                               "'semente'), ('STAKE.COM', 'esporte', 'y', 'Futebol', 'feca')")
+            await dicionario.semear(conn, "teste")
+            return [(r["casa"], r["origem"]) for r in await conn.fetch(
+                "SELECT casa, origem FROM dicionario_termos ORDER BY casa")]
+    assert _run(rodar()) == [("STAKE.COM", "feca"), ("VAVADA", "semente")]
+
+
+
+def test_e1_edicao_a_mao_retira_a_categoria_que_a_aposta_ensinou(monkeypatch):
+    """R27 com a semente que acumula: a aposta editada à mão retira a CATEGORIA e a DESCRIÇÃO que
+    ela ensinou (o texto do SharpenUp só vota esporte, então só o voto da linha as sustentava)."""
+    import dicionario
+    sess, payload, texto = _virada_cenario(monkeypatch, "", sombra="VAVADA")
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+
+    async def rodar():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM dicionario_termos WHERE origem = 'semente'")
+            await _simples_no_banco(conn, sess)
+            await dicionario.semear(conn, "teste")
+            antes = await _semente(conn)
+            bid = await conn.fetchval("SELECT id FROM bilhetes WHERE codigo_bilhete = $1", _SIMPLES)
+            await conn.execute("INSERT INTO correcoes (bilhete_id, dono, casa, campo, valor_anterior, "
+                               "valor_novo) VALUES ($1, 'TDonoV', 'Vavada', 'aposta', 'Handicap', "
+                               "'Handicap')", bid)
+            await dicionario.semear(conn, "teste")
+            depois = await _semente(conn)
+            await conn.execute("TRUNCATE captura_crua")
+            await conn.execute("TRUNCATE correcoes")
+            return antes, depois
+    antes, depois = _run(rodar())
+    cat = {k: v for k, v in antes.items() if k[1] == "categoria"}
+    assert cat and all(k not in depois for k in cat)

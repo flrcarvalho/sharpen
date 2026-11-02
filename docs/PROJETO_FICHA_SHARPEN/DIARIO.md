@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-11-02 · s438 · D42, commit 1: a semente para de esquecer (E1)
+
+**Onde está:** aprovado pelo Feca para deploy. Próximo: commit 2 da D42 (leitura da descrição: E2 a
+E5, prefixo comum e confronto falso da F1); depois, logo, os commits 3 e 4 (`semente_recusa` e o
+aviso diário), que vão mostrar ao Feca os erros que a semente agora guarda.
+
+- A semente era refeita do zero a cada rodada (DELETE de toda a semente), e a chave cuja fonte sumia
+  sumia junto (medido em 01/11: 350 ausentes, 86 saíram e voltaram com o mesmo valor). Agora
+  `gravar_semente` acumula; a chave sai só com prova contra: contraditória na rodada, retirada por
+  aposta editada à mão (R27: `pares_completo` devolve `chaves_que_votaria` da aposta editada) ou
+  casa de grafia antiga. O `semente_log` registra as preservadas.
+- Fica descoberto, por decisão (D24): chave errada de 1 voto cuja fonte sumiu sem edição à mão fica
+  até um voto novo ou a correção do Feca.
+- Gates: 4 testes no harness; mutações 4/4 (a da edição à mão escapava no teste antigo da R27, onde
+  o voto do texto compensava; o teste novo confere a categoria). Sem teste: a retirada pelo voto do
+  texto quando a aposta editada é da Ficha.
+
+---
+
 ## 2026-11-01 · s438 · D40: descrição desconhecida nunca manda a aposta à IA
 
 **Onde está:** aprovada pelo Feca para deploy. Próximo: D42 (com o prefixo comum e o confronto
