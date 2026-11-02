@@ -19,9 +19,10 @@ USDT, recon de 25/10/2026), cada valor cruzado com o card.
     qualquer que seja o `status`. A odd da perna é a turbinada quando houver.
   • ESPORTE: só o `sport.slug` (`soccer`, `ice-hockey`); vai em inglês para o dicionário `*`
     traduzir. Slug fora do mapa vai VAZIO.
-  • Sem amostra, RECUSA: freebet, cashout (`cashout.instances`), mais de uma aposta no bilhete
-    (sistema) e Bet Builder (perna única `Bet Builder` com as seleções juntas por ";"; a Ficha
-    precisa de uma perna por seleção). O texto continua levando esses bilhetes à IA.
+  • Sem amostra, RECUSA: freebet, cashout (`cashout.instances`) e mais de uma aposta no bilhete
+    (sistema). O texto continua levando esses bilhetes à IA.
+  • Bet Builder (D43, s438): perna única `Bet Builder`, as seleções juntas por ";". Vai pela
+    Ficha como uma perna só (o dinheiro é o do bilhete); descrição e categoria no `dicionario`.
 """
 from __future__ import annotations
 
@@ -154,8 +155,10 @@ def adaptar(t: dict, casa_key: str) -> dict:
     sels = bets[0].get("selections") or []
     if not sels:
         raise Recusa("bilhete sem selections")
-    if any(_limpo(s.get("marketName")).lower() == "bet builder" for s in sels):
-        raise Recusa("Bet Builder: as seleções vêm juntas numa perna só (o texto leva à IA)")
+    # D43 (Feca, 01/11/2026): o Bet Builder NÃO recusa mais. Ele é UMA perna (`_perna`), com a
+    # odd do conjunto e as seleções juntas por `;` na `selecao_casa`; o dinheiro sai do bilhete
+    # pelo caminho de sempre (stake, status, retorno, `totalOdds`). A descrição é do
+    # `dicionario.descricao_perna` e a categoria é sempre `Múltipla` (`MASTER_APOSTAS`).
     status = _status(t, sels)
     pernas = [_perna(s) for s in sels]
     ret = _din(t.get("wonAmount"))

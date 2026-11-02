@@ -782,6 +782,8 @@ def votos(f: dict, descricao: str, recusas: list | None = None) -> list[tuple[st
             if id(p) not in com_par:
                 recusas.append((chave(p), "perna sem trecho da IA do mesmo jogo", descricao))
     for p, t in pares:
+        if _limpo(p.get("mercado_casa")).casefold() == "bet builder":
+            continue                # D43: forma própria (`dicionario.descricao_bet_builder`)
         d = decompor(p)
         k = chave(p, d)
         por_que = []

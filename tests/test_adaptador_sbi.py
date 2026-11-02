@@ -11,7 +11,8 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   3. `voidFactor` ignorado na perna                             → test_perna_anulada_como_o_card
   4. código = o id em base64, não o ObjectId                    → test_codigo_e_o_objectid_do_card
   5. perdida sem exigir perna perdida                           → test_sem_retorno_e_sem_perna_perdida_recusa
-  6. Bet Builder deixa de recusar                               → test_sem_amostra_recusa
+  6. (D43, s438: o Bet Builder deixou de recusar de propósito; o gate dele é
+     test_bet_builder_e_uma_perna_com_o_dinheiro_do_bilhete e `tests/test_bet_builder_sbi.py`)
   7. moeda fora de USDT aceita                                  → test_sem_amostra_recusa
   8. retorno = stake não vira anulada                           → test_retorno_igual_a_stake_e_anulada
 
@@ -61,9 +62,8 @@ def _clone(cod=ANULADA, **campos):
 def test_familia_registrada_e_fixture_inteira():
     assert ADAPTADORES["sbi"] is sbi
     assert len(CRUS) == 31
-    aceitas = [c for c, cru in CRUS.items()
-               if not any(s.get("marketName") == "Bet Builder" for s in cru["bets"][0]["selections"])]
-    assert len(aceitas) == 20             # 13 liquidadas + 7 abertas; os 11 Bet Builders recusam
+    aceitas = list(CRUS)                  # D43: os 11 Bet Builders também passam pela Ficha
+    assert len(aceitas) == 31
     for cod in aceitas:
         f, _ = _montar(CRUS[cod])
         assert f["codigo"] == cod and f["moeda"] == "USDT"
@@ -137,5 +137,12 @@ def test_sem_amostra_recusa(mexer, motivo):
     mexer(c)
     with pytest.raises(Recusa, match=motivo):
         sbi.adaptar(c, "SPORTSBETIO")
-    with pytest.raises(Recusa, match="Bet Builder"):
-        sbi.adaptar(CRUS[BUILDER], "SPORTSBETIO")
+
+
+def test_bet_builder_e_uma_perna_com_o_dinheiro_do_bilhete():
+    """D43: o Bet Builder (card: INVENTOR, 30,01 @ 4,75, perdido) é UMA perna, com a odd do
+    conjunto; o dinheiro sai do bilhete pelo caminho de sempre."""
+    f, d = _montar(CRUS[BUILDER])
+    assert f["tipo"] == "simples" and len(f["pernas"]) == 1
+    assert f["pernas"][0]["mercado_casa"] == "Bet Builder" and ";" in f["pernas"][0]["selecao_casa"]
+    assert (d["stake"], d["odd"], d["resultado"]) == ("30,01", "4,75", "L")

@@ -5,6 +5,34 @@
 
 ---
 
+## 2026-11-02 · s438 · D43: Bet Builder pela Ficha, Sportsbet.io (deploy autônomo)
+
+**Onde está:** no ar sob a autorização noturna do Feca. Próximo: D44 e D41 só como plano e código
+local, sem commit (limite do Feca).
+
+- O adaptador `sbi` deixou de recusar o Bet Builder. Ele já era UMA perna (`_perna`), com a odd do
+  conjunto; o dinheiro sai do bilhete pelo caminho que já existia (stake, status, retorno,
+  `totalOdds`), sem mudança no cálculo. Nos 5 aprovados, odd e resultado iguais aos que a IA tinha
+  gravado (4,6 L · 3,75 W · 6 L · 5,25 L · 24 L).
+- Categoria: Bet Builder é sempre `Múltipla` (`MASTER_APOSTAS`, "Bet Builder / Criar Aposta"),
+  inclusive o que a IA tinha gravado como Player Props. Esporte: o do jogo.
+- Descrição (`dicionario.descricao_bet_builder`), no formato das 5 linhas aprovadas: o mesmo jogador
+  junta com ` / ` na ordem da casa, jogadores ou jogos diferentes com ` // `, um colchete só. No
+  5º aprovado (dois Bet Builders numa múltipla) a ordem das pernas é a da casa (J. Smith primeiro),
+  não a que a IA tinha escrito.
+- Medido nos 52 Bet Builders da casa (25 a 31/10): só Pontos, Rebotes e Assistências, todos de
+  "Partida". Seleção fora disso grava com o texto da casa (D40), nunca vai à IA por isso.
+- A semente não aprende com o Bet Builder (categoria e descrição vêm de regra) e ele não gera recusa
+  falsa na `semente_recusa`.
+- Testes: os 11 Bet Builders da fixture do harness (já no repositório) e as 5 aprovadas por pernas
+  montadas só com seleção e jogo. A 1ª versão trazia os crus de produção dos 5 aprovados num JSON
+  de teste; o commit foi barrado (dado de produção no repositório público) e o arquivo saiu.
+  Bilhete de Bet Builder com 3+ jogos sai `Múltiplos` de esporte pela regra global, não pela D43.
+- 20bet e Altenar seguem recusando Bet Builder (3 e 1 no histórico). Mutações 7/7; gates do CI
+  verdes (suíte pura 2154, harness de banco 126, harness da extensão 58).
+
+---
+
 ## 2026-11-02 · s438 · D42, commit 5: o vigia como fonte de voto (deploy autônomo); D42 completa
 
 **Onde está:** D42 inteira no ar. Próximo: D43 (Bet Builder pela Ficha, no formato das 5 linhas).

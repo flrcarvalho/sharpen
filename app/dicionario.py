@@ -91,12 +91,46 @@ def _jogo_v(ev: str) -> str:
     return descricao_ficha.jogo(ev) or re.sub(r"\s+vs\.?\s+", " v ", ev or "")
 
 
+# D43 (Feca, 01/11/2026; formato aprovado nas 5 linhas): o Bet Builder da Sportsbet.io é UMA perna
+# `Bet Builder` com as seleções juntas por `;`, cada uma `<Estatística> do jogador - <Jogador> <N>+
+# (Partida)`. Medido nos 52 bilhetes da casa (25 a 31/10): só Pontos, Rebotes e Assistências, todos
+# de "Partida". Fora disso, a perna não tem forma própria e grava com o texto da casa (D40).
+BET_BUILDER = "bet builder"
+_BB_SEL = re.compile(r"^(?P<stat>Pontos|Rebotes|Assistências) do jogador - (?P<jog>.+?) "
+                     r"(?P<n>\d+\+) \(Partida\)$")
+
+
+def descricao_bet_builder(p: dict) -> str | None:
+    """`Amen Thompson - 10+ Rebotes / 10+ Pontos [Houston Rockets v Oklahoma City Thunder]`: o
+    mesmo jogador junta os mercados com ` / `, na ordem da casa (`MASTER_DESCRICAO §16`);
+    jogadores diferentes vão com ` // `, e o colchete é um só. None = alguma seleção fora do
+    padrão medido."""
+    grupos: list[tuple[str, list[str]]] = []
+    for parte in str(p.get("selecao_casa") or "").split(";"):
+        m = _BB_SEL.match(_limpo(parte))
+        if not m:
+            return None
+        item = f"{m.group('n')} {m.group('stat')}"
+        if grupos and grupos[-1][0] == m.group("jog"):
+            grupos[-1][1].append(item)
+        else:
+            grupos.append((m.group("jog"), [item]))
+    if not grupos:
+        return None
+    ev = _limpo(p.get("evento"))
+    corpo = " // ".join(f"{jog} - {' / '.join(itens)}" for jog, itens in grupos)
+    return f"{corpo} [{_jogo_v(ev)}]" if ev else corpo
+
+
 def descricao_perna(p: dict) -> str | None:
     """Descrição de perna com forma própria (s412, Feca). None = a forma geral da virada.
       • `Total` sem qualificador: `Over X.X [A v B]`;
       • `Winner. Quarter N` e `Vencedor. Quarto N` (DEX): `Time X - NQ [A v B]` (é ML);
-      • volta mais rápida (`fastest lap`): `<piloto> volta mais rápida [<prova>]`."""
+      • volta mais rápida (`fastest lap`): `<piloto> volta mais rápida [<prova>]`;
+      • Bet Builder (D43): `descricao_bet_builder`."""
     merc = normalizar(p.get("mercado_casa"))
+    if merc == BET_BUILDER:
+        return descricao_bet_builder(p)
     sel, ev = _limpo(p.get("selecao_casa")), _limpo(p.get("evento"))
     fim = f" [{_jogo_v(ev)}]" if ev else ""
     if merc == TOTAL:
@@ -203,7 +237,9 @@ def traduzir(f: dict, termos: dict) -> tuple[str | None, str | None, list[tuple[
     esporte = None
     if not faltam and esportes:
         esporte = MULTIPLOS if len(esportes) > 1 or len(jogos) >= 3 else next(iter(esportes))
-    if f.get("tipo") != "simples" or len(pernas) != 1:
+    if any(normalizar(p.get("mercado_casa")) == BET_BUILDER for p in pernas):
+        categoria = MULTIPLA       # D43: Bet Builder é Múltipla, mesmo de um jogo só (MASTER_APOSTAS)
+    elif f.get("tipo") != "simples" or len(pernas) != 1:
         categoria = MULTIPLA if pernas else None
     else:
         merc = normalizar(pernas[0].get("mercado_casa"))
@@ -320,7 +356,8 @@ def votar(pares, votos_texto=(), recusas: list | None = None) -> tuple[dict, dic
                 and cat_ia in categorias_m:
             p = pernas[0]
             merc = normalizar(p.get("mercado_casa"))
-            if merc and merc not in VAGOS and merc != TOTAL:
+            # D43: o Bet Builder tem categoria por regra (Múltipla); o voto da IA não ensina nada
+            if merc and merc not in VAGOS and merc != TOTAL and merc != BET_BUILDER:
                 votos[(casa, "categoria", merc)][cat_ia] += 1
                 votos[(casa, "categoria", _par(p))][cat_ia] += 1
                 if (mj := _merc_jogador(p)):          # s415: o mercado de qualquer jogador
