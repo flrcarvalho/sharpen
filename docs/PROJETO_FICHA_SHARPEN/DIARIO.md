@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-11-02 · s438 · D41: dicionário por família
+
+**Onde está:** no ar com o "pode" do Feca. Próximo: medir na primeira semente depois do deploy quantas
+apostas de novembro tiveram a descrição regravada pela família (5 exemplos, antes e depois); depois, o
+plano da etapa c (sem código).
+
+- **Precedência:** casa > família > geral, e a correção do Feca vence a semente em qualquer nível.
+- **Família:** vem do cru (`captura_crua.familia`), relida a cada 10 min (`irmas`). Sem mapa à mão, sem
+  tabela nova. A consultoria conferiu no banco: nenhuma casa tem duas famílias, então a herança não
+  cruza plataforma.
+- **Unanimidade:** termo em que as irmãs divergem não passa de uma casa para a outra (decisão do Feca).
+  Hoje são 118 (vb 84, x1 14, tv 13, jb 7); os 10 mais usados estão na mensagem ao Feca de 02/11.
+- **Quem usa:** só a gravação da Ficha (`virada.py`) e o `regravar_mes`. A semente continua aprendendo
+  por casa.
+- **Herança medida (SELECT, 02/11):** de 0 a 77 categorias e de 6 a 248 descrições por casa (MelBet 248,
+  Sportaza 239, Sapphirebet 226, BetRebels 205). Teto da regravação deste mês: 86 apostas da Ficha
+  (Vavada 73, Megapari 10, BetRebels 2, Duel 1); campo editado à mão fica de fora.
+- **Gates:** suíte pura 2.171, banco 129, `test_virada` 48, mutações 7/7, audits, harness 58 casos,
+  `check-tokens`, `check_docs`.
+
+---
+
 ## 2026-11-02 · s438 · D44: Conferir conta com a casa
 
 **Onde está:** no ar com o "pode" do Feca, só a ferramenta. Nenhuma correção aplicada: o Feca clica

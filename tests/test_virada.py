@@ -307,21 +307,88 @@ def test_semente_so_aprende_valor_do_master():
     assert unanimes[("MYSTAKE", "categoria", "vencedor")] == ("ML", 2)
 
 
+class _Dic:
+    """Banco dublado do `carregar`: `linhas` = (casa, origem, termo, tradução) da
+    `dicionario_termos`; `familias` = (família, casa) da `captura_crua`. Devolve as linhas em
+    ordem EMBARALHADA (a do banco não é garantida): a precedência tem de vir do código."""
+    def __init__(self, linhas, familias=()):
+        self.linhas, self.familias, self.consultas = linhas, familias, 0
+
+    async def fetch(self, sql, *a):
+        if "captura_crua" in sql:
+            self.consultas += 1
+            return [{"familia": f, "casa": c} for f, c in self.familias]
+        casas = set(a[0])
+        return [{"casa": c, "tipo": "categoria", "termo_casa": t, "termo_sharpen": v, "origem": o}
+                for c, o, t, v in reversed(self.linhas) if c in casas]
+
+
+def _carregar(conn, casa, **kw):
+    dicionario._familias.update(em=None, mapa={})          # o cache de família é de módulo
+    return asyncio.run(dicionario.carregar(conn, casa, **kw))
+
+
 def test_correcao_do_feca_vence_a_semente():
     """`carregar`: a correção (`feca`) vence a semente, inclusive a semente DA CASA contra a
     correção geral (`*`); termo vago nunca sai do banco para a tradução."""
-    class _C:
-        async def fetch(self, sql, *a):
-            assert "ORDER BY (origem = 'feca'), (casa <> '*')" in sql
-            linhas = [("*", "semente", "x", "A"), ("BETPANDA", "semente", "volta mais rápida", "Outros"),
-                      ("*", "feca", "volta mais rápida", "Player Props"),
-                      ("*", "semente", "especiais", "Futebol")]
-            ordem = sorted(linhas, key=lambda r: (r[1] == "feca", r[0] != "*"))
-            return [{"casa": c, "tipo": "categoria", "termo_casa": t, "termo_sharpen": v}
-                    for c, _, t, v in ordem]
-    termos = asyncio.run(dicionario.carregar(_C(), "BETPANDA"))
+    c = _Dic([("*", "semente", "x", "A"), ("BETPANDA", "semente", "volta mais rápida", "Outros"),
+              ("*", "feca", "volta mais rápida", "Player Props"),
+              ("*", "semente", "especiais", "Futebol")])
+    termos = _carregar(c, "BETPANDA")
     assert termos[("categoria", "volta mais rápida")] == "Player Props"
     assert ("categoria", "especiais") not in termos
+    # dentro da mesma origem, a casa vence o geral
+    c = _Dic([("BETPANDA", "semente", "x", "Casa"), ("*", "semente", "x", "Geral")])
+    assert _carregar(c, "BETPANDA")[("categoria", "x")] == "Casa"
+
+
+FAMILIA_VB = [("vb", "VAVADA"), ("vb", "BETMARTINI"), ("vb", "SPORTAZA"), ("x1", "MELBET")]
+
+
+def test_d41_casa_herda_o_que_a_irma_aprendeu():
+    """D41: a BetMartini lê o que a semente aprendeu na Vavada (mesma família `vb` no cru), e
+    não o que aprendeu a MelBet (`x1`). Casa sem cru nenhum não tem família."""
+    c = _Dic([("VAVADA", "semente", "total de cantos", "Escanteios"),
+              ("MELBET", "semente", "handicap asiático", "Handicap")], FAMILIA_VB)
+    termos = _carregar(c, "BETMARTINI")
+    assert termos[("categoria", "total de cantos")] == "Escanteios"
+    assert ("categoria", "handicap asiático") not in termos
+    assert ("categoria", "total de cantos") not in _carregar(c, "CASANOVA")
+    assert ("categoria", "total de cantos") not in _carregar(c, "BETMARTINI", familia=False)
+
+
+def test_d41_irmas_que_divergem_nao_ensinam():
+    """Duas irmãs traduzindo o mesmo termo de jeitos diferentes: a terceira não herda nenhum
+    (fica com a IA até aprender o dela). A própria casa continua com o seu."""
+    c = _Dic([("VAVADA", "semente", "especial", "Outros"),
+              ("SPORTAZA", "semente", "especial", "Player Props")], FAMILIA_VB)
+    assert ("categoria", "especial") not in _carregar(c, "BETMARTINI")
+    assert _carregar(c, "VAVADA")[("categoria", "especial")] == "Outros"
+
+
+def test_d41_precedencia_casa_familia_geral():
+    """A casa vence a família, a família vence o geral (`*`), e a correção do Feca vence a
+    semente em qualquer nível, inclusive a correção feita numa IRMÃ contra a semente da casa."""
+    c = _Dic([("*", "semente", "a", "Geral"), ("VAVADA", "semente", "a", "Familia"),
+              ("*", "semente", "b", "Geral"), ("VAVADA", "semente", "b", "Familia"),
+              ("BETMARTINI", "semente", "b", "Casa"),
+              ("BETMARTINI", "semente", "c", "Casa"), ("VAVADA", "feca", "c", "FecaNaIrma"),
+              ("*", "feca", "d", "FecaGeral"), ("VAVADA", "feca", "d", "FecaNaIrma")], FAMILIA_VB)
+    t = _carregar(c, "BETMARTINI")
+    assert t[("categoria", "a")] == "Familia"
+    assert t[("categoria", "b")] == "Casa"
+    assert t[("categoria", "c")] == "FecaNaIrma"
+    assert t[("categoria", "d")] == "FecaNaIrma"
+
+
+def test_d41_familia_fica_em_cache():
+    """A lista de famílias sai da `captura_crua` uma vez a cada `FAMILIAS_TTL`, não a cada
+    captura (o `carregar` roda em todo `/extrair` de casa virada)."""
+    c = _Dic([], FAMILIA_VB)
+    dicionario._familias.update(em=None, mapa={})
+    for _ in range(3):
+        asyncio.run(dicionario.carregar(c, "BETMARTINI"))
+    assert c.consultas == 1
 
 
 def test_tv_linha_com_hisminus_inverte_o_sinal():
@@ -376,9 +443,11 @@ class _Conn:
         self.segurados = set()                    # D39 (b): `_segurar`
 
     async def fetch(self, sql, *a):
-        if "dicionario_termos" in sql:
-            return [{"tipo": t, "termo_casa": k, "termo_sharpen": v}
-                    for (t, k), v in self.termos.items()]
+        if "dicionario_termos" in sql:            # termos da própria casa (a[0] = ["*", casa, …])
+            return [{"casa": a[0][1], "tipo": t, "termo_casa": k, "termo_sharpen": v,
+                     "origem": "semente"} for (t, k), v in self.termos.items()]
+        if "DISTINCT familia" in sql:             # D41: a casa sem irmã no banco dublado
+            return []
         if "extraction_state" in sql:
             return [{"codigo_bilhete": c} for c in self.liquidados]
         if "FROM bilhetes" in sql:

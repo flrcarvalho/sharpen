@@ -258,17 +258,61 @@ def traduzir(f: dict, termos: dict) -> tuple[str | None, str | None, list[tuple[
     return esporte, categoria, faltam
 
 
-async def carregar(conn, casa_key: str) -> dict:
-    """Os termos da casa e os que valem para todas (`*`). A correção do Feca vence a semente
-    (inclusive a semente da casa contra a correção geral); dentro de cada origem, a casa
-    vence o geral. Termo VAGO nunca sai daqui."""
-    termos: dict = {}
+# ── D41 (Feca, 01/11/2026): o dicionário é da FAMÍLIA, não da casa ─────────────────────
+# Casa espelho fala o mesmo vocabulário da irmã (a mesma API por baixo): o que a semente
+# aprendeu na Vavada vale na BetMartini, e casa nova nasce com o dicionário da família. A
+# família é a que a extensão grava no cru (`captura_crua.familia`): sem mapa à mão, a casa
+# entra na família com o primeiro cru que manda.
+FAMILIAS_TTL = 600.0                   # segundos: família muda quando entra casa nova, não a cada captura
+_familias: dict = {"em": None, "mapa": {}}
+
+
+async def irmas(conn, casa_key: str) -> list[str]:
+    """As outras casas da família de `casa_key` (pelo cru), em ordem. Sem cru: nenhuma."""
+    import time
+    agora = time.monotonic()
+    if _familias["em"] is None or agora - _familias["em"] > FAMILIAS_TTL:
+        mapa: dict = {}
+        for r in await conn.fetch("SELECT DISTINCT familia, casa FROM captura_crua"):
+            mapa.setdefault(r["familia"], set()).add((r["casa"] or "").upper())
+        _familias.update(em=agora, mapa=mapa)
+    ck = (casa_key or "").upper()
+    return sorted({c for casas in _familias["mapa"].values() if ck in casas
+                   for c in casas if c != ck})
+
+
+async def carregar(conn, casa_key: str, familia: bool = True) -> dict:
+    """Os termos da casa, os da família (D41) e os que valem para todas (`*`). A correção do
+    Feca vence a semente (inclusive a semente da casa contra a correção geral); dentro de
+    cada origem, a casa vence a família e a família vence o geral. Termo VAGO nunca sai daqui.
+
+    Da família só vem o termo em que as irmãs CONCORDAM (dentro da mesma origem): duas irmãs
+    que traduzem o mesmo termo de jeitos diferentes não ensinam nada à terceira, e o termo
+    fica com a IA até a casa aprender o dela. É a régua da semente (unanimidade), um nível
+    acima."""
+    ck = (casa_key or "").upper()
+    da_familia = await irmas(conn, ck) if familia else []
+    camadas: dict = {}                     # (é do Feca, nível 0 geral · 1 família · 2 casa) → termos
+    votos_familia: dict = {}               # (é do Feca, chave) → traduções das irmãs
     for r in await conn.fetch(
-            "SELECT casa, tipo, termo_casa, termo_sharpen FROM dicionario_termos "
-            "WHERE casa = ANY($1::text[]) ORDER BY (origem = 'feca'), (casa <> '*')",
-            ["*", (casa_key or "").upper()]):
-        if r["termo_casa"] not in VAGOS:
-            termos[(r["tipo"], r["termo_casa"])] = r["termo_sharpen"]
+            "SELECT casa, tipo, termo_casa, termo_sharpen, origem FROM dicionario_termos "
+            "WHERE casa = ANY($1::text[])", ["*", ck, *da_familia]):
+        if r["termo_casa"] in VAGOS:
+            continue
+        feca, chave = r["origem"] == "feca", (r["tipo"], r["termo_casa"])
+        if r["casa"] == "*":
+            camadas.setdefault((feca, 0), {})[chave] = r["termo_sharpen"]
+        elif r["casa"] == ck:
+            camadas.setdefault((feca, 2), {})[chave] = r["termo_sharpen"]
+        else:
+            votos_familia.setdefault((feca, chave), set()).add(r["termo_sharpen"])
+    for (feca, chave), traducoes in votos_familia.items():
+        if len(traducoes) == 1:
+            camadas.setdefault((feca, 1), {})[chave] = next(iter(traducoes))
+    termos: dict = {}
+    for feca in (False, True):
+        for nivel in (0, 1, 2):
+            termos.update(camadas.get((feca, nivel), {}))
     return termos
 
 
