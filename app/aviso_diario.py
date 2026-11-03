@@ -7,6 +7,8 @@ erros. Uma mensagem por dia, no canal `TELEGRAM_ALERTA_*` (o mesmo do aviso de c
   • recusas repetidas: chave que a semente recusou `REPETIDA_MIN` vezes ou mais na rodada
     (`semente_recusa`, origem `semente`);
   • mercados sem par gravados com o texto da casa nas últimas 24 h (`semente_recusa`, `gravacao`);
+    nas duas, só a chave sem termo por caminho nenhum (`travadas`, c1.2), com a contagem das
+    que saíram;
   • a semente: rodou (termos, preservadas) ou falhou (`registrar_falha`, e a falta da rodada);
   • apostas pendentes há mais de 24 h (`ficha_virada.pendente_desde`, D39);
   • captura incompleta esgotada nas últimas 24 h (`virada_log.captura_esgotada`, D39).
@@ -43,22 +45,41 @@ def _hoje_brt() -> str:
     return (datetime.now(timezone.utc) - timedelta(hours=3)).strftime("%Y-%m-%d")
 
 
+async def travadas(conn, linhas) -> tuple[list, int]:
+    """c1.2 (Feca, 02/11/2026): "o aviso só com o que está travado de verdade". A semente relê a
+    base inteira a cada rodada, então a mesma recusa volta todo dia mesmo depois de a chave ter
+    ganhado termo por outro voto, pela família (D41) ou pela correção do Feca. Fica só a chave
+    que NÃO tem termo por caminho nenhum, pela mesma `dicionario.carregar` que a gravação usa
+    (casa > família > geral). Devolve (as travadas, quantas saíram por já ter termo)."""
+    import dicionario
+    termos: dict = {}
+    fica = []
+    for r in linhas:
+        if r["casa"] not in termos:
+            termos[r["casa"]] = await dicionario.carregar(conn, r["casa"])
+        if (r["tipo"], r["chave"]) not in termos[r["casa"]]:
+            fica.append(r)
+    return fica, len(linhas) - len(fica)
+
+
 async def montar(conn) -> str | None:
     """O texto do aviso de hoje, ou None quando não há nada a dizer."""
     linhas: list[str] = []
-    rep = await conn.fetch(
+    rep, rep_fora = await travadas(conn, await conn.fetch(
         "SELECT casa, tipo, chave, motivo, n FROM semente_recusa WHERE origem = 'semente' "
         "AND n >= $1 AND ultima_em >= NOW() - interval '26 hours' ORDER BY n DESC, casa, chave",
-        REPETIDA_MIN)
+        REPETIDA_MIN))
     if rep:
-        linhas.append(f"• Recusas repetidas (≥{REPETIDA_MIN} na rodada): {len(rep)} chave(s)")
+        linhas.append(f"• Recusas repetidas sem termo (≥{REPETIDA_MIN} na rodada): {len(rep)} "
+                      f"chave(s); {rep_fora} já com termo por outro caminho")
         linhas += [f"   {r['casa']} · {r['tipo']} · {r['chave']} · {r['motivo']} ({r['n']})"
                    for r in rep[:MAX_LINHAS]]
-    sem_par = await conn.fetch(
-        "SELECT casa, chave, n FROM semente_recusa WHERE origem = 'gravacao' "
-        "AND ultima_em >= NOW() - interval '24 hours' ORDER BY n DESC, casa, chave")
+    sem_par, par_fora = await travadas(conn, await conn.fetch(
+        "SELECT casa, tipo, chave, n FROM semente_recusa WHERE origem = 'gravacao' "
+        "AND ultima_em >= NOW() - interval '24 hours' ORDER BY n DESC, casa, chave"))
     if sem_par:
-        linhas.append(f"• Mercados gravados com o texto da casa (24 h): {len(sem_par)}")
+        linhas.append(f"• Mercados gravados com o texto da casa, ainda sem termo (24 h): "
+                      f"{len(sem_par)}; {par_fora} já aprendidos")
         linhas += [f"   {r['casa']} · {r['chave']} ({r['n']})" for r in sem_par[:MAX_LINHAS]]
     rodada = await conn.fetchrow(
         "SELECT termos, fontes FROM semente_log WHERE gatilho = 'diaria' "

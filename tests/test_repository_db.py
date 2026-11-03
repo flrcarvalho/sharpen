@@ -3399,6 +3399,52 @@ def test_c4_teste_uma_vez(monkeypatch):
     assert enviados == ["teste do aviso diário da semente"]
 
 
+# c1.2 (Feca, 02/11/2026): o aviso só com o que está travado de verdade.
+#   M1. `travadas` devolve tudo (sem filtro)                → c12_aviso_so_o_travado
+#   M2. termo só da casa (`familia=False`)                  → idem (a da família volta)
+#   M3. sem a correção do Feca no geral (`*`)               → idem
+#   M4. filtro por chave sem o tipo                         → idem (categoria com a mesma chave sai)
+# Não cobre: termo VAGO (a `carregar` já o descarta, testado nela).
+def test_c12_aviso_so_o_travado(monkeypatch):
+    import aviso_diario
+    import dicionario
+
+    async def rodar():
+        pool = await _aviso_limpo()
+        dicionario._familias.update(em=None, mapa={})
+        async with pool.acquire() as conn:
+            await conn.execute("TRUNCATE dicionario_termos")
+            await conn.execute("TRUNCATE captura_crua")
+            await conn.execute(
+                "INSERT INTO semente_recusa (casa, tipo, chave, motivo, n, origem) VALUES "
+                "('MEGAPARI', 'descricao', 'football | x', 'm', 8, 'semente'), "
+                "('MEGAPARI', 'descricao', 'football | da casa', 'm', 7, 'semente'), "
+                "('MEGAPARI', 'descricao', 'football | da irma', 'm', 6, 'semente'), "
+                "('MEGAPARI', 'descricao', 'football | do feca', 'm', 5, 'semente'), "
+                "('MEGAPARI', 'descricao', 'football | so categoria', 'm', 4, 'semente'), "
+                "('MEGAPARI', 'descricao', 'football | sem par', '', 3, 'gravacao'), "
+                "('MEGAPARI', 'descricao', 'football | aprendido', '', 2, 'gravacao')")
+            await conn.execute(
+                "INSERT INTO dicionario_termos (casa, tipo, termo_casa, termo_sharpen, origem) "
+                "VALUES ('MEGAPARI', 'descricao', 'football | da casa', 'A', 'semente'), "
+                "('MELBET', 'descricao', 'football | da irma', 'B', 'semente'), "
+                "('*', 'descricao', 'football | do feca', 'C', 'feca'), "
+                "('MEGAPARI', 'categoria', 'football | so categoria', 'D', 'semente'), "
+                "('MEGAPARI', 'descricao', 'football | aprendido', 'E', 'semente')")
+            await conn.execute(
+                "INSERT INTO captura_crua (dono, casa, parceiro, codigo, familia, hash, cru) "
+                "VALUES ('t', 'MEGAPARI', 'p', 'c1', 'x1', 'h1', '{}'), "
+                "('t', 'MELBET', 'p', 'c2', 'x1', 'h2', '{}')")
+            return await aviso_diario.montar(conn)
+    t = _run(rodar())
+    dicionario._familias.update(em=None, mapa={})
+    assert "Recusas repetidas sem termo (≥3 na rodada): 2 chave(s); 3 já com termo" in t
+    assert "football | x · m (8)" in t and "football | so categoria · m (4)" in t
+    for k in ("da casa", "da irma", "do feca", "aprendido"):
+        assert f"football | {k}" not in t, k
+    assert "ainda sem termo (24 h): 1; 1 já aprendidos" in t and "football | sem par (3)" in t
+
+
 
 # ── s438 · D42 commit 5: o vigia como fonte de voto da descrição ──────────────────────────
 # Mutações provadas: a semente não lê o vigia → c5_semente_aprende_pelo_vigia; o vigia não prioriza

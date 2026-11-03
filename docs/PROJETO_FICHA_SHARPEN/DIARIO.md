@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-11-02 · s438 · c1.2: o aviso diário só com o que está travado
+
+**Onde está:** no ar com o "pode" do Feca. Próximo: mostrar ao Feca o texto do aviso das 04h de 03/11;
+os termos das chaves de estatística na próxima semente; depois a trava da c3 (código, mutação e diff,
+com "pode") e a lista de todo caminho que grava `correcoes` (item 3 da D44).
+
+- **O defeito:** a semente relê a base inteira a cada rodada, então a mesma recusa voltava todo dia,
+  mesmo com a chave já traduzida por outro voto, pela família (D41) ou por correção do Feca.
+- **A régua:** `aviso_diario.travadas` usa a mesma `dicionario.carregar` da gravação (casa > família >
+  geral, correção do Feca inclusive) e deixa no aviso só a chave sem termo por caminho nenhum, nas
+  recusas repetidas e nos mercados gravados com o texto da casa. O aviso diz quantas saíram.
+- **Medido (SELECT, 02/11):** recusas repetidas 185 → 19 ("perna sem trecho da IA do mesmo jogo" 137 →
+  8); mercados com o texto da casa 39 → 31.
+- **D41 medida (sementes 451 e 452, 02/11 21h20):** 80 apostas de novembro regravadas, 14 pela família
+  (Vavada 13, BetRebels 1); as 80 batem com o dicionário só de termo unânime.
+- **Gates:** suíte pura 2.174, banco 130, mutações 4/4 (sem filtro, sem família, sem o Feca geral,
+  chave sem tipo), audits, harness 58 casos, `cru_mutacao`, `check-tokens`, `check_docs`.
+
+---
+
 ## 2026-11-02 · s438 · c1.1: estatística da família x1 entra na chave
 
 **Onde está:** no ar com o "pode" do Feca. Próximo: na primeira semente, mostrar ao Feca o que as chaves
