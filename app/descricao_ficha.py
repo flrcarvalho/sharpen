@@ -88,7 +88,17 @@ _SUFIXO_PRORROG = re.compile(r"\s*(\((?:including|incluindo|incl\.?|inc\.)[^)]*\
 # 7 dias: 344 pernas perdiam nome de time (`Los Angeles Lakers - Los Angeles Clippers` virava
 # `[Lakers v Clippers]`, `FC Slavia Mozyr - FC Torpedo` perdia o `FC`); as de subjogo são estas.
 _SUBJOGO = ("estatísticas dos jogadores", "estatísticas do jogador", "players' stats",
-            "remates enquadrados", "escanteios", "cantos", "corners", "cartões", "cards")
+            "remates enquadrados", "escanteios", "cantos", "corners", "cartões", "cards",
+            # c1.1 (Feca, 02/11/2026): as estatísticas medidas no cru da família x1 (Megapari,
+            # MelBet, Sapphirebet). Fora da lista, a estatística não entrava na chave: `Fouls Total
+            # Over (27.5)` caía em `football | total ({n})`, a mesma de gols, e votava no termo
+            # dela. Lista FECHADA (só nome de estatística); "Los Angeles", "Clube Atletico",
+            # "C.D." e "1." dividem o começo do nome e não são subjogo.
+            "shots towards the goal", "shots on target", "fouls", "offsides", "throw-ins",
+            "goal kicks", "two-point field goals scored", "three-point field goals scored",
+            "breaks", "assists", "time penalty", "yellow cards", "chutes no gol",
+            "remates na direção da baliza", "lançamento lateral", "foras de jogo", "stats",
+            "estatísticas")
 # D42 (s438): prova contra `Winner` não é confronto (Duel, F1: `Mexican Grand Prix Practice 1 vs
 # Winner` virava `[… v Winner]`). O colchete é a prova, como a IA escreve.
 _PROVA = re.compile(r"^(?P<prova>.+?)\s+vs\.?\s+(?:winner|vencedor)$", re.I)

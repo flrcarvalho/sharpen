@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-11-02 · s438 · c1.1: estatística da família x1 entra na chave
+
+**Onde está:** no ar com o "pode" do Feca. Próximo: na primeira semente, mostrar ao Feca o que as chaves
+novas aprenderam (chutes totais contra chutes no gol) antes de ele confiar nelas; depois, a c1.2 (o aviso
+só com o que está travado de verdade), diff com "pode" antes do commit.
+
+- **O defeito:** a Megapari escreve a estatística no nome do jogo (`Fouls Le Mans - Fouls Toulouse`), e
+  a lista do subjogo não a conhecia: `Fouls Total Under (25.5)` caía em `football | total ({n})`, a
+  chave de gols. A gravação da Ficha sairia "Under 25.5 Gols" para uma perna de faltas.
+- **A lista (fechada, só estatística):** shots towards the goal, shots on target, fouls, offsides,
+  throw-ins, goal kicks, two/three-point field goals scored, breaks, assists, time penalty, yellow
+  cards, chutes no gol, remates na direção da baliza, lançamento lateral, foras de jogo, stats,
+  estatísticas. "Los Angeles", "Clube Atletico", "C.D." e "1." ficam no nome.
+- **Os dois lados:** o prefixo só sai quando abre os dois times (`descricao_ficha._times`);
+  `Breaks Team - Outro` fica inteiro.
+- **Medido (SELECT, 02/11):** o termo de gols da MEGAPARI (`{ou} Gols`) estava certo, com 2 votos de
+  estatística em 19; 0 de 784 pernas da última semana mudam de chave; 334 no estoque da família x1.
+- **Gates:** suíte pura 2.174, banco 129, mutações 6/6 (4 nomes tirados, regra genérica, `and` → `or`),
+  audits, harness 58 casos, `cru_mutacao`, `check-tokens`, `check_docs`.
+
+---
+
 ## 2026-11-02 · s438 · D41: dicionário por família
 
 **Onde está:** no ar com o "pode" do Feca. Próximo: medir na primeira semente depois do deploy quantas

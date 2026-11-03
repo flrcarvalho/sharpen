@@ -595,6 +595,63 @@ def test_prefixo_so_de_subjogo():
                     "Mavericks")[2] == "Estatísticas dos jogadores"
 
 
+# c1.1 (Feca, 02/11/2026): pernas REAIS da Megapari (cru de produção, só SELECT). A estatística
+# no nome do jogo entra na chave, separada da de gols; o começo comum que NÃO é estatística fica.
+#   S1. sem `fouls` na lista                                → estatistica_do_jogo_entra_na_chave
+#   S2. sem `shots towards the goal` (chutes totais)        → estatistica_do_jogo_entra_na_chave
+#   S3. sem `offsides`                                      → estatistica_do_jogo_entra_na_chave
+#   S4. sem `shots on target` (chutes no gol)               → estatistica_do_jogo_entra_na_chave
+#   S5. prefixo comum cortado sempre (regra genérica)       → prefixo_so_de_subjogo e
+#                                                             comeco_comum_que_nao_e_estatistica_fica
+def test_estatistica_do_jogo_entra_na_chave():
+    gols = _p("Football", "Le Mans - Toulouse", "Total Over (2.5)", None)
+    faltas = _p("Football", "Fouls Le Mans - Fouls Toulouse", "Total Under (25.5)", None)
+    chutes = _p("Football", "Shots Towards The Goal Le Mans - Shots Towards The Goal Toulouse",
+                "Total Over (28.5)", None)
+    no_gol = _p("Football", "Shots On Target Union Berlin - Shots On Target Borussia Dortmund",
+                "Total Under (9.5)", None)
+    imped = _p("Football", "Offsides Troyes AC - Offsides RC Lens", "Individual Total 1 Under (1.5)",
+               None)
+    ks = {D.chave(p) for p in (gols, faltas, chutes, no_gol)}
+    assert len(ks) == 4, ks                                   # cada estatística na sua chave
+    assert D.chave(gols) == "football | total ({n})"
+    assert D.chave(faltas) == "football | fouls total ({n})"
+    assert D.chave(chutes) == "football | shots towards the goal total ({n})"
+    assert D.chave(no_gol) == "football | shots on target total ({n})"
+    assert D.chave(imped) == "football | offsides individual total 1 ({n})"
+    assert D.jogo(faltas["evento"]) == "Le Mans v Toulouse"   # o jogo da IA, e o pareamento acha
+    assert D.jogo(imped["evento"]) == "Troyes AC v RC Lens"
+    assert D.alinhar([faltas, chutes], "Under 25.5 Faltas [Le Mans v Toulouse] // Over 28.5 "
+                     "Chutes [Le Mans v Toulouse]") == []     # mesmo jogo: segue sem par (de propósito)
+    assert D.alinhar([imped, no_gol], "Troyes AC - Under 1.5 Impedimentos [Troyes AC v RC Lens] // "
+                     "Under 9.5 Chutes no Gol [Union Berlin v Borussia Dortmund]") == \
+        [(imped, "Troyes AC - Under 1.5 Impedimentos [Troyes AC v RC Lens]"),
+         (no_gol, "Under 9.5 Chutes no Gol [Union Berlin v Borussia Dortmund]")]
+
+
+def test_comeco_comum_que_nao_e_estatistica_fica():
+    assert D.jogo("Los Angeles Rams - Los Angeles Chargers 1 Metade") == \
+        "Los Angeles Rams v Los Angeles Chargers"
+    assert D.jogo("Clube Atletico Paranaense - Clube Atletico Mineiro") == \
+        "Clube Atletico Paranaense v Clube Atletico Mineiro"
+    assert D.jogo("C.D. Municipal Limeno - C.D. Luis Angel Firpo 2nd half").startswith(
+        "C.D. Municipal Limeno v C.D. Luis Angel Firpo")
+    assert D.jogo("1. Heidenheim - 1. Kaiserslautern") == "1. Heidenheim v 1. Kaiserslautern"
+
+
+# c1.1 (Feca, 02/11/2026): o prefixo só sai quando abre os DOIS lados do jogo.
+#   S6. `and` → `or` no corte do `_times`                  → estatistica_so_nos_dois_lados
+def test_estatistica_so_nos_dois_lados():
+    assert D._times("Fouls Galatasaray - Fouls Barcelona")[:3] == \
+        ("Galatasaray", "Barcelona", "Fouls")
+    assert D._times("Breaks Team - Outro")[:3] == ("Breaks Team", "Outro", "")
+    assert D._times("Outro - Breaks Team")[:3] == ("Outro", "Breaks Team", "")
+    assert D._times("Breaks Team v Outro")[:3] == ("Breaks Team", "Outro", "")
+    p = _p("Football", "Fouls Galatasaray - Barcelona", "Total Over (2.5)", None)
+    assert D.chave(p) == "football | total ({n})"
+    assert D.jogo(p["evento"]) == "Fouls Galatasaray v Barcelona"
+
+
 def test_sufixo_de_periodo_e_prorrogacao():
     assert D._times("Green Bay Packers - Dallas Cowboys 2 Half") == \
         ("Green Bay Packers", "Dallas Cowboys", "", "2 Half")
