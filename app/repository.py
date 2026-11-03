@@ -1807,7 +1807,14 @@ _ORIGEM_FICHA = "ficha"
 # botão) continua podendo corrigir a linha depois. A que o dono digita (origem NULL) segue
 # intocável.
 _ORIGEM_CONFERIR = "conferir"
-ORIGENS_DE_ROBO = (_ORIGEM_FICHA, _ORIGEM_CONFERIR)
+# Item 3 da D44 (Feca, 03/11/2026): "Robô = só ficha, conferir e resolver. Qualquer outra origem,
+# ou NULL, é humana." O "Resolver apostas abertas" da bet365 liquida com os números da casa e é
+# robô. O bot dos tipsters (`/ajustar`, odd, desanular) grava 'bot' só para dizer de onde veio:
+# é gente digitando, e conta como correção HUMANA. Script grava 'script_sNNN' e também é humano
+# (correção que o Feca autorizou). As linhas antigas com NULL ficam como estão.
+_ORIGEM_RESOLVER = "resolver"
+ORIGEM_BOT = "bot"
+ORIGENS_DE_ROBO = (_ORIGEM_FICHA, _ORIGEM_CONFERIR, _ORIGEM_RESOLVER)
 _RASTRO_FICHA = ("odd", "stake", "moeda", "cotacao")
 
 

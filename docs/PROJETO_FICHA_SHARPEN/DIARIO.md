@@ -5,6 +5,34 @@
 
 ---
 
+## 2026-11-03 · s438 · D44 item 3: origem em todo caminho que grava `correcoes`
+
+**Onde está:** no ar com o "pode" do Feca. **Sem mudança nova até domingo, 08/11, a não ser
+conserto de defeito** (Feca, 03/11). Próximo: o relatório da semente das 04h (os 13 termos da
+Megapari antes e depois, as apostas de novembro regravadas, se a 412223 entrou, as chaves de
+estatística e o texto do aviso).
+
+- **A regra (Feca, 03/11/2026):** "Robô = só ficha, conferir e resolver. Qualquer outra origem, ou
+  NULL, é humana." A origem diz de onde veio, não quem manda.
+- **Resolver da bet365** (`main._resolver_abertas`): grava `resolver` e entra em `ORIGENS_DE_ROBO`.
+  Antes gravava NULL, e uma liquidação pelos números da casa travava a aposta como se fosse correção
+  do dono.
+- **Bot dos tipsters** (`PATCH /bilhetes/{id}` sem sessão de navegador): grava `bot` e segue
+  HUMANO. Conferido em `app/auth.py:632-643`: o `dono_efetivo_ou_bot` só aceita a sessão
+  (`usuario_do_request`, cookie assinado) e o token do bot (`dono_do_bot`); nenhum middleware
+  injeta identidade, e o PATCH só é chamado pela grade e pelo sharpen-bot.
+- **Scripts:** `corrigir_resultado_odd_s321` grava `script_s321`; o runbook de scripts manda todo
+  script novo gravar `script_sNNN`. `script_s429`, D30 e parecer020 seguem humanos. Nada de ALTER e
+  nada de regravar origem no passado.
+- **Ficam como estão (Feca):** o s321 decide quem pular lendo `correcoes` sem olhar a origem, e a
+  regravação da Ficha só considera robô a `ficha` (lê esporte, mercado e descrição, que Resolver e
+  Conferir nunca gravam).
+- **Gates:** suíte pura 2.179, banco 132, mutações 6/6 com controle verde (bot sem origem, grade
+  vira bot, `bot` vira robô, `resolver` vira humano, Resolver sem rastro, script vira robô), audits,
+  harness 58 casos, `cru_mutacao`, `check-tokens`, `check_docs`.
+
+---
+
 ## 2026-11-03 · s438 · c3: a trava do período (o número do time não é o tempo)
 
 **Onde está:** no ar com o "pode" do Feca. Próximo: na primeira semente com a trava, mostrar os 13

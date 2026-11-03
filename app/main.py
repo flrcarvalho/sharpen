@@ -110,6 +110,7 @@ from repository import (
     blocos_por_codigo, blocos_conhecidos, hash_bloco, registrar_blocos_vistos,
     conferir_cobertura, codigos_do_texto, codigos_do_tsv, carimbos_do_texto, freebets_do_texto,
     casar_abertas_por_carimbo, resultado_da_aposta_encontrada, campos_corrigidos,
+    ORIGEM_BOT, _ORIGEM_RESOLVER,
 )
 from descricao_check import checar_fidelidade
 import logo_imagem   # normalização/saneamento da logo da conta (s362)
@@ -5588,7 +5589,10 @@ async def _resolver_abertas(dono: str, casa_txt: str, parceiro_txt: str,
                 "pl_depois": calcular_pl(aberta.get("stake"), odd_nova or aberta.get("odd"), res,
                                          aberta.get("stake_freebet"))}
         if aplicar:
-            item["gravado"] = await atualizar_bilhete(aberta["id"], campos, dono)
+            # D44 item 3: liquidação pelos números da casa é robô (`origem='resolver'`), não
+            # trava a aposta como se fosse correção do dono
+            item["gravado"] = await atualizar_bilhete(aberta["id"], campos, dono,
+                                                      rastro=_ORIGEM_RESOLVER)
         aplicados.append(item)
     return {
         "ensaio": not aplicar,
@@ -6002,9 +6006,13 @@ class AtualizarBilheteRequest(_BilheteFinanceiroBase):
 
 @app.patch("/bilhetes/{bilhete_id}")
 async def atualizar_bilhete_route(bilhete_id: int, body: AtualizarBilheteRequest,
+                                  request: Request,
                                   dono: str = Depends(dono_efetivo_ou_bot)):
     campos = {k: v for k, v in body.model_dump().items() if v is not None}
-    ok = await atualizar_bilhete(bilhete_id, campos, dono)
+    # D44 item 3: sem sessão de navegador, quem passou pelo `dono_efetivo_ou_bot` foi o token do
+    # bot (a sessão vem primeiro lá). O rastro diz 'bot', e continua correção HUMANA.
+    rastro = None if usuario_do_request(request) else ORIGEM_BOT
+    ok = await atualizar_bilhete(bilhete_id, campos, dono, rastro=rastro)
     if not ok:
         raise HTTPException(404, "Bilhete não encontrado ou sem campos válidos.")
     # Rótulo HUMANO de tipster é treino novo para o matcher por evidência: derruba o modelo em

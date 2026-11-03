@@ -3595,6 +3595,75 @@ def test_d44_correcao_do_botao_nao_trava():
     assert depois["divergentes"][0]["motivo"] == "corrigida à mão"
 
 
+
+# ── D44 item 3 (Feca, 03/11/2026): origem em todo caminho que grava `correcoes` ──────────
+# "Robô = só ficha, conferir e resolver. Qualquer outra origem, ou NULL, é humana." Mutações:
+#   R1 o Resolver sem rastro (volta a NULL)          → test_d44_resolver_grava_origem_e_nao_trava
+#   R2 'resolver' fora de ORIGENS_DE_ROBO             → test_d44_resolver_grava_origem_e_nao_trava
+#   R3 'bot' dentro de ORIGENS_DE_ROBO                → test_d44_bot_e_script_seguem_humanos
+#   R4 origem desconhecida vira robô (filtro por IN)  → test_d44_bot_e_script_seguem_humanos
+_D44_CARIMBO = "20260722233620"
+
+
+def test_d44_resolver_grava_origem_e_nao_trava():
+    """A liquidação do "Resolver apostas abertas" (bet365, números da casa) grava
+    `origem='resolver'` e não trava a aposta: a resolução seguinte por carimbo e o Conferir
+    continuam podendo corrigi-la."""
+    import main
+
+    async def rodar():
+        await _reset()
+        await repository.upsert_bilhetes(
+            [_row(casa="Bet365", parceiro="conta [Op]", codigo_bilhete="R1", stake="180,00",
+                  odd="1,9", resultado="")], "TDonoR")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("TRUNCATE correcoes RESTART IDENTITY")
+            await conn.execute("UPDATE bilhetes SET aposta_em = $1 WHERE dono = 'TDonoR'",
+                               _D44_CARIMBO)
+            bid = await conn.fetchval("SELECT id FROM bilhetes WHERE dono = 'TDonoR'")
+        feito = await main._resolver_abertas(
+            "TDonoR", "Bet365", "conta [Op]",
+            [{"carimbo": _D44_CARIMBO, "stake": "180.00", "odd": "1.9", "retorno": "342.00"}],
+            True)
+        async with pool.acquire() as conn:
+            rastro = await conn.fetch("SELECT campo, origem FROM correcoes WHERE bilhete_id = $1",
+                                      bid)
+        trava = await repository.campos_corrigidos([bid], ("resultado", "odd", "stake"))
+        return bid, feito, rastro, trava
+
+    bid, feito, rastro, trava = _run(rodar())
+    assert [(i["resultado"], i["gravado"]) for i in feito["resolvidos"]] == [("W", True)], feito
+    assert ("resultado", "resolver") in [tuple(r) for r in rastro]
+    assert {r["origem"] for r in rastro} == {"resolver"}
+    assert trava == set()
+
+
+def test_d44_bot_e_script_seguem_humanos():
+    """'bot' (o tipster digitando), 'script_s321' e NULL são correção HUMANA e travam; só
+    ficha, conferir e resolver não travam."""
+    async def rodar():
+        await _reset()
+        origens = [None, "bot", "script_s321", "script_s429", "ficha", "conferir", "resolver"]
+        await repository.upsert_bilhetes(
+            [_row(codigo_bilhete=f"O{i}") for i in range(len(origens))], "TDonoO")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("TRUNCATE correcoes RESTART IDENTITY")
+            ids = {r["codigo_bilhete"]: r["id"] for r in await conn.fetch(
+                "SELECT id, codigo_bilhete FROM bilhetes WHERE dono = 'TDonoO'")}
+            por_id = {}
+            for i, o in enumerate(origens):
+                por_id[ids[f"O{i}"]] = o
+                await conn.execute(
+                    "INSERT INTO correcoes (bilhete_id, dono, casa, campo, valor_anterior, "
+                    "valor_novo, origem) VALUES ($1, 'TDonoO', 'Betano', 'resultado', 'L', 'W', $2)",
+                    ids[f"O{i}"], o)
+        trava = await repository.campos_corrigidos(list(por_id), ("resultado",))
+        return {por_id[b] for b in trava}
+
+    assert _run(rodar()) == {None, "bot", "script_s321", "script_s429"}
+
 def test_d44_correcao_humana_nao_e_desfeita():
     """Quem corrigiu o resultado à mão manda: a divergência aparece, mas o aplicar recusa."""
     import conferir_conta

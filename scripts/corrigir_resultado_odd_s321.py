@@ -259,7 +259,9 @@ async def main() -> None:
               f'P/L {pl_antes:>11,.2f} → {pl_novo:>11,.2f}  Δ {pl_novo - pl_antes:>10,.2f}')
         print(f'        odd {r["odd"]} → {odd_nova or r["odd"]}   {(r["descricao"] or "")[:86]}')
         if aplicar:
-            ok = await atualizar_bilhete(r["id"], campos, r["dono"])
+            # D44 item 3 (Feca, 03/11/2026): script grava origem própria; segue contando como
+            # correção humana (só ficha, conferir e resolver são robô)
+            ok = await atualizar_bilhete(r["id"], campos, r["dono"], rastro="script_s321")
             if not ok:
                 print(f'        ⚠ UPDATE não aplicou no bilhete {r["id"]}')
 

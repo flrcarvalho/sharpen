@@ -50,6 +50,18 @@ da obrigação.
    o que tinha de sair saiu.
 5. **Só então em produção**, sozinho: nada de push nem deploy enquanto ele roda.
 
+## Script que grava em `correcoes`: origem própria
+
+Decisão do Feca, 03/11/2026 (item 3 da D44): **todo script novo que grava em `correcoes` grava uma
+origem própria, `script_sNNN`** (a sessão em que nasceu), pelo `atualizar_bilhete(..., rastro=...)`
+ou na coluna `origem` do INSERT. Sem ela a linha fica NULL e ninguém sabe depois se foi a mão do
+dono ou um script.
+
+A origem diz **de onde veio**, não **quem manda**. Robô é só `ficha`, `conferir` e `resolver`
+(`repository.ORIGENS_DE_ROBO`); qualquer outra origem, `script_sNNN` e `bot` inclusive, ou NULL,
+conta como correção humana e é respeitada. Não ponha origem de script nessa lista sem o Feca.
+Linha antiga com NULL fica como está: nada de regravar origem no passado.
+
 ## Registro da 1ª execução
 
 | Script | Teste local (data) | Produção (data) |

@@ -174,3 +174,50 @@ def test_dependencies_do_bot_sao_exatamente_as_esperadas():
         "PATCH /bilhetes/{bilhete_id}",
         "DELETE /bilhetes",
     ]), f"superfície do token mudou: {sorted(set(usos))}"
+
+
+# ── D44 item 3 (Feca, 03/11/2026): de onde veio a edição ────────────────────
+# "Bot dos tipsters: grava origem 'bot', mas conta como correção HUMANA." O PATCH é o mesmo da
+# grade; quem decide a origem é a identidade que passou pela porta. Mutações provadas:
+#   B1 rastro sempre None (o bot sem origem)          → test_patch_do_bot_grava_origem_bot
+#   B2 rastro sempre 'bot' (a grade vira bot)          → test_patch_da_grade_segue_sem_origem
+#   B3 'bot' entra em ORIGENS_DE_ROBO                  → test_so_ficha_conferir_e_resolver_sao_robo
+#   B4 'resolver' sai de ORIGENS_DE_ROBO               → test_so_ficha_conferir_e_resolver_sao_robo
+# Não cobre: a gravação em `correcoes` (é o `atualizar_bilhete`, coberto no harness de banco).
+
+def _patch_capturando(monkeypatch):
+    from unittest.mock import AsyncMock
+    pego = {}
+
+    async def falso(bid, campos, dono, rastro=None):
+        pego.update(bid=bid, dono=dono, rastro=rastro)
+        return True
+    monkeypatch.setattr(main, "atualizar_bilhete", falso)
+    monkeypatch.setattr(main, "flags_pos_edicao", AsyncMock(return_value={}))
+    return pego
+
+
+def test_patch_do_bot_grava_origem_bot(bot_ligado, monkeypatch):
+    pego = _patch_capturando(monkeypatch)
+    r = cliente.patch("/bilhetes/7", json={"odd": "1,95"}, headers=cab())
+    assert r.status_code == 200, r.text
+    assert pego == {"bid": 7, "dono": DONO, "rastro": "bot"}
+
+
+def test_patch_da_grade_segue_sem_origem(bot_ligado, monkeypatch):
+    """Sessão de navegador = a mão do dono: NULL, como sempre foi."""
+    pego = _patch_capturando(monkeypatch)
+    monkeypatch.setattr(auth, "impressao_senha", lambda u: "")
+    c = TestClient(main.app, base_url="https://www.sharpen.bet")
+    c.cookies.set(auth.COOKIE_NAME, auth.criar_token(DONO))
+    r = c.patch("/bilhetes/7", json={"odd": "1,95"},
+                headers={"Origin": "https://www.sharpen.bet"})
+    assert r.status_code == 200, r.text
+    assert pego == {"bid": 7, "dono": DONO, "rastro": None}
+
+
+def test_so_ficha_conferir_e_resolver_sao_robo():
+    """"Robô = só ficha, conferir e resolver. Qualquer outra origem, ou NULL, é humana.\""""
+    import repository
+    assert sorted(repository.ORIGENS_DE_ROBO) == ["conferir", "ficha", "resolver"]
+    assert repository.ORIGEM_BOT == "bot" and "bot" not in repository.ORIGENS_DE_ROBO
