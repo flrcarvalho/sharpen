@@ -652,6 +652,32 @@ def test_estatistica_so_nos_dois_lados():
     assert D.jogo(p["evento"]) == "Fouls Galatasaray v Barcelona"
 
 
+# c3 (Feca, 02/11/2026): pernas REAIS (cru de produção, só SELECT). O período que a IA escreve
+# (`1º Tempo`) não pode ser aprendido pelo índice do time nem pela linha do mercado.
+#   T1. `_ocupados` vazio (sem trava)                       → periodo_nao_e_o_indice_nem_a_linha
+#   T2. sem a linha entre parênteses (`(-1)`)               → periodo_nao_e_o_indice_nem_a_linha
+#   T3. índice com `\b` (pega `Handicap 1-st half`)        → periodo_nao_e_o_indice_nem_a_linha
+#   T4. trava em todo uso, não só no período                → uso_que_nao_e_periodo_segue_livre
+# Não cobre: a semente inteira (o replay de 3.997 pares fica no DIARIO: 14 consertos, 0 pioras).
+def test_periodo_nao_e_o_indice_nem_a_linha():
+    hc = _p("Futebol", "Rigas Futbola skola - Grobina 1.ª parte", "Handicap 1 (-1)")
+    assert D.aprender(hc, "Rigas Futbola skola -1 1ª Parte [Rigas Futbola skola v Grobina]") == \
+        "{time} {hc} {n3}ª Parte"                     # antes: {n1}, o índice do time
+    tot = _p("Futebol", "Kimberley De Mar Del Plata - Deportivo Rincon 1.ª parte",
+             "Total individual 1 abaixo de (0.5)")
+    assert D.aprender(tot, "Kimberley De Mar Del Plata Under 0.5 Gols 1º Tempo [Kimberley De Mar "
+                      "Del Plata v Deportivo Rincon]") == "{time} {ou} Gols {n3}º Tempo"
+    dex = _p("football", "Rapid Wien vs Hartberg", "Corners. Handicap 1-st half", "Rapid Wien -2.5")
+    assert D.aprender(dex, "Rapid Wien -2.5 1º Tempo [Rapid Wien v Hartberg]") == \
+        "{ent} {hc} {n1}º Tempo"                      # `1-st` é o tempo, não o time
+
+
+def test_uso_que_nao_e_periodo_segue_livre():
+    p = _p("Football", "Albania - San Marino", "Team 1 Total Over 3 In 75 Minute")
+    assert D.aprender(p, "Albania v San Marino - Team 1 Total Over 3 In 75 Minute "
+                      "[Albania v San Marino]") == "{time} v {t2} - Team {n1} Total {ou} In {n3} Minute"
+
+
 def test_sufixo_de_periodo_e_prorrogacao():
     assert D._times("Green Bay Packers - Dallas Cowboys 2 Half") == \
         ("Green Bay Packers", "Dallas Cowboys", "", "2 Half")
@@ -663,8 +689,9 @@ def test_sufixo_de_periodo_e_prorrogacao():
     p = _p("American Football", "Green Bay Packers - Dallas Cowboys 2 Half", "Handicap 2 (-0.5)",
            None)
     assert D.chave(p) == "american football | handicap {hc} {n} half"
+    # c3: o tempo vem do `2 Half` ({n3}), não do `Handicap 2` do time (antes: {n1}, o defeito)
     assert D.aprender(p, "Dallas Cowboys -0.5 2º Tempo [Green Bay Packers v Dallas Cowboys]") == \
-        "{time} {hc} {n1}º Tempo"
+        "{time} {hc} {n3}º Tempo"
 
 
 def test_prova_da_f1_nao_e_confronto():

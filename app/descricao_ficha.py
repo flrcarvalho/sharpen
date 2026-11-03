@@ -453,6 +453,33 @@ def chaves_da_perna(p: dict) -> set[str]:
     return {chave(p, d), chave(p, d, jogador=True)}
 
 
+# c3 (Feca, 02/11/2026): na semente, o número do mercado que é o ÍNDICE do time (`Team 1`,
+# `Individual Total 2`) ou a LINHA (`Over 3.5`, `(3.5)` quando é a linha da seleção) não pode
+# virar o período que a IA escreveu (`{n1}º Tempo`). Antes, `Team 1 Total ... 2 Half` aprendia o
+# tempo pelo número do time. `Handicap 1-st half` não é índice: o `1` ali é o ordinal do tempo.
+_INDICE_TRAVA = re.compile(r"\b(equipa|team|time|individual total|individual|handicap)\s+([12])"
+                           r"(?=\s|\(|$)", re.I)
+_LADO_ANTES = re.compile(r"\b(" + _PAL_LADO + r")\b(\s+de)?\s*\(?$", re.I)
+_ORDINAL_DEPOIS = re.compile(r"\s*(º|ª|\.ª|\.º)")
+
+
+def _ocupados(d: dict) -> set:
+    """Posições de `d["nums"]` que são o índice do time ou a linha do mercado (c3)."""
+    ef = d["efetivo"]
+    idx = [m.span(2) for m in _INDICE_TRAVA.finditer(ef)]
+    linhas = {_forma_num(_num(_NUM.findall(v)[-1]).lstrip("+-"))
+              for v in (d["ou"], d["hc"]) if v and _NUM.findall(v)}
+    out = set()
+    for i, m in enumerate(_NUM.finditer(ef)):
+        a, b = m.span()
+        if any(x <= a and b <= y for x, y in idx):
+            out.add(i)
+        elif _forma_num(_num(m.group(0))) in linhas and (
+                _LADO_ANTES.search(ef[:a]) or ef[:a].rstrip("+-").rstrip().endswith("(")):
+            out.add(i)
+    return out
+
+
 def aprender(p: dict, desc_perna: str, d: dict | None = None, k: str | None = None,
              por_que: list | None = None) -> str | None:
     """O valor que a descrição da IA ensina para a chave desta perna, ou None quando a
@@ -489,11 +516,17 @@ def aprender(p: dict, desc_perna: str, d: dict | None = None, k: str | None = No
         return nao("jogo fora do colchete")
     # número que sobrou tem de ser um número do mercado (o período: `Set 1` → `{n1}`)
     nums = [_forma_num(x) for x in d["nums"]]
+    ocupados = _ocupados(d)
 
     def trocar(mm):
         x = _forma_num(_num(mm.group(0)))
-        if x in nums:
-            return "{n%d}" % (nums.index(x) + 1)
+        # c3: número que a IA usa como PERÍODO (`2º Tempo`) não pode ser o índice do time nem a
+        # linha do mercado; os outros usos seguem livres (replay de 02/11/2026, 3.997 pares do
+        # estoque: 14 consertos, 0 pioras; DIARIO da s438)
+        periodo = bool(_ORDINAL_DEPOIS.match(mm.string, mm.end()))
+        livres = [i for i, y in enumerate(nums) if y == x and (i not in ocupados or not periodo)]
+        if livres:
+            return "{n%d}" % (livres[0] + 1)
         raise ValueError(x)
     try:
         s = "".join(x if _MARCA.fullmatch(x) else _NUM.sub(trocar, x)

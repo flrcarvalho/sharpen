@@ -5,6 +5,34 @@
 
 ---
 
+## 2026-11-03 · s438 · c3: a trava do período (o número do time não é o tempo)
+
+**Onde está:** no ar com o "pode" do Feca. Próximo: na primeira semente com a trava, mostrar os 13
+termos da Megapari antes e depois, as apostas de novembro regravadas (dizendo se a 412223 entrou) e o
+que as chaves de estatística aprenderam; o texto do aviso das 04h de 03/11; depois a lista de todo
+caminho que grava `correcoes`, com arquivo:linha e se grava `origem` (item 3 da D44), e só depois o
+código, com "pode".
+
+- **A regra (Feca, 03/11/2026):** `Handicap 1` / `Team 1` / `Individual Total 1` é o time da casa (o
+  primeiro do jogo); com `2`, o de fora. Esse número é sempre o time, nunca o tempo. O tempo só vem de
+  "Half", "st half", "º Tempo" e afins.
+- **O defeito:** quando o tempo e o time tinham o mesmo número, a `aprender` pegava o primeiro `{nX}`
+  igual, e o primeiro era o do time. O termo saía certo por coincidência e errado no dia em que o time 2
+  jogasse o 1º tempo.
+- **A trava:** `_ocupados` marca o índice do time (`_INDICE_TRAVA`, que exige espaço, "(" ou fim depois
+  do número, e por isso deixa "Handicap 1-st half" de fora) e a linha (depois de over/under, ou entre
+  parênteses quando igual à linha ou ao handicap). Só o número da IA seguido de º/ª respeita a trava; o
+  resto segue livre.
+- **Medido (replay no código real, 02/11, 3.997 pares do estoque):** 15 termos mudam, todos Megapari:
+  14 consertos e 1 de estilo; 0 pioras, nenhum termo novo. 2 dos 15 já são do Feca e a semente não
+  mexe neles.
+- **Teste antigo corrigido com o "pode" do Feca:** `test_sufixo_de_periodo_e_prorrogacao` esperava
+  `{n1}` (o "2" do `Handicap 2`) para o 2º tempo; agora `{n3}` (o "2 Half").
+- **Gates:** suíte pura 2.176, banco 130, mutações 4/4 (sem trava, sem a linha entre parênteses, índice
+  com `\b`, trava em todo uso), audits, harness 58 casos, `cru_mutacao`, `check-tokens`, `check_docs`.
+
+---
+
 ## 2026-11-02 · s438 · c1.2: o aviso diário só com o que está travado
 
 **Onde está:** no ar com o "pode" do Feca. Próximo: mostrar ao Feca o texto do aviso das 04h de 03/11;
