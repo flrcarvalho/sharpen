@@ -337,28 +337,75 @@ def test_detes_fallback_kills_sem_slug_e_esports():
 
 # ── Paginação: teto de sanidade (anti loop-infinito de proxy preso) ──────────
 
-def test_paginate_para_em_pagina_incompleta(monkeypatch):
-    # 1 página cheia (100) + 1 parcial (50) → 150 itens, encerra normal sem loop.
-    paginas = [[{"i": k} for k in range(100)], [{"i": k} for k in range(50)]]
+def test_paginate_segue_o_cursor_ate_acabar(monkeypatch):
+    # Data API v2 (s439): paginação por CURSOR. 2 páginas, a 2ª sem cursor → 150 itens.
+    pedidos = []
 
     async def fake(client, url, params):
-        idx = params["offset"] // 100
-        return paginas[idx] if idx < len(paginas) else []
+        pedidos.append(params.get("cursor"))
+        assert url.endswith("/v2/positions") and "offset" not in params
+        if not params.get("cursor"):
+            return [{"current_size": 5} for _ in range(100)], "c2"
+        return [{"current_size": 5} for _ in range(50)], None
 
-    monkeypatch.setattr(polymarket, "_get_json", fake)
+    monkeypatch.setattr(polymarket, "_get_pagina", fake)
     out = asyncio.run(polymarket._paginate(None, "positions", "0xw", {}, 100))
     assert len(out) == 150
+    assert pedidos == [None, "c2"]
 
 
 def test_paginate_trava_proxy_preso(monkeypatch):
-    # Proxy defeituoso devolvendo SEMPRE página cheia: sem o teto seria loop infinito.
-    # Deve abortar com PolymarketRespostaInesperada em vez de pendurar.
+    # Proxy defeituoso devolvendo SEMPRE o mesmo cursor: sem o teto seria loop infinito.
+    # Deve abortar com PolymarketRespostaInesperada em vez de pendurar. Página VAZIA com
+    # cursor preso também conta (o teto é por página lida, não por item guardado).
     async def fake(client, url, params):
-        return [{"i": 0}] * 100
+        return [], "preso"
 
-    monkeypatch.setattr(polymarket, "_get_json", fake)
+    monkeypatch.setattr(polymarket, "_get_pagina", fake)
     with pytest.raises(polymarket.PolymarketRespostaInesperada):
         asyncio.run(polymarket._paginate(None, "positions", "0xw", {}, 100))
+
+
+def test_get_pagina_resposta_de_erro_falha_alto(monkeypatch):
+    # O 410 da v1 virou exceção no `raise_for_status`; um 200 com objeto de erro tem de
+    # falhar também, nunca virar "página vazia" (cortaria o histórico em silêncio).
+    async def fake_get(client, url, params):
+        return _Resp({"error": "Data API v1 has been retired"})
+
+    monkeypatch.setattr(polymarket, "_get_retry", fake_get)
+    with pytest.raises(polymarket.PolymarketRespostaInesperada):
+        asyncio.run(polymarket._get_pagina(None, "u", {}))
+
+
+def test_paginate_traduz_v2_para_os_nomes_da_v1(monkeypatch):
+    # A régua inteira lê os nomes da v1. Item real da v2 (carteira de referência,
+    # 05/11/2026), cortado aos campos que o coletor usa.
+    pos_v2 = {"token_id": "T", "condition_id": "0xC", "current_size": 106.7796,
+              "avg_price": 0.5899, "entry_cost_usdc": 62.9999, "total_cost_usdc": 64.29139,
+              "current_price": 0.0, "current_value": 0.0, "redeemable": True,
+              "event_slug": "lol-x", "outcome_index": 0, "end_date": "2026-07-24",
+              "proxy_wallet": "0xP"}
+    poeira = {"token_id": "D", "condition_id": "0xD", "current_size": 0.05}
+    act_v2 = {"token_id": "T", "condition_id": "0xC", "type": "TRADE", "side": "BUY",
+              "size": 17.16, "usdc_size": 9.0948, "price": 0.53, "outcome_index": 1,
+              "is_combo": False, "timestamp": 1791437836}
+
+    async def fake(client, url, params):
+        return ([dict(pos_v2), dict(poeira)] if url.endswith("/positions") else [dict(act_v2)]), None
+
+    monkeypatch.setattr(polymarket, "_get_pagina", fake)
+    pos = asyncio.run(polymarket._paginate(None, "positions", "0xw", {}, 100))
+    act = asyncio.run(polymarket._paginate(None, "activity", "0xw", {}, 500))
+    assert [p["asset"] for p in pos] == ["T"]            # a poeira (< 0,1 cota) sai
+    p = pos[0]
+    assert (p["conditionId"], p["size"], p["avgPrice"], p["curPrice"], p["currentValue"])         == ("0xC", 106.7796, 0.5899, 0.0, 0.0)
+    assert (p["initialValue"], p["grossInitialValue"]) == (62.9999, 64.29139)
+    assert (p["eventSlug"], p["outcomeIndex"], p["endDate"], p["proxyWallet"])         == ("lol-x", 0, "2026-07-24", "0xP")
+    assert polymarket._posicao_resolvida(p)
+    a = act[0]
+    # Na atividade `size` é a quantidade NEGOCIADA, nunca o `current_size`.
+    assert (a["size"], a["usdcSize"], a["asset"], a["isCombo"]) == (17.16, 9.0948, "T", False)
+    assert polymarket._e_buy(a)
 
 
 # ── Consolidação do fetch: coletar_tudo == coletar_bilhetes + coletar_ativas ──
@@ -668,22 +715,38 @@ def test_fetch_combos_pede_cada_status_e_segue_o_cursor(monkeypatch):
 
     async def fake_get(client, url, params):
         pedidos.append((params["status"], params.get("cursor")))
-        assert url.endswith("/v1/positions/combos")
+        assert url.endswith("/v2/positions/combos")
         if params["status"] == "RESOLVED_WIN":
             if not params.get("cursor"):
-                return _Resp({"combos": [_combo("0xW1", "RESOLVED_WIN")],
+                return _Resp({"data": [_combo("0xW1", "RESOLVED_WIN")],
                               "pagination": {"has_more": True, "next_cursor": "c2"}})
-            return _Resp({"combos": [_combo("0xW2", "RESOLVED_WIN")],
+            return _Resp({"data": [_combo("0xW2", "RESOLVED_WIN")],
                           "pagination": {"has_more": False, "next_cursor": None}})
         if params["status"] == "OPEN":
-            return _Resp({"combos": [_combo("0xO1")], "pagination": {"has_more": False}})
-        return _Resp({"combos": [], "pagination": {"has_more": False}})
+            return _Resp({"data": [_combo("0xO1")], "pagination": {"has_more": False}})
+        return _Resp({"data": [], "pagination": {"has_more": False}})
 
     monkeypatch.setattr(polymarket, "_get_retry", fake_get)
     out = asyncio.run(polymarket._fetch_combos(None, "0xw"))
     assert sorted(c["combo_condition_id"] for c in out) == ["0xO1", "0xW1", "0xW2"]
     assert ("RESOLVED_WIN", "c2") in pedidos
     assert {s for s, _ in pedidos} == set(polymarket._COMBO_STATUS)
+
+
+def test_fetch_combos_v2_traduz_current_size_para_shares_balance(monkeypatch):
+    # Na v2 o saldo de cotas da combo é `current_size`; a régua (`_combo_retorno_total`,
+    # `_a_resgatar`) lê `shares_balance`. Sem a tradução a ganha não resgatada vale 0.
+    async def fake_get(client, url, params):
+        if params["status"] == "RESOLVED_WIN":
+            return _Resp({"data": [{"combo_condition_id": "0xW", "status": "RESOLVED_WIN",
+                                    "realized_payout_usdc": 0.0, "current_size": 122.36}],
+                          "pagination": {"has_more": False}})
+        return _Resp({"data": [], "pagination": {"has_more": False}})
+
+    monkeypatch.setattr(polymarket, "_get_retry", fake_get)
+    out = asyncio.run(polymarket._fetch_combos(None, "0xw"))
+    assert out[0]["shares_balance"] == 122.36
+    assert polymarket._combo_retorno_total(out[0]) == 122.36
 
 
 def test_fetch_combos_resposta_estranha_falha_alto(monkeypatch):

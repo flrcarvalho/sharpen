@@ -22,7 +22,7 @@ Decisões (sessão Polymarket-1):
   Ver `casas/CASA_POLYMARKET.md §5` — é onde mora a régua, e o que ela conserta.
 - Paginação SEM teto fixo (corrige o achado #4 da auditoria do Polymarket):
   busca até a página vir vazia, garantindo histórico desde a 1ª aposta.
-- COMBO (aposta combinada) não existe em `/positions`: vem do `/v1/positions/combos`
+- COMBO (aposta combinada) não existe em `/positions`: vem do `/v2/positions/combos`
   e vira bilhete `Múltipla` pelo caminho próprio (`_derivar_combos`, s397).
 
 A detecção de esporte/categoria é determinística (regex sobre o título), depois
@@ -100,40 +100,93 @@ async def _get_retry(client: httpx.AsyncClient, url: str, params: dict) -> httpx
     raise RuntimeError("retry exauriu sem resposta")  # inalcançável
 
 
-async def _get_json(client: httpx.AsyncClient, url: str, params: dict) -> list:
+# ── Data API v2 → nomes da v1 ───────────────────────────────────────────────
+#
+# A Polymarket APOSENTOU a Data API v1: desde nov/2026 toda rota v1 (`/positions`,
+# `/activity`, `/v1/positions/combos`) devolve 410 Gone, "Data API v1 has been retired"
+# (medido em 05/11/2026; o sync parou de trazer aposta sem erro de código nosso).
+# A v2 traz os MESMOS números, com três diferenças de forma:
+#   - nomes em snake_case (`condition_id`, `usdc_size`, `token_id`…);
+#   - resposta embrulhada em `{data, pagination}`, paginação por CURSOR;
+#   - o corte de poeira (`sizeThreshold` da v1) passa a ser nosso, sem depender da API.
+# Conferido na carteira de referência em 05/11/2026: o `usdc_size` da compra continua
+# COM a taxa (bate com `total_cost_usdc` = custo + taxa da posição), que é o que a
+# stake usa (`_stake_usd`). Por isso a tradução mora AQUI, na entrada, e nenhuma régua
+# abaixo muda: cada item ganha a chave da v1 ao lado da v2 (`setdefault`, nunca
+# sobrescreve campo que a v2 já traga com o nome antigo, como `size` da atividade).
+_V1_DE_V2 = {
+    "token_id": "asset", "condition_id": "conditionId", "outcome_index": "outcomeIndex",
+    "event_slug": "eventSlug", "usdc_size": "usdcSize", "is_combo": "isCombo",
+    "proxy_wallet": "proxyWallet", "transaction_hash": "transactionHash",
+    "avg_price": "avgPrice", "current_price": "curPrice", "current_value": "currentValue",
+    "entry_cost_usdc": "initialValue", "total_cost_usdc": "grossInitialValue",
+    "end_date": "endDate",
+}
+# Só na POSIÇÃO: lá `size` era o saldo de cotas. Na atividade `size` já existe e é a
+# quantidade negociada, por isso este par não entra no mapa geral.
+_V1_DE_V2_POSICAO = {"current_size": "size"}
+
+
+def _como_v1(item: dict, extra: dict | None = None) -> dict:
+    if not isinstance(item, dict):
+        return item
+    for mapa in (_V1_DE_V2, extra or {}):
+        for novo, velho in mapa.items():
+            if novo in item:
+                item.setdefault(velho, item[novo])
+    return item
+
+
+async def _get_pagina(client: httpx.AsyncClient, url: str, params: dict) -> tuple[list, str | None]:
+    """Uma página da v2: (itens, cursor da próxima ou None)."""
     r = await _get_retry(client, url, params)
     data = r.json()
-    if not isinstance(data, list):
+    if not isinstance(data, dict) or not isinstance(data.get("data"), list):
         # 200 com objeto de erro vinha sendo tratado como página vazia → o loop de
         # paginação parava e cortava o histórico sem avisar. Falha alto em vez disso.
-        raise PolymarketRespostaInesperada(f"Resposta inesperada (não-lista) de {url}")
-    return data
+        raise PolymarketRespostaInesperada(f"Resposta inesperada de {url}")
+    pag = data.get("pagination") or {}
+    cursor = pag.get("next_cursor")
+    return data["data"], (cursor if pag.get("has_more") and cursor else None)
 
 
 async def _paginate(client: httpx.AsyncClient, path: str, wallet: str,
                     extra: dict, page_size: int) -> list:
-    """Busca todas as páginas de um endpoint da carteira até esgotar.
+    """Busca todas as páginas de um endpoint da carteira (`positions` ou `activity`, na
+    v2) até o cursor acabar, já com os nomes da v1 (`_como_v1`).
+
+    Os mesmos filtros vão em TODA página, ao lado do cursor (a API exige, como no extrato).
 
     Trava de sanidade (`_MAX_ITENS_PAGINACAO`): nenhuma carteira real chega perto do teto,
-    mas um proxy/cache defeituoso que passe a devolver SEMPRE uma página cheia faria o
-    `offset` crescer pra sempre → loop infinito, com o sync/dashboard pendurado. Ao estourar
-    o teto, aborta com erro controlado em vez de travar."""
+    mas um proxy/cache defeituoso que passe a devolver SEMPRE o mesmo cursor faria o laço
+    rodar pra sempre, com o sync/dashboard pendurado. Ao estourar o teto, aborta com erro
+    controlado em vez de travar."""
+    posicao = path == "positions"
     out: list = []
-    offset = 0
+    cursor = None
+    lidos = 0
     while True:
-        params = {"user": wallet, "limit": page_size, "offset": offset, **extra}
-        page = await _get_json(client, f"{POLY_BASE}/{path}", params)
-        if not page:
+        params = {"user": wallet, "limit": page_size, **extra}
+        if cursor:
+            params["cursor"] = cursor
+        page, cursor = await _get_pagina(client, f"{POLY_BASE}/v2/{path}", params)
+        # Conta PÁGINA, não item guardado: o corte de poeira encolhe `out`, e página
+        # vazia com cursor preso não o faria crescer nunca.
+        lidos += page_size
+        for item in page:
+            item = _como_v1(item, _V1_DE_V2_POSICAO if posicao else None)
+            # O `sizeThreshold` da v1, agora do nosso lado: posição com saldo abaixo
+            # da poeira não é posição (mesma régua do `_DUST_COTAS`).
+            if posicao and isinstance(item, dict) and _f(item, "size") < float(_SIZE_THRESHOLD):
+                continue
+            out.append(item)
+        if not cursor:
             break
-        out.extend(page)
-        if len(page) < page_size:
-            break
-        if len(out) >= _MAX_ITENS_PAGINACAO:
+        if lidos >= _MAX_ITENS_PAGINACAO:
             raise PolymarketRespostaInesperada(
                 f"Paginação de /{path} passou de {_MAX_ITENS_PAGINACAO} itens — o proxy pode "
                 "estar preso devolvendo páginas cheias. Tente sincronizar de novo em minutos."
             )
-        offset += page_size
     return out
 
 
@@ -1079,7 +1132,7 @@ def _origem_usd(stake_usd: float, cotacao: float) -> dict:
 # `_reconciliar_saidas` com stake sem taxa); as 6 perdidas e as 14 abertas não
 # deixam resgate e não entravam nunca. O sync rodava verde e a grade parava em 13/09.
 #
-# A fonte é o endpoint próprio, `/v1/positions/combos`. Duas pegadinhas medidas:
+# A fonte é o endpoint próprio, `/v2/positions/combos` (era `/v1/…` até nov/2026). Duas pegadinhas medidas:
 #   - sem filtro de status ele ESCONDE a combo ganha já resgatada (veio 14 + 6, e só
 #     `status=RESOLVED_WIN` devolve as 7). Por isso pedimos status por status;
 #   - a resposta é `{"combos": [...], "pagination": {...}}` e pagina por CURSOR.
@@ -1088,7 +1141,7 @@ def _origem_usd(stake_usd: float, cotacao: float) -> dict:
 # então o código do bilhete é o mesmo que as 7 ganhas já gravaram: o UPSERT casa a
 # linha antiga, não duplica.
 
-_COMBO_PATH = "v1/positions/combos"
+_COMBO_PATH = "v2/positions/combos"
 _COMBO_STATUS = ("OPEN", "PARTIAL", "RESOLVED_WIN", "RESOLVED_LOSS", "RESOLVED_PARTIAL")
 _COMBO_PAGE = 100
 _COMBO_MAX_PAGINAS = 500   # teto de sanidade, mesma ideia do `_MAX_ITENS_PAGINACAO`
@@ -1109,9 +1162,12 @@ async def _fetch_combos(client: httpx.AsyncClient, wallet: str) -> list[dict]:
                 params["cursor"] = cursor
             r = await _get_retry(client, f"{POLY_BASE}/{_COMBO_PATH}", params)
             data = r.json()
-            if not isinstance(data, dict) or not isinstance(data.get("combos"), list):
+            # Na v2 a lista vem em `data` (na v1 era `combos`) e o saldo de cotas se chama
+            # `current_size` (na v1, `shares_balance`, que é o nome que o resto lê).
+            if not isinstance(data, dict) or not isinstance(data.get("data"), list):
                 raise PolymarketRespostaInesperada(f"Resposta inesperada de /{_COMBO_PATH}")
-            for c in data["combos"]:
+            for c in data["data"]:
+                c = _como_v1(c, {"current_size": "shares_balance"})
                 cid = c.get("combo_condition_id")
                 if cid:
                     vistos.setdefault(cid, c)
@@ -1343,7 +1399,7 @@ async def _ptax_hoje(client: httpx.AsyncClient) -> float | None:
 async def _fetch_carteira(client: httpx.AsyncClient, wallet: str) -> tuple[list, list]:
     """As duas paginações que TODO sync precisa: positions (holdings) + activity (log)."""
     positions = await _paginate(client, "positions", wallet,
-                                {"sizeThreshold": _SIZE_THRESHOLD}, _PAGE_POSITIONS)
+                                {}, _PAGE_POSITIONS)
     activity = await _paginate(client, "activity", wallet, {}, _PAGE_ACTIVITY)
     return positions, activity
 
@@ -1722,7 +1778,7 @@ async def coletar_dashboard(wallet: str) -> dict:
     wallet = wallet.strip().lower()
     async with httpx.AsyncClient(timeout=30.0) as client:
         positions = await _paginate(client, "positions", wallet,
-                                    {"sizeThreshold": _SIZE_THRESHOLD}, _PAGE_POSITIONS)
+                                    {}, _PAGE_POSITIONS)
         activity = await _paginate(client, "activity", wallet, {}, _PAGE_ACTIVITY)
 
         # Carteira proxy real (pode diferir do endereço informado) para o saldo on-chain
