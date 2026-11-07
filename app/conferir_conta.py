@@ -21,9 +21,12 @@ Três regras que decidem escrita:
      cotação gravada refaz o R$).
 
 Cru ABERTO não desmente linha liquidada (é de antes da liquidação): conta em `cru_aberto`.
-BÔNUS NÃO É ODD (Feca, 02/11/2026): ganha, a linha com a odd da casa, e a casa pagou MAIS que
-stake × odd (Vavada `bonus`, MyStake `RiskBonusPercent`): a divergência é o bônus, e vai para
-`bonus`, fora da lista. Cashout nunca cai aqui: ele paga menos que stake × odd.
+BÔNUS NA APOSTA AJUSTA A ODD (Feca, 04/11/2026, substitui o "bônus não é odd" de 02/11): ganha
+com bônus de múltipla e afins (Vavada `bonus`, MyStake `RiskBonusPercent`) e a linha com a odd
+da casa, sem o bônus: é divergência como qualquer outra, oferecida com odd = retorno ÷ stake,
+para o lucro bater com o caixa. É a regra do `MASTER_RESULTADO §6` (promoção e boost) e é a
+conta que a Ficha já faz (`ficha._odd`, "nenhuma fecha: retorno ÷ stake"). Freebet é outra
+regra (`§5.8`: no red o retorno é zero) e não passa por aqui.
 A divergência só de odd abaixo de `PISO_PL` no P/L não aparece.
 
 O que NÃO faz: aposta sem cru guardado (casa por print, texto colado, ou captura anterior ao
@@ -61,19 +64,6 @@ def lado_da_casa(f: dict, moeda: str) -> dict | None:
         return None
     return {"stake": d["stake"], "odd": d["odd"], "resultado": d["resultado"] or "",
             "moeda": moeda}
-
-
-def e_so_bonus(f: dict, b: dict) -> bool:
-    """A Ficha ganhou, a linha do banco tem a odd da casa (`f["odd"]`) e o retorno da casa passa
-    de stake × odd: o que sobra é bônus, não odd."""
-    if f.get("status") != "ganha":
-        return False
-    banco = _virada._na_moeda_da_casa(b)
-    stake, odd, ret = _virada._f(f.get("stake")), _virada._f(f.get("odd")), _virada._f(f.get("retorno"))
-    odd_b = _virada._f(banco.get("odd"))
-    if None in (stake, odd, ret, odd_b) or abs(odd_b - odd) > 0.005:
-        return False
-    return ret - stake * odd > 0.005
 
 
 def comparar_linha(b: dict, casa: dict, corrigidos: set) -> dict | None:
@@ -123,7 +113,7 @@ def conferir(linhas: list[dict], crus: dict, corrigidos: dict, conta: str, ck: s
     cru mais recente de cada código; `corrigidos` = {id: campos com correção humana}; `conta` =
     a moeda da conta; `ck` = chave da casa. A medição na produção roda ESTA função sobre o
     resultado dos mesmos SELECTs."""
-    out = {"conferidas": 0, "sem_cru": 0, "cru_recusado": 0, "cru_aberto": 0, "bonus": 0,
+    out = {"conferidas": 0, "sem_cru": 0, "cru_recusado": 0, "cru_aberto": 0,
            "divergentes": []}
     for b in linhas:
         cru = crus.get(b["codigo_bilhete"])
@@ -145,9 +135,6 @@ def conferir(linhas: list[dict], crus: dict, corrigidos: dict, conta: str, ck: s
             out["cru_aberto"] += 1
             continue
         d = comparar_linha(dict(b), lado, corrigidos.get(b["id"], set()))
-        if d and d["campos"] == ["odd"] and e_so_bonus(f, b):
-            out["bonus"] += 1                  # bônus não é odd (Feca, 02/11)
-            continue
         out["conferidas"] += 1
         if d:
             out["divergentes"].append(d)

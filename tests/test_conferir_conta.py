@@ -15,10 +15,9 @@ Mutações provadas (aplicadas, teste ao lado vermelho; C6 no harness de banco):
   C8. `campos_corrigidos` volta a contar o 'conferir' → test_d44_correcao_do_botao_nao_trava
   C10. sem o piso, centavo de P/L vira divergência  → piso_de_um_real_na_odd
   C11. cru aberto desmente linha liquidada          → cru_aberto_nao_desmente_liquidada
-  C12. bônus volta a ser oferecido como odd        → bonus_nao_e_odd
-  C13. cashout abaixo da odd passa por bônus        → bonus_nao_e_odd
-  C13b (sem a trava de status) é INÓCUA: cashout nunca paga acima de stake × odd, e a trava
-       do retorno já o barra. Fica como defesa; registrado, sem asserção inventada.
+  C12. bônus volta a sair da lista (a regra de 02/11) → bonus_na_aposta_ajusta_a_odd
+  C13. a odd oferecida deixa de ser retorno ÷ stake   → bonus_na_aposta_ajusta_a_odd
+  (C12/C13 de 02/11, "bônus não é odd", caíram com a regra de 04/11: o Feca trocou a regra.)
   C9. o cru recusado conta como conferido            → ficha_com_motivo_nao_e_conferida
 
 O QUE NÃO COBRE: a leitura do banco e a escrita (harness de banco); a tela (ainda não existe).
@@ -139,10 +138,11 @@ def test_cru_aberto_nao_desmente_liquidada():
     assert (out["cru_aberto"], out["conferidas"], out["divergentes"]) == (1, 1, [])
 
 
-def test_bonus_nao_e_odd(monkeypatch):
-    """Feca, 02/11: a Vavada 5520005256 pagou 76 sobre 10 @ 7,471205 (bônus de 1,29). O banco tem
-    a odd da casa: não é correção de odd, vai para `bonus`. Retorno ABAIXO de stake × odd
-    (cashout) continua oferecido: ali o dinheiro gravado está errado de verdade."""
+def test_bonus_na_aposta_ajusta_a_odd(monkeypatch):
+    """Feca, 04/11 (substitui o "bônus não é odd" de 02/11; MASTER_RESULTADO §6): a Vavada
+    5520005256 pagou 76 sobre 10 @ 7,471205 (bônus de 1,29). O banco tem a odd da casa, sem o
+    bônus: é divergência OFERECIDA, e a odd que a correção grava é retorno ÷ stake (7,6), para
+    o lucro bater com o caixa. Cashout e ganha que pagou menos seguem oferecidos."""
     f, _ = ficha.montar_ficha("sbi", CRUS[COD], "SPORTSBETIO")
     usdt = {"moeda": "USDT", "stake_orig": 10.0, "stake": "50,00"}
     linha = _b(odd="7,471205", resultado="W", **usdt)
@@ -153,11 +153,14 @@ def test_bonus_nao_e_odd(monkeypatch):
         return cc.conferir([linha], {COD: ("sbi", CRUS[COD])}, {}, "USDT", "SPORTSBETIO")
 
     bonus = com("ganha", "76")
-    assert (bonus["bonus"], bonus["conferidas"], bonus["divergentes"]) == (1, 0, [])
+    assert "bonus" not in bonus and bonus["conferidas"] == 1
+    d = bonus["divergentes"][0]
+    assert (d["campos"], d["oferecida"], d["casa"]["odd"]) == (["odd"], True, "7,6")
+    assert cc.patch_da_correcao(linha, d["casa"], d["campos"]) == {"resultado": "W", "odd": "7,6"}
     cashout = com("cashout", "60")
-    assert cashout["bonus"] == 0 and cashout["divergentes"][0]["oferecida"]
+    assert cashout["divergentes"][0]["oferecida"]
     a_menos = com("ganha", "60")                 # ganhou e pagou MENOS que stake × odd
-    assert a_menos["bonus"] == 0 and a_menos["divergentes"][0]["oferecida"]
+    assert a_menos["divergentes"][0]["oferecida"]
 
 
 def test_resultado_leva_a_odd_junto():

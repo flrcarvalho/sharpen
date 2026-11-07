@@ -9249,7 +9249,7 @@ function _cfBotao() {
 }
 function _cfRender() {
   const d = _cfDados, host = document.getElementById('cf-wrap');
-  const comCru = d.conferidas + d.cru_recusado + d.cru_aberto + (d.bonus || 0);
+  const comCru = d.conferidas + d.cru_recusado + d.cru_aberto;
   const divs = d.divergentes || [];
   if (!comCru) {
     host.innerHTML = '<div class="painel-empty">Esta conta ainda não tem aposta com captura guardada para comparar. '
@@ -9275,7 +9275,6 @@ function _cfRender() {
   if (d.sem_cru) fora.push(`<b>${d.sem_cru}</b> sem captura guardada (print, texto colado ou de antes da captura)`);
   if (d.cru_recusado) fora.push(`<b>${d.cru_recusado}</b> que a captura não deixou ler`);
   if (d.cru_aberto) fora.push(`<b>${d.cru_aberto}</b> que a casa ainda mostrava em aberto na última captura`);
-  if (d.bonus) fora.push(`<b>${d.bonus}</b> em que a diferença é bônus da casa no retorno (bônus não é odd)`);
   document.getElementById('cf-nota').innerHTML =
     `<b>${d.conferidas}</b> apostas comparadas.` + (fora.length ? ' Fora da conta: ' + fora.join(' · ') + '.' : '')
     + ' Só aparece o que muda dinheiro. Corrigir grava o valor da casa pela edição de sempre e fica registrado;'

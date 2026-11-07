@@ -5,6 +5,33 @@
 
 ---
 
+## 2026-11-07 · s438 · D44: bônus na aposta ajusta a odd
+
+**Onde está:** no ar com o "pode" do Feca (07/11). Nenhuma correção aplicada: as duas oferecidas
+(5520005256 e 5602432981) o Feca clica depois do deploy. Congelado até 08/11, só conserto de defeito.
+
+- **A regra (Feca, 04/11/2026, substitui o "bônus não é odd" de 02/11):** bônus na aposta (bônus de
+  múltipla e afins) ajusta a odd: odd = retorno ÷ stake. No red a stake se perde normalmente; no
+  green o bônus entra na odd. Freebet não muda (`MASTER_RESULTADO §5.8`: no red o retorno é zero).
+- **Onde a regra mora:** `global/MASTER_RESULTADO_2026.md` §6 (Promoções e Odds Boost), que já dizia
+  isso. Sem segunda cópia em CLAUDE.md ou runbook (decisão do Feca: "o MASTER §6 basta").
+- **Ficha:** sem mudança; a conta está em `app/ficha.py:211-212` ("nenhuma fecha: retorno ÷ stake").
+- **D44:** sai `e_so_bonus` e a contagem `bonus`; a aposta ganha com bônus fora da odd vira
+  divergência comum, oferecida com a odd da Ficha. A nota da tela perde a frase do bônus. O piso de
+  R$ 1,00 no P/L continua.
+- **Prova:** `test_bonus_na_aposta_ajusta_a_odd`; mutações C12 (bônus volta a sair da lista) e C13
+  (odd oferecida deixa de ser retorno ÷ stake) detectadas. Dado real, só leitura: Vavada 5520005256
+  7,471205 → 7,6 e 5602432981 5,678262 → 5,7718, as duas oferecidas.
+- **Dicionário, 8 chaves de "shots towards the goal" (03/11):** Megapari (4), Melbet (2), Vavada
+  `total shots` e Sapphirebet `shots on target individual total 2`, por `corrigir_termo.py` com origem
+  `feca`, no teste e depois em produção, SELECT antes e depois. 0 apostas de novembro regravadas; as
+  12 de outubro ficam como estão.
+- **Sportsbet.io, medição só leitura (07/11):** 187 apostas da IA com cru; 8 têm odd ≠ `totalOdds`, e
+  nas 8 a odd do banco é a do card (`boostedOdds`). Lucro a mais: R$ 0,52 em outubro, zero em novembro.
+  Os erros grandes (411204, 416353 e outras 9) a Ficha já tinha corrigido.
+
+---
+
 ## 2026-11-03 · s438 · D44 item 3: origem em todo caminho que grava `correcoes`
 
 **Onde está:** no ar com o "pode" do Feca. **Sem mudança nova até domingo, 08/11, a não ser
