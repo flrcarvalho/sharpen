@@ -105,6 +105,8 @@ const CASA_HOSTS = {
   "Stake.com":  ["stake.com"],
   // Thunderpick (s426): plataforma própria, API no MESMO domínio da aba.
   "Thunderpick": ["thunderpick.io"],
+  // 3et (s441): plataforma própria, API `/betting/v3/eurasian/` no MESMO domínio da aba.
+  "3et":         ["3et.com"],
   // Antiga "Rei do Pitaco" (grafia unificada no banco na s270). Plataforma própria,
   // gRPC-Web/protobuf — inject próprio.
   "Pitaco":     ["pitaco.bet.br"],
@@ -405,6 +407,8 @@ async function capturar() {
                 : casa === "Stake.com" ? "stc_inject.js"
                 // Thunderpick: plataforma própria (s426). `thp_`, porque `tp_` é da 1win.
                 : casa === "Thunderpick" ? "thp_inject.js"
+                // 3et: plataforma própria (s441). `et_`, das letras da marca sem o dígito.
+                : casa === "3et" ? "et_inject.js"
                 : casa === "Pitaco" ? "pt_inject.js"
                 : casa === "Novibet" ? "nv_inject.js"
                 // Motor Rogue: TRES casas espelho, MESMO inject — como Tivo/Betfast/Faz1bet.

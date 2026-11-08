@@ -607,6 +607,29 @@
     }
   });
 
+  // Bilhetes da 3ET capturados pelo et_inject.js (mundo MAIN) — `betsByDate` (liquidadas) e
+  // `reports/bets/current/normal` (abertas) da plataforma própria, no mesmo domínio (s441). Só
+  // o sportsbook. `etById` guarda 1 bilhete por `betId`; a versão LIQUIDADA vence a aberta.
+  const etById = new Map();          // betId(string) → bilhete
+  let etFimReal = false;
+  let etHookVivo = false, etRespostas = 0, etErro = "";
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupETData) {
+      if (d.hook) etHookVivo = true;
+      if (typeof d.respostas === "number") etRespostas = d.respostas;
+      etErro = d.erro ? String(d.erro) : "";
+      if (Array.isArray(d.bilhetes)) {
+        for (const b of d.bilhetes) {
+          if (!b || !b.id) continue;
+          const ex = etById.get(b.id);
+          if (!ex || ex.aberta || !b.aberta) etById.set(b.id, b);
+        }
+      }
+      if (d.fim) etFimReal = true;
+    }
+  });
+
   // Bilhetes da TIVO capturados pelo tv_inject.js (mundo MAIN) — as RESPOSTAS do proxy
   // /api/game/p/messagetosport com {name:"gethistory"}, já normalizadas pelo inject. A Tivo
   // NÃO pagina: uma única chamada devolve a conta inteira e a própria casa carimba `Count`,
@@ -1626,6 +1649,11 @@
       // liquidadas 100 por vez até o total da 1ª página, e depois as abertas. SEM fallback de
       // texto: não há prova de linha em branco entre os cards (lição da KTO, s192).
       blocos = await roboTHPPassive(ctx);
+    } else if (casa === "3et") {
+      // Passivo + replay (et_inject, plataforma PRÓPRIA — s441). Só o COOKIE da sessão: o
+      // replay arranca a frio e pede liquidadas (`after=0`) e abertas, 200 por página, até
+      // `last:true`. Só o sportsbook (a exchange fica para depois). SEM fallback de texto.
+      blocos = await roboETPassive(ctx);
     } else {
       blocos = await roboScroll(ctx);   // genéricos
     }
@@ -1875,6 +1903,9 @@
         thunderpick: { nome: "Thunderpick", hook: thpHookVivo, resp: thpRespostas, vistos: thpById.size,
                       extra: thpErro ? " · " + thpErro
                            : (thpSemToken ? " · faça login e abra My Bets; rode de novo" : "") },
+        // 3et (s441): a sessão é só o cookie. HTTP 401/403 no replay = deslogado.
+        "3et":      { nome: "3et",        hook: etHookVivo, resp: etRespostas, vistos: etById.size,
+                      extra: etErro ? " · " + etErro : "" },
         bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
                       // Extras só da Bet365: em quantos frames o inject respondeu (a área de
                       // membros é outra origem, em iframe) e quantas URLs com "history" passaram
@@ -5952,6 +5983,136 @@
     console.log("[SharpenUp] Thunderpick: " + blocos.length + " bilhete(s) · thpById=" + thpById.size +
                 " · hook=" + thpHookVivo + " · respostas=" + thpRespostas + " · fimReal=" + thpFimReal +
                 (thpErro ? " · erro=" + thpErro : ""));
+    return blocos;
+  }
+
+  // ── 3et (plataforma própria, só sportsbook — s441) ───────────────────────────
+  // Formata 1 bilhete de `betsByDate` / `reports/bets/current/normal` (normalizado pelo
+  // et_inject) no bloco que a IA lê. Leituras VALIDADAS contra o card em USD (recon 07-08/11/2026,
+  // 17 bilhetes, todos duplas):
+  //   • a odd do card é `odds` (9,175; 6,814); na ganha ela fecha o retorno, o produto das
+  //     pernas não (6,815: a casa trunca a odd do conjunto);
+  //   • ⚠ `profit`/`payout` (e o "Est. Return" da tela) são o LUCRO. O retorno é stake + lucro:
+  //     22 + 127,908 = 149,908. Dinheiro em dólar com 3 casas sai com as 3;
+  //   • a perna liquidada diz o próprio resultado (`status.result` Win/Lose); a perna da
+  //     aberta diz só o andamento (`finished`/`graded`), que NÃO é ganha nem perdida;
+  //   • a API não publica o início do evento: a data do bloco é a COLOCAÇÃO (CASA_3ET §4).
+  // NÃO MEDIDO (a conta não tinha): simples, anulada, meia, cashout, freebet, boost. Só o
+  // DINHEIRO decide: retorno = stake prova V; o resto sobe cru, "a conferir". O de-para vive
+  // na CASA_3ET.md §5.
+  const _PERNA_ET = { Win: "ganha", Lose: "perdida" };
+  const _quaseET = (a, b, tol) => typeof a === "number" && typeof b === "number" && Math.abs(a - b) < tol;
+  const _retornoET = (b) => (typeof b.stake === "number" && typeof b.lucro === "number")
+    ? Math.round((b.stake + b.lucro) * 1e8) / 1e8 : null;
+
+  // Leitura pelo DINHEIRO, com o estado cru ao lado. Só se decide onde o número prova.
+  function _resultadoET(b) {
+    const st = b.stake, m = b.moeda ? " " + b.moeda : "";
+    const cru = "result " + (b.estado || "(vazio)");
+    const conferir = (extra) => cru + (extra ? " · " + extra : "") + " (a conferir — não liquidar automaticamente)";
+    if (b.aberta) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (!(st > 0)) return conferir("sem stake");
+    if (b.freebet > 0) return conferir("freeBetStake " + _dinSHF(b.freebet) + m + ", sem amostra");
+    if (typeof b.stakeReal === "number" && !_quaseET(b.stakeReal, st, 0.005)) return conferir("trueStake " + _dinSHF(b.stakeReal) + " ≠ stake " + _dinSHF(st));
+    const ret = _retornoET(b);
+    if (ret == null) return conferir("sem profit");
+    // Retorno = stake: P/L zero, V qualquer que seja o rótulo (rede do dinheiro).
+    if (_quaseET(ret, st, 0.005)) return "Retorno = stake (" + _dinSHF(st) + m + ", " + cru + ") → V";
+    if (b.estado === "Lose") return Math.abs(ret) < 0.005 ? "Perdeu → L" : conferir("retorno " + _dinSHF(ret) + m);
+    if (b.estado === "Win" && b.odd > 0 && _quaseET(ret, st * b.odd, 0.01 + 1e-9)) {
+      return "Ganhou → W (retorno " + _dinSHF(ret) + m + ")";
+    }
+    return conferir("retorno " + _dinSHF(ret) + m);
+  }
+
+  function formatTicketET(b) {
+    const L = [];
+    L.push("[Código: " + b.id + "]");
+    // A casa não publica o início do evento: a data da linha é a colocação (CASA_3ET §4).
+    const dcol = typeof b.colocada === "number" ? _dhKTO(new Date(b.colocada * 1000).toISOString()) : "";
+    if (dcol) L.push("Data (colocação): " + dcol);
+    _linhaCarimbo(L, b.colocada, b.moeda);
+    L.push("Stake: " + _dinSHF(b.stake));
+    _linhaMoeda(L, b.moeda);
+    L.push("Status: " + _resultadoET(b));
+    L.push("Status (API): result=" + String(b.estado || "(vazio)") + " · betStatus=" + String(b.estadoPagamento || "(vazio)") +
+           " · betType=" + String(b.tipoApi || "(vazio)") + (b.multiplicador ? " (" + b.multiplicador + ")" : "") +
+           " · betId=" + String(b.id));
+
+    const pernas = b.pernas || [];
+    const n = pernas.length;
+    if (n === 1) L.push("Tipo: Simples");
+    else if (n > 1) L.push("Tipo: Múltipla (" + n + " seleções)");
+
+    if (b.odd > 0) L.push("Odd: " + _oddTxtKTO(b.odd));
+    else L.push("Odd: (a casa não informou — deixe a odd VAZIA; não use o produto das pernas nem zero)");
+    if (b.aberta && b.stake > 0 && b.odd > 0) {
+      L.push("Retorno potencial (se ganhar): " + _dinSHF(Math.round(b.stake * b.odd * 100) / 100) + (b.moeda ? " " + b.moeda : ""));
+    }
+    if (b.freebet > 0) L.push("Freebet (cru da casa): freeBetStake " + _dinSHF(b.freebet));
+    if (typeof b.stakeReal === "number" && !_quaseET(b.stakeReal, b.stake, 0.005)) L.push("Stake real (casa): trueStake " + _dinSHF(b.stakeReal));
+
+    L.push("Seleções:");
+    for (const p of pernas) {
+      // Na simples, o resultado da perna é o do bilhete; na múltipla, cada perna diz o seu.
+      const res = b.aberta ? "" : (n > 1 ? p.resultado : b.estado);
+      const bits = [(p.mercado || "(mercado sem nome)") + ":", p.selecao || "(seleção sem nome)"];
+      if (res) bits.push("[perna " + (_PERNA_ET[res] || res) + "]");
+      L.push("- " + bits.join(" "));
+      const ctx2 = [];
+      if (p.jogo) ctx2.push("Jogo: " + p.jogo);
+      if (p.liga) ctx2.push("Liga: " + p.liga);
+      ctx2.push("Esporte: " + (p.esporte || "(a casa não informou — deduza pela liga)"));
+      if (p.periodo) ctx2.push("Período: " + p.periodo);
+      if (p.placar) ctx2.push("Placar: " + p.placar);
+      L.push("    " + ctx2.join(" · "));
+      if (b.aberta && p.andamento) L.push("    Estado da perna (casa): " + p.andamento);
+      if (p.odd != null && n > 1) L.push("    Odd da perna: " + _oddTxtKTO(p.odd));
+    }
+    return L.join("\n");
+  }
+
+  async function roboETPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      // Mais recente primeiro (pela colocação), para o corte da janela de dias cair no lugar certo.
+      const todos = Array.from(etById.values()).sort((a, b) => (b.colocada || 0) - (a.colocada || 0));
+      for (const b of todos) {
+        const cod = String(b.id || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }
+        usados.add(cod);
+        // Janela de dias corta só as LIQUIDADAS (pela colocação); aberta nunca corta.
+        const dt = typeof b.colocada === "number" ? b.colocada * 1000 : NaN;
+        const passou = !b.aberta && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketET(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+
+    // Rodada nova começa do zero (lição da s393, DEX Sport).
+    etById.clear();
+    etFimReal = false;
+    try { window.postMessage({ __sharpenupETReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+
+    // O lote completo chega no `fim` (liquidadas + abertas). Processar antes cortaria a janela
+    // de dias com as abertas ainda faltando.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !etFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      if (etById.size > ultTotal) { ultTotal = etById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 30000) break;   // 30s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();
+    console.log("[SharpenUp] 3et: " + blocos.length + " bilhete(s) · etById=" + etById.size +
+                " · hook=" + etHookVivo + " · respostas=" + etRespostas + " · fimReal=" + etFimReal +
+                (etErro ? " · erro=" + etErro : ""));
     return blocos;
   }
 

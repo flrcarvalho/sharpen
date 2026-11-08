@@ -288,6 +288,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0772",
+      "v": "v0.7.72",
+      "data": "2026-11-08",
+      "texto": "Nova casa: **3et** (só o sportsbook).",
+      "itens": [
+        "Atualize a extensão e dê Ctrl+Shift+R na aba da 3et e na do painel. Cadastre a conta em USD."
+      ]
+    },
+    {
       "id": "su-0771",
       "v": "v0.7.71",
       "data": "2026-11-01",

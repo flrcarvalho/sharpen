@@ -41,6 +41,7 @@ FIX = Path(__file__).resolve().parent.parent / "extensor" / "harness" / "fixture
 # Família → fixtures da bancada. Adaptador novo entra aqui junto (test_todo_adaptador_tem_fixture).
 FIXTURES_POR_FAMILIA = {
     "dx": ["dexsport.tickets.json"],
+    "et": ["3et.settled.json", "3et.open.json"],
     "jb": ["betpanda.my_bets.json", "jonbet.my_bets_all.json", "jonbet.my_bets_open.json"],
     "shf": ["shuffle.sportsbets.json"],
     "thp": ["thunderpick.resolved.json", "thunderpick.pending.json"],

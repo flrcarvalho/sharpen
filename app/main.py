@@ -285,6 +285,10 @@ _CASA_DISPLAY: dict[str, str] = {
     # Plataforma PRÓPRIA (s426, feeds Oddin/DATA.BET). A base não tinha a casa em grafia
     # nenhuma (medido em 22/10/2026, `audit_grafias`, 136 casas), então vale a da marca.
     "THUNDERPICK":    "Thunderpick",
+    # Plataforma PRÓPRIA (s441, API `/betting/v3/eurasian/`). A base não tinha a casa em grafia
+    # nenhuma (medido em 08/11/2026 em parceiros, bilhetes, casas_meta e correcoes), então vale
+    # a da marca, em minúsculas como no logo.
+    "3ET":            "3et",
     "BETESPORTE":     "BETesporte",
     "BETFAIR":        "Betfair",
     "BETFAST":        "Betfast",
@@ -1199,6 +1203,9 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # extensão: `C2225866` (múltipla, série ~2,2M) / `S10277912` (simples, 4,9M–10,3M). As
     # duas séries são independentes e o prefixo é o que impede a colisão na dedup.
     "THUNDERPICK",
+    # 3et (s441) — plataforma própria. ID = `betId` do bilhete, numérico de 8 dígitos
+    # (`51776597`). As pernas têm `betId` próprio de outra série (64M); só o do bilhete é código.
+    "3ET",
     "BETPIX365",
     # Estrela Bet (s303) — 5ª casa Altenar. Mesmo espaço de IDs do motor: numérico de 10
     # dígitos, o mesmo número que o rodapé do card estampa como `ID:`.
