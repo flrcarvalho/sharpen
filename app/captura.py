@@ -79,7 +79,7 @@ MAX_SESSOES = 300                  # teto global de sessões vivas
 # histórico dispara o `widgetExpandedBetHistory` sozinha, na window de topo, e o clone passivo
 # resolve. O que ela tem de próprio é o CORS do gateway, que recusa `credentials:"include"`
 # para o tenant dela; quem trata é o `pedirPagina` do `vb_inject.js`. Mesmo inject.
-_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "BLAZE": "texto", "BETPANDA": "texto", "BETFURY": "texto", "DUEL": "texto", "BETCOIN": "texto","DEXSPORT": "texto", "SHUFFLE": "texto", "1WIN": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "BETREBELS": "texto", "BETMARTINI": "texto", "VAVADA": "texto", "KIKOBET": "texto", "TORNADOBET": "texto", "SPORTAZA": "texto","PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto", "SAPPHIREBET": "texto", "PARIPESA": "texto", "MEGAPARI": "texto", "1XBIT": "texto", "MELBET": "texto", "MYSTAKE": "texto", "JACK": "texto", "GOLDENBET": "texto", "LOCASBET": "texto","VAVE": "texto", "20BET": "texto", "SPORTSBETIO": "texto", "STAKECOM": "texto", "THUNDERPICK": "texto", "3ET": "texto",
+_MODO_POR_CASA = {"BETANO": "texto", "SUPERBET": "texto", "BET365": "texto", "BETESPORTE": "texto", "BETFAIR": "texto", "PINNACLE": "texto", "KTO": "texto", "TIVO": "texto", "VAIDEBET": "texto", "BETFAST": "texto", "FAZ1BET": "texto", "BETNACIONAL": "texto", "JONBET": "texto", "BETBOOM": "texto", "BLAZE": "texto", "BETPANDA": "texto", "BETFURY": "texto", "DUEL": "texto", "BETCOIN": "texto","DEXSPORT": "texto", "SHUFFLE": "texto", "1WIN": "texto", "ESPORTIVA": "texto", "JOGODEOURO": "texto", "STAKE": "texto", "BETPIX365": "texto", "ESTRELABET": "texto", "BETREBELS": "texto", "BETMARTINI": "texto", "VAVADA": "texto", "KIKOBET": "texto", "TORNADOBET": "texto", "SPORTAZA": "texto","PITACO": "texto", "NOVIBET": "texto", "SPORTINGBET": "texto", "LOTTU": "texto", "1XBET": "texto", "SAPPHIREBET": "texto", "PARIPESA": "texto", "MEGAPARI": "texto", "1XBIT": "texto", "MELBET": "texto", "MYSTAKE": "texto", "JACK": "texto", "GOLDENBET": "texto", "LOCASBET": "texto","VAVE": "texto", "20BET": "texto", "SPORTSBETIO": "texto", "STAKECOM": "texto", "THUNDERPICK": "texto", "3ET": "texto", "CLOUDBET": "texto",
                    # Betboo (s372) — espelho da SportingBet: mesmo inject, mesmo formatador,
                    # logo o mesmo modo. So muda a marca.
                    "BETBOO": "texto",
@@ -290,6 +290,8 @@ _HOSTS_POR_CASA = {
     "THUNDERPICK": ("thunderpick.io",),
     # Plataforma própria (s441). A API é /betting/v3/eurasian/* no MESMO domínio da aba.
     "3ET":        ("3et.com",),
+    # Plataforma própria (s442). A API é /sports-betting/v4/* no MESMO domínio da aba.
+    "CLOUDBET":   ("cloudbet.com",),
 }
 
 

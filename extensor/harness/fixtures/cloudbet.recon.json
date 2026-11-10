@@ -1,0 +1,2835 @@
+{
+ "lista_abertas": {
+  "hasNext": false,
+  "items": [
+   {
+    "betCount": 1,
+    "positionId": "e3a7493ea6a7c72b4999f86792d94539187d9c8a",
+    "positionStatus": "ACCEPTED",
+    "positionTime": "2026-11-10T03:01:23.265162Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "6.937",
+       "potentialReturnAmount": "208.11",
+       "returnAmount": "0",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "e3a7493ea6a7c72b4999f86792d94539187d9c8a",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "208.11",
+        "returnAmount": "0",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37178354",
+        "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+        "marketName": "RJ Barrett Total Assists + Rebounds",
+        "name": "Under 10.5",
+        "outcome": "under",
+        "outcomeName": "Under 10.5",
+        "params": "player_key=s-rj-barrett&total=10.5",
+        "result": "WIN"
+       },
+       {
+        "eventId": "36990324",
+        "marketKey": "american_football.player_props_receiving_yards_player_ou_incl_ot",
+        "marketName": "Keon Coleman Total Receiving Yards",
+        "name": "Under 29.5",
+        "outcome": "under",
+        "outcomeName": "Under 29.5",
+        "params": "player_key=s-keon-coleman&total=29.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37174593",
+        "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+        "marketName": "Collin Gillespie Total Assists",
+        "name": "Under 3.5",
+        "outcome": "under",
+        "outcomeName": "Under 3.5",
+        "params": "player_key=s-collin-gillespie&total=3.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "ACCEPTED"
+     }
+    ],
+    "type": "PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "a1edc367113e968204c0e6e12fe1a970274f52dd",
+    "positionStatus": "ACCEPTED",
+    "positionTime": "2026-11-10T02:56:39.178063Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "6.502",
+       "potentialReturnAmount": "195.06",
+       "returnAmount": "0",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "a1edc367113e968204c0e6e12fe1a970274f52dd",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "195.06",
+        "returnAmount": "0",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37178286",
+        "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+        "marketName": "Paul Reed Total Assists",
+        "name": "Under 2.5",
+        "outcome": "under",
+        "outcomeName": "Under 2.5",
+        "params": "player_key=s-paul-reed&total=2.5",
+        "result": "WIN"
+       },
+       {
+        "eventId": "37179508",
+        "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+        "marketName": "Pascal Siakam Total 3-Pointers Made",
+        "name": "Under 1.5",
+        "outcome": "under",
+        "outcomeName": "Under 1.5",
+        "params": "player_key=s-pascal-siakam&total=1.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "36990324",
+        "marketKey": "american_football.player_props_interceptions_player_ou_incl_ot",
+        "marketName": "Josh Allen Total Interceptions",
+        "name": "Over 0.5",
+        "outcome": "over",
+        "outcomeName": "Over 0.5",
+        "params": "player_key=s-josh-allen&total=0.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "ACCEPTED"
+     }
+    ],
+    "type": "PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "e6aa7d0f4a539f681a9b1ea8bdfdc44cc9e8e6f5",
+    "positionStatus": "ACCEPTED",
+    "positionTime": "2026-11-10T02:56:06.717969Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "7.983",
+       "potentialReturnAmount": "239.49",
+       "returnAmount": "0",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "e6aa7d0f4a539f681a9b1ea8bdfdc44cc9e8e6f5",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "239.49",
+        "returnAmount": "0",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37178341",
+        "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+        "marketName": "Peyton Watson Total Rebounds",
+        "name": "Under 4.5",
+        "outcome": "under",
+        "outcomeName": "Under 4.5",
+        "params": "player_key=s-peyton-watson&total=4.5",
+        "result": "WIN"
+       },
+       {
+        "eventId": "37178354",
+        "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+        "marketName": "RJ Barrett Total Assists",
+        "name": "Under 4.5",
+        "outcome": "under",
+        "outcomeName": "Under 4.5",
+        "params": "player_key=s-rj-barrett&total=4.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37179205",
+        "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+        "marketName": "Zion Williamson Total Assists",
+        "name": "Under 2.5",
+        "outcome": "under",
+        "outcomeName": "Under 2.5",
+        "params": "player_key=s-zion-williamson&total=2.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "ACCEPTED"
+     }
+    ],
+    "type": "PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "115c75ffc84674650f03e7e305c3b3abf379b375",
+    "positionStatus": "ACCEPTED",
+    "positionTime": "2026-11-10T02:31:58.728054Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "9.966",
+       "potentialReturnAmount": "298.98",
+       "returnAmount": "0",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "115c75ffc84674650f03e7e305c3b3abf379b375",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "298.98",
+        "returnAmount": "0",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37179164",
+        "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+        "marketName": "Aaron Wiggins Total Rebounds",
+        "name": "Under 3.5",
+        "outcome": "under",
+        "outcomeName": "Under 3.5",
+        "params": "player_key=s-aaron-wiggins&total=3.5",
+        "result": "WIN"
+       },
+       {
+        "eventId": "37178341",
+        "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+        "marketName": "Donovan Mitchell Total 3-Pointers Made",
+        "name": "Under 2.5",
+        "outcome": "under",
+        "outcomeName": "Under 2.5",
+        "params": "player_key=s-donovan-mitchell&total=2.5",
+        "result": "WIN"
+       },
+       {
+        "eventId": "36990324",
+        "marketKey": "american_football.player_props_receiving_yards_player_ou_incl_ot",
+        "marketName": "Jordan Mason Total Receiving Yards",
+        "name": "Over 0.5",
+        "outcome": "over",
+        "outcomeName": "Over 0.5",
+        "params": "player_key=s-jordan-mason&total=0.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "ACCEPTED"
+     }
+    ],
+    "type": "PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "84135a706b6ef76524c52494b7df859b557c67d7",
+    "positionStatus": "ACCEPTED",
+    "positionTime": "2026-11-10T02:31:58.296603Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "7.027",
+       "potentialReturnAmount": "210.81",
+       "returnAmount": "0",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "84135a706b6ef76524c52494b7df859b557c67d7",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "210.81",
+        "returnAmount": "0",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37179164",
+        "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+        "marketName": "Jalen Johnson Total 3-Pointers Made",
+        "name": "Under 1.5",
+        "outcome": "under",
+        "outcomeName": "Under 1.5",
+        "params": "player_key=s-jalen-johnson&total=1.5",
+        "result": "WIN"
+       },
+       {
+        "eventId": "37178341",
+        "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+        "marketName": "James Harden Total 3-Pointers Made",
+        "name": "Under 2.5",
+        "outcome": "under",
+        "outcomeName": "Under 2.5",
+        "params": "player_key=s-james-harden&total=2.5",
+        "result": "WIN"
+       },
+       {
+        "eventId": "37174541",
+        "marketKey": "basketball.player_props_points_and_assists_and_rebounds_player_ou_incl_ot",
+        "marketName": "Fred VanVleet Total Points + Assists + Rebounds",
+        "name": "Under 20.5",
+        "outcome": "under",
+        "outcomeName": "Under 20.5",
+        "params": "player_key=s-fred-vanvleet&total=20.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "ACCEPTED"
+     }
+    ],
+    "type": "PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "fee5d656946bdffa2afeb50b21243f431ff8856c",
+    "positionStatus": "ACCEPTED",
+    "positionTime": "2026-11-10T02:31:00.750506Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "6.543",
+       "potentialReturnAmount": "196.29",
+       "returnAmount": "0",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "fee5d656946bdffa2afeb50b21243f431ff8856c",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "196.29",
+        "returnAmount": "0",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37179164",
+        "marketKey": "basketball.player_props_points_player_ou_incl_ot",
+        "marketName": "Jake LaRavia Total Points",
+        "name": "Under 6.5",
+        "outcome": "under",
+        "outcomeName": "Under 6.5",
+        "params": "player_key=s-jake-laravia&total=6.5",
+        "result": "WIN"
+       },
+       {
+        "eventId": "37179508",
+        "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+        "marketName": "Kyrie Irving Total Assists + Rebounds",
+        "name": "Under 8.5",
+        "outcome": "under",
+        "outcomeName": "Under 8.5",
+        "params": "player_key=s-kyrie-irving&total=8.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37174593",
+        "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+        "marketName": "Keldon Johnson Total 3-Pointers Made",
+        "name": "Over 0.5",
+        "outcome": "over",
+        "outcomeName": "Over 0.5",
+        "params": "player_key=s-keldon-johnson&total=0.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "ACCEPTED"
+     }
+    ],
+    "type": "PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "f6c4a474b19a7ae7e154c45101219a1340f7d7bd",
+    "positionStatus": "ACCEPTED",
+    "positionTime": "2026-11-09T21:43:06.955218Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "7.3",
+       "potentialReturnAmount": "219",
+       "returnAmount": "0",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "f6c4a474b19a7ae7e154c45101219a1340f7d7bd",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "219",
+        "returnAmount": "0",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37174593",
+        "marketKey": "basketball.player_props_points_player_ou_incl_ot",
+        "marketName": "Collin Gillespie Total Points",
+        "name": "Under 9.5",
+        "outcome": "under",
+        "outcomeName": "Under 9.5",
+        "params": "player_key=s-collin-gillespie&total=9.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37174593",
+        "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+        "marketName": "Miles Bridges Total Assists",
+        "name": "Under 3.5",
+        "outcome": "under",
+        "outcomeName": "Under 3.5",
+        "params": "player_key=s-miles-bridges&total=3.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37174593",
+        "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+        "marketName": "Stephon Castle Total 3-Pointers Made",
+        "name": "Under 1.5",
+        "outcome": "under",
+        "outcomeName": "Under 1.5",
+        "params": "player_key=s-stephon-castle&total=1.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "ACCEPTED"
+     }
+    ],
+    "type": "SAME_GAME_PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "388188d98f7054459b12ca25aeeeeceb4a8ad363",
+    "positionStatus": "ACCEPTED",
+    "positionTime": "2026-11-09T20:33:55.453413Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "10",
+       "potentialReturnAmount": "300",
+       "returnAmount": "0",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "388188d98f7054459b12ca25aeeeeceb4a8ad363",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "300",
+        "returnAmount": "0",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37174593",
+        "marketKey": "basketball.player_props_points_player_ou_incl_ot",
+        "marketName": "Stephon Castle Total Points",
+        "name": "Under 16.5",
+        "outcome": "under",
+        "outcomeName": "Under 16.5",
+        "params": "player_key=s-stephon-castle&total=16.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37174593",
+        "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+        "marketName": "Julian Champagnie Total Rebounds",
+        "name": "Under 5.5",
+        "outcome": "under",
+        "outcomeName": "Under 5.5",
+        "params": "player_key=s-julian-champagnie&total=5.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37174593",
+        "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+        "marketName": "Miles Bridges Total 3-Pointers Made",
+        "name": "Under 1.5",
+        "outcome": "under",
+        "outcomeName": "Under 1.5",
+        "params": "player_key=s-miles-bridges&total=1.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "ACCEPTED"
+     }
+    ],
+    "type": "SAME_GAME_PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "f046ac8d1e6195c6fab67a1d47c770648814f367",
+    "positionStatus": "ACCEPTED",
+    "positionTime": "2026-11-09T20:31:55.466538Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "11.724",
+       "potentialReturnAmount": "351.72",
+       "returnAmount": "0",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "f046ac8d1e6195c6fab67a1d47c770648814f367",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "351.72",
+        "returnAmount": "0",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "36990324",
+        "marketKey": "american_football.player_props_receptions_player_ou_incl_ot",
+        "marketName": "Skyler Bell Total Receptions",
+        "name": "Under 0.5",
+        "outcome": "under",
+        "outcomeName": "Under 0.5",
+        "params": "player_key=s-skyler-bell&total=0.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37174593",
+        "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+        "marketName": "Collin Gillespie Total Assists + Rebounds",
+        "name": "Under 6.5",
+        "outcome": "under",
+        "outcomeName": "Under 6.5",
+        "params": "player_key=s-collin-gillespie&total=6.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37172604",
+        "marketKey": "ice_hockey.player_props_assists_player_ou_incl_ot",
+        "marketName": "Brayden Schenn Total Assists (Incl. Overtime)",
+        "name": "Over 0.5",
+        "outcome": "over",
+        "outcomeName": "Over 0.5",
+        "params": "player_key=s-brayden-schenn&total=0.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "ACCEPTED"
+     }
+    ],
+    "type": "PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "bb1b256360d53df22fbeab4451786facb1a9c025",
+    "positionStatus": "ACCEPTED",
+    "positionTime": "2026-11-09T20:14:43.206257Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "11.364",
+       "potentialReturnAmount": "340.92",
+       "returnAmount": "0",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "bb1b256360d53df22fbeab4451786facb1a9c025",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "340.92",
+        "returnAmount": "0",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37174541",
+        "marketKey": "basketball.player_props_points_player_ou_incl_ot",
+        "marketName": "Tari Eason Total Points",
+        "name": "Under 9.5",
+        "outcome": "under",
+        "outcomeName": "Under 9.5",
+        "params": "player_key=s-tari-eason&total=9.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37172604",
+        "marketKey": "ice_hockey.player_props_points_player_ou_incl_ot",
+        "marketName": "Tyler Toffoli Total Points (Incl. Overtime)",
+        "name": "Over 0.5",
+        "outcome": "over",
+        "outcomeName": "Over 0.5",
+        "params": "player_key=s-tyler-toffoli&total=0.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37179205",
+        "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+        "marketName": "Zion Williamson Total Rebounds",
+        "name": "Under 5.5",
+        "outcome": "under",
+        "outcomeName": "Under 5.5",
+        "params": "player_key=s-zion-williamson&total=5.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "ACCEPTED"
+     }
+    ],
+    "type": "PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "f1216b7261c9ac7724ed315ea88a83bad3772a74",
+    "positionStatus": "ACCEPTED",
+    "positionTime": "2026-11-09T18:02:58.207448Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "7.37",
+       "potentialReturnAmount": "221.1",
+       "returnAmount": "0",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "f1216b7261c9ac7724ed315ea88a83bad3772a74",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "221.1",
+        "returnAmount": "0",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "36990324",
+        "marketKey": "american_football.player_props_receiving_yards_player_ou_incl_ot",
+        "marketName": "Dawson Knox Total Receiving Yards",
+        "name": "Under 9.5",
+        "outcome": "under",
+        "outcomeName": "Under 9.5",
+        "params": "player_key=s-dawson-knox&total=9.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "36990324",
+        "marketKey": "american_football.player_props_receptions_player_ou_incl_ot",
+        "marketName": "James Cook III Total Receptions",
+        "name": "Under 1.5",
+        "outcome": "under",
+        "outcomeName": "Under 1.5",
+        "params": "player_key=s-james-cook-iii&total=1.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "36990324",
+        "marketKey": "american_football.player_props_receptions_player_ou_incl_ot",
+        "marketName": "Keon Coleman Total Receptions",
+        "name": "Under 2.5",
+        "outcome": "under",
+        "outcomeName": "Under 2.5",
+        "params": "player_key=s-keon-coleman&total=2.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "ACCEPTED"
+     }
+    ],
+    "type": "SAME_GAME_PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "c21214599243dd5d685d8e88c140608da8784164",
+    "positionStatus": "ACCEPTED",
+    "positionTime": "2026-11-09T18:00:45.187384Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "8.84",
+       "potentialReturnAmount": "265.2",
+       "returnAmount": "0",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "c21214599243dd5d685d8e88c140608da8784164",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "265.2",
+        "returnAmount": "0",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "36990324",
+        "marketKey": "american_football.player_props_passing_touchdowns_player_ou_incl_ot",
+        "marketName": "Carson Wentz Total Passing Touchdowns",
+        "name": "Over 1.5",
+        "outcome": "over",
+        "outcomeName": "Over 1.5",
+        "params": "player_key=s-carson-wentz&total=1.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "36990324",
+        "marketKey": "american_football.player_props_passing_touchdowns_player_ou_incl_ot",
+        "marketName": "Josh Allen Total Passing Touchdowns",
+        "name": "Under 1.5",
+        "outcome": "under",
+        "outcomeName": "Under 1.5",
+        "params": "player_key=s-josh-allen&total=1.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "36990324",
+        "marketKey": "american_football.player_props_rushing_yards_player_ou_incl_ot",
+        "marketName": "Carson Wentz Total Rushing Yards",
+        "name": "Under 9.5",
+        "outcome": "under",
+        "outcomeName": "Under 9.5",
+        "params": "player_key=s-carson-wentz&total=9.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "ACCEPTED"
+     }
+    ],
+    "type": "SAME_GAME_PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "63ce7595d79651925082ede2aeb66a8258d222a9",
+    "positionStatus": "ACCEPTED",
+    "positionTime": "2026-11-09T17:54:59.140043Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "7.93",
+       "potentialReturnAmount": "237.9",
+       "returnAmount": "0",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "63ce7595d79651925082ede2aeb66a8258d222a9",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "237.9",
+        "returnAmount": "0",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37174593",
+        "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+        "marketName": "Oso Ighodaro Total Rebounds",
+        "name": "Under 5.5",
+        "outcome": "under",
+        "outcomeName": "Under 5.5",
+        "params": "player_key=s-oso-ighodaro&total=5.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37174593",
+        "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+        "marketName": "Jalen Green Total Assists + Rebounds",
+        "name": "Under 6.5",
+        "outcome": "under",
+        "outcomeName": "Under 6.5",
+        "params": "player_key=s-jalen-green&total=6.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37174593",
+        "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+        "marketName": "De'Aaron Fox Total Assists + Rebounds",
+        "name": "Under 9.5",
+        "outcome": "under",
+        "outcomeName": "Under 9.5",
+        "params": "player_key=s-de-aaron-fox&total=9.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "ACCEPTED"
+     }
+    ],
+    "type": "SAME_GAME_PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "557943395dd324dd67a9ebb8f49a9c807f850f87",
+    "positionStatus": "ACCEPTED",
+    "positionTime": "2026-11-09T17:47:46.386847Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "8.31",
+       "potentialReturnAmount": "249.3",
+       "returnAmount": "0",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "557943395dd324dd67a9ebb8f49a9c807f850f87",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "249.3",
+        "returnAmount": "0",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37174541",
+        "marketKey": "basketball.player_props_blocks_player_ou_incl_ot",
+        "marketName": "Nikola Jokic Total Blocks",
+        "name": "Over 0.5",
+        "outcome": "over",
+        "outcomeName": "Over 0.5",
+        "params": "player_key=s-nikola-jokic&total=0.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37174541",
+        "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+        "marketName": "Fred VanVleet Total Assists + Rebounds",
+        "name": "Under 8.5",
+        "outcome": "under",
+        "outcomeName": "Under 8.5",
+        "params": "player_key=s-fred-vanvleet&total=8.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37174541",
+        "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+        "marketName": "Jabari Smith Jr. Total Assists + Rebounds",
+        "name": "Under 8.5",
+        "outcome": "under",
+        "outcomeName": "Under 8.5",
+        "params": "player_key=s-jabari-smith-jr-dot&total=8.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "ACCEPTED"
+     }
+    ],
+    "type": "SAME_GAME_PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "dd493ef9c094fcf43715383072e68fb1a62ffc91",
+    "positionStatus": "ACCEPTED",
+    "positionTime": "2026-11-09T17:43:09.342216Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "8.45",
+       "potentialReturnAmount": "253.5",
+       "returnAmount": "0",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "dd493ef9c094fcf43715383072e68fb1a62ffc91",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "253.5",
+        "returnAmount": "0",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37179205",
+        "marketKey": "basketball.player_props_blocks_player_ou_incl_ot",
+        "marketName": "Brandin Podziemski Total Blocks",
+        "name": "Over 0.5",
+        "outcome": "over",
+        "outcomeName": "Over 0.5",
+        "params": "player_key=s-brandin-podziemski&total=0.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37179205",
+        "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+        "marketName": "Derik Queen Total Assists",
+        "name": "Under 2.5",
+        "outcome": "under",
+        "outcomeName": "Under 2.5",
+        "params": "player_key=s-derik-queen&total=2.5",
+        "result": "PENDING"
+       },
+       {
+        "eventId": "37179205",
+        "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+        "marketName": "Zion Williamson Total Assists + Rebounds",
+        "name": "Under 8.5",
+        "outcome": "under",
+        "outcomeName": "Under 8.5",
+        "params": "player_key=s-zion-williamson&total=8.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "ACCEPTED"
+     }
+    ],
+    "type": "SAME_GAME_PARLAY"
+   }
+  ]
+ },
+ "lista_liquidadas": {
+  "hasNext": false,
+  "items": [
+   {
+    "betCount": 1,
+    "positionId": "1e594c984da05e8645dd8064dc86e7ea3db62eea",
+    "positionStatus": "COMPLETED",
+    "positionTime": "2026-11-10T02:56:39Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "3.52",
+       "potentialReturnAmount": "105.6",
+       "returnAmount": "-30",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "1e594c984da05e8645dd8064dc86e7ea3db62eea",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "105.6",
+        "returnAmount": "-30",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37178286",
+        "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+        "marketName": "Kyshawn George Total Rebounds",
+        "name": "Over 4.5",
+        "outcome": "over",
+        "outcomeName": "Over 4.5",
+        "params": "player_key=s-kyshawn-george&total=4.5",
+        "result": "LOSS"
+       },
+       {
+        "eventId": "37178286",
+        "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+        "marketName": "Paul Reed Total Assists",
+        "name": "Under 2.5",
+        "outcome": "under",
+        "outcomeName": "Under 2.5",
+        "params": "player_key=s-paul-reed&total=2.5",
+        "result": "WIN"
+       },
+       {
+        "eventId": "37178354",
+        "marketKey": "basketball.player_props_points_and_assists_player_ou_incl_ot",
+        "marketName": "Collin Murray-Boyles Total Points + Assists",
+        "name": "Under 15.5",
+        "outcome": "under",
+        "outcomeName": "Under 15.5",
+        "params": "player_key=s-collin-murray-minus-boyles&total=15.5",
+        "result": "PUSH"
+       }
+      ],
+      "status": "COMPLETED"
+     }
+    ],
+    "type": "SAME_GAME_PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "99fc6d0f44399630e3f902091f31f57e63fcd870",
+    "positionStatus": "COMPLETED",
+    "positionTime": "2026-11-10T02:37:50Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "0",
+       "potentialReturnAmount": "0",
+       "returnAmount": "-30",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "99fc6d0f44399630e3f902091f31f57e63fcd870",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "0",
+        "returnAmount": "-30",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37178341",
+        "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+        "marketName": "Royce O'Neale Total Rebounds",
+        "name": "Under 4.5",
+        "outcome": "under",
+        "outcomeName": "Under 4.5",
+        "params": "player_key=s-royce-o-neale&total=4.5",
+        "result": "WIN"
+       },
+       {
+        "eventId": "37178341",
+        "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+        "marketName": "Coby White Total Rebounds",
+        "name": "Under 2.5",
+        "outcome": "under",
+        "outcomeName": "Under 2.5",
+        "params": "player_key=s-coby-white&total=2.5",
+        "result": "WIN"
+       },
+       {
+        "eventId": "37178341",
+        "marketKey": "basketball.player_props_points_player_ou_incl_ot",
+        "marketName": "Sion James Total Points",
+        "name": "Under 7.5",
+        "outcome": "under",
+        "outcomeName": "Under 7.5",
+        "params": "player_key=s-sion-james&total=7.5",
+        "result": "LOSS"
+       }
+      ],
+      "status": "COMPLETED"
+     }
+    ],
+    "type": "SAME_GAME_PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "a150b9b4e419bebb11f8fdbc8b4625641312c00f",
+    "positionStatus": "COMPLETED",
+    "positionTime": "2026-11-10T02:32:02Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "0",
+       "potentialReturnAmount": "0",
+       "returnAmount": "-30",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "a150b9b4e419bebb11f8fdbc8b4625641312c00f",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "0",
+        "returnAmount": "-30",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37178341",
+        "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+        "marketName": "Peyton Watson Total 3-Pointers Made",
+        "name": "Under 1.5",
+        "outcome": "under",
+        "outcomeName": "Under 1.5",
+        "params": "player_key=s-peyton-watson&total=1.5",
+        "result": "LOSS"
+       },
+       {
+        "eventId": "37178354",
+        "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+        "marketName": "Scottie Barnes Total Assists",
+        "name": "Under 5.5",
+        "outcome": "under",
+        "outcomeName": "Under 5.5",
+        "params": "player_key=s-scottie-barnes&total=5.5",
+        "result": "PUSH"
+       },
+       {
+        "eventId": "37174541",
+        "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+        "marketName": "Tari Eason Total Rebounds",
+        "name": "Under 5.5",
+        "outcome": "under",
+        "outcomeName": "Under 5.5",
+        "params": "player_key=s-tari-eason&total=5.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "COMPLETED"
+     }
+    ],
+    "type": "PARLAY"
+   },
+   {
+    "betCount": 1,
+    "positionId": "b8b3e894b56d4f04eae0bc8686572f8b94d1c435",
+    "positionStatus": "COMPLETED",
+    "positionTime": "2026-11-10T02:30:36Z",
+    "positions": [
+     {
+      "aggregate": {
+       "cashoutAmount": "0",
+       "currency": "US2",
+       "odds": "0",
+       "potentialReturnAmount": "0",
+       "returnAmount": "-30",
+       "stakeAmount": "30"
+      },
+      "betCount": 1,
+      "betLegIdentifier": "b8b3e894b56d4f04eae0bc8686572f8b94d1c435",
+      "cashoutSupported": false,
+      "portfolio": {
+       "USDT": {
+        "betCount": 1,
+        "cashoutAmount": "0",
+        "potentialReturnAmount": "0",
+        "returnAmount": "-30",
+        "stakeAmount": "30"
+       }
+      },
+      "selections": [
+       {
+        "eventId": "37179164",
+        "marketKey": "basketball.player_props_points_player_ou_incl_ot",
+        "marketName": "Aaron Wiggins Total Points",
+        "name": "Under 13.5",
+        "outcome": "under",
+        "outcomeName": "Under 13.5",
+        "params": "player_key=s-aaron-wiggins&total=13.5",
+        "result": "LOSS"
+       },
+       {
+        "eventId": "37179164",
+        "marketKey": "basketball.player_props_points_and_rebounds_player_ou_incl_ot",
+        "marketName": "Jake LaRavia Total Points + Rebounds",
+        "name": "Under 10.5",
+        "outcome": "under",
+        "outcomeName": "Under 10.5",
+        "params": "player_key=s-jake-laravia&total=10.5",
+        "result": "WIN"
+       },
+       {
+        "eventId": "37179205",
+        "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+        "marketName": "Saddiq Bey Total 3-Pointers Made",
+        "name": "Under 2.5",
+        "outcome": "under",
+        "outcomeName": "Under 2.5",
+        "params": "player_key=s-saddiq-bey&total=2.5",
+        "result": "PENDING"
+       }
+      ],
+      "status": "COMPLETED"
+     }
+    ],
+    "type": "SAME_GAME_PARLAY"
+   }
+  ]
+ },
+ "detalhes": {
+  "e3a7493ea6a7c72b4999f86792d94539187d9c8a": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "e3a7493ea6a7c72b4999f86792d94539187d9c8a",
+     "betSlipId": "ac3f9566-c059-4343-a43d-745af3cc8b68",
+     "channel": "WEB",
+     "completeTime": "0001-01-01T00:00:00Z",
+     "createTime": "2026-11-09T19:16:57.340601Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "208.11",
+     "price": "6.937",
+     "result": "PENDING",
+     "returnAmount": "0",
+     "selections": [
+      {
+       "adjustedPrice": "1.88",
+       "categoryKey": "usa",
+       "competitionKey": "td0-nfl",
+       "eventId": "36990324",
+       "marketKey": "american_football.player_props_receiving_yards_player_ou_incl_ot",
+       "marketUrl": "american_football.player_props_receiving_yards_player_ou_incl_ot/under?player_key=s-keon-coleman&total=29.5",
+       "outcome": "under",
+       "params": "player_key=s-keon-coleman&total=29.5",
+       "price": "1.88",
+       "result": "PENDING",
+       "sportKey": "american_football"
+      },
+      {
+       "adjustedPrice": "2.05",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37178354",
+       "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot/under?player_key=s-rj-barrett&total=10.5",
+       "outcome": "under",
+       "params": "player_key=s-rj-barrett&total=10.5",
+       "price": "2.05",
+       "result": "WIN",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "1.8",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174593",
+       "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_player_ou_incl_ot/under?player_key=s-collin-gillespie&total=3.5",
+       "outcome": "under",
+       "params": "player_key=s-collin-gillespie&total=3.5",
+       "price": "1.8",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "ACCEPTED",
+     "type": "PARLAY",
+     "uuid": "1e7c2017-c4ba-437d-b7a0-304833f85d24"
+    }
+   ]
+  },
+  "a1edc367113e968204c0e6e12fe1a970274f52dd": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "a1edc367113e968204c0e6e12fe1a970274f52dd",
+     "betSlipId": "04389a19-82c1-4497-a7b0-1f34ef8f645a",
+     "channel": "WEB",
+     "completeTime": "0001-01-01T00:00:00Z",
+     "createTime": "2026-11-09T18:07:36.307154Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "195.06",
+     "price": "6.502",
+     "result": "PENDING",
+     "returnAmount": "0",
+     "selections": [
+      {
+       "adjustedPrice": "1.67",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37178286",
+       "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_player_ou_incl_ot/under?player_key=s-paul-reed&total=2.5",
+       "outcome": "under",
+       "params": "player_key=s-paul-reed&total=2.5",
+       "price": "1.67",
+       "result": "WIN",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "2.2",
+       "categoryKey": "usa",
+       "competitionKey": "td0-nfl",
+       "eventId": "36990324",
+       "marketKey": "american_football.player_props_interceptions_player_ou_incl_ot",
+       "marketUrl": "american_football.player_props_interceptions_player_ou_incl_ot/over?player_key=s-josh-allen&total=0.5",
+       "outcome": "over",
+       "params": "player_key=s-josh-allen&total=0.5",
+       "price": "2.2",
+       "result": "PENDING",
+       "sportKey": "american_football"
+      },
+      {
+       "adjustedPrice": "1.77",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37179508",
+       "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_three_pointers_player_ou_incl_ot/under?player_key=s-pascal-siakam&total=1.5",
+       "outcome": "under",
+       "params": "player_key=s-pascal-siakam&total=1.5",
+       "price": "1.77",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "ACCEPTED",
+     "type": "PARLAY",
+     "uuid": "c8ff305b-5ebe-4711-910c-e6d00e16b9ca"
+    }
+   ]
+  },
+  "e6aa7d0f4a539f681a9b1ea8bdfdc44cc9e8e6f5": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "e6aa7d0f4a539f681a9b1ea8bdfdc44cc9e8e6f5",
+     "betSlipId": "b259da6e-9f79-4a56-99e2-fed1f9a22765",
+     "channel": "WEB",
+     "completeTime": "0001-01-01T00:00:00Z",
+     "createTime": "2026-11-09T20:24:23.083199Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "239.49",
+     "price": "7.983",
+     "result": "PENDING",
+     "returnAmount": "0",
+     "selections": [
+      {
+       "adjustedPrice": "1.89",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37178341",
+       "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_rebounds_player_ou_incl_ot/under?player_key=s-peyton-watson&total=4.5",
+       "outcome": "under",
+       "params": "player_key=s-peyton-watson&total=4.5",
+       "price": "1.89",
+       "result": "WIN",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "1.92",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37178354",
+       "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_player_ou_incl_ot/under?player_key=s-rj-barrett&total=4.5",
+       "outcome": "under",
+       "params": "player_key=s-rj-barrett&total=4.5",
+       "price": "1.92",
+       "result": "WIN",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "2.2",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37179205",
+       "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_player_ou_incl_ot/under?player_key=s-zion-williamson&total=2.5",
+       "outcome": "under",
+       "params": "player_key=s-zion-williamson&total=2.5",
+       "price": "2.2",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "ACCEPTED",
+     "type": "PARLAY",
+     "uuid": "c5db1091-6c87-46bf-9dde-a13f31705320"
+    }
+   ]
+  },
+  "115c75ffc84674650f03e7e305c3b3abf379b375": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "115c75ffc84674650f03e7e305c3b3abf379b375",
+     "betSlipId": "d37a4a23-f183-44e8-bf8b-1a8ab474e623",
+     "channel": "WEB",
+     "completeTime": "0001-01-01T00:00:00Z",
+     "createTime": "2026-11-09T18:09:54.545335Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "298.98",
+     "price": "9.966",
+     "result": "PENDING",
+     "returnAmount": "0",
+     "selections": [
+      {
+       "adjustedPrice": "2.11",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37178341",
+       "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_three_pointers_player_ou_incl_ot/under?player_key=s-donovan-mitchell&total=2.5",
+       "outcome": "under",
+       "params": "player_key=s-donovan-mitchell&total=2.5",
+       "price": "2.11",
+       "result": "WIN",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "2.35",
+       "categoryKey": "usa",
+       "competitionKey": "td0-nfl",
+       "eventId": "36990324",
+       "marketKey": "american_football.player_props_receiving_yards_player_ou_incl_ot",
+       "marketUrl": "american_football.player_props_receiving_yards_player_ou_incl_ot/over?player_key=s-jordan-mason&total=0.5",
+       "outcome": "over",
+       "params": "player_key=s-jordan-mason&total=0.5",
+       "price": "2.35",
+       "result": "PENDING",
+       "sportKey": "american_football"
+      },
+      {
+       "adjustedPrice": "2.01",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37179164",
+       "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_rebounds_player_ou_incl_ot/under?player_key=s-aaron-wiggins&total=3.5",
+       "outcome": "under",
+       "params": "player_key=s-aaron-wiggins&total=3.5",
+       "price": "2.01",
+       "result": "WIN",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "ACCEPTED",
+     "type": "PARLAY",
+     "uuid": "ac93cea8-e289-4d26-9ea3-fa60aff52bc3"
+    }
+   ]
+  },
+  "84135a706b6ef76524c52494b7df859b557c67d7": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "84135a706b6ef76524c52494b7df859b557c67d7",
+     "betSlipId": "79a8fff7-8a5e-43bf-9b27-57b5baecf03a",
+     "channel": "WEB",
+     "completeTime": "0001-01-01T00:00:00Z",
+     "createTime": "2026-11-09T18:13:52.645226Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "210.81",
+     "price": "7.027",
+     "result": "PENDING",
+     "returnAmount": "0",
+     "selections": [
+      {
+       "adjustedPrice": "2.01",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174541",
+       "marketKey": "basketball.player_props_points_and_assists_and_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_points_and_assists_and_rebounds_player_ou_incl_ot/under?player_key=s-fred-vanvleet&total=20.5",
+       "outcome": "under",
+       "params": "player_key=s-fred-vanvleet&total=20.5",
+       "price": "2.01",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "1.89",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37179164",
+       "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_three_pointers_player_ou_incl_ot/under?player_key=s-jalen-johnson&total=1.5",
+       "outcome": "under",
+       "params": "player_key=s-jalen-johnson&total=1.5",
+       "price": "1.89",
+       "result": "WIN",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "1.85",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37178341",
+       "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_three_pointers_player_ou_incl_ot/under?player_key=s-james-harden&total=2.5",
+       "outcome": "under",
+       "params": "player_key=s-james-harden&total=2.5",
+       "price": "1.85",
+       "result": "WIN",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "ACCEPTED",
+     "type": "PARLAY",
+     "uuid": "0e62af43-e0dc-49fe-8b9a-ba6768766693"
+    }
+   ]
+  },
+  "fee5d656946bdffa2afeb50b21243f431ff8856c": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "fee5d656946bdffa2afeb50b21243f431ff8856c",
+     "betSlipId": "2b5f6d9e-328e-4ec7-8701-9488f08f8db0",
+     "channel": "WEB",
+     "completeTime": "0001-01-01T00:00:00Z",
+     "createTime": "2026-11-09T20:36:11.962745Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "196.29",
+     "price": "6.543",
+     "result": "PENDING",
+     "returnAmount": "0",
+     "selections": [
+      {
+       "adjustedPrice": "1.92",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37179508",
+       "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot/under?player_key=s-kyrie-irving&total=8.5",
+       "outcome": "under",
+       "params": "player_key=s-kyrie-irving&total=8.5",
+       "price": "1.92",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "1.73",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174593",
+       "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_three_pointers_player_ou_incl_ot/over?player_key=s-keldon-johnson&total=0.5",
+       "outcome": "over",
+       "params": "player_key=s-keldon-johnson&total=0.5",
+       "price": "1.73",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "1.97",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37179164",
+       "marketKey": "basketball.player_props_points_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_points_player_ou_incl_ot/under?player_key=s-jake-laravia&total=6.5",
+       "outcome": "under",
+       "params": "player_key=s-jake-laravia&total=6.5",
+       "price": "1.97",
+       "result": "WIN",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "ACCEPTED",
+     "type": "PARLAY",
+     "uuid": "f78a16af-4d1b-46cb-8ad0-57a4386b82af"
+    }
+   ]
+  },
+  "f6c4a474b19a7ae7e154c45101219a1340f7d7bd": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "f6c4a474b19a7ae7e154c45101219a1340f7d7bd",
+     "betSlipId": "1b463626-5892-4dfd-9e93-5d069141543d",
+     "channel": "WEB",
+     "completeTime": "0001-01-01T00:00:00Z",
+     "createTime": "2026-11-09T21:43:05.757347Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "219",
+     "price": "7.3",
+     "result": "PENDING",
+     "returnAmount": "0",
+     "selections": [
+      {
+       "adjustedPrice": "7.3",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174593",
+       "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_three_pointers_player_ou_incl_ot/under?player_key=s-stephon-castle&total=1.5",
+       "outcome": "under",
+       "params": "player_key=s-stephon-castle&total=1.5",
+       "price": "7.3",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "7.3",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174593",
+       "marketKey": "basketball.player_props_points_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_points_player_ou_incl_ot/under?player_key=s-collin-gillespie&total=9.5",
+       "outcome": "under",
+       "params": "player_key=s-collin-gillespie&total=9.5",
+       "price": "7.3",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "7.3",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174593",
+       "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_player_ou_incl_ot/under?player_key=s-miles-bridges&total=3.5",
+       "outcome": "under",
+       "params": "player_key=s-miles-bridges&total=3.5",
+       "price": "7.3",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "ACCEPTED",
+     "type": "SAME_GAME_PARLAY",
+     "uuid": "ae23f7dc-a03e-46f8-acde-dc403de8dc97"
+    }
+   ]
+  },
+  "388188d98f7054459b12ca25aeeeeceb4a8ad363": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "388188d98f7054459b12ca25aeeeeceb4a8ad363",
+     "betSlipId": "7ebe4364-31ab-4d8b-8377-5418981a46e1",
+     "channel": "WEB",
+     "completeTime": "0001-01-01T00:00:00Z",
+     "createTime": "2026-11-09T20:33:54.094461Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "300",
+     "price": "10",
+     "result": "PENDING",
+     "returnAmount": "0",
+     "selections": [
+      {
+       "adjustedPrice": "10",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174593",
+       "marketKey": "basketball.player_props_points_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_points_player_ou_incl_ot/under?player_key=s-stephon-castle&total=16.5",
+       "outcome": "under",
+       "params": "player_key=s-stephon-castle&total=16.5",
+       "price": "10",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "10",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174593",
+       "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_rebounds_player_ou_incl_ot/under?player_key=s-julian-champagnie&total=5.5",
+       "outcome": "under",
+       "params": "player_key=s-julian-champagnie&total=5.5",
+       "price": "10",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "10",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174593",
+       "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_three_pointers_player_ou_incl_ot/under?player_key=s-miles-bridges&total=1.5",
+       "outcome": "under",
+       "params": "player_key=s-miles-bridges&total=1.5",
+       "price": "10",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "ACCEPTED",
+     "type": "SAME_GAME_PARLAY",
+     "uuid": "47cd9de6-3365-4abb-a23e-7f45930a64e4"
+    }
+   ]
+  },
+  "f046ac8d1e6195c6fab67a1d47c770648814f367": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "f046ac8d1e6195c6fab67a1d47c770648814f367",
+     "betSlipId": "6d02b5fc-0183-4901-899c-f47831008548",
+     "channel": "WEB",
+     "completeTime": "0001-01-01T00:00:00Z",
+     "createTime": "2026-11-09T20:31:54.165123Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "351.72",
+     "price": "11.724",
+     "result": "PENDING",
+     "returnAmount": "0",
+     "selections": [
+      {
+       "adjustedPrice": "2.2",
+       "categoryKey": "usa",
+       "competitionKey": "td0-nfl",
+       "eventId": "36990324",
+       "marketKey": "american_football.player_props_receptions_player_ou_incl_ot",
+       "marketUrl": "american_football.player_props_receptions_player_ou_incl_ot/under?player_key=s-skyler-bell&total=0.5",
+       "outcome": "under",
+       "params": "player_key=s-skyler-bell&total=0.5",
+       "price": "2.2",
+       "result": "PENDING",
+       "sportKey": "american_football"
+      },
+      {
+       "adjustedPrice": "2.85",
+       "categoryKey": "usa",
+       "competitionKey": "t172-nhl",
+       "eventId": "37172604",
+       "marketKey": "ice_hockey.player_props_assists_player_ou_incl_ot",
+       "marketUrl": "ice_hockey.player_props_assists_player_ou_incl_ot/over?player_key=s-brayden-schenn&total=0.5",
+       "outcome": "over",
+       "params": "player_key=s-brayden-schenn&total=0.5",
+       "price": "2.85",
+       "result": "PENDING",
+       "sportKey": "ice_hockey"
+      },
+      {
+       "adjustedPrice": "1.87",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174593",
+       "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot/under?player_key=s-collin-gillespie&total=6.5",
+       "outcome": "under",
+       "params": "player_key=s-collin-gillespie&total=6.5",
+       "price": "1.87",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "ACCEPTED",
+     "type": "PARLAY",
+     "uuid": "0dff2954-da11-4280-84dd-2dc5cec6fdc2"
+    }
+   ]
+  },
+  "bb1b256360d53df22fbeab4451786facb1a9c025": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "bb1b256360d53df22fbeab4451786facb1a9c025",
+     "betSlipId": "a638b667-befe-47a7-ad51-371b692bc2ef",
+     "channel": "WEB",
+     "completeTime": "0001-01-01T00:00:00Z",
+     "createTime": "2026-11-09T20:14:41.952082Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "340.92",
+     "price": "11.364",
+     "result": "PENDING",
+     "returnAmount": "0",
+     "selections": [
+      {
+       "adjustedPrice": "2.9",
+       "categoryKey": "usa",
+       "competitionKey": "t172-nhl",
+       "eventId": "37172604",
+       "marketKey": "ice_hockey.player_props_points_player_ou_incl_ot",
+       "marketUrl": "ice_hockey.player_props_points_player_ou_incl_ot/over?player_key=s-tyler-toffoli&total=0.5",
+       "outcome": "over",
+       "params": "player_key=s-tyler-toffoli&total=0.5",
+       "price": "2.9",
+       "result": "PENDING",
+       "sportKey": "ice_hockey"
+      },
+      {
+       "adjustedPrice": "2.02",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174541",
+       "marketKey": "basketball.player_props_points_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_points_player_ou_incl_ot/under?player_key=s-tari-eason&total=9.5",
+       "outcome": "under",
+       "params": "player_key=s-tari-eason&total=9.5",
+       "price": "2.02",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "1.94",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37179205",
+       "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_rebounds_player_ou_incl_ot/under?player_key=s-zion-williamson&total=5.5",
+       "outcome": "under",
+       "params": "player_key=s-zion-williamson&total=5.5",
+       "price": "1.94",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "ACCEPTED",
+     "type": "PARLAY",
+     "uuid": "b751bda9-e570-42a6-b15c-f671e0a4ada1"
+    }
+   ]
+  },
+  "f1216b7261c9ac7724ed315ea88a83bad3772a74": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "f1216b7261c9ac7724ed315ea88a83bad3772a74",
+     "betSlipId": "c92d38f1-e80a-4d01-99f0-33fa60b84d07",
+     "channel": "WEB",
+     "completeTime": "0001-01-01T00:00:00Z",
+     "createTime": "2026-11-09T18:02:57.015715Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "221.1",
+     "price": "7.37",
+     "result": "PENDING",
+     "returnAmount": "0",
+     "selections": [
+      {
+       "adjustedPrice": "7.37",
+       "categoryKey": "usa",
+       "competitionKey": "td0-nfl",
+       "eventId": "36990324",
+       "marketKey": "american_football.player_props_receiving_yards_player_ou_incl_ot",
+       "marketUrl": "american_football.player_props_receiving_yards_player_ou_incl_ot/under?player_key=s-dawson-knox&total=9.5",
+       "outcome": "under",
+       "params": "player_key=s-dawson-knox&total=9.5",
+       "price": "7.37",
+       "result": "PENDING",
+       "sportKey": "american_football"
+      },
+      {
+       "adjustedPrice": "7.37",
+       "categoryKey": "usa",
+       "competitionKey": "td0-nfl",
+       "eventId": "36990324",
+       "marketKey": "american_football.player_props_receptions_player_ou_incl_ot",
+       "marketUrl": "american_football.player_props_receptions_player_ou_incl_ot/under?player_key=s-james-cook-iii&total=1.5",
+       "outcome": "under",
+       "params": "player_key=s-james-cook-iii&total=1.5",
+       "price": "7.37",
+       "result": "PENDING",
+       "sportKey": "american_football"
+      },
+      {
+       "adjustedPrice": "7.37",
+       "categoryKey": "usa",
+       "competitionKey": "td0-nfl",
+       "eventId": "36990324",
+       "marketKey": "american_football.player_props_receptions_player_ou_incl_ot",
+       "marketUrl": "american_football.player_props_receptions_player_ou_incl_ot/under?player_key=s-keon-coleman&total=2.5",
+       "outcome": "under",
+       "params": "player_key=s-keon-coleman&total=2.5",
+       "price": "7.37",
+       "result": "PENDING",
+       "sportKey": "american_football"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "ACCEPTED",
+     "type": "SAME_GAME_PARLAY",
+     "uuid": "e94f9ef2-67b0-47af-9e75-9b0bec8976c5"
+    }
+   ]
+  },
+  "c21214599243dd5d685d8e88c140608da8784164": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "c21214599243dd5d685d8e88c140608da8784164",
+     "betSlipId": "4a878f88-f138-4b29-8c83-3bf996bc0561",
+     "channel": "WEB",
+     "completeTime": "0001-01-01T00:00:00Z",
+     "createTime": "2026-11-09T18:00:43.002605Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "265.2",
+     "price": "8.84",
+     "result": "PENDING",
+     "returnAmount": "0",
+     "selections": [
+      {
+       "adjustedPrice": "8.84",
+       "categoryKey": "usa",
+       "competitionKey": "td0-nfl",
+       "eventId": "36990324",
+       "marketKey": "american_football.player_props_rushing_yards_player_ou_incl_ot",
+       "marketUrl": "american_football.player_props_rushing_yards_player_ou_incl_ot/under?player_key=s-carson-wentz&total=9.5",
+       "outcome": "under",
+       "params": "player_key=s-carson-wentz&total=9.5",
+       "price": "8.84",
+       "result": "PENDING",
+       "sportKey": "american_football"
+      },
+      {
+       "adjustedPrice": "8.84",
+       "categoryKey": "usa",
+       "competitionKey": "td0-nfl",
+       "eventId": "36990324",
+       "marketKey": "american_football.player_props_passing_touchdowns_player_ou_incl_ot",
+       "marketUrl": "american_football.player_props_passing_touchdowns_player_ou_incl_ot/over?player_key=s-carson-wentz&total=1.5",
+       "outcome": "over",
+       "params": "player_key=s-carson-wentz&total=1.5",
+       "price": "8.84",
+       "result": "PENDING",
+       "sportKey": "american_football"
+      },
+      {
+       "adjustedPrice": "8.84",
+       "categoryKey": "usa",
+       "competitionKey": "td0-nfl",
+       "eventId": "36990324",
+       "marketKey": "american_football.player_props_passing_touchdowns_player_ou_incl_ot",
+       "marketUrl": "american_football.player_props_passing_touchdowns_player_ou_incl_ot/under?player_key=s-josh-allen&total=1.5",
+       "outcome": "under",
+       "params": "player_key=s-josh-allen&total=1.5",
+       "price": "8.84",
+       "result": "PENDING",
+       "sportKey": "american_football"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "ACCEPTED",
+     "type": "SAME_GAME_PARLAY",
+     "uuid": "5675ccb3-7670-41a1-a656-0ba9c1170707"
+    }
+   ]
+  },
+  "63ce7595d79651925082ede2aeb66a8258d222a9": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "63ce7595d79651925082ede2aeb66a8258d222a9",
+     "betSlipId": "4a3ef48f-3b45-47fd-99a8-6d2455d63d8c",
+     "channel": "WEB",
+     "completeTime": "0001-01-01T00:00:00Z",
+     "createTime": "2026-11-09T17:54:57.974802Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "237.9",
+     "price": "7.93",
+     "result": "PENDING",
+     "returnAmount": "0",
+     "selections": [
+      {
+       "adjustedPrice": "7.93",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174593",
+       "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot/under?player_key=s-jalen-green&total=6.5",
+       "outcome": "under",
+       "params": "player_key=s-jalen-green&total=6.5",
+       "price": "7.93",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "7.93",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174593",
+       "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot/under?player_key=s-de-aaron-fox&total=9.5",
+       "outcome": "under",
+       "params": "player_key=s-de-aaron-fox&total=9.5",
+       "price": "7.93",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "7.93",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174593",
+       "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_rebounds_player_ou_incl_ot/under?player_key=s-oso-ighodaro&total=5.5",
+       "outcome": "under",
+       "params": "player_key=s-oso-ighodaro&total=5.5",
+       "price": "7.93",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "ACCEPTED",
+     "type": "SAME_GAME_PARLAY",
+     "uuid": "5a7d6342-2951-4908-9fc4-07e369eb45c0"
+    }
+   ]
+  },
+  "557943395dd324dd67a9ebb8f49a9c807f850f87": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "557943395dd324dd67a9ebb8f49a9c807f850f87",
+     "betSlipId": "33e2a649-7ca6-493a-ad2e-b69dec511cf3",
+     "channel": "WEB",
+     "completeTime": "0001-01-01T00:00:00Z",
+     "createTime": "2026-11-09T17:47:45.04363Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "249.3",
+     "price": "8.31",
+     "result": "PENDING",
+     "returnAmount": "0",
+     "selections": [
+      {
+       "adjustedPrice": "8.31",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174541",
+       "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot/under?player_key=s-jabari-smith-jr-dot&total=8.5",
+       "outcome": "under",
+       "params": "player_key=s-jabari-smith-jr-dot&total=8.5",
+       "price": "8.31",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "8.31",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174541",
+       "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot/under?player_key=s-fred-vanvleet&total=8.5",
+       "outcome": "under",
+       "params": "player_key=s-fred-vanvleet&total=8.5",
+       "price": "8.31",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "8.31",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174541",
+       "marketKey": "basketball.player_props_blocks_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_blocks_player_ou_incl_ot/over?player_key=s-nikola-jokic&total=0.5",
+       "outcome": "over",
+       "params": "player_key=s-nikola-jokic&total=0.5",
+       "price": "8.31",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "ACCEPTED",
+     "type": "SAME_GAME_PARLAY",
+     "uuid": "08f82dcc-0348-48e1-9146-15214ddedd13"
+    }
+   ]
+  },
+  "dd493ef9c094fcf43715383072e68fb1a62ffc91": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "dd493ef9c094fcf43715383072e68fb1a62ffc91",
+     "betSlipId": "e8689b8f-12e0-4a69-9621-0b5187731d57",
+     "channel": "WEB",
+     "completeTime": "0001-01-01T00:00:00Z",
+     "createTime": "2026-11-09T17:43:07.983096Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "253.5",
+     "price": "8.45",
+     "result": "PENDING",
+     "returnAmount": "0",
+     "selections": [
+      {
+       "adjustedPrice": "8.45",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37179205",
+       "marketKey": "basketball.player_props_blocks_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_blocks_player_ou_incl_ot/over?player_key=s-brandin-podziemski&total=0.5",
+       "outcome": "over",
+       "params": "player_key=s-brandin-podziemski&total=0.5",
+       "price": "8.45",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "8.45",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37179205",
+       "marketKey": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_and_rebounds_player_ou_incl_ot/under?player_key=s-zion-williamson&total=8.5",
+       "outcome": "under",
+       "params": "player_key=s-zion-williamson&total=8.5",
+       "price": "8.45",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "8.45",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37179205",
+       "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_player_ou_incl_ot/under?player_key=s-derik-queen&total=2.5",
+       "outcome": "under",
+       "params": "player_key=s-derik-queen&total=2.5",
+       "price": "8.45",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "ACCEPTED",
+     "type": "SAME_GAME_PARLAY",
+     "uuid": "870413fa-0912-46da-ad96-870112ffe88b"
+    }
+   ]
+  },
+  "1e594c984da05e8645dd8064dc86e7ea3db62eea": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "1e594c984da05e8645dd8064dc86e7ea3db62eea",
+     "betSlipId": "6da3f953-1ba0-4742-8d07-66beddde9c7a",
+     "channel": "WEB",
+     "completeTime": "2026-11-10T02:56:39Z",
+     "createTime": "2026-11-09T18:11:40.993799Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "105.6",
+     "price": "6.934",
+     "result": "LOSS",
+     "returnAmount": "-30",
+     "selections": [
+      {
+       "adjustedPrice": "3.52",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37178286",
+       "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_player_ou_incl_ot/under?player_key=s-paul-reed&total=2.5",
+       "outcome": "under",
+       "params": "player_key=s-paul-reed&total=2.5",
+       "price": "3.52",
+       "result": "WIN",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "3.52",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37178286",
+       "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_rebounds_player_ou_incl_ot/over?player_key=s-kyshawn-george&total=4.5",
+       "outcome": "over",
+       "params": "player_key=s-kyshawn-george&total=4.5",
+       "price": "3.52",
+       "result": "LOSS",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "1.97",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37178354",
+       "marketKey": "basketball.player_props_points_and_assists_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_points_and_assists_player_ou_incl_ot/under?player_key=s-collin-murray-minus-boyles&total=15.5",
+       "outcome": "under",
+       "params": "player_key=s-collin-murray-minus-boyles&total=15.5",
+       "price": "1.97",
+       "result": "PUSH",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "COMPLETED",
+     "type": "SAME_GAME_PARLAY",
+     "uuid": "225709c2-3e94-467c-9812-37379a7082cf"
+    }
+   ]
+  },
+  "99fc6d0f44399630e3f902091f31f57e63fcd870": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "99fc6d0f44399630e3f902091f31f57e63fcd870",
+     "betSlipId": "72be4fa4-c5a3-48fd-a721-c750a7eeccf4",
+     "channel": "WEB",
+     "completeTime": "2026-11-10T02:37:50Z",
+     "createTime": "2026-11-09T20:19:46.965893Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "0",
+     "price": "9.67",
+     "result": "LOSS",
+     "returnAmount": "-30",
+     "selections": [
+      {
+       "adjustedPrice": "9.67",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37178341",
+       "marketKey": "basketball.player_props_points_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_points_player_ou_incl_ot/under?player_key=s-sion-james&total=7.5",
+       "outcome": "under",
+       "params": "player_key=s-sion-james&total=7.5",
+       "price": "9.67",
+       "result": "LOSS",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "9.67",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37178341",
+       "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_rebounds_player_ou_incl_ot/under?player_key=s-coby-white&total=2.5",
+       "outcome": "under",
+       "params": "player_key=s-coby-white&total=2.5",
+       "price": "9.67",
+       "result": "WIN",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "9.67",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37178341",
+       "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_rebounds_player_ou_incl_ot/under?player_key=s-royce-o-neale&total=4.5",
+       "outcome": "under",
+       "params": "player_key=s-royce-o-neale&total=4.5",
+       "price": "9.67",
+       "result": "WIN",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "COMPLETED",
+     "type": "SAME_GAME_PARLAY",
+     "uuid": "d4789569-da3e-4732-a7e1-995257a42fd1"
+    }
+   ]
+  },
+  "a150b9b4e419bebb11f8fdbc8b4625641312c00f": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "a150b9b4e419bebb11f8fdbc8b4625641312c00f",
+     "betSlipId": "e6588c32-374e-4c08-9388-0f3ef4e9b95b",
+     "channel": "WEB",
+     "completeTime": "2026-11-10T02:32:02Z",
+     "createTime": "2026-11-09T17:53:03.964243Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "0",
+     "price": "7.68",
+     "result": "LOSS",
+     "returnAmount": "-30",
+     "selections": [
+      {
+       "adjustedPrice": "2.1",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37174541",
+       "marketKey": "basketball.player_props_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_rebounds_player_ou_incl_ot/under?player_key=s-tari-eason&total=5.5",
+       "outcome": "under",
+       "params": "player_key=s-tari-eason&total=5.5",
+       "price": "2.1",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "2.19",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37178354",
+       "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_assists_player_ou_incl_ot/under?player_key=s-scottie-barnes&total=5.5",
+       "outcome": "under",
+       "params": "player_key=s-scottie-barnes&total=5.5",
+       "price": "2.19",
+       "result": "PUSH",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "1.67",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37178341",
+       "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_three_pointers_player_ou_incl_ot/under?player_key=s-peyton-watson&total=1.5",
+       "outcome": "under",
+       "params": "player_key=s-peyton-watson&total=1.5",
+       "price": "1.67",
+       "result": "LOSS",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "COMPLETED",
+     "type": "PARLAY",
+     "uuid": "0b08efd7-5995-425a-8f7c-cd8c42403bc6"
+    }
+   ]
+  },
+  "b8b3e894b56d4f04eae0bc8686572f8b94d1c435": {
+   "bets": [
+    {
+     "adjustedPrice": "0",
+     "baseCurrency": "USDT",
+     "betLegsIdentifier": "b8b3e894b56d4f04eae0bc8686572f8b94d1c435",
+     "betSlipId": "36b79e15-1296-40cd-960b-96f3ed4edac9",
+     "channel": "WEB",
+     "completeTime": "2026-11-10T02:30:36Z",
+     "createTime": "2026-11-09T21:41:53.674599Z",
+     "exhaustedPotentialReturnAmount": "0",
+     "isCashoutBet": false,
+     "isMultiple": true,
+     "potentialReturnAmount": "0",
+     "price": "6.48",
+     "result": "LOSS",
+     "returnAmount": "-30",
+     "selections": [
+      {
+       "adjustedPrice": "4.05",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37179164",
+       "marketKey": "basketball.player_props_points_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_points_player_ou_incl_ot/under?player_key=s-aaron-wiggins&total=13.5",
+       "outcome": "under",
+       "params": "player_key=s-aaron-wiggins&total=13.5",
+       "price": "4.05",
+       "result": "LOSS",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "4.05",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37179164",
+       "marketKey": "basketball.player_props_points_and_rebounds_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_points_and_rebounds_player_ou_incl_ot/under?player_key=s-jake-laravia&total=10.5",
+       "outcome": "under",
+       "params": "player_key=s-jake-laravia&total=10.5",
+       "price": "4.05",
+       "result": "WIN",
+       "sportKey": "basketball"
+      },
+      {
+       "adjustedPrice": "1.6",
+       "categoryKey": "usa",
+       "competitionKey": "t8f-nba",
+       "eventId": "37179205",
+       "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_three_pointers_player_ou_incl_ot/under?player_key=s-saddiq-bey&total=2.5",
+       "outcome": "under",
+       "params": "player_key=s-saddiq-bey&total=2.5",
+       "price": "1.6",
+       "result": "PENDING",
+       "sportKey": "basketball"
+      }
+     ],
+     "side": "BACK",
+     "spendingPoints": "0",
+     "stake": "30",
+     "state": "COMPLETED",
+     "type": "SAME_GAME_PARLAY",
+     "uuid": "c763f002-585d-406a-920e-369d564ee5de"
+    }
+   ]
+  }
+ },
+ "eventos": {
+  "36990324": {
+   "id": 36990324,
+   "name": "MIN Vikings v BUF Bills",
+   "key": "cd9b-minnesota-vikings-v-cd78-buffalo-bills",
+   "status": "TRADING_LIVE",
+   "type": "EVENT_TYPE_EVENT",
+   "cutoffTime": "2026-11-10T01:15:00Z",
+   "endTime": "",
+   "resultedTime": "",
+   "sport": {
+    "name": "American Football",
+    "key": "american-football"
+   },
+   "competition": {
+    "key": "american-football-usa-nfl",
+    "name": "NFL",
+    "category": {
+     "name": "USA",
+     "key": "usa"
+    }
+   },
+   "home": {
+    "key": "cd9b-minnesota-vikings",
+    "name": "MIN Vikings",
+    "abbreviation": "MIN"
+   },
+   "away": {
+    "key": "cd78-buffalo-bills",
+    "name": "BUF Bills",
+    "abbreviation": "BUF"
+   },
+   "eventStatus": "3rd_quarter"
+  },
+  "37172604": {
+   "id": 37172604,
+   "name": "SJ Sharks v NY Islanders",
+   "key": "c1b71-san-jose-sharks-v-c1b66-new-york-islanders",
+   "status": "TRADING_LIVE",
+   "type": "EVENT_TYPE_EVENT",
+   "cutoffTime": "2026-11-10T03:00:00Z",
+   "endTime": "",
+   "resultedTime": "",
+   "sport": {
+    "name": "Ice Hockey",
+    "key": "ice-hockey"
+   },
+   "competition": {
+    "key": "ice-hockey-usa-nhl",
+    "name": "NHL",
+    "category": {
+     "name": "USA",
+     "key": "usa"
+    }
+   },
+   "home": {
+    "key": "c1b71-san-jose-sharks",
+    "name": "SJ Sharks",
+    "abbreviation": "SJ"
+   },
+   "away": {
+    "key": "c1b66-new-york-islanders",
+    "name": "NY Islanders",
+    "abbreviation": "NYI"
+   },
+   "eventStatus": "1st_period"
+  },
+  "37174541": {
+   "id": 37174541,
+   "name": "HOU Rockets v DEN Nuggets",
+   "key": "c9f0-houston-rockets-v-c9ea-denver-nuggets",
+   "status": "TRADING_LIVE",
+   "type": "EVENT_TYPE_EVENT",
+   "cutoffTime": "2026-11-10T01:30:00Z",
+   "endTime": "",
+   "resultedTime": "",
+   "sport": {
+    "name": "Basketball",
+    "key": "basketball"
+   },
+   "competition": {
+    "key": "basketball-usa-nba",
+    "name": "NBA",
+    "category": {
+     "name": "USA",
+     "key": "usa"
+    }
+   },
+   "home": {
+    "key": "c9f0-houston-rockets",
+    "name": "HOU Rockets",
+    "abbreviation": "HOU"
+   },
+   "away": {
+    "key": "c9ea-denver-nuggets",
+    "name": "DEN Nuggets",
+    "abbreviation": "DEN"
+   },
+   "eventStatus": "3rd_quarter"
+  },
+  "37174593": {
+   "id": 37174593,
+   "name": "PHX Suns v SA Spurs",
+   "key": "c6cc-phoenix-suns-v-c6f7-san-antonio-spurs",
+   "status": "TRADING_LIVE",
+   "type": "EVENT_TYPE_EVENT",
+   "cutoffTime": "2026-11-10T02:00:00Z",
+   "endTime": "",
+   "resultedTime": "",
+   "sport": {
+    "name": "Basketball",
+    "key": "basketball"
+   },
+   "competition": {
+    "key": "basketball-usa-nba",
+    "name": "NBA",
+    "category": {
+     "name": "USA",
+     "key": "usa"
+    }
+   },
+   "home": {
+    "key": "c6cc-phoenix-suns",
+    "name": "PHX Suns",
+    "abbreviation": "PHX"
+   },
+   "away": {
+    "key": "c6f7-san-antonio-spurs",
+    "name": "SA Spurs",
+    "abbreviation": "SAS"
+   },
+   "eventStatus": "second_break_quarter"
+  },
+  "37178286": {
+   "id": 37178286,
+   "name": "DET Pistons v WAS Wizards",
+   "key": "c595-detroit-pistons-v-ca0e-washington-wizards",
+   "status": "RESULTED",
+   "type": "EVENT_TYPE_EVENT",
+   "cutoffTime": "2026-11-10T00:00:00Z",
+   "endTime": "2026-11-10T02:43:16Z",
+   "resultedTime": "2026-11-10T03:04:48Z",
+   "sport": {
+    "name": "Basketball",
+    "key": "basketball"
+   },
+   "competition": {
+    "key": "basketball-usa-nba",
+    "name": "NBA",
+    "category": {
+     "name": "USA",
+     "key": "usa"
+    }
+   },
+   "home": {
+    "key": "c595-detroit-pistons",
+    "name": "DET Pistons",
+    "abbreviation": "DET"
+   },
+   "away": {
+    "key": "ca0e-washington-wizards",
+    "name": "WAS Wizards",
+    "abbreviation": "WAS"
+   },
+   "eventStatus": "ended"
+  },
+  "37178341": {
+   "id": 37178341,
+   "name": "CHA Hornets v CLE Cavaliers",
+   "key": "c9e1-charlotte-hornets-v-c579-cleveland-cavaliers",
+   "status": "RESULTED",
+   "type": "EVENT_TYPE_EVENT",
+   "cutoffTime": "2026-11-10T00:00:00Z",
+   "endTime": "2026-11-10T02:19:30Z",
+   "resultedTime": "2026-11-10T02:40:32Z",
+   "sport": {
+    "name": "Basketball",
+    "key": "basketball"
+   },
+   "competition": {
+    "key": "basketball-usa-nba",
+    "name": "NBA",
+    "category": {
+     "name": "USA",
+     "key": "usa"
+    }
+   },
+   "home": {
+    "key": "c9e1-charlotte-hornets",
+    "name": "CHA Hornets",
+    "abbreviation": "CHA"
+   },
+   "away": {
+    "key": "c579-cleveland-cavaliers",
+    "name": "CLE Cavaliers",
+    "abbreviation": "CLE"
+   },
+   "eventStatus": "ended"
+  },
+  "37178354": {
+   "id": 37178354,
+   "name": "TOR Raptors v MEM Grizzlies",
+   "key": "c73c-toronto-raptors-v-c66a-memphis-grizzlies",
+   "status": "POST_TRADING",
+   "type": "EVENT_TYPE_EVENT",
+   "cutoffTime": "2026-11-10T00:30:00Z",
+   "endTime": "2026-11-10T02:53:08Z",
+   "resultedTime": "",
+   "sport": {
+    "name": "Basketball",
+    "key": "basketball"
+   },
+   "competition": {
+    "key": "basketball-usa-nba",
+    "name": "NBA",
+    "category": {
+     "name": "USA",
+     "key": "usa"
+    }
+   },
+   "home": {
+    "key": "c73c-toronto-raptors",
+    "name": "TOR Raptors",
+    "abbreviation": "TOR"
+   },
+   "away": {
+    "key": "c66a-memphis-grizzlies",
+    "name": "MEM Grizzlies",
+    "abbreviation": "MEM"
+   },
+   "eventStatus": "ended"
+  },
+  "37179164": {
+   "id": 37179164,
+   "name": "ATL Hawks v LA Lakers",
+   "key": "c9dc-atlanta-hawks-v-c655-los-angeles-lakers",
+   "status": "RESULTED",
+   "type": "EVENT_TYPE_EVENT",
+   "cutoffTime": "2026-11-10T00:00:00Z",
+   "endTime": "2026-11-10T02:22:23Z",
+   "resultedTime": "2026-11-10T02:47:22Z",
+   "sport": {
+    "name": "Basketball",
+    "key": "basketball"
+   },
+   "competition": {
+    "key": "basketball-usa-nba",
+    "name": "NBA",
+    "category": {
+     "name": "USA",
+     "key": "usa"
+    }
+   },
+   "home": {
+    "key": "c9dc-atlanta-hawks",
+    "name": "ATL Hawks",
+    "abbreviation": "ATL"
+   },
+   "away": {
+    "key": "c655-los-angeles-lakers",
+    "name": "LA Lakers",
+    "abbreviation": "LAL"
+   },
+   "eventStatus": "ended"
+  },
+  "37179205": {
+   "id": 37179205,
+   "name": "GS Warriors v NO Pelicans",
+   "key": "c5dd-golden-state-warriors-v-c682-new-orleans-pelicans",
+   "status": "TRADING_LIVE",
+   "type": "EVENT_TYPE_EVENT",
+   "cutoffTime": "2026-11-10T03:00:00Z",
+   "endTime": "",
+   "resultedTime": "",
+   "sport": {
+    "name": "Basketball",
+    "key": "basketball"
+   },
+   "competition": {
+    "key": "basketball-usa-nba",
+    "name": "NBA",
+    "category": {
+     "name": "USA",
+     "key": "usa"
+    }
+   },
+   "home": {
+    "key": "c5dd-golden-state-warriors",
+    "name": "GS Warriors",
+    "abbreviation": "GSW"
+   },
+   "away": {
+    "key": "c682-new-orleans-pelicans",
+    "name": "NO Pelicans",
+    "abbreviation": "NOP"
+   },
+   "eventStatus": "1st_quarter"
+  },
+  "37179508": {
+   "id": 37179508,
+   "name": "DAL Mavericks v IND Pacers",
+   "key": "c58d-dallas-mavericks-v-c5f9-indiana-pacers",
+   "status": "TRADING_LIVE",
+   "type": "EVENT_TYPE_EVENT",
+   "cutoffTime": "2026-11-10T01:00:00Z",
+   "endTime": "",
+   "resultedTime": "",
+   "sport": {
+    "name": "Basketball",
+    "key": "basketball"
+   },
+   "competition": {
+    "key": "basketball-usa-nba",
+    "name": "NBA",
+    "category": {
+     "name": "USA",
+     "key": "usa"
+    }
+   },
+   "home": {
+    "key": "c58d-dallas-mavericks",
+    "name": "DAL Mavericks",
+    "abbreviation": "DAL"
+   },
+   "away": {
+    "key": "c5f9-indiana-pacers",
+    "name": "IND Pacers",
+    "abbreviation": "IND"
+   },
+   "eventStatus": "4th_quarter"
+  }
+ }
+}

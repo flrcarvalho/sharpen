@@ -288,6 +288,15 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0773",
+      "v": "v0.7.73",
+      "data": "2026-11-10",
+      "texto": "Nova casa: **Cloudbet** (só o sportsbook).",
+      "itens": [
+        "Atualize a extensão e dê Ctrl+Shift+R na aba da Cloudbet e na do painel. Cadastre a conta na moeda em que você aposta lá (USDT, por exemplo)."
+      ]
+    },
+    {
       "id": "su-0772",
       "v": "v0.7.72",
       "data": "2026-11-08",

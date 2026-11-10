@@ -289,6 +289,10 @@ _CASA_DISPLAY: dict[str, str] = {
     # nenhuma (medido em 08/11/2026 em parceiros, bilhetes, casas_meta e correcoes), então vale
     # a da marca, em minúsculas como no logo.
     "3ET":            "3et",
+    # Plataforma PRÓPRIA (s442, API `/sports-betting/v4/`). A base JÁ tinha a casa, por print e
+    # manual, como `Cloudbet` (medido em 10/11/2026: 283 bilhetes, 2 contas, 2 casas_meta, 874
+    # correcoes, uma grafia só), então vale a da base.
+    "CLOUDBET":       "Cloudbet",
     "BETESPORTE":     "BETesporte",
     "BETFAIR":        "Betfair",
     "BETFAST":        "Betfast",
@@ -1206,6 +1210,9 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # 3et (s441) — plataforma própria. ID = `betId` do bilhete, numérico de 8 dígitos
     # (`51776597`). As pernas têm `betId` próprio de outra série (64M); só o do bilhete é código.
     "3ET",
+    # Cloudbet (s442) — plataforma própria. ID = `uuid` da APOSTA (36 caracteres, o "ID:" do card
+    # expandido). O `positionId` (hash de 40) é da posição e não é código.
+    "CLOUDBET",
     "BETPIX365",
     # Estrela Bet (s303) — 5ª casa Altenar. Mesmo espaço de IDs do motor: numérico de 10
     # dígitos, o mesmo número que o rodapé do card estampa como `ID:`.

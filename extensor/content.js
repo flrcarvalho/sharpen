@@ -630,6 +630,30 @@
     }
   });
 
+  // Bilhetes da CLOUDBET capturados pelo cb_inject.js (mundo MAIN) — lista de posições +
+  // detalhe de cada uma + evento de cada perna, plataforma própria no mesmo domínio (s442).
+  // `cbById` guarda 1 bilhete por `uuid` (o "ID:" do card); a versão LIQUIDADA vence a aberta.
+  const cbById = new Map();          // uuid → bilhete
+  let cbFimReal = false;
+  let cbHookVivo = false, cbRespostas = 0, cbSemToken = false, cbErro = "";
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupCBData) {
+      if (d.hook) cbHookVivo = true;
+      if (typeof d.respostas === "number") cbRespostas = d.respostas;
+      cbSemToken = !!d.semToken;
+      cbErro = d.erro ? String(d.erro) : "";
+      if (Array.isArray(d.bilhetes)) {
+        for (const b of d.bilhetes) {
+          if (!b || !b.id) continue;
+          const ex = cbById.get(b.id);
+          if (!ex || ex.aberta || !b.aberta) cbById.set(b.id, b);
+        }
+      }
+      if (d.fim) cbFimReal = true;
+    }
+  });
+
   // Bilhetes da TIVO capturados pelo tv_inject.js (mundo MAIN) — as RESPOSTAS do proxy
   // /api/game/p/messagetosport com {name:"gethistory"}, já normalizadas pelo inject. A Tivo
   // NÃO pagina: uma única chamada devolve a conta inteira e a própria casa carimba `Count`,
@@ -1654,6 +1678,12 @@
       // replay arranca a frio e pede liquidadas (`after=0`) e abertas, 200 por página, até
       // `last:true`. Só o sportsbook (a exchange fica para depois). SEM fallback de texto.
       blocos = await roboETPassive(ctx);
+    } else if (casa === "cloudbet") {
+      // Replay (cb_inject, plataforma PRÓPRIA — s442). O cookie não basta: os cabeçalhos de
+      // auth saem de qualquer chamada de `/sports-api/` ou `/sports-betting/` da página. O
+      // replay pede abertas e liquidadas (janelas de 360 dias até a janela de dias), o detalhe
+      // de cada posição e o evento de cada perna. SEM fallback de texto.
+      blocos = await roboCBPassive(ctx);
     } else {
       blocos = await roboScroll(ctx);   // genéricos
     }
@@ -1906,6 +1936,11 @@
         // 3et (s441): a sessão é só o cookie. HTTP 401/403 no replay = deslogado.
         "3et":      { nome: "3et",        hook: etHookVivo, resp: etRespostas, vistos: etById.size,
                       extra: etErro ? " · " + etErro : "" },
+        // Cloudbet (s442): os cabeçalhos de auth saem de qualquer chamada de `/sports-api/` da
+        // página, que as faz sozinha ao carregar. Sem eles (`semToken`), não está logada.
+        cloudbet:   { nome: "Cloudbet",   hook: cbHookVivo, resp: cbRespostas, vistos: cbById.size,
+                      extra: cbErro ? " · " + cbErro
+                           : (cbSemToken ? " · faça login, espere a página carregar e rode de novo" : "") },
         bet365:     { nome: "Bet365",     hook: b3HookVivo, resp: b3Soma("respostas"), vistos: b3ById.size,
                       // Extras só da Bet365: em quantos frames o inject respondeu (a área de
                       // membros é outra origem, em iframe) e quantas URLs com "history" passaram
@@ -6113,6 +6148,172 @@
     console.log("[SharpenUp] 3et: " + blocos.length + " bilhete(s) · etById=" + etById.size +
                 " · hook=" + etHookVivo + " · respostas=" + etRespostas + " · fimReal=" + etFimReal +
                 (etErro ? " · erro=" + etErro : ""));
+    return blocos;
+  }
+
+  // ── Cloudbet (plataforma própria, só sportsbook — s442) ──────────────────────
+  // Formata 1 aposta do DETALHE da posição (normalizada pelo cb_inject, com os nomes da lista e
+  // o evento de cada perna) no bloco que a IA lê. Leituras VALIDADAS contra o card (recon
+  // 10/11/2026, conta em USDT, 19 apostas, todas múltiplas de 3: 9 Bet Builder e 10 parlays):
+  //   • o código é o `uuid` da aposta, o "ID:" que o card expandido mostra;
+  //   • a odd do card é `price` (o "@ 6.93"); a da lista (`aggregate.odds`) é 0 na perdida;
+  //   • ⚠ `returnAmount` é o LUCRO (−30 na perdida de 30). O retorno é stake + returnAmount;
+  //   • no Bet Builder (`SAME_GAME_PARLAY`) a perna repete a odd do conjunto: não é odd própria;
+  //   • a data do bloco é a do evento (`cutoffTime`), a mais recente das pernas; a colocação
+  //     vai ao lado. Os dois chegam em UTC e saem em São Paulo.
+  // NÃO MEDIDO (a conta não tinha): ganha, simples, cashout, freebet, boost. Só o DINHEIRO
+  // decide: retorno = stake prova V; o resto sobe cru, "a conferir". O de-para vive na
+  // CASA_CLOUDBET.md §5.
+  const _PERNA_CB = { WIN: "ganha", LOSS: "perdida", PUSH: "anulada (push)", PENDING: "não decidida" };
+  const _quaseCB = (a, b, tol) => typeof a === "number" && typeof b === "number" && Math.abs(a - b) < tol;
+  const _retornoCB = (b) => (typeof b.stake === "number" && typeof b.lucro === "number")
+    ? Math.round((b.stake + b.lucro) * 1e8) / 1e8 : null;
+  const _bbCB = (b) => b.tipoApi === "SAME_GAME_PARLAY";
+
+  function _dataEventoCB(b) {
+    let max = null;
+    for (const p of (b.pernas || [])) if (typeof p.inicio === "number" && (max == null || p.inicio > max)) max = p.inicio;
+    return max == null ? "" : new Date(max * 1000).toISOString();
+  }
+
+  // Leitura pelo DINHEIRO, com o estado cru ao lado. Só se decide onde o número prova.
+  function _resultadoCB(b) {
+    const st = b.stake, m = b.moeda ? " " + b.moeda : "";
+    const cru = "result " + (b.resultado || "(vazio)");
+    const conferir = (extra) => cru + (extra ? " · " + extra : "") + " (a conferir — não liquidar automaticamente)";
+    if (b.aberta) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (!(st > 0)) return conferir("sem stake");
+    if (b.cashout) return conferir("isCashoutBet, sem amostra");
+    const ret = _retornoCB(b);
+    if (ret == null) return conferir("sem returnAmount");
+    // Retorno = stake: P/L zero, V qualquer que seja o rótulo (rede do dinheiro).
+    if (_quaseCB(ret, st, 0.005)) return "Retorno = stake (" + _dinSHF(st) + m + ", " + cru + ") → V";
+    if (b.resultado === "LOSS") return Math.abs(ret) < 0.005 ? "Perdeu → L" : conferir("retorno " + _dinSHF(ret) + m);
+    if (b.resultado === "WIN" && ret > st) {
+      if (b.odd > 0 && _quaseCB(ret, st * b.odd, 0.01 + 1e-9)) return "Ganhou → W (retorno " + _dinSHF(ret) + m + ")";
+      // Perna anulada: a casa refaz a odd sem ela (6,934 ÷ 1,97 = 3,52 no card). O dinheiro manda.
+      if ((b.pernas || []).some((p) => p.resultado === "PUSH")) {
+        return "Ganhou com perna anulada → W (retorno " + _dinSHF(ret) + m + "; odd = retorno ÷ stake = " +
+               _oddTxtKTO(Math.round((ret / st) * 1e8) / 1e8) + ")";
+      }
+    }
+    return conferir("retorno " + _dinSHF(ret) + m);
+  }
+
+  function formatTicketCB(b) {
+    const L = [];
+    L.push("[Código: " + b.id + "]");
+    const dev = _dhKTO(_dataEventoCB(b));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    const dcol = typeof b.colocada === "number" ? _dhKTO(new Date(b.colocada * 1000).toISOString()) : "";
+    if (dcol) L.push("Data (colocação): " + dcol);
+    _linhaCarimbo(L, b.colocada, b.moeda);
+    L.push("Stake: " + _dinSHF(b.stake));
+    _linhaMoeda(L, b.moeda);
+    L.push("Status: " + _resultadoCB(b));
+    L.push("Status (API): state=" + String(b.estado || "(vazio)") + " · result=" + String(b.resultado || "(vazio)") +
+           " · type=" + String(b.tipoApi || "(vazio)") + " · posição=" + String(b.posicao || "(vazia)"));
+    if (b.apostasNaPosicao > 1) L.push("Apostas na posição (casa): " + b.apostasNaPosicao + " (sem amostra — a conferir)");
+
+    const pernas = b.pernas || [];
+    const n = pernas.length;
+    // Grupos por JOGO. No `SAME_GAME_PARLAY` cada perna leva a odd do SEU grupo (o Criar Aposta
+    // daquele jogo), e a odd do bilhete é o produto dos grupos: 3,52 × 1,97 = 6,934 (medido).
+    const grupos = _gruposCB(b);
+    const nbb = grupos.filter((g) => g.length > 1).length;
+    if (_bbCB(b) && grupos.length === 1 && n > 1) L.push("Tipo: Criar Aposta / mesmo jogo (" + n + " seleções; a odd é a do conjunto)");
+    else if (n === 1) L.push("Tipo: Simples");
+    else if (n > 1) {
+      L.push("Tipo: Múltipla (" + n + " seleções em " + grupos.length + " jogos" +
+             (_bbCB(b) && nbb ? "; " + nbb + " deles em Criar Aposta, com a odd do conjunto do jogo" : "") + ")");
+    }
+
+    if (b.odd > 0) L.push("Odd: " + _oddTxtKTO(b.odd));
+    else L.push("Odd: (a casa não informou — deixe a odd VAZIA; não use o produto das pernas nem zero)");
+    if (b.aberta && b.stake > 0 && b.odd > 0) {
+      L.push("Retorno potencial (se ganhar): " + _dinSHF(Math.round(b.stake * b.odd * 100) / 100) + (b.moeda ? " " + b.moeda : ""));
+    }
+
+    L.push("Seleções:");
+    for (const p of pernas) {
+      const bits = [(p.mercado || "(mercado sem nome)") + ":", p.selecao || "(seleção sem nome)"];
+      // Na aberta a casa já marca perna decidida (WIN com o jogo encerrado), mas o bilhete não
+      // está: o estado da perna vai em linha própria, nunca no colchete que a IA lê como resultado.
+      if (!b.aberta && p.resultado) bits.push("[perna " + (_PERNA_CB[p.resultado] || p.resultado) + "]");
+      L.push("- " + bits.join(" "));
+      const ctx2 = [];
+      ctx2.push("Jogo: " + (p.jogo || "(a casa não informou)"));
+      if (p.liga) ctx2.push("Liga: " + p.liga + (p.pais ? " (" + p.pais + ")" : ""));
+      ctx2.push("Esporte: " + (p.esporte || p.esporteChave || "(a casa não informou — deduza pela liga)"));
+      const ini = typeof p.inicio === "number" ? _dhKTO(new Date(p.inicio * 1000).toISOString()) : "";
+      if (ini) ctx2.push("Início: " + ini);
+      L.push("    " + ctx2.join(" · "));
+      if (b.aberta && p.resultado) L.push("    Estado da perna (casa): " + p.resultado);
+      if (n > 1 && p.odd != null) {
+        const g = grupos.find((x) => x.indexOf(p) >= 0) || [p];
+        if (_bbCB(b) && g.length > 1) {
+          // Só quando a múltipla tem OUTROS jogos: no Criar Aposta puro a odd já é a do bilhete.
+          if (grupos.length > 1) L.push("    Odd do Criar Aposta deste jogo (não é da perna): " + _oddTxtKTO(p.odd));
+        } else L.push("    Odd da perna: " + _oddTxtKTO(p.odd));
+      }
+    }
+    return L.join("\n");
+  }
+
+  // Pernas agrupadas por jogo (`eventoId`), na ordem da casa.
+  function _gruposCB(b) {
+    const m = new Map();
+    for (const p of (b.pernas || [])) {
+      const k = p.eventoId || ("?" + m.size);
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(p);
+    }
+    return Array.from(m.values());
+  }
+
+  async function roboCBPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+    // A janela de dias corta pela LIQUIDAÇÃO (é por ela que a casa filtra a lista); aberta nunca.
+    const quando = (b) => (typeof b.liquidada === "number" ? b.liquidada : b.colocada) || 0;
+
+    const processar = () => {
+      const todos = Array.from(cbById.values()).sort((a, b) => quando(b) - quando(a));
+      for (const b of todos) {
+        const cod = String(b.id || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }
+        usados.add(cod);
+        const dt = quando(b) * 1000;
+        const passou = !b.aberta && dt > 0 && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        if (passou) { travado = true; return; }
+        blocos.push(formatTicketCB(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+      }
+    };
+
+    // Rodada nova começa do zero (lição da s393, DEX Sport). `desde` = a janela de dias: o
+    // inject não pede detalhe de posição que liquidou antes dela (uma chamada por posição).
+    cbById.clear();
+    cbFimReal = false;
+    try { window.postMessage({ __sharpenupCBReq: true, desde: ctx.cutoff }, "*"); } catch (e) {}
+    await sleep(400);
+
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !cbFimReal && voltas < 1200) {
+      voltas++;
+      await sleep(500);
+      // Os bilhetes só chegam no fim (detalhe + evento de todos): a atividade é medida pelas
+      // RESPOSTAS, que o inject reporta a cada página e a cada lote de detalhes.
+      const atividade = cbById.size + cbRespostas;
+      if (atividade > ultTotal) { ultTotal = atividade; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 60000) break;   // 60 s parado, sem fim real → desiste
+    }
+    await sleep(400);
+    processar();
+    console.log("[SharpenUp] Cloudbet: " + blocos.length + " bilhete(s) · cbById=" + cbById.size +
+                " · hook=" + cbHookVivo + " · respostas=" + cbRespostas + " · fimReal=" + cbFimReal +
+                " · semToken=" + cbSemToken + (cbErro ? " · erro=" + cbErro : ""));
     return blocos;
   }
 

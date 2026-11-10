@@ -183,6 +183,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # 3et (s441): a dupla ganha de 07/11/2026 (22 USD @6,814, retorno 149,908), conta do Feca.
     # `betId` do bilhete, numérico de 8 dígitos (as pernas têm outra série, que não é código).
     "3ET":        "51776597",
+    # Cloudbet (s442): a perdida Bet Builder de 09/11/2026 (30 USDT @6,934), conta do recon.
+    # `uuid` da APOSTA (o "ID:" do card expandido), nunca o `positionId` da posição.
+    "CLOUDBET":   "225709c2-3e94-467c-9812-37379a7082cf",
     # `internal_bet_id` real da conta (a perdida de 07/08, stake R$18,88 @3,95) — numérico de
     # 7 dígitos. ⚠ É o ID que o CARD estampa; o `ticket_id` (11 dígitos) NÃO vai para o
     # marcador, senão print e captura gerariam códigos diferentes para o mesmo bilhete.

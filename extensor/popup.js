@@ -107,6 +107,8 @@ const CASA_HOSTS = {
   "Thunderpick": ["thunderpick.io"],
   // 3et (s441): plataforma própria, API `/betting/v3/eurasian/` no MESMO domínio da aba.
   "3et":         ["3et.com"],
+  // Cloudbet (s442): plataforma própria, API `/sports-betting/v4/` no MESMO domínio da aba.
+  "Cloudbet":    ["cloudbet.com"],
   // Antiga "Rei do Pitaco" (grafia unificada no banco na s270). Plataforma própria,
   // gRPC-Web/protobuf — inject próprio.
   "Pitaco":     ["pitaco.bet.br"],
@@ -409,6 +411,8 @@ async function capturar() {
                 : casa === "Thunderpick" ? "thp_inject.js"
                 // 3et: plataforma própria (s441). `et_`, das letras da marca sem o dígito.
                 : casa === "3et" ? "et_inject.js"
+                // Cloudbet: plataforma própria (s442). `cb_`, das letras da marca.
+                : casa === "Cloudbet" ? "cb_inject.js"
                 : casa === "Pitaco" ? "pt_inject.js"
                 : casa === "Novibet" ? "nv_inject.js"
                 // Motor Rogue: TRES casas espelho, MESMO inject — como Tivo/Betfast/Faz1bet.

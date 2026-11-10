@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SharpenUp",
-  "version": "0.7.72",
+  "version": "0.7.73",
   "description": "A perninha do Sharpen: captura seus bilhetes na casa e sobe pro painel do sharpen.bet via pareamento por código.",
   "action": {
     "default_popup": "popup.html",
@@ -276,6 +276,12 @@
     {
       "matches": ["*://*.3et.com/*", "*://3et.com/*"],
       "js": ["et_inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["*://*.cloudbet.com/*", "*://cloudbet.com/*"],
+      "js": ["cb_inject.js"],
       "run_at": "document_start",
       "world": "MAIN"
     },
