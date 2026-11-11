@@ -6,7 +6,7 @@
 //   GET /sports-betting/v4/bets/positions?…&status=COMPLETED&from=<iso>&to=<iso>
 //                                                  (liquidadas, por janela de no máximo 1 ano)
 //   → { hasNext, items:[ {positionId, positionStatus, positionTime, type, positions:[…]} ] }
-//   GET /sports-betting/v4/bets/positions/{positionId}?currency=<moeda da aposta>&locale=en
+//   GET /sports-betting/v4/bets/positions/{betLegIdentifier}?currency=<moeda>&locale=en&limit=100&offset=N
 //   → { bets:[ {uuid, state, result, stake, price, returnAmount, createTime, …} ] }
 //   GET /sports-api/v6/sports/events/{eventId}?locale=en&markets=x
 //   → { name, sport, competition, cutoffTime, status, … }
@@ -33,6 +33,25 @@
 //   • a janela `from`/`to` filtra pela LIQUIDAÇÃO (`positionTime`), e os dois juntos são
 //     obrigatórios: só `to` dá HTTP 400, e mais de um ano também. Sem `status`, só liquidadas.
 //   • `limit` vai até 1000 (1001 dá 400); o fim é `hasNext:false` (medido com limit 6: 6, 6, 3).
+//
+// POSIÇÃO COM VÁRIAS APOSTAS (medido ao vivo em 11/11/2026, s445, 4 dias da conta: 43 posições,
+// 290 apostas). Conta limitada aposta de novo, pequeno, nas MESMAS seleções, e a casa junta tudo
+// num card só ("Aposta (20 aposta(s)) $40.00"):
+//   • o item da lista tem `positions[]`, as SUB-POSIÇÕES. Cada uma é um conjunto de seleções, com
+//     `betLegIdentifier` e `betCount`. Na múltipla há uma só e o id dela é o `positionId`; na
+//     SIMPLES o item é `type: EVENT` (positionId de 8 dígitos, o jogo) e junta as seleções
+//     DIFERENTES daquele jogo, uma sub-posição por seleção.
+//   • ⚠ o detalhe é pedido pelo `betLegIdentifier`. Pelo `positionId` de um EVENT ele volta
+//     `bets:[]`: a simples SUMIA inteira.
+//   • ⚠ o detalhe PAGINA em 20 por padrão, sem `hasNext`: a posição de 35 vinha com 20. `limit`
+//     vai até 100 (200 dá 400) e o resto vem por `offset`. Página curta = fim.
+//   • as apostas de uma sub-posição têm as MESMAS seleções e o mesmo resultado (46 de 46); a odd
+//     varia entre elas (6,94 a 7,58 numa de 6), porque cada uma pegou a odd daquele instante.
+//   Por isso a sub-posição de N > 1 apostas vira UM bilhete, como no card: código =
+//   `betLegIdentifier`, stake e lucro SOMADOS, odd = Σ(stake × odd) ÷ Σ stake (média ponderada,
+//   que é o retorno total ÷ stake total quando ganha). A de 1 aposta segue com o `uuid`. O cru
+//   leva os uuids das apostas juntadas (`apostas[]`): é por eles que o servidor tira da base as
+//   linhas avulsas de captura anterior, sem duplicar.
 //   • a seleção não diz o jogo, o esporte nem o início: vêm do evento (`cutoffTime` = início).
 //     Uma chamada por evento distinto; `markets=x` tira os mercados (64 → 45 KB no aberto).
 //
@@ -60,6 +79,7 @@
   const NOMES_AUTH = ["authorization", "x-cloudbet-metadata", "x-cloudbet-version"];
   const LIMITE = 999;                          // o que a página pede (o teto medido é 1000)
   const TETO_PAGINAS = 100;                    // por janela: 100 × 999 bilhetes
+  const LIMITE_DET = 100;                      // apostas por página do detalhe (200 dá 400)
   const JANELA_MS = 360 * 86400000;            // < 1 ano (o servidor recusa mais)
   const PISO_MS = Date.UTC(2013, 0, 1);        // a casa não tem aposta anterior a isto
   const FOLGA_MS = 2 * 86400000;               // margem da janela de dias do robô
@@ -155,8 +175,89 @@
       cashout: bet.isCashoutBet === true,
       colocada: _iso(bet.createTime),
       liquidada: aberta ? null : _iso(bet.completeTime),
-      apostasNaPosicao: _n(item && item.betCount),
+      // Da SUB-POSIÇÃO da aposta: no EVENT o `betCount` do item soma seleções diferentes do jogo.
+      apostasNaPosicao: _n(((item && item.positions) || []).filter((p) => p && p.betLegIdentifier === bet.betLegsIdentifier)
+        .map((p) => p.betCount)[0] ?? (item && item.betCount)),
       pernas: (Array.isArray(bet.selections) ? bet.selections : []).map((s) => parsePerna(s, nomes, eventos)),
+    };
+  }
+
+  // Assinatura das seleções de uma aposta: duas apostas só se juntam se forem a MESMA aposta.
+  const _assinaturaSel = (bet) => (Array.isArray(bet && bet.selections) ? bet.selections : [])
+    .map(_chaveSel).sort().join("§");
+  const _soma = (xs) => Math.round(xs.reduce((a, x) => a + (typeof x === "number" ? x : 0), 0) * 1e8) / 1e8;
+
+  // N apostas da MESMA sub-posição (mesmas seleções) → UM bilhete, como o card da casa mostra.
+  // Cada aposta segue inteira em `apostas[]`: o formatador decide o resultado aposta por aposta
+  // e só junta quando todas dizem o mesmo. A odd é a média ponderada pela stake.
+  // Seleções de cada aposta ALINHADAS às da 1ª pela chave (a ordem não é garantida entre elas).
+  function _alinhar(bets) {
+    const ordem = ((bets[0] && bets[0].selections) || []).map(_chaveSel);
+    return bets.map((b) => {
+      const m = new Map(((b && b.selections) || []).map((s) => [_chaveSel(s), s]));
+      return ordem.map((k) => m.get(k) || {});
+    });
+  }
+
+  function parseGrupo(leg, bets, item, nomes, eventos) {
+    const unid = bets.map((bet) => parseAposta(bet, item, nomes, eventos)).filter(Boolean);
+    if (unid.length !== bets.length) return null;
+    const alinhadas = _alinhar(bets);
+    unid.forEach((u, i) => { u.pernas = alinhadas[i].map((s) => ({ odd: _n(s.price), resultado: _s(s.result) })); });
+    const base = Object.assign({}, unid[0], { pernas: parseAposta(bets[0], item, nomes, eventos).pernas });
+    const stake = _soma(unid.map((u) => u.stake));
+    const pond = (f) => {
+      let num = 0, den = 0;
+      for (const u of unid) { const o = f(u); if (typeof o === "number" && o > 0 && u.stake > 0) { num += u.stake * o; den += u.stake; } }
+      return den > 0 ? Math.round((num / den) * 1e9) / 1e9 : null;
+    };
+    const aberta = unid.some((u) => u.aberta);
+    const resultados = Array.from(new Set(unid.map((u) => u.resultado)));
+    const colocadas = unid.map((u) => u.colocada).filter((x) => typeof x === "number");
+    const liquidadas = unid.map((u) => u.liquidada).filter((x) => typeof x === "number");
+    const odds = unid.map((u) => u.odd).filter((x) => typeof x === "number" && x > 0);
+    return Object.assign({}, base, {
+      id: leg,
+      aberta: aberta,
+      estado: aberta ? "ACCEPTED" : base.estado,
+      resultado: resultados.length === 1 ? resultados[0] : resultados.join("+"),
+      stake: stake,
+      odd: pond((u) => u.odd),
+      oddMin: odds.length ? Math.min.apply(null, odds) : null,
+      oddMax: odds.length ? Math.max.apply(null, odds) : null,
+      lucro: aberta ? null : (unid.every((u) => typeof u.lucro === "number") ? _soma(unid.map((u) => u.lucro)) : null),
+      retornoPotencial: _soma(unid.map((u) => u.retornoPotencial)),
+      cashout: unid.some((u) => u.cashout),
+      colocada: colocadas.length ? Math.min.apply(null, colocadas) : null,
+      liquidada: aberta || !liquidadas.length ? null : Math.max.apply(null, liquidadas),
+      apostasNaPosicao: unid.length,
+      consolidadas: unid.length,
+      // A odd de cada perna também varia entre as apostas (no Bet Builder é a do conjunto).
+      pernas: base.pernas.map((p, i) => {
+        const o = pond((u) => u.pernas[i] && u.pernas[i].odd);
+        return Object.assign({}, p, { odd: o == null ? null : Math.round(o * 1e4) / 1e4 });
+      }),
+      apostas: unid.map((u) => ({ id: u.id, estado: u.estado, aberta: u.aberta, resultado: u.resultado,
+                                  stake: u.stake, odd: u.odd, lucro: u.lucro, cashout: u.cashout,
+                                  pernas: u.pernas.map((p) => ({ resultado: p.resultado })) })),
+    });
+  }
+
+  // O cru da aposta juntada: a 1ª aposta inteira (seleções, tipo, moeda) e, de cada uma, só o que
+  // muda entre elas. Cada aposta inteira pesa ~1,9 KB e o servidor recusa cru acima de 64 KB.
+  // `precos`/`resultados` seguem a ordem das seleções da 1ª aposta (`aposta.selections`).
+  function cruGrupo(leg, bets, item, evs) {
+    const alinhadas = _alinhar(bets);
+    return {
+      grupo: leg, aposta: bets[0], posicao: item, eventos: evs,
+      apostas: bets.map((b, i) => ({
+        uuid: b.uuid, state: b.state, result: b.result, stake: b.stake, price: b.price,
+        returnAmount: b.returnAmount, potentialReturnAmount: b.potentialReturnAmount,
+        createTime: b.createTime, completeTime: b.completeTime, isCashoutBet: b.isCashoutBet,
+        baseCurrency: b.baseCurrency,
+        precos: alinhadas[i].map((s) => (s.price == null ? null : String(s.price))),
+        resultados: alinhadas[i].map((s) => _s(s.result)),
+      })),
     };
   }
 
@@ -246,28 +347,38 @@
     }
     LOG("posições:", itens.size);
 
-    // Detalhe de cada posição, em cada moeda NATIVA dela (as chaves do `portfolio`).
+    // Detalhe de cada SUB-POSIÇÃO (`betLegIdentifier`), em cada moeda NATIVA dela (as chaves do
+    // `portfolio`), paginado. Pelo `positionId` a simples (EVENT) volta vazia e a página tem 20.
     const pedidos = [];
     for (const it of itens.values()) {
-      const moedas = new Set();
-      for (const p of (it.positions || [])) for (const m of Object.keys((p && p.portfolio) || {})) moedas.add(m);
-      for (const m of moedas) pedidos.push({ it, m });
+      for (const p of (it.positions || [])) {
+        const leg = _s(p && p.betLegIdentifier);
+        if (!leg) continue;
+        for (const m of Object.keys((p && p.portfolio) || {})) pedidos.push({ it, leg, m });
+      }
     }
-    const apostas = [];                          // { bet, it }
-    const okDet = await emLotes(pedidos, async ({ it, m }) => {
-      const r = await pedir(P_POS + "/" + encodeURIComponent(it.positionId) + "?currency=" + encodeURIComponent(m) + "&locale=en");
-      if (!r.ok) { erro = _falhou(r); LOG(erro); return false; }
-      let j;
-      try { j = JSON.parse(r.text); } catch (e) { j = null; }
-      if (!j || !Array.isArray(j.bets)) { erro = "detalhe da posição em formato desconhecido"; LOG(erro); return false; }
-      respostas++;
-      if (respostas % 20 === 0) enviar();      // batimento a cada 20 detalhes
-      for (const bet of j.bets) apostas.push({ bet, it });
+    const grupos = [];                           // { leg, m, it, bets }
+    const okDet = await emLotes(pedidos, async ({ it, leg, m }) => {
+      const bets = [];
+      for (let offset = 0, pg = 0; pg < TETO_PAGINAS; pg++) {
+        const r = await pedir(P_POS + "/" + encodeURIComponent(leg) + "?currency=" + encodeURIComponent(m) +
+                              "&locale=en&limit=" + LIMITE_DET + "&offset=" + offset);
+        if (!r.ok) { erro = _falhou(r); LOG(erro); return false; }
+        let j;
+        try { j = JSON.parse(r.text); } catch (e) { j = null; }
+        if (!j || !Array.isArray(j.bets)) { erro = "detalhe da posição em formato desconhecido"; LOG(erro); return false; }
+        respostas++;
+        if (respostas % 20 === 0) enviar();    // batimento a cada 20 detalhes
+        for (const bet of j.bets) if (bet && bet.uuid) bets.push(bet);
+        offset += j.bets.length;
+        if (j.bets.length < LIMITE_DET) break;   // página curta = fim (o detalhe não traz hasNext)
+      }
+      if (bets.length) grupos.push({ leg, m, it, bets });
     });
 
     // Um evento por id distinto. Evento que falha não para a captura: a perna vai sem jogo.
     const ids = new Set();
-    for (const { bet } of apostas) for (const s of (bet.selections || [])) if (s && s.eventId != null) ids.add(_s(s.eventId));
+    for (const { bets } of grupos) for (const bet of bets) for (const s of (bet.selections || [])) if (s && s.eventId != null) ids.add(_s(s.eventId));
     const eventos = new Map(), eventosCru = new Map();
     await emLotes(Array.from(ids), async (id) => {
       try {
@@ -281,18 +392,37 @@
       } catch (e) {}
     });
 
-    for (const { bet, it } of apostas) {
-      const nomes = new Map();
-      for (const p of (it.positions || [])) for (const s of ((p && p.selections) || [])) nomes.set(_chaveSel(s), s);
-      const b = parseAposta(bet, it, nomes, eventos);
-      if (!b) continue;
-      const evs = {};
-      for (const p of b.pernas) if (eventosCru.has(p.eventoId)) evs[p.eventoId] = eventosCru.get(p.eventoId);
-      _cruDe.set(b.id, { aposta: bet, posicao: it, eventos: evs });
+    // A sub-posição em mais de uma moeda (não medido) não se junta entre moedas: cada moeda é um
+    // bilhete, com a moeda no código para não colidir.
+    const moedasDoLeg = new Map();
+    for (const g of grupos) moedasDoLeg.set(g.leg, (moedasDoLeg.get(g.leg) || 0) + 1);
+    const guardar = (b, cru) => {
+      _cruDe.set(b.id, cru);
       const ex = byId.get(b.id);
       if (!ex || ex.aberta || !b.aberta) byId.set(b.id, b);
+    };
+    const evsDe = (b) => {
+      const evs = {};
+      for (const p of b.pernas) if (eventosCru.has(p.eventoId)) evs[p.eventoId] = eventosCru.get(p.eventoId);
+      return evs;
+    };
+    let juntadas = 0;
+    for (const { leg, m, it, bets } of grupos) {
+      const nomes = new Map();
+      for (const p of (it.positions || [])) for (const s of ((p && p.selections) || [])) nomes.set(_chaveSel(s), s);
+      // Junta só se TODAS têm as mesmas seleções (46 de 46 no recon). Senão, cada uma sozinha.
+      const mesma = bets.length > 1 && bets.every((x) => _assinaturaSel(x) === _assinaturaSel(bets[0]));
+      if (mesma) {
+        const id = moedasDoLeg.get(leg) > 1 ? leg + "-" + m : leg;
+        const b = parseGrupo(id, bets, it, nomes, eventos);
+        if (b) { guardar(b, cruGrupo(id, bets, it, evsDe(b))); juntadas += bets.length; continue; }
+      }
+      for (const bet of bets) {
+        const b = parseAposta(bet, it, nomes, eventos);
+        if (b) guardar(b, { aposta: bet, posicao: it, eventos: evsDe(b) });
+      }
     }
-    LOG("apostas:", byId.size, "· eventos:", eventos.size, "de", ids.size);
+    LOG("bilhetes:", byId.size, "· apostas juntadas:", juntadas, "· eventos:", eventos.size, "de", ids.size);
     return okDet;
   }
 

@@ -821,6 +821,21 @@ Quando chegar um bilhete novo: abrir o arquivo da casa correspondente, preencher
 
 ---
 
+### 2.2 Cloudbet: posição juntada, a 1ª captura real e a juntada ABERTA (s445). **VIVA, só na bancada**
+
+A 0.7.76 junta as apostas de uma sub-posição num bilhete (`CASA_CLOUDBET §2.6`) e tira da base,
+pela lista de uuids do cru, as linhas que a captura anterior gravou uma a uma. Provado em harness,
+adaptador e banco de teste (`cloudbet.posicoes.json`, 57 apostas reais), **não** numa captura de
+verdade. Falta:
+- **A 1ª captura do Feca com a 0.7.76:** as ~214 avulsas de 10/11 têm de virar o número de
+  sub-posições daquele dia, com o mesmo P/L do dia antes e depois (lixeira com motivo
+  `Juntadas no bilhete …`). Conferir também se aparecem as simples (`EVENT`) e as apostas
+  além da 20ª de cada posição, que a 0.7.73 a 0.7.75 perdiam sem erro.
+- **Juntada ABERTA:** a conta não tinha posição aberta com mais de uma aposta. O código não muda
+  quando a posição cresce (`betLegIdentifier`), e a stake da linha aberta é refrescada pelo
+  UPSERT, mas isso é dedução.
+- Sub-posição em mais de uma moeda e cru acima de 64 KB (~150 apostas): sem amostra.
+
 ## 3. Decisão do Feca pendente
 
 ### 3.0b Dólar e "≈ R$" da carteira Polymarket sem ponto de milhar (s433). **VIVA**

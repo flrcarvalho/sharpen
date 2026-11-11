@@ -34,9 +34,16 @@
 //     jogos, DET×WAS com 2 seleções e TOR×MEM com 1).
 //   • DATA do evento é o `cutoffTime` (UTC), a mais recente das pernas, em São Paulo.
 //
-// NÃO COBERTO por amostra real (a conta não tinha): ganha, simples, cashout, freebet, boost,
-// posição com mais de uma aposta, aposta em outra moeda. Os casos de dinheiro estão travados por
-// CLONE da perdida: só o número prova; o resto sobe "a conferir".
+// s445 (11/11/2026): `cloudbet.posicoes.json`, medida ao vivo, 7 posições, 9 sub-posições, 57
+// apostas, com ganha, simples (EVENT), PUSH e PARTIAL. Trava o detalhe por `betLegIdentifier`
+// (pelo positionId do EVENT ele volta vazio), paginado (20 sem limit, até 100), e a sub-posição
+// de N > 1 apostas virando UM bilhete com o dinheiro do `portfolio` da casa. Mutações (11/11):
+// sem limit, pelo positionId, não juntar, sem paginar, média simples, juntada sem a régua por
+// aposta, PARTIAL fora: 7 de 7 detectadas.
+//
+// NÃO COBERTO por amostra real (a conta não tinha): cashout, freebet, boost, aposta em outra
+// moeda, juntada ABERTA. Os casos de dinheiro sem amostra estão travados por CLONE da perdida: só
+// o número prova; o resto sobe "a conferir".
 import { rodarInject, carregarContent, fixture, linha, respostaHttp } from "../sandbox.mjs";
 
 export const casa = "cloudbet";
@@ -92,10 +99,15 @@ function casaCB(fx, registro, { logado = true, tetoLimite = 1000 } = {}) {
     }
     if (u.pathname.startsWith(P_POS + "/")) {
       const id = decodeURIComponent(u.pathname.slice(P_POS.length + 1));
+      // Medido em 11/11/2026 (s445): o detalhe é por `betLegIdentifier`; o `positionId` de um
+      // EVENT (simples) devolve 200 com `bets:[]`. Página de 20 sem `limit`, até 100 com ele
+      // (200 dá 400), resto por `offset`, sem `hasNext`.
+      const limite = q.limit == null ? 20 : Number(q.limit), offset = Number(q.offset || 0);
+      if (limite > 100) return respostaHttp(400, JSON.stringify({ error: "limit must be at most 100" }));
       const det = fx.detalhes[id];
-      if (!det) return respostaHttp(404, "{}");
       // Só na moeda nativa: em outra, a casa devolve vazio (medido).
-      return JSON.stringify(q.currency === "USDT" ? det : { bets: [] });
+      if (!det || q.currency !== "USDT") return JSON.stringify({ bets: [] });
+      return JSON.stringify({ bets: det.bets.slice(offset, offset + limite) });
     }
     if (u.pathname.startsWith(P_EV)) {
       const e = fx.eventos[decodeURIComponent(u.pathname.slice(P_EV.length))];
@@ -275,7 +287,114 @@ export async function rodar() {
   testes += await semCabecalho(falhas);
   testes += await semSessao(falhas);
   testes += await liquidadaVenceAberta(falhas);
+  testes += await posicoesJuntadas(falhas);
+  testes += await detalhePaginado(falhas);
+  testes += await oddPonderada(falhas);
   return { falhas, testes };
+}
+
+// ── s445: posição com várias apostas ────────────────────────────────────────────────────────
+// Fixture `cloudbet.posicoes.json`, medida ao vivo em 11/11/2026 (USDT): 7 posições, 9
+// sub-posições, 57 apostas. O card mostra UMA aposta por sub-posição; a referência do dinheiro é o
+// `portfolio` dela, a soma que a própria casa faz.
+const FXP = () => JSON.parse(fixture("cloudbet.posicoes.json"));
+const L6 = "0dbcfd56af57199afd64a7846b1d8eb2fb038db3";      // Bet Builder, 6 apostas, 6,94 e 7,58, L
+const P35 = "c4e03fcd4631e41a2400eb8343fa738dbb9bcd90";     // parlay, 35 apostas
+const W5 = "078f360f78e8a70f0a09353d3846f908480d51cd";      // Bet Builder, 5 apostas, ganha
+const PUSH2 = "a10af6d67a378d08b9627f9352f0ba6243f0b4ac";   // simples (EVENT), 2 apostas anuladas
+
+async function posicoesJuntadas(falhas) {
+  const fx = FXP();
+  const registro = [];
+  const { ultima } = await rodarPadrao(fx, registro, { ms: 1500 });
+  const bs = (ultima && ultima.bilhetes) || [];
+  const porId = new Map(bs.map((b) => [b.id, b]));
+  const fmt = carregarContent().pegar("formatTicketCB");
+  if (bs.length !== 9) falhas.push(`posições: esperava 9 bilhetes (um por sub-posição), vieram ${bs.length}`);
+  const somaApostas = bs.reduce((s, b) => s + (b.consolidadas || 1), 0);
+  if (somaApostas !== 57) falhas.push(`posições: os bilhetes cobrem ${somaApostas} apostas, a casa tem 57`);
+  const det = _det(registro);
+  if (det.some((r) => /^\d{8}$/.test(r.p.slice(P_POS.length + 1)))) falhas.push("posições: detalhe pedido pelo positionId do EVENT (volta vazio: a simples some)");
+  if (det.some((r) => r.q.limit !== "100")) falhas.push("posições: detalhe sem limit=100 (a casa pagina em 20)");
+
+  // Dinheiro de cada juntada = o portfolio da sub-posição.
+  const subs = new Map();
+  for (const it of fx.lista_liquidadas.items) for (const p of it.positions) subs.set(p.betLegIdentifier, p);
+  for (const b of bs) {
+    if (!(b.consolidadas > 1)) continue;
+    const port = subs.get(b.id) && subs.get(b.id).portfolio.USDT;
+    if (!port) { falhas.push(`${b.id}: juntada com código que não é sub-posição`); continue; }
+    if (Math.abs(b.stake - Number(port.stakeAmount)) > 1e-9) falhas.push(`${b.id}: stake ${b.stake} ≠ ${port.stakeAmount} da casa`);
+    if (Math.abs(b.lucro - Number(port.returnAmount)) > 1e-9) falhas.push(`${b.id}: lucro ${b.lucro} ≠ ${port.returnAmount} da casa`);
+    if (b.consolidadas !== subs.get(b.id).betCount) falhas.push(`${b.id}: ${b.consolidadas} apostas juntadas, a casa diz ${subs.get(b.id).betCount}`);
+  }
+  const p35 = porId.get(P35);
+  if (!p35 || p35.consolidadas !== 35) falhas.push(`35 apostas: vieram ${p35 && p35.consolidadas} (a 1ª página do detalhe tem 20)`);
+
+  const l6 = fmt(porId.get(L6) || {});
+  if (linha(l6, "Status:") !== "Perdeu → L") falhas.push(`L6: status "${linha(l6, "Status:")}"`);
+  if (linha(l6, "Odd:") !== "7,1533") falhas.push(`L6: odd "${linha(l6, "Odd:")}" (média ponderada medida na aba: 7,1533)`);
+  if (linha(l6, "Stake:") !== "30,00") falhas.push(`L6: stake "${linha(l6, "Stake:")}"`);
+  if (!/^Odd de cada aposta \(casa\): de 6,94 a 7,58/m.test(l6)) falhas.push("L6: faltou a faixa de odd das apostas");
+  if (!/^Apostas juntadas: 6 /m.test(l6)) falhas.push("L6: faltou a linha das apostas juntadas");
+  if (/a conferir/.test(l6)) falhas.push("L6: a juntada ficou \"a conferir\"");
+  if (/undefined|null|NaN/.test(l6)) falhas.push("L6: undefined/null/NaN no bloco");
+  const w5 = linha(fmt(porId.get(W5) || {}), "Status:");
+  if (!/^Ganhou → W \(retorno 292,95 USDT, soma das 5 apostas; odd = retorno ÷ stake = 8,37\)$/.test(w5)) falhas.push(`W5: status "${w5}"`);
+  const v2 = linha(fmt(porId.get(PUSH2) || {}), "Status:");
+  if (!/→ V$/.test(v2)) falhas.push(`PUSH2: status "${v2}"`);
+  const partial = bs.find((b) => b.resultado === "PARTIAL");
+  const tp = partial ? linha(fmt(partial), "Status:") : "";
+  if (tp !== "Ganhou com perna anulada → W (retorno 159,87 USDT; odd = retorno ÷ stake = 5,329)") falhas.push(`PARTIAL: status "${tp}"`);
+  // Uma aposta perdida no meio de uma juntada de ganhas não fecha: a conferir.
+  const w = porId.get(W5);
+  if (w) {
+    const misto = Object.assign({}, w, { apostas: w.apostas.map((a, i) => i ? a : Object.assign({}, a, { resultado: "LOSS", lucro: -a.stake })) });
+    if (!CONFERIR.test(linha(fmt(misto), "Status:"))) falhas.push("juntada com resultados diferentes não ficou a conferir");
+  }
+
+  // O cru da juntada: o código, os uuids de todas, abaixo do teto de 64 KB do servidor.
+  const crus = new Map(((ultima && ultima.cru) || []).map((c) => [c.codigo, c.cru]));
+  for (const b of bs) {
+    const c = crus.get(b.id);
+    if (!c) { falhas.push(`${b.id}: sem cru`); continue; }
+    if (!(b.consolidadas > 1)) continue;
+    if (c.grupo !== b.id || !Array.isArray(c.apostas) || c.apostas.length !== b.consolidadas) falhas.push(`${b.id}: cru sem o grupo ou sem as ${b.consolidadas} apostas`);
+    else if (c.apostas.some((a) => !a.uuid || a.precos.length !== c.aposta.selections.length)) falhas.push(`${b.id}: aposta do cru sem uuid ou sem os preços alinhados`);
+    if (JSON.stringify(c).length > 64 * 1024) falhas.push(`${b.id}: cru acima de 64 KB (o servidor descarta)`);
+  }
+  return 1;
+}
+
+// Odd PONDERADA pela stake. Na fixture as 6 apostas da L6 têm a mesma stake e as duas médias
+// coincidem; com 25 na 1ª (6,94) e 5 nas outras: 353,4 ÷ 50 = 7,068 (a simples seria 7,1533).
+async function oddPonderada(falhas) {
+  const fx = FXP();
+  Object.assign(fx.detalhes[L6].bets[0], { stake: "25", returnAmount: "-25" });
+  const { ultima } = await rodarPadrao(fx, [], { ms: 1500 });
+  const b = ((ultima && ultima.bilhetes) || []).find((x) => x.id === L6);
+  const txt = b ? carregarContent().pegar("formatTicketCB")(b) : "";
+  if (linha(txt, "Odd:") !== "7,068") falhas.push(`odd ponderada: "${linha(txt, "Odd:")}", esperava 7,068`);
+  if (linha(txt, "Stake:") !== "50,00") falhas.push(`odd ponderada: stake "${linha(txt, "Stake:")}"`);
+  return 1;
+}
+
+// Sub-posição com mais de 100 apostas: segue pelo `offset` até a página curta.
+async function detalhePaginado(falhas) {
+  const fx = FXP();
+  const base = fx.detalhes[P35].bets;
+  const bets = [];
+  for (let i = 0; i < 230; i++) bets.push(Object.assign({}, base[i % base.length], { uuid: "u-" + i }));
+  fx.detalhes[P35] = { bets };
+  const sub = fx.lista_liquidadas.items.find((i) => i.positionId === P35).positions[0];
+  sub.betCount = 230;
+  const registro = [];
+  const { ultima } = await rodarPadrao(fx, registro, { ms: 1500 });
+  const b = ((ultima && ultima.bilhetes) || []).find((x) => x.id === P35);
+  if (!b || b.consolidadas !== 230) falhas.push(`230 apostas: vieram ${b && b.consolidadas}`);
+  const offs = _det(registro).filter((r) => r.p.endsWith(P35)).map((r) => r.q.offset).join(",");
+  if (offs !== "0,100,200") falhas.push(`230 apostas: offsets ${offs}, esperava 0,100,200`);
+  return 1;
 }
 
 // A janela de dias do robô: nenhuma janela de liquidadas antes dela (menos a folga de 2 dias).

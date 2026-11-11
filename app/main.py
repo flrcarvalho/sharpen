@@ -64,6 +64,7 @@ import cambio as _cambio
 from prompts import build_system
 import contrato_texto as _contrato
 from repository import (
+    absorver_consolidadas,
     registrar_extracao, fechar_extracao, listar_extracoes, painel_conta,
     alinhar_tsv, categorias_do_dono, codigos_odd_vazia, odd_vazia_ganha,
     analisar_extracao,
@@ -896,7 +897,7 @@ app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), na
 # gravação moram em `app/ficha.py` (decisão do Feca, 11/10). A isenção de CSRF dela está
 # em `_CAPTURA_ISENTAS`, como a das outras rotas da extensão.
 from ficha import router as _ficha_router  # noqa: E402
-from ficha import aliases_do_cru, moedas_do_cru, registrar_alerta_moeda  # noqa: E402
+from ficha import absorvidos_do_cru, aliases_do_cru, moedas_do_cru, registrar_alerta_moeda  # noqa: E402
 app.include_router(_ficha_router)
 
 # Kalshi (s439): chave cifrada, Sincronizar e Caixa automática. Único ponto de registro,
@@ -4785,6 +4786,27 @@ async def gravar_tsv(body: SalvarRequest, dono: str, dono_view: str,
     else:
         inseridos, atualizados, ids, alertas, duplicatas = 0, 0, [], [], {}
     alertas = alertas_cambio + alertas
+
+    # Bilhete JUNTADO (s445, Cloudbet): a casa junta N apostas da mesma posição num card só, e a
+    # captura grava uma linha por posição. As linhas que a captura anterior gravou por aposta
+    # saem agora, pela lista de códigos que o CRU guardado diz (nunca pelo TSV da IA). O cru
+    # sobe em paralelo ao texto: se ainda não chegou, a chegada dele (`/captura/ficha`) faz.
+    if ids and casa_key and parceiro_txt:
+        juntados = await absorvidos_do_cru(
+            dono, casa_key, parceiro_txt,
+            [(r.get("codigo_bilhete") or "").strip() for r in rows])
+        if juntados:
+            try:
+                n_juntadas = await absorver_consolidadas(dono, casa_key, parceiro_txt, juntados)
+            except Exception:  # noqa: BLE001 — o lote já está gravado; o cru tenta de novo
+                logger.warning("salvar: absorção de juntadas falhou para %s/%s", dono, casa_key,
+                               exc_info=True)
+                n_juntadas = 0
+            if n_juntadas:
+                alertas.append(
+                    f"{n_juntadas} aposta(s) que a captura anterior gravou uma a uma foram "
+                    "juntadas no bilhete da posição, como a casa mostra. As linhas avulsas "
+                    "foram para a lixeira (restauráveis por 90 dias).")
 
     for r in rejeitadas:
         detalhe = f" · {r['resumo']}" if r["resumo"] else ""

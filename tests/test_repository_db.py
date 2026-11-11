@@ -3691,6 +3691,7 @@ def test_d44_correcao_humana_nao_e_desfeita():
     assert feito == {"corrigidas": 0, "recusadas": [{"id": d["id"], "motivo": "corrigida à mão"}]}
     assert res == "W"
 
+
 # ── Migração C (s445): a aposta que troca de código entre aberta e liquidada ────────────────
 # O caso: a Stake.com do Gabriel. A aberta de props/XMulti não traz `iid` e a extensão a grava
 # com o UUID (`bet.id`); liquidada, ela volta do histórico com o número. Sem adoção, a
@@ -3769,3 +3770,157 @@ def test_as_duas_ja_existem_avisa_e_nao_apaga():
         assert await _count("TAliasD") == 2
         assert any(_UUID in a and "689207229" in a for a in alertas), alertas
     _run(body())
+
+
+# ── s445: bilhete JUNTADO tira da base as linhas que substitui (Cloudbet) ───────────────────
+# A captura anterior gravava cada aposta de uma posição com o `uuid`; agora grava uma linha por
+# sub-posição. `absorver_consolidadas` move as velhas para a lixeira, e só quando a nova existe.
+# Mutações (11/11/2026), 7 de 7 detectadas: sem exigir a linha nova, apagar o próprio código, sem
+# a conta no filtro, sem herdar o tipster, sem trocar o `abertas_corte`, e a chamada desligada no
+# `/salvar` e no `/captura/ficha`. As duas pontas (o cru
+# chega antes ou depois da juntada) em `test_s445_absorcao_nas_duas_pontas`. NÃO COBRE: correção
+# manual numa avulsa, que se perde.
+
+def _cb(codigo, **kw):
+    base = dict(casa="Cloudbet", parceiro="Conta CB", codigo_bilhete=codigo,
+                descricao="POR vs OKC", stake="2,00", odd="10,00", resultado="L")
+    base.update(kw)
+    return _row(**base)
+
+
+async def _codigos(dono):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return sorted(r["codigo_bilhete"] for r in await conn.fetch(
+            "SELECT codigo_bilhete FROM bilhetes WHERE dono=$1", dono))
+
+
+def test_s445_juntada_tira_as_avulsas_e_herda_o_tipster():
+    async def body():
+        await _reset()
+        await _sql("DELETE FROM lixeira_bilhetes WHERE dono = 'TJunta'")
+        await repository.upsert_bilhetes([_cb("u1"), _cb("u2"), _cb("u3")], "TJunta")
+        await _sql("UPDATE bilhetes SET tipster = 'Tip A' WHERE dono = 'TJunta'")
+        # Outra conta e outro dono com o MESMO uuid: não podem sair.
+        await repository.upsert_bilhetes([_row(casa="Cloudbet", parceiro="Outra", codigo_bilhete="u1",
+                                               descricao="POR vs OKC")], "TJunta")
+        await repository.upsert_bilhetes([_cb("u2")], "TJuntaB")
+        await repository.upsert_bilhetes([_cb("LEG1", stake="6,00")], "TJunta")
+        n = await repository.absorver_consolidadas("TJunta", "CLOUDBET", "Conta CB",
+                                                   {"LEG1": ["u1", "u2", "u3", "LEG1"]})
+        assert n == 3
+        assert await _codigos("TJunta") == ["LEG1", "u1"]           # o u1 que sobra é da "Outra"
+        assert await _codigos("TJuntaB") == ["u2"]
+        assert (await _get("TJunta", "LEG1"))["tipster"] == "Tip A"
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            lix = await conn.fetchval("SELECT COUNT(*) FROM lixeira_bilhetes WHERE dono='TJunta'")
+        assert lix == 3
+        # Segunda vez: nada mais a tirar.
+        assert await repository.absorver_consolidadas("TJunta", "CLOUDBET", "Conta CB",
+                                                      {"LEG1": ["u1", "u2", "u3"]}) == 0
+    _run(body())
+
+
+def test_s445_sem_a_linha_nova_nada_sai():
+    """O cru chega antes do `/salvar`: tirar as avulsas antes da juntada existir sumiria com o
+    dinheiro até a próxima captura."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_cb("u1"), _cb("u2")], "TJunta2")
+        n = await repository.absorver_consolidadas("TJunta2", "CLOUDBET", "Conta CB",
+                                                   {"LEG2": ["u1", "u2"]})
+        assert n == 0 and await _codigos("TJunta2") == ["u1", "u2"]
+    _run(body())
+
+
+def test_s445_juntada_troca_os_ids_no_abertas_corte_da_caixa():
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_cb("u1", resultado=""), _cb("u2", resultado=""),
+                                          _cb("LEG3", resultado="")], "TJunta3")
+        u1, u2, leg = [(await _get("TJunta3", c))["id"] for c in ("u1", "u2", "LEG3")]
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM parceiros WHERE dono = 'TJunta3'")   # rodada anterior
+            pid = await conn.fetchval("INSERT INTO parceiros (dono, casa, nome) VALUES "
+                                      "('TJunta3', 'Cloudbet', 'Conta CB') RETURNING id")
+            await conn.execute("INSERT INTO caixa_mov (dono, parceiro_id, tipo, data, valor, "
+                               "abertas_corte) VALUES ('TJunta3', $1, 'inicial', CURRENT_DATE, 0, "
+                               "$2::int[])", pid, [u1, u2, 777])
+        await repository.absorver_consolidadas("TJunta3", "CLOUDBET", "Conta CB",
+                                               {"LEG3": ["u1", "u2"]})
+        async with pool.acquire() as conn:
+            corte = await conn.fetchval("SELECT abertas_corte FROM caixa_mov WHERE parceiro_id=$1", pid)
+            await conn.execute("DELETE FROM parceiros WHERE id=$1", pid)
+        assert sorted(corte) == sorted([777, leg])
+    _run(body())
+
+
+def _s445_cenario(monkeypatch):
+    import json as _json
+    from pathlib import Path
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    import ficha
+    import main
+    from adaptadores import cb
+
+    fx = Path(__file__).resolve().parent.parent / "extensor" / "harness" / "fixtures" / "cloudbet.posicoes.json"
+    crus = {cb.codigo(c): c for c in cb.bilhetes_da_resposta(_json.loads(fx.read_text(encoding="utf-8")))}
+    leg = "0dbcfd56af57199afd64a7846b1d8eb2fb038db3"          # 6 apostas juntadas
+    sess = SimpleNamespace(dono="TJunta4", casa_key="CLOUDBET", casa=main._casa_display("CLOUDBET"),
+                           parceiro="Conta CB")
+    monkeypatch.setattr(ficha._captura, "sessao_por_token", lambda t: sess)
+    monkeypatch.setattr(ficha._captura, "registrar_versao", lambda s, v: None)
+    monkeypatch.delenv("CRU_CAPTURA_DESLIGADA", raising=False)
+    monkeypatch.setenv("FICHA_SOMBRA_CASAS", "")
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "")
+    # O cru diz USDT e a moeda do cru vence a da conta: cotação fixa, sem rede.
+    monkeypatch.setattr(main._cambio, "carregar", AsyncMock(return_value=None))
+    monkeypatch.setattr(main._cambio, "cotacao", lambda m, iso: 1.0 if m == "BRL" else 5.0)
+
+    def tsv(codigos):
+        return "\n".join(f"11/11/2026\tBasquete\t\t{sess.casa}\t{sess.parceiro}\tBet Builder\t"
+                         f"A [POR vs OKC]\t5\t7\tL\t{c}" for c in codigos)
+
+    async def salvar(codigos):
+        return await main.gravar_tsv(main.SalvarRequest(tsv=tsv(codigos), casa=sess.casa,
+                                                        parceiro=sess.parceiro), sess.dono, sess.dono)
+
+    async def cru_chega():
+        return await ficha.receber({"token": "t", "versao": "0.7.76", "familia": "cb",
+                                    "itens": [{"codigo": leg, "cru": crus[leg]}]})
+
+    async def limpar():
+        await _reset()
+        await _sql("DELETE FROM captura_crua WHERE dono = $1", sess.dono)
+        await _sql("DELETE FROM lixeira_bilhetes WHERE dono = $1", sess.dono)
+    return sess, leg, cb.absorvidos(crus[leg]), salvar, cru_chega, limpar
+
+
+def test_s445_absorcao_nas_duas_pontas(monkeypatch):
+    """O cru sobe em paralelo ao texto. (1) Cru antes da juntada: ele não tira nada (sem a linha
+    nova o dinheiro sumiria), e o `/salvar` da juntada tira. (2) Juntada antes do cru: o `/salvar`
+    não sabe o que substituir, e a chegada do cru tira."""
+    sess, leg, uuids, salvar, cru_chega, limpar = _s445_cenario(monkeypatch)
+    assert len(uuids) == 6
+
+    async def um():
+        await limpar()
+        await salvar(uuids)
+        await cru_chega()
+        assert await _codigos(sess.dono) == sorted(uuids)
+        r = await salvar([leg])
+        assert await _codigos(sess.dono) == [leg]
+        assert any("juntadas" in str(a) for a in r.get("alertas") or []), r.get("alertas")
+    _run(um())
+
+    async def dois():
+        await limpar()
+        await salvar(uuids + [leg])
+        assert len(await _codigos(sess.dono)) == 7
+        await cru_chega()
+        assert await _codigos(sess.dono) == [leg]
+    _run(dois())

@@ -379,6 +379,34 @@ def absorvidos(familia: str, cru) -> list[str]:
         return []
 
 
+async def absorvidos_do_cru(dono: str, casa_key: str, parceiro: str, codigos: list[str]) -> dict:
+    """{código: [códigos que ele substitui]} pelo cru guardado MAIS RECENTE de cada código. Só
+    entra quem tem o que substituir. Nunca levanta: sem banco, nada é substituído agora, e a
+    chegada do cru (`_processar`) refaz a conta."""
+    codigos = sorted({c for c in codigos if c})
+    if not codigos or not casa_key:
+        return {}
+    try:
+        from database import get_pool
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT DISTINCT ON (codigo) codigo, familia, cru FROM captura_crua "
+                "WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND codigo = ANY($4::text[]) "
+                "ORDER BY codigo, recebido_em DESC, id DESC",
+                dono, casa_key.upper(), parceiro or "", codigos)
+    except Exception:  # noqa: BLE001
+        logger.warning("ficha: absorvidos do cru indisponível para %s/%s", dono, casa_key,
+                       exc_info=True)
+        return {}
+    out = {}
+    for r in rows:
+        cru = r["cru"] if isinstance(r["cru"], dict) else json.loads(r["cru"])
+        if (v := absorvidos(r["familia"], cru)):
+            out[r["codigo"]] = v
+    return out
+
+
 async def moedas_do_cru(dono: str, casa_key: str, parceiro: str, codigos: list[str]) -> dict:
     """`moedas_do_cru_conn` com conexão própria. Nunca levanta: sem banco, vale a da conta."""
     try:
@@ -499,6 +527,16 @@ async def _processar(sess, payload: dict, versao: str) -> dict:
                         "hash": _cru.impressao(filtrado), "removidos": removidos})
     ids = await gravar_cru(sess.dono, sess.casa_key, sess.parceiro, familia, versao, origem,
                            aceitos)
+    # Bilhete juntado (s445): as linhas que ele substitui saem quando ELE já está na base. O cru
+    # sobe em paralelo ao texto, então quem chegar por último faz: aqui, ou o `/salvar`.
+    juntados = {it["codigo"]: v for it in aceitos if (v := absorvidos(familia, it["cru"]))}
+    if juntados:
+        try:
+            from repository import absorver_consolidadas
+            await absorver_consolidadas(sess.dono, sess.casa_key, sess.parceiro, juntados)
+        except Exception:  # noqa: BLE001 — o cru já está guardado; o `/salvar` tenta de novo
+            logger.warning("ficha: absorção de juntadas falhou para %s/%s", sess.dono,
+                           sess.casa_key, exc_info=True)
 
     import virada as _virada      # tardio: a virada importa este módulo
     fichas_aceitas = fichas_recusadas = na_planilha = 0

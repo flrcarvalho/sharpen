@@ -1852,7 +1852,6 @@ async def upsert_bilhetes(
     (`ficha.aliases_do_cru`, s445). Alimenta a Migração C: a linha que a aposta deixou
     com o código antigo é adotada pelo novo em vez de virar uma segunda linha.
 
-
     duplicatas: {str(db_id): [occurrence, total]} — bets suspeitas de duplicidade no lote.
 
     `codigo_ocr` marca a PROCEDÊNCIA do código deste lote: True quando ele foi lido de
@@ -2461,6 +2460,70 @@ async def _mover_para_lixeira(conn, where: str, params: list, motivo: str,
         *params, motivo, mantido_id,
     )
     return [dict(r) for r in recs]
+
+
+async def absorver_consolidadas(dono: str, casa_key: str, parceiro: str,
+                                mapa: dict[str, list[str]]) -> int:
+    """Tira da base as linhas que um bilhete JUNTADO substitui (s445, Cloudbet).
+
+    A casa junta N apostas da mesma sub-posição num card só, e a captura passou a gravar uma
+    linha por sub-posição (código = `betLegIdentifier`). Antes, cada aposta virava uma linha com
+    o `uuid` dela. `mapa` = {código novo: [uuids que ele substitui]}, que o adaptador da família
+    tira do CRU (`absorvidos`): nunca de texto da IA.
+
+    Por código novo, numa transação: só age se a linha NOVA já existe na mesma conta (sem ela,
+    tirar as velhas sumiria com o dinheiro até a próxima captura), compara código por IGUALDADE
+    exata e nunca toca no próprio código novo. As velhas vão para a `lixeira_bilhetes`. Antes de
+    sair, a linha nova herda o tipster quando todas as velhas tinham o MESMO e ela não tem
+    nenhum, e o `abertas_corte` da Caixa troca os ids velhos pelo novo (o stake dessas apostas
+    saiu antes do corte e continua tendo de voltar). Devolve quantas linhas saíram."""
+    if not mapa or not dono or not casa_key:
+        return 0
+    import casa_chave as _cc
+    chave = _cc.chave(casa_key)
+    pool = await get_pool()
+    total = 0
+    async with pool.acquire() as conn:
+        for novo, velhos in mapa.items():
+            velhos = sorted({str(v) for v in velhos if v and str(v) != novo})
+            if not novo or not velhos:
+                continue
+            async with conn.transaction():
+                base = (f"b.dono = $1 AND {_cc.sql('b.casa')} = $2 "
+                        "AND COALESCE(b.parceiro, '') = $3")
+                alvo = await conn.fetchrow(
+                    f"SELECT b.id, COALESCE(b.tipster, '') AS tipster FROM bilhetes b "
+                    f"WHERE {base} AND b.codigo_bilhete = $4 ORDER BY b.id LIMIT 1",
+                    dono, chave, parceiro or "", novo)
+                if not alvo:
+                    continue
+                antigas = await conn.fetch(
+                    f"SELECT b.id, COALESCE(b.tipster, '') AS tipster FROM bilhetes b "
+                    f"WHERE {base} AND b.codigo_bilhete = ANY($4::text[])",
+                    dono, chave, parceiro or "", velhos)
+                if not antigas:
+                    continue
+                ids = [r["id"] for r in antigas]
+                tipsters = {r["tipster"] for r in antigas}
+                if not alvo["tipster"] and len(tipsters) == 1 and next(iter(tipsters)):
+                    await conn.execute("UPDATE bilhetes SET tipster = $1 WHERE id = $2",
+                                       next(iter(tipsters)), alvo["id"])
+                for mov in await conn.fetch(
+                        "SELECT id, abertas_corte FROM caixa_mov WHERE dono = $1 "
+                        "AND abertas_corte && $2::int[]", dono, ids):
+                    novos = [i for i in mov["abertas_corte"] if i not in ids]
+                    if alvo["id"] not in novos:
+                        novos.append(alvo["id"])
+                    await conn.execute("UPDATE caixa_mov SET abertas_corte = $1::int[] WHERE id = $2",
+                                       novos, mov["id"])
+                sairam = await _mover_para_lixeira(
+                    conn, "b.id = ANY($1) AND b.dono = $2", [ids, dono],
+                    f"Juntadas no bilhete {novo} (mesma posição da casa, {len(ids)} aposta(s))",
+                    mantido_id=alvo["id"])
+                total += len(sairam)
+                logger.info("absorver: %s %s/%s · %d linha(s) juntadas em %s", dono, chave,
+                            parceiro, len(sairam), novo)
+    return total
 
 
 async def deletar_bilhetes(ids: list[int], dono: str, motivo: str = "") -> list[dict]:

@@ -25,13 +25,24 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
  11. início da perna fora do evento                       → test_data_e_o_evento
 (11 de 11 detectadas, 10/11/2026.)
 
-O QUE NÃO COBRE: ganha real (só clone), simples avulsa, cashout, freebet, boost, posição com
-mais de uma aposta, aposta em moeda que não USDT, Criar Aposta com perna PUSH (sem amostra:
-`status_perna` None).
+s445 (11/11/2026), sub-posição juntada, fixture `cloudbet.posicoes.json` (medida ao vivo):
+ 12. sem conferir o betCount da sub-posição               → test_juntada_incompleta_recusa
+ 13. resultado da 1ª aposta vale para todas               → test_juntada_com_resultados_diferentes_recusa
+ 14. média simples no lugar da ponderada                  → test_odd_e_ponderada_pela_stake_nao_media_simples
+ 15. seleções alinhadas por índice, não pela chave        → test_ordem_das_selecoes_nao_muda_a_juntada
+ 16. PARTIAL fora do ramo da perna anulada                → test_partial_e_parlay_ganho_com_perna_anulada
+ 17. betCount do ITEM no lugar do da sub-posição          → test_posicoes_juntam_uma_linha_por_sub_posicao
+(6 de 6. Inócua: tirar `!= cod` do `absorvidos`, porque o código da juntada é o
+`betLegIdentifier` e nunca coincide com um uuid; o servidor tira o próprio código de novo.)
+
+O QUE NÃO COBRE: cashout, freebet, boost, aposta em moeda que não USDT, Criar Aposta com perna
+PUSH (sem amostra: `status_perna` None), juntada ABERTA (a conta não tinha) e sub-posição em mais
+de uma moeda.
 """
 import copy
 import json
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 sys.path.insert(0, "app")
@@ -180,8 +191,8 @@ def test_perdida_com_retorno_recusa():
 def test_sem_amostra_recusa():
     with pytest.raises(Recusa):
         cb.adaptar(_clone(isCashoutBet=True), "CLOUDBET")
-    c = _clone()
-    c["posicao"] = dict(c["posicao"], betCount=2)
+    c = _clone()                                               # sub-posição de 2 e cru de uma só
+    c["posicao"]["positions"][0]["betCount"] = 2
     with pytest.raises(Recusa):
         cb.adaptar(c, "CLOUDBET")
     c = _clone()
@@ -193,3 +204,109 @@ def test_sem_amostra_recusa():
 def test_recusa_grava_o_codigo():
     f, motivos = ficha.montar_ficha("cb", _clone(isCashoutBet=True), "CLOUDBET")
     assert motivos and f["cru_recusado"] and f["codigo"] == PARLAY
+
+
+# ── Sub-posição com várias apostas (s445) ────────────────────────────────────────────────────
+# Fixture `cloudbet.posicoes.json`: medida AO VIVO em 11/11/2026 na conta do Feca (USDT), 7
+# posições, 9 sub-posições, 57 apostas, montada como o `cb_inject.js` pede (detalhe por
+# `betLegIdentifier`, limit 100). A referência do dinheiro é o `portfolio` da sub-posição, que é a
+# SOMA que a própria casa faz e não passa pelo adaptador.
+_FIX_POS = _FIX.parent / "cloudbet.posicoes.json"
+_POS = json.loads(_FIX_POS.read_text(encoding="utf-8"))
+JUNTOS = {cb.codigo(c): c for c in cb.bilhetes_da_resposta(_POS)}
+L6 = "0dbcfd56af57199afd64a7846b1d8eb2fb038db3"        # Bet Builder, 6 apostas, odds 6,94 e 7,58, L
+P35 = "c4e03fcd4631e41a2400eb8343fa738dbb9bcd90"       # parlay, 35 apostas (a página do detalhe é 20)
+W5 = "078f360f78e8a70f0a09353d3846f908480d51cd"        # Bet Builder, 5 apostas, ganha
+PUSH2 = "a10af6d67a378d08b9627f9352f0ba6243f0b4ac"     # simples (EVENT), 2 apostas anuladas
+PARTIAL = "0dff2954-d"                                 # parlay com perna PUSH, result PARTIAL
+
+
+def _sub(cru):
+    return next(p for p in cru["posicao"]["positions"] if p["betLegIdentifier"] == cru["grupo"])
+
+
+def test_posicoes_juntam_uma_linha_por_sub_posicao():
+    assert len(JUNTOS) == 9                                   # 57 apostas → 9 bilhetes
+    assert sum(len(c.get("apostas") or [1]) for c in JUNTOS.values()) == 57
+    for cod, cru in JUNTOS.items():
+        f, _ = _montar(cru)
+        assert f["codigo"] == cod
+
+
+def test_juntada_soma_o_que_a_casa_soma():
+    for cod, cru in JUNTOS.items():
+        if not cru.get("apostas"):
+            continue
+        port = _sub(cru)["portfolio"]["USDT"]
+        f, _ = _montar(cru)
+        assert Decimal(f["stake"]) == Decimal(port["stakeAmount"]), cod
+        assert Decimal(f["retorno"]) == Decimal(port["stakeAmount"]) + Decimal(port["returnAmount"]), cod
+        assert len(cru["apostas"]) == _sub(cru)["betCount"], cod
+
+
+def test_perdida_juntada_odd_e_a_media_ponderada():
+    f, d = _montar(JUNTOS[L6])
+    assert (d["resultado"], d["stake"], d["odd"]) == ("L", "30", "7,1533")   # 7,1533: medido na aba
+
+
+def test_35_apostas_vem_inteiras():
+    f, d = _montar(JUNTOS[P35])
+    assert len(JUNTOS[P35]["apostas"]) == 35 and d["resultado"] == "L"
+
+
+def test_ganha_juntada_e_push_juntado():
+    f, d = _montar(JUNTOS[W5])
+    assert (f["status"], d["resultado"], d["odd"]) == ("ganha", "W", "8,37")
+    f, d = _montar(JUNTOS[PUSH2])
+    assert (f["status"], d["resultado"]) == ("anulada", "V")
+
+
+def test_partial_e_parlay_ganho_com_perna_anulada():
+    cod = next(c for c in JUNTOS if c.startswith(PARTIAL))
+    f, d = _montar(JUNTOS[cod])
+    assert (f["retorno"], d["resultado"], d["odd"]) == ("159.87", "W", "5,329")
+
+
+def test_absorvidos_sao_os_uuids_das_juntadas():
+    cru = JUNTOS[L6]
+    assert cb.absorvidos(cru) == sorted(a["uuid"] for a in cru["apostas"])
+    assert all(cb.absorvidos(c) == [] for c in JUNTOS.values() if not c.get("apostas"))
+    assert all(cb.absorvidos(c) == [] for c in CRUS.values())
+
+
+def test_juntada_incompleta_recusa():
+    """O detalhe pedido sem `limit` trazia 20 de 35: juntar menos que a casa diz perde dinheiro."""
+    c = copy.deepcopy(JUNTOS[P35])
+    c["apostas"] = c["apostas"][:20]
+    with pytest.raises(Recusa):
+        cb.adaptar(c, "CLOUDBET")
+
+
+def test_juntada_com_resultados_diferentes_recusa():
+    c = copy.deepcopy(JUNTOS[L6])
+    a = c["apostas"][0]
+    a.update(result="WIN", returnAmount=str(Decimal(a["stake"]) * (Decimal(a["price"]) - 1)))
+    a["resultados"] = ["WIN"] * len(a["resultados"])
+    with pytest.raises(Recusa):
+        cb.adaptar(c, "CLOUDBET")
+
+
+def test_ordem_das_selecoes_nao_muda_a_juntada():
+    """Parlay: cada perna tem a odd própria (no Bet Builder todas repetem a do conjunto e a
+    troca de ordem passaria sem efeito)."""
+    pos = copy.deepcopy(_POS)
+    for b in pos["detalhes"][P35]["bets"][1:]:
+        b["selections"].reverse()
+    c = {cb.codigo(x): x for x in cb.bilhetes_da_resposta(pos)}[P35]
+    assert cb.adaptar(c, "CLOUDBET")["pernas"] == cb.adaptar(JUNTOS[P35], "CLOUDBET")["pernas"]
+
+
+def test_odd_e_ponderada_pela_stake_nao_media_simples():
+    """As 6 apostas da L6 têm a mesma stake, e aí as duas médias coincidem (7,1533). Com 25 na
+    1ª (6,94) e 5 nas outras: (25×6,94 + 3×5×6,94 + 2×5×7,58) ÷ 50 = 353,4 ÷ 50 = 7,068, conta à
+    mão. A média simples continuaria 7,1533."""
+    pos = copy.deepcopy(_POS)
+    pos["detalhes"][L6]["bets"][0].update(stake="25", returnAmount="-25")
+    c = {cb.codigo(x): x for x in cb.bilhetes_da_resposta(pos)}[L6]
+    f, d = _montar(c)
+    assert (d["stake"], d["odd"]) == ("50", "7,068")

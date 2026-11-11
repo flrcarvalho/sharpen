@@ -6207,6 +6207,7 @@
 
   // Leitura pelo DINHEIRO, com o estado cru ao lado. Só se decide onde o número prova.
   function _resultadoCB(b) {
+    if (Array.isArray(b.apostas) && b.apostas.length > 1 && !b.aberta) return _resultadoGrupoCB(b);
     const st = b.stake, m = b.moeda ? " " + b.moeda : "";
     const cru = "result " + (b.resultado || "(vazio)");
     const conferir = (extra) => cru + (extra ? " · " + extra : "") + " (a conferir — não liquidar automaticamente)";
@@ -6218,8 +6219,10 @@
     // Retorno = stake: P/L zero, V qualquer que seja o rótulo (rede do dinheiro).
     if (_quaseCB(ret, st, 0.005)) return "Retorno = stake (" + _dinSHF(st) + m + ", " + cru + ") → V";
     if (b.resultado === "LOSS") return Math.abs(ret) < 0.005 ? "Perdeu → L" : conferir("retorno " + _dinSHF(ret) + m);
-    if (b.resultado === "WIN" && ret > st) {
-      if (b.odd > 0 && _quaseCB(ret, st * b.odd, 0.01 + 1e-9)) return "Ganhou → W (retorno " + _dinSHF(ret) + m + ")";
+    // PARTIAL (medido em 11/11/2026, s445): parlay ganho com perna PUSH, 30 × 2,85 × 1,87 =
+    // 159,885 e a casa pagou 159,87. Só entra pelo ramo da perna anulada, que o dinheiro decide.
+    if ((b.resultado === "WIN" || b.resultado === "PARTIAL") && ret > st) {
+      if (b.resultado === "WIN" && b.odd > 0 && _quaseCB(ret, st * b.odd, 0.01 + 1e-9)) return "Ganhou → W (retorno " + _dinSHF(ret) + m + ")";
       // Perna anulada: a casa refaz a odd sem ela (6,934 ÷ 1,97 = 3,52 no card). O dinheiro manda.
       if ((b.pernas || []).some((p) => p.resultado === "PUSH")) {
         return "Ganhou com perna anulada → W (retorno " + _dinSHF(ret) + m + "; odd = retorno ÷ stake = " +
@@ -6227,6 +6230,28 @@
       }
     }
     return conferir("retorno " + _dinSHF(ret) + m);
+  }
+
+  // Sub-posição com N apostas juntadas (s445): a regra de cima roda em CADA aposta, e o bilhete só
+  // ganha resultado quando todas dizem o mesmo. O dinheiro é a soma; nenhuma conta nova decide.
+  function _resultadoGrupoCB(b) {
+    const m = b.moeda ? " " + b.moeda : "";
+    const vs = b.apostas.map((a) => _resultadoCB(Object.assign({}, b, a, {
+      apostas: null,
+      pernas: (b.pernas || []).map((p, i) => Object.assign({}, p, { resultado: (a.pernas && a.pernas[i] || {}).resultado })),
+    })));
+    const r = vs.map((v) => (/→ ([WLV])\b/.exec(v) || [])[1] || "?");
+    const n = b.apostas.length;
+    const ret = _retornoCB(b);
+    if (new Set(r).size === 1 && r[0] !== "?" && ret != null) {
+      if (r[0] === "L") return "Perdeu → L";
+      if (r[0] === "V") return "Retorno = stake (" + _dinSHF(b.stake) + m + ", as " + n + " apostas anuladas) → V";
+      return "Ganhou → W (retorno " + _dinSHF(ret) + m + ", soma das " + n + " apostas; odd = retorno ÷ stake = " +
+             _oddTxtKTO(Math.round((ret / b.stake) * 1e4) / 1e4) + ")";
+    }
+    const ver = Array.from(new Set(vs)).slice(0, 3).join(" | ");
+    return "result " + (b.resultado || "(vazio)") + " · as " + n + " apostas não fecham o mesmo resultado (" + ver +
+           ") (a conferir — não liquidar automaticamente)";
   }
 
   function formatTicketCB(b) {
@@ -6242,7 +6267,10 @@
     L.push("Status: " + _resultadoCB(b));
     L.push("Status (API): state=" + String(b.estado || "(vazio)") + " · result=" + String(b.resultado || "(vazio)") +
            " · type=" + String(b.tipoApi || "(vazio)") + " · posição=" + String(b.posicao || "(vazia)"));
-    if (b.apostasNaPosicao > 1) L.push("Apostas na posição (casa): " + b.apostasNaPosicao + " (sem amostra — a conferir)");
+    if (b.consolidadas > 1) {
+      L.push("Apostas juntadas: " + b.consolidadas + " (a casa mostra num card só: mesmas seleções, stake e retorno somados," +
+             " odd = média ponderada pela stake)");
+    } else if (b.apostasNaPosicao > 1) L.push("Apostas na posição (casa): " + b.apostasNaPosicao + " (sem amostra — a conferir)");
 
     const pernas = b.pernas || [];
     const n = pernas.length;
@@ -6257,10 +6285,17 @@
              (_bbCB(b) && nbb ? "; " + nbb + " deles em Criar Aposta, com a odd do conjunto do jogo" : "") + ")");
     }
 
-    if (b.odd > 0) L.push("Odd: " + _oddTxtKTO(b.odd));
-    else L.push("Odd: (a casa não informou — deixe a odd VAZIA; não use o produto das pernas nem zero)");
+    const juntou = b.consolidadas > 1;
+    if (b.odd > 0) {
+      L.push("Odd: " + _oddTxtKTO(juntou ? Math.round(b.odd * 1e4) / 1e4 : b.odd));
+      if (juntou && b.oddMax > b.oddMin) {
+        L.push("Odd de cada aposta (casa): de " + _oddTxtKTO(b.oddMin) + " a " + _oddTxtKTO(b.oddMax) + " (a do bilhete é a média ponderada)");
+      }
+    } else L.push("Odd: (a casa não informou — deixe a odd VAZIA; não use o produto das pernas nem zero)");
     if (b.aberta && b.stake > 0 && b.odd > 0) {
-      L.push("Retorno potencial (se ganhar): " + _dinSHF(Math.round(b.stake * b.odd * 100) / 100) + (b.moeda ? " " + b.moeda : ""));
+      // Juntadas: a soma do que cada aposta paga, não stake × odd arredondada.
+      const pot = juntou && b.retornoPotencial > 0 ? b.retornoPotencial : Math.round(b.stake * b.odd * 100) / 100;
+      L.push("Retorno potencial (se ganhar): " + _dinSHF(pot) + (b.moeda ? " " + b.moeda : ""));
     }
 
     L.push("Seleções:");

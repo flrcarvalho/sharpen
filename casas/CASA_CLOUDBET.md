@@ -42,7 +42,7 @@
 GET /sports-betting/v4/bets/positions?limit=999&locale=en&offset=N&status=ACCEPTED
 GET /sports-betting/v4/bets/positions?limit=999&locale=en&offset=N&status=COMPLETED&from=<iso>&to=<iso>
     → { "hasNext": false, "items": [ posição ] }
-GET /sports-betting/v4/bets/positions/{positionId}?currency=<moeda nativa>&locale=en
+GET /sports-betting/v4/bets/positions/{betLegIdentifier}?currency=<moeda nativa>&locale=en&limit=100&offset=N
     → { "bets": [ aposta ] }
 GET /sports-api/v6/sports/events/{eventId}?locale=en&markets=x
     → evento (nome, esporte, liga, cutoffTime, mandante, visitante)
@@ -61,8 +61,10 @@ Medido com a sessão do recon (10/11/2026):
   aposta colocada em 09/11 e liquidada em 10/11 só aparece na janela de 10/11.
 - **`limit` até 1000** (1001 = 400). Paginação por `offset`; **fim = `hasNext:false`** (medido
   com limit 6: 6, 6, 3, sem repetir posição). Sem `status`, a lista traz só as liquidadas.
-- **Uma chamada de DETALHE por posição**, porque a lista não traz o ID da tela, a odd útil nem
-  a colocação. ⚠ O detalhe **só responde na moeda nativa** da aposta: `currency=USDT` traz a
+- **Uma chamada de DETALHE por SUB-POSIÇÃO** (`positions[].betLegIdentifier`), porque a lista
+  não traz o ID da tela, a odd útil nem a colocação (§2.6).
+- ⚠ **O detalhe PAGINA em 20** e não traz `hasNext` (s445): a posição de 35 apostas vinha com 20.
+  `limit` vai até **100** (200 = 400); o resto vem por `offset`, e página curta é o fim. ⚠ O detalhe **só responde na moeda nativa** da aposta: `currency=USDT` traz a
   aposta, `BTC`, `BRL` ou sem o parâmetro devolvem `{"bets":[]}`. A moeda nativa são as chaves
   de `positions[].portfolio` da lista.
 - ⚠ **A lista CONVERTE o dinheiro** para a moeda pedida (`currency=BTC` → stake 0,000402 para
@@ -79,15 +81,54 @@ Stake e P/L. No Bet history, linha expansível com cada jogo, o placar e
 
 ---
 
+## 2.6 Posição com várias apostas: UM bilhete por sub-posição  ⭐ (s445)
+
+Medido ao vivo em 11/11/2026 na conta do Feca (USDT, 4 dias): **43 posições, 290 apostas**. Conta
+limitada aposta de novo, pequeno, nas MESMAS seleções, e a casa junta tudo num card só
+(`Aposta (20 aposta(s)) $40.00`, P/L −$40).
+
+- O item da lista tem `positions[]`, as **sub-posições**: cada uma é um conjunto de seleções, com
+  `betLegIdentifier` e `betCount`. Na múltipla há uma só, e o id dela é o `positionId`.
+- A **simples** vem num item `type: EVENT` (positionId de 8 dígitos, o jogo), que junta as
+  seleções DIFERENTES daquele jogo, uma sub-posição por seleção. ⚠ Pelo `positionId` do EVENT o
+  detalhe volta `bets:[]`: até a s444 **a simples sumia inteira**. E o `betCount` do item soma
+  as sub-posições: o que conta é o da sub-posição.
+- As apostas de uma sub-posição têm as **mesmas seleções e o mesmo resultado** (46 de 46). A odd
+  **varia** (6,94 a 7,58 numa de 6), porque cada uma pegou a odd daquele instante.
+
+**A regra (decisão do Feca, 11/11/2026):** sub-posição de N > 1 apostas é **UM bilhete**, como o
+card: código = `betLegIdentifier`; stake e lucro **somados**; odd = **Σ(stake × odd) ÷ Σ stake**
+(média ponderada, que na ganha é o retorno total ÷ stake total). O resultado é decidido aposta por
+aposta pela régua de §5 e só se junta quando todas dizem o mesmo; senão, "a conferir". A
+sub-posição de 1 aposta segue com o `uuid`. Juntar só se TODAS têm as mesmas seleções; e a Ficha
+recusa juntar menos apostas do que o `betCount` da sub-posição diz.
+
+**Sem duplicar:** a captura anterior gravou cada aposta com o `uuid`. O cru da juntada leva os
+uuids (`apostas[]`), e `repository.absorver_consolidadas` move para a lixeira as linhas da MESMA
+conta cujo código é um deles, por igualdade exata, **só depois que a linha juntada existe**. O cru
+sobe em paralelo ao texto, então a absorção roda nas duas pontas (`/salvar` e `/captura/ficha`):
+quem chegar por último faz. A juntada herda o tipster quando todas as avulsas tinham o mesmo, e o
+`abertas_corte` da Caixa troca os ids velhos pelo novo. ⚠ Correção manual feita numa avulsa
+(odd, resultado) **não** passa para a juntada.
+
+> O cru da juntada leva a 1ª aposta inteira e, das outras, só uuid, dinheiro, datas e
+> preço/resultado por seleção (~400 B cada): o servidor descarta cru acima de 64 KB, e a aposta
+> inteira pesa ~1,9 KB. Acima de ~150 apostas numa sub-posição o cru cai; a IA ainda lê o texto,
+> mas sem cru as avulsas antigas daquela posição não saem sozinhas.
+
+---
+
 ## 2.5 Campos da API (o que o inject entrega)
 
 | Campo | Onde | Confirmado na Cloudbet |
 |---|---|---|
 | `uuid` | detalhe, `bets[]` | **o código**: 36 caracteres, o `ID:` do card expandido |
-| `positionId` | lista | hash de 40 caracteres da POSIÇÃO; só serve para pedir o detalhe |
+| `positionId` | lista | hash de 40 caracteres da POSIÇÃO (8 dígitos no EVENT, o jogo) |
+| `positions[].betLegIdentifier` | lista | a SUB-POSIÇÃO: pede o detalhe e é o código da juntada (§2.6) |
+| `positions[].betCount` · `portfolio` | lista | apostas da sub-posição e a soma delas, na moeda nativa |
 | `state` | detalhe | `ACCEPTED` (aberta) · `COMPLETED` (liquidada) |
-| `result` | detalhe, aposta e seleção | `WIN` · `LOSS` · `PUSH` · `PENDING` |
-| `type` | detalhe | `PARLAY` · `SAME_GAME_PARLAY` (Bet Builder) |
+| `result` | detalhe, aposta e seleção | `WIN` · `LOSS` · `PUSH` · `PENDING` · `PARTIAL` (parlay ganho com perna PUSH, s445) |
+| `type` | detalhe | `PARLAY` · `SAME_GAME_PARLAY` (Bet Builder) · `EVENT` (simples, na lista) |
 | `stake` · `baseCurrency` | detalhe | stake na moeda nativa (`30`, `USDT`) |
 | `price` | detalhe | **a odd da aposta**, a do card (`@ 6.93` = 6,934). Na múltipla é o produto das pernas, truncado em 3 casas |
 | `returnAmount` | detalhe | ⚠ **LUCRO**, não retorno: `-30` na perdida de 30. Retorno = `stake + returnAmount` |
@@ -111,6 +152,9 @@ nele) e os eventos das pernas. As seleções de um mesmo jogo num Bet Builder vi
 
 - `uuid` da aposta (`225709c2-3e94-467c-9812-37379a7082cf`). Dedup forte por ID. Vai para a 11ª
   coluna interna (`Código`). Nunca o `positionId`.
+- Sub-posição de N > 1 apostas (§2.6): o `betLegIdentifier` (40 hex), que não muda enquanto a
+  posição cresce. Quando a 2ª aposta chega numa posição aberta, a linha do `uuid` da 1ª sai pela
+  absorção.
 
 > ⚠ **Histórico por print (s442):** antes da captura, o Jaao26 lançou 283 apostas Cloudbet por
 > print e manual (01 a 10/11/2026), com código lido pela IA (`CLO-0266`, `codigo_ocr`) ou vazio.
@@ -140,11 +184,14 @@ centavo**, ou ter perna `PUSH` (a casa refaz a odd sem ela: 6,934 ÷ 1,97 = 3,52
 | `LOSS` · `returnAmount` = −stake | Perdeu | `L` |
 | qualquer · `returnAmount` = 0 (retorno = stake) | P/L zero | `V` |
 | `WIN` · stake + returnAmount = stake × price (± 1 centavo) | Ganhou | `W` |
-| `WIN` · retorno > stake · alguma perna `PUSH` | Ganhou, odd = retorno ÷ stake | `W` |
+| `WIN` ou `PARTIAL` · retorno > stake · alguma perna `PUSH` | Ganhou, odd = retorno ÷ stake | `W` |
 | `LOSS` com retorno, `WIN` que não fecha sem PUSH, `isCashoutBet`, rótulo novo | sobe cru | *(a conferir)* |
 
-Medido: `LOSS` 4 e `ACCEPTED` 15. O resto é a régua acima, travada por clone no harness,
-**não** por amostra real. O bloco sempre leva
+Medido: `LOSS` 4 e `ACCEPTED` 15 (s442); em 11/11/2026 (s445, `cloudbet.posicoes.json`) `WIN` de
+simples e de Bet Builder, `PUSH` de simples (retorno = stake) e `PARTIAL`: parlay com uma perna
+`PUSH`, 30 × 2,85 × 1,87 = 159,885 e a casa pagou 159,87, por isso só pelo ramo da perna anulada.
+Na sub-posição juntada (§2.6) a régua roda em cada aposta. Cashout e rótulo novo seguem por
+clone, **não** por amostra real. O bloco sempre leva
 `Status (API): state=… · result=… · type=… · posição=…`.
 
 Perna: `WIN` ganha · `LOSS` perdida · `PUSH` anulada · `PENDING` não decidida (perna de bilhete
@@ -231,8 +278,9 @@ Campo `stake` do detalhe, na moeda nativa da aposta; a conversão para R$ é do 
 - [ ] Nenhuma aberta liquidada; nenhuma perdida com odd zero.
 - [ ] Coluna Data = início do evento em São Paulo.
 - [ ] Contagem capturada == Active + Bet history.
-- [ ] **1ª ganha / simples / cashout / freebet / posição com mais de uma aposta / aposta em
-      outra cripto:** salvar o JSON como fixture e trocar o clone do harness.
+- [x] ~~1ª ganha / simples / posição com mais de uma aposta~~: `cloudbet.posicoes.json` (s445).
+- [ ] **1º cashout / freebet / aposta em outra cripto / juntada ABERTA / sub-posição em duas
+      moedas:** salvar o JSON como fixture e trocar o clone do harness.
 - [ ] **1ª captura do Jaao26:** conferir que as 283 apostas por print não duplicaram (§3).
 
 ---
