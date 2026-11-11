@@ -99,6 +99,7 @@ quando existir categoria mais específica aplicável.
 | Rounds | Mercados de rounds/assaltos da luta (MMA, Boxe) |
 | Sets | Mercados de sets |
 | Team Props | Estatísticas de equipe |
+| Touchdowns | Total de touchdowns do jogo ou de um time (Futebol Americano) |
 | Triplo-Duplo | Mercado específico de basquete |
 
 ---
@@ -410,6 +411,22 @@ Sinônimos:
 
 ---
 
+## Touchdowns
+
+Sinônimos:
+- Total Touchdowns
+- Total de Touchdowns
+- Mais/Menos touchdowns
+- Over/Under Touchdowns
+- Team Total Touchdowns
+- Total de Touchdowns do Time
+
+> `Touchdowns` cobre o total de touchdowns do **jogo** ou de um **time**. Touchdown de
+> **jogador** não entra aqui: o sim/não (`Anytime TD`, `2+ Touchdowns`) é `Anytime` e a
+> linha numérica de um jogador (`Passing Touchdowns Over 1.5`) é `Player Props` (§6 NFL).
+
+---
+
 ## Triplo-Duplo
 
 Sinônimos:
@@ -582,6 +599,37 @@ Exemplos:
 
 > **Handicap de rounds** (ex.: `Lutador A -1,5 rounds`) segue `Handicap`, pela regra
 > de handicap de rounds/mapas em §6 — igual a handicap de sets.
+
+---
+
+## Touchdowns
+
+`Touchdowns` representa:
+
+```text
+Total de touchdowns do jogo (soma dos dois times) ou de um time — Futebol Americano.
+```
+
+É a categoria do **objeto touchdown**, como `Gols` (Futebol) e `Rounds` (MMA / Boxe):
+a categoria registra o objeto contado, então over/under e total exato continuam
+`Touchdowns`.
+
+| Entidade | Mercado | Categoria |
+|---|---|---|
+| Jogo inteiro (soma dos dois times) | `Total Touchdowns Over 5.5` | `Touchdowns` |
+| Time | `Chicago Bears Over 2.5 Touchdowns` | `Touchdowns` |
+| Jogador, sim/não | `Anytime TD`, `2+ Touchdowns` | `Anytime` |
+| Jogador, linha numérica | `Passing Touchdowns Over 1.5` | `Player Props` |
+
+Exemplos:
+- `Over 5.5 Touchdowns [Tampa Bay Buccaneers v Chicago Bears]` → `Touchdowns`
+- `Over 9,5 Touchdowns [Seattle Seahawks v New England Patriots]` → `Touchdowns`
+
+> **Não confundir com `Gols`.** Futebol Americano não tem gol; antes desta categoria
+> existir, o total de touchdowns caía em `Gols` ou em `Outros` (s443/s444).
+
+> **Não confundir com `Pontos`.** O placar em pontos (`Over 44.5 Pontos`) conta ponto, não
+> touchdown: a unidade contada decide, igual a `Pontos` × `Sets` no Vôlei.
 
 ---
 
@@ -1034,10 +1082,26 @@ Jardas
 
 ### Touchdown de jogador
 
-Classificar como:
+Sim/não (`Anytime TD`, `2+ Touchdowns`), classificar como:
 
 ```text
 Anytime
+```
+
+Linha numérica de um jogador (`Passing Touchdowns Over 1.5`), classificar como:
+
+```text
+Player Props
+```
+
+---
+
+### Total de touchdowns (jogo ou time)
+
+Classificar como:
+
+```text
+Touchdowns
 ```
 
 ---
@@ -1472,7 +1536,17 @@ Pontos         > Outros                (o total de pontos SEMPRE tem gaveta)
 Rounds         > Player Props          (→ MMA / Boxe: o round é da LUTA)
 Rounds         > Outros                (o total de rounds SEMPRE tem gaveta)
 ML             > Rounds                (método de vitória — KO/TKO/decisão)
+Touchdowns     > Gols                  (→ Futebol Americano não tem gol)
+Touchdowns     > Team Props            (total de TDs do time tem gaveta)
+Touchdowns     > Outros                (o total de touchdowns SEMPRE tem gaveta)
+Anytime        > Touchdowns            (TD de JOGADOR, sim/não)
 ```
+
+Desambiguação da categoria `Touchdowns` (Futebol Americano):
+- touchdowns do **jogo** ou de um **time** → `Touchdowns`
+- touchdown de **jogador**, sim/não (`Anytime TD`, `2+ Touchdowns`) → `Anytime`
+- touchdowns de **jogador** em linha numérica (`Passing Touchdowns Over 1.5`) → `Player Props`
+- placar em **pontos** (`Over 44.5 Pontos`) → não é `Touchdowns`: a unidade contada decide
 
 Desambiguação da categoria `Rounds` (MMA / Boxe):
 - **quantos rounds a luta dura** (`O/U 1.5 Rounds`) → `Rounds`
@@ -1549,6 +1623,7 @@ Antes de retornar a saída, o extrator deve validar:
 22. total de **rounds** da luta em MMA / Boxe = `Rounds` (nunca `Player Props` nem `Outros`); **método de vitória** (KO/TKO/decisão) = `ML`; **handicap de rounds** = `Handicap`
 23. total de **gols** em eSoccer = `Gols` (nunca `Pontos`, mesmo com linha alta tipo 6.5 / 8.5)
 24. mercado de **faltas** = `Faltas` em qualquer recorte — total da partida, de um time, handicap asiático e **faltas de jogador** (nunca `Player Props`, `Team Props` nem `Outros`)
+25. total de **touchdowns** do jogo ou de um time no Futebol Americano = `Touchdowns` (nunca `Gols`, `Pontos`, `Team Props` nem `Outros`); touchdown de **jogador** nunca é `Touchdowns` (sim/não → `Anytime`; linha numérica → `Player Props`)
 
 Se qualquer regra falhar, a linha deve ser considerada inválida.
 
