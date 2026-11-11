@@ -94,11 +94,35 @@
     };
   }
 
+  // SIMPLES (s443, conta do Gabriel): a casa não manda `legs`. A seleção vem SOLTA no bilhete,
+  // e em dois formatos (medidos no mesmo 51851882, aberto e depois liquidado):
+  //   • liquidada: `selection:{event, competition, runner}`, `betType:{sport, period, marketType}`,
+  //     `marketName`, `runnerName` ("Over 5.5"), `status:{result, finalScore}`;
+  //   • aberta: tudo plano dentro do `bet` (`eventName`, `sportName`, `periodName`, `marketName`,
+  //     `runnerName` "Total Touchdowns  (Over 5.5)"), e a liga no EMBRULHO (`competition`).
+  // Sem isto o bloco ia com "Seleções:" vazio e a IA não tinha o que ler.
+  function pernaSimples(raw, x, aberta) {
+    if (aberta) {
+      return parsePerna({
+        odds: x.odds, eventName: x.eventName, competition: x.competition || (raw && raw.competition),
+        sportName: x.sportName, marketName: x.marketName, runnerName: x.runnerName, periodName: x.periodName,
+      }, true);
+    }
+    const sel = (x.selection && typeof x.selection === "object") ? x.selection : {};
+    const bt = (x.betType && typeof x.betType === "object") ? x.betType : {};
+    return parsePerna({
+      status: x.status, odds: x.odds, eventName: sel.event, competition: sel.competition,
+      sportName: bt.sport, marketName: x.marketName || bt.marketType, runnerName: x.runnerName || sel.runner,
+      periodName: bt.period,
+    }, false);
+  }
+
   function parseBet(raw) {
     const aberta = !!(raw && raw.bet && typeof raw.bet === "object");
     const x = aberta ? raw.bet : raw;
     if (!x || x.betId == null) return null;
     const bt = aberta ? (raw.betType || x.submittedType) : (x.betType && x.betType.betType);
+    const legs = Array.isArray(x.legs) && x.legs.length ? x.legs : null;
     return {
       id: _s(x.betId),
       aberta: aberta || _s(x.status) === "Open",
@@ -116,7 +140,8 @@
       colocada: _iso(x.datePlaced),
       liquidada: _iso(x.dateSettled),
       exchange: x.isExchange === true,
-      pernas: (Array.isArray(x.legs) ? x.legs : []).map((p) => parsePerna(p, aberta)).filter(Boolean),
+      pernas: legs ? legs.map((p) => parsePerna(p, aberta)).filter(Boolean)
+                   : (x.marketName || x.selection || x.eventName ? [pernaSimples(raw, x, aberta)] : []),
     };
   }
 

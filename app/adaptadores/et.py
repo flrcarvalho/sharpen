@@ -22,8 +22,17 @@ bancada (`extensor/harness/fixtures/3et.*.json`, 13 liquidadas e 4 abertas, cont
     aqui decide quem é a casa.
   • MERCADO: `marketName`, mais o período entre parênteses quando não é o jogo inteiro e o
     mercado ainda não o diz (`Moneyline First Half` já diz).
+  • SIMPLES (s443, conta do Gabriel, `3et.simples.*.json`): a casa não manda `legs`, e a seleção
+    vem solta no bilhete. Liquidada: `selection.event/competition`, `betType.sport/period`,
+    `marketName`, `runnerName`. Aberta: plana no `bet`, com a liga no EMBRULHO (`competition`) e o
+    `runnerName` repetindo o mercado (`Total Touchdowns  (Over 5.5)`); a repetição sai e fica o que
+    a liquidada do mesmo bilhete diz (`Over 5.5`). O `eventStartDate` do embrulho NÃO vira
+    `inicio`: a liquidada não o traz, e a data da aposta mudaria ao liquidar.
+  • PUSH numa perna de múltipla é a perna anulada (52019175, DNB empatado). O bilhete continua
+    decidido pelo dinheiro.
   • Sem amostra, RECUSA: `freeBetStake` > 0, `trueStake` ≠ `stake`, `isExchange`, e qualquer
-    `status.result` além de Win/Lose. O texto continua levando esses bilhetes à IA.
+    `status.result` além de Win/Lose (no bilhete) ou Win/Lose/Push (na perna). O texto continua
+    levando esses bilhetes à IA.
 """
 from __future__ import annotations
 
@@ -32,7 +41,7 @@ from decimal import Decimal
 
 from . import Recusa, numero
 
-_PERNA = {"Win": "ganha", "Lose": "perdida"}
+_PERNA = {"Win": "ganha", "Lose": "perdida", "Push": "anulada"}
 _MEIO_CENTAVO = Decimal("0.005")
 _UM_CENTAVO = Decimal("0.01")
 _LINHA = re.compile(r"\s([+-]?\d+(?:\.\d+)?)$")
@@ -108,6 +117,27 @@ def _mercado(p: dict) -> str:
     return f"{m} ({per})"
 
 
+def _sem_mercado_repetido(sel: str, mercado: str) -> str:
+    """`Total Touchdowns  (Over 5.5)` com mercado `Total Touchdowns` → `Over 5.5` (o que a
+    liquidada do mesmo bilhete diz). Qualquer outra forma fica como veio."""
+    m = re.fullmatch(re.escape(mercado) + r"\s*\((.+)\)", sel) if mercado else None
+    return _limpo(m.group(1)) if m else sel
+
+
+def _perna_simples(cru, b: dict) -> dict:
+    """A simples não tem `legs`: monta a perna com os campos soltos do bilhete."""
+    if _aberta(b):
+        p = {k: b.get(k) for k in ("odds", "eventName", "sportName", "marketName", "periodName")}
+        p["competition"] = b.get("competition") or (cru.get("competition") if isinstance(cru, dict) else None)
+        p["runnerName"] = _sem_mercado_repetido(_limpo(b.get("runnerName")), _limpo(b.get("marketName")))
+        return p
+    sel = b.get("selection") if isinstance(b.get("selection"), dict) else {}
+    bt = b.get("betType") if isinstance(b.get("betType"), dict) else {}
+    return {"odds": b.get("odds"), "eventName": sel.get("event"), "competition": sel.get("competition"),
+            "sportName": bt.get("sport"), "marketName": b.get("marketName") or bt.get("marketType"),
+            "runnerName": b.get("runnerName") or sel.get("runner"), "periodName": bt.get("period")}
+
+
 def _perna(p: dict, estado) -> dict:
     sel = _limpo(p.get("runnerName"))
     ml = _LINHA.search(sel)
@@ -123,7 +153,7 @@ def _perna(p: dict, estado) -> dict:
         "odd": numero(p.get("odds")),
         "inicio": None,               # a casa não publica o início do evento
         # "" = bilhete aberto (a perna só diz o andamento, `finished`/`graded`, que não é
-        # resultado); rótulo fora de Win/Lose (simples anulada) = None, nunca palpite.
+        # resultado); rótulo fora de Win/Lose/Push (simples com rótulo novo) = None, nunca palpite.
         "status_perna": "aberta" if estado == "" else _PERNA.get(estado),
     }
 
@@ -143,6 +173,8 @@ def adaptar(cru: dict, casa_key: str) -> dict:
         raise Recusa(f"trueStake {b.get('trueStake')!r} ≠ stake {b.get('stake')!r} sem amostra")
     status, ret = _status(b)
     legs = b.get("legs") or []
+    if not legs and (b.get("marketName") or b.get("selection") or b.get("eventName")):
+        legs = [_perna_simples(cru, b)]
     if not legs:
         raise Recusa("bilhete sem legs")
     multipla = len(legs) > 1

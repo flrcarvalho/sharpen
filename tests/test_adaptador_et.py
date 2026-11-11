@@ -21,11 +21,20 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
  10. aberta com o andamento da perna como resultado        → test_aberta_embrulhada
  11. período fora do mercado                               → test_periodo_entra_no_mercado
  12. moeda chutada quando o cru não traz                   → test_moeda_vem_do_cru
- 13. perna com rótulo fora de Win/Lose aceita              → test_perna_com_rotulo_novo_recusa
+ 13. perna com rótulo fora de Win/Lose/Push aceita         → test_perna_com_rotulo_novo_recusa
 (13 de 13 detectadas, 08/11/2026.)
 
-O QUE NÃO COBRE: boost, cashout, sistema, bet builder, meia vitória/derrota (a conta não tinha
-nenhum; todo rótulo fora de Win/Lose recusa) e a exchange da casa (fora da captura).
+s443, SIMPLES e PUSH reais (conta do Gabriel, `3et.simples.*.json`: 4 simples liquidadas, 2 simples
+abertas, uma delas o mesmo 51851882 antes de liquidar, e a dupla 52019175 com perna Push). Antes,
+toda simples recusava com "bilhete sem legs" e ia à IA com "Seleções:" vazio. Mutações:
+ 14. simples volta a recusar (sem montar a perna)          → test_simples_reais_montam_como_o_card
+ 15. liga da simples aberta lida só do `bet` (o embrulho cai) → test_simples_aberta_liga_do_embrulho
+ 16. mercado repetido não sai da seleção da aberta         → test_simples_aberta_selecao_como_a_liquidada
+ 17. Push deixa de ser perna anulada                       → test_push_na_perna_e_anulada
+
+O QUE NÃO COBRE: boost, cashout, sistema, bet builder, meia vitória/derrota, simples anulada (a
+conta não tinha nenhum; todo rótulo fora de Win/Lose recusa no bilhete, e fora de Win/Lose/Push na
+perna) e a exchange da casa (fora da captura).
 """
 import copy
 import json
@@ -187,3 +196,62 @@ def test_moeda_vem_do_cru():
 def test_recusa_grava_o_codigo():
     f, motivos = ficha.montar_ficha("et", _clone(freeBetStake=10), "3ET")
     assert motivos and f["cru_recusado"] and f["codigo"] == PERDIDA
+
+
+# ── s443: simples e Push reais (conta do Gabriel) ─────────────────────────────────────────────
+def _crus_simples(nome):
+    return {et.codigo(c): dict(c, moeda_conta="USD")
+            for c in et.bilhetes_da_resposta(json.loads((_FIX / nome).read_text(encoding="utf-8")))}
+
+
+SIMPLES_LIQ = _crus_simples("3et.simples.settled.json")
+SIMPLES_ABE = _crus_simples("3et.simples.open.json")
+
+
+@pytest.mark.parametrize("cod,esperado", [
+    # (status, resultado, odd, data, esporte, liga, evento, mercado, seleção, linha)
+    ("51663167", ("ganha", "W", "3,25", "05/11/2026", "American Football", "US NFL",
+                  "Jacksonville Jaguars vs Baltimore Ravens", "Team Points Jacksonville Jaguars",
+                  "OVER 29.5", "29.5")),
+    ("51666575", ("perdida", "L", "1,94", "05/11/2026", "Basketball", "Euroleague",
+                  "Fenerbahce vs Cazoo Baskonia Vitoria Gasteiz", "Kobi Simmons - Assists",
+                  "Under (+2.5)", None)),
+    ("51851882", ("perdida", "L", "2,19", "07/11/2026", "American Football", "US NFL",
+                  "Tampa Bay Buccaneers vs Chicago Bears", "Total Touchdowns", "Over 5.5", "5.5")),
+    ("52022943", ("ganha", "W", "3,9", "10/11/2026", "American Football", "NCAA Division I FBS",
+                  "Western Michigan Broncos vs Akron Zips", "Team Points Western Michigan Broncos",
+                  "OVER 38.5", "38.5")),
+])
+def test_simples_reais_montam_como_o_card(cod, esperado):
+    f, d = _montar(SIMPLES_LIQ[cod])
+    assert f["tipo"] == "simples" and len(f["pernas"]) == 1
+    p = f["pernas"][0]
+    assert (f["status"], d["resultado"], d["odd"], d["data"], p["esporte_casa"], p["liga_casa"],
+            p["evento"], p["mercado_casa"], p["selecao_casa"], p["linha"]) == esperado
+    assert p["status_perna"] == f["status"]
+
+
+def test_simples_aberta_liga_do_embrulho():
+    """A aberta é plana no `bet`, e a liga vem no EMBRULHO (`competition` fora do `bet`)."""
+    f, d = _montar(SIMPLES_ABE["52028388"])
+    p = f["pernas"][0]
+    assert (f["status"], d["resultado"], d["odd"]) == ("aberta", "", "1,96")
+    assert (p["liga_casa"], p["esporte_casa"], p["evento"]) == ("US NBA", "Basketball", "Boston Celtics vs Toronto Raptors")
+    assert (p["mercado_casa"], p["selecao_casa"], p["status_perna"]) == ("HDP", "HDP -7.5 (Boston Celtics)", "aberta")
+    assert p["inicio"] is None            # o `eventStartDate` do embrulho não vira data
+
+
+def test_simples_aberta_selecao_como_a_liquidada():
+    """O mesmo 51851882: aberto, `runnerName` "Total Touchdowns  (Over 5.5)"; liquidado, "Over 5.5".
+    A Ficha da aberta tem de dizer o mesmo que a da liquidada."""
+    pa = _montar(SIMPLES_ABE["51851882"])[0]["pernas"][0]
+    pl = _montar(SIMPLES_LIQ["51851882"])[0]["pernas"][0]
+    assert (pa["selecao_casa"], pa["linha"]) == (pl["selecao_casa"], pl["linha"]) == ("Over 5.5", "5.5")
+    assert pa["mercado_casa"] == pl["mercado_casa"] == "Total Touchdowns"
+
+
+def test_push_na_perna_e_anulada():
+    """52019175: DNB empatado (Push) + perna perdida. O bilhete é perdido pelo dinheiro."""
+    f, d = _montar(SIMPLES_LIQ["52019175"])
+    assert (f["tipo"], f["status"], d["resultado"], d["odd"]) == ("multipla", "perdida", "L", "11,798")
+    assert [p["status_perna"] for p in f["pernas"]] == ["anulada", "perdida"]

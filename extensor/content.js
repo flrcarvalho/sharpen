@@ -6035,7 +6035,9 @@
   // NÃO MEDIDO (a conta não tinha): simples, anulada, meia, cashout, freebet, boost. Só o
   // DINHEIRO decide: retorno = stake prova V; o resto sobe cru, "a conferir". O de-para vive
   // na CASA_3ET.md §5.
-  const _PERNA_ET = { Win: "ganha", Lose: "perdida" };
+  // Push: perna anulada numa múltipla (52019175, DNB empatado, s443). O bilhete segue decidido
+  // pelo dinheiro em `_resultadoET`; isto só nomeia a perna.
+  const _PERNA_ET = { Win: "ganha", Lose: "perdida", Push: "anulada (push)" };
   const _quaseET = (a, b, tol) => typeof a === "number" && typeof b === "number" && Math.abs(a - b) < tol;
   const _retornoET = (b) => (typeof b.stake === "number" && typeof b.lucro === "number")
     ? Math.round((b.stake + b.lucro) * 1e8) / 1e8 : null;

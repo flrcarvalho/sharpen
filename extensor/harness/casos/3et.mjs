@@ -34,7 +34,13 @@
 //   • DATA: a API não publica início de evento, só `datePlaced` e `dateSettled` (ISO UTC). O
 //     bloco leva a colocação em São Paulo (como a Novibet) — 00:06 UTC de 07/11 = 21:06 de 06/11.
 //
-// NÃO COBERTO por amostra real (a conta não tinha): simples, anulada/push, meia vitória ou meia
+// SIMPLES e PUSH (s443): a conta do Gabriel trouxe as primeiras, e o bloco ia com "Seleções:"
+// vazio (a simples não tem `legs`). `3et.simples.settled.json` = 4 simples liquidadas (2 ganhas,
+// 2 perdidas) + a dupla 52019175 com uma perna Push; `3et.simples.open.json` = 2 simples abertas
+// (52028388 e o 51851882 ANTES de liquidar, o mesmo bilhete das duas listas). Crus da casa como
+// chegaram ao `captura_crua`, sem o `moeda_conta` que o inject anexa. Travado em `simplesReais`.
+//
+// NÃO COBERTO por amostra real (a conta não tinha): simples anulada, meia vitória ou meia
 // derrota (há mercados AH e HDP, então pode existir), cashout, freebet (`freeBetStake`), boost,
 // `trueStake` ≠ `stake`, e qualquer `status.result` além de Win/Lose. Os casos de dinheiro estão
 // travados por CLONE da perdida: só o número prova; o resto sobe "a conferir". O caminho XHR do
@@ -263,6 +269,7 @@ export async function rodar() {
   testes += await partidaAFrio(falhas);
   testes += await semSessao(falhas);
   testes += await semMoeda(falhas);
+  testes += await simplesReais(falhas);
   return { falhas, testes };
 }
 
@@ -326,4 +333,56 @@ async function semMoeda(falhas) {
   if (b.moeda) falhas.push(`sem moeda: o inject inventou "${b.moeda}"`);
   if (((ultima && ultima.cru) || []).some((c) => c.cru && c.cru.moeda_conta)) falhas.push("sem moeda: o cru levou moeda_conta inventada");
   return 1;
+}
+
+// SIMPLES reais (s443): sem `legs`, a seleção vem solta no bilhete, em formatos diferentes na
+// liquidada e na aberta. O bloco tem de levar mercado, seleção, jogo, liga e esporte, senão a IA
+// devolve "Mercado Especial - REVISAR" ou nada (o "Nenhuma linha válida" do Gabriel).
+async function simplesReais(falhas) {
+  const liq = JSON.parse(fixture("3et.simples.settled.json")).content;
+  const abe = JSON.parse(fixture("3et.simples.open.json")).content;
+  const { ultima } = await rodarPadrao(liq, abe, []);
+  const fmt = carregarContent().pegar("formatTicketET");
+  const porId = new Map(((ultima && ultima.bilhetes) || []).map((b) => [b.id, b]));
+  const txt = (id) => (porId.has(id) ? fmt(porId.get(id)) : "");
+  let n = 0;
+  if (porId.size !== 6) falhas.push(`simples: esperava 6 bilhetes (51851882 nas duas listas conta 1), vieram ${porId.size}`);
+  const SIMPLES = {
+    "51663167": { st: W("81,25"), sel: "- Team Points Jacksonville Jaguars: OVER 29.5 [perna ganha]",
+                  ctx: "Jogo: Jacksonville Jaguars at Baltimore Ravens · Liga: US NFL · Esporte: American Football · Período: Full Time · Placar: FT: 33 - 10" },
+    "51666575": { st: L, sel: "- Kobi Simmons - Assists: Under (+2.5) [perna perdida]",
+                  ctx: "Jogo: Fenerbahce vs Cazoo Baskonia Vitoria Gasteiz · Liga: Euroleague · Esporte: Basketball · Período: Full Time" },
+    "51851882": { st: L, sel: "- Total Touchdowns: Over 5.5 [perna perdida]",
+                  ctx: "Jogo: Tampa Bay Buccaneers at Chicago Bears · Liga: US NFL · Esporte: American Football" },
+    "52022943": { st: W("140,40"), sel: "- Team Points Western Michigan Broncos: OVER 38.5 [perna ganha]",
+                  ctx: "Liga: NCAA Division I FBS · Esporte: American Football" },
+  };
+  for (const [id, e] of Object.entries(SIMPLES)) {
+    const t = txt(id); n++;
+    if (!t) { falhas.push(`simples ${id}: não chegou ao lote`); continue; }
+    if (linha(t, "Tipo:") !== "Simples") falhas.push(`simples ${id}: tipo "${linha(t, "Tipo:")}"`);
+    if (!e.st.test(linha(t, "Status:"))) falhas.push(`simples ${id}: status "${linha(t, "Status:")}"`);
+    if (!t.split(/\r?\n/).includes(e.sel)) falhas.push(`simples ${id}: seleção não saiu como "${e.sel}"`);
+    if (!t.includes(e.ctx)) falhas.push(`simples ${id}: contexto da perna sem "${e.ctx}"`);
+    if (/\(mercado sem nome\)|\(seleção sem nome\)|undefined|null|NaN/.test(t)) falhas.push(`simples ${id}: campo vazio ou "undefined" no bloco`);
+  }
+  // Aberta: plana no `bet`, liga no embrulho, sem resultado e sem estado de perna inventado.
+  {
+    const t = txt("52028388"); n++;
+    if (!ABERTA.test(linha(t, "Status:"))) falhas.push(`simples aberta 52028388: status "${linha(t, "Status:")}"`);
+    if (!t.split(/\r?\n/).includes("- HDP: HDP -7.5 (Boston Celtics)")) falhas.push("simples aberta 52028388: a seleção não subiu");
+    if (!t.includes("Jogo: Boston Celtics at Toronto Raptors · Liga: US NBA · Esporte: Basketball")) falhas.push("simples aberta 52028388: jogo/liga (do embrulho)/esporte faltando");
+    if (/\[perna |Estado da perna/.test(t)) falhas.push("simples aberta 52028388: perna de aberta com estado ou resultado");
+    if (linha(t, "Retorno potencial (se ganhar):") !== "3,92 USD") falhas.push(`simples aberta 52028388: retorno potencial "${linha(t, "Retorno potencial (se ganhar):")}" (2 × 1,96)`);
+  }
+  // A liquidada vence a aberta do MESMO bilhete (51851882 veio nas duas listas).
+  if (!L.test(linha(txt("51851882"), "Status:"))) falhas.push("simples 51851882: a versão aberta venceu a liquidada");
+  // Push numa perna de múltipla: perna anulada, o bilhete pelo dinheiro (perdida).
+  {
+    const t = txt("52019175"); n++;
+    if (!L.test(linha(t, "Status:"))) falhas.push(`push 52019175: status "${linha(t, "Status:")}"`);
+    if (!t.split(/\r?\n/).includes("- Draw no bet: Bristol Rovers [perna anulada (push)]")) falhas.push("push 52019175: a perna Push não saiu como anulada");
+    if (!t.split(/\r?\n/).includes("- Team Points Kent State Golden Flashes: UNDER 14.5 [perna perdida]")) falhas.push("push 52019175: a perna perdida não saiu");
+  }
+  return n;
 }

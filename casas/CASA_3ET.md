@@ -83,7 +83,25 @@ A **liquidada vem PLANA**; a **aberta vem EMBRULHADA** em `{bet:{…}, betType, 
 | `datePlaced` · `dateSettled` | colocação e liquidação, ISO UTC (`…Z`). **Não há início de evento** |
 | `isExchange` | `false` (só nas abertas). `true` = aposta da exchange, fora da captura |
 | `legs[]` | pernas: `sportName`, `competition`, `eventName`, `marketName`, `runnerName`, `periodName`, `odds`, `status` |
-| `legs[].status` | liquidada: `{result, finalScore, periodScore}`; aberta: texto de andamento `finished`/`graded`, que **não** diz ganha nem perdida |
+| `legs[].status` | liquidada: `{result, finalScore, periodScore}` (`Push` = perna anulada, DNB empatado); aberta: texto de andamento `finished`/`graded`, que **não** diz ganha nem perdida |
+
+**⚠ SIMPLES não tem `legs` (s443, conta do Gabriel).** Sem isso o bloco ia com `Seleções:` vazio,
+a IA devolvia `Mercado Especial - REVISAR` ou nenhuma linha ("Nenhuma linha válida encontrada no
+TSV") e a Ficha recusava (`bilhete sem legs`). A seleção vem solta no bilhete, em dois formatos
+(medidos no mesmo `51851882`, aberto e depois liquidado):
+
+| Campo da perna | Simples liquidada (plana) | Simples aberta (embrulhada) |
+|---|---|---|
+| jogo | `selection.event` | `bet.eventName` |
+| liga | `selection.competition` | **`competition` do EMBRULHO** (fora do `bet`) |
+| esporte · período | `betType.sport` · `betType.period` | `bet.sportName` · `bet.periodName` |
+| mercado | `marketName` (= `betType.marketType`) | `bet.marketName` |
+| seleção | `runnerName` (`Over 5.5`) | `bet.runnerName` (`Total Touchdowns  (Over 5.5)`: repete o mercado) |
+| `betType` | objeto `{betType:"Bet", sport, …}` | texto `"Betting"` no embrulho, `"Bet"` no `bet` |
+
+O inject monta UMA perna com esses campos (`pernaSimples`); a Ficha faz o mesmo e tira da seleção
+da aberta o mercado repetido, para ela dizer o que a liquidada diz. O `eventStartDate` do embrulho
+da aberta **não** vira data: a liquidada não o traz, e a data da aposta mudaria ao liquidar (§4).
 
 **Ficha (s441):** adaptador `app/adaptadores/et.py`, gate `tests/test_adaptador_et.py`. O cru é o
 item da lista como a casa devolveu, mais `moeda_conta` (anexado pelo inject). O jogo `A at B`
@@ -121,13 +139,15 @@ O retorno é `stake + profit`. Na ganha da amostra ele fecha exato com stake × 
 | `Lose` · `profit` = −stake | Perdeu | `L` |
 | qualquer · `profit` = 0 (retorno = stake) | P/L zero | `V` |
 | `Win` · stake + profit = stake × odd (± 1 centavo) | Ganhou | `W` |
-| `Lose` com retorno, `Win` que não fecha, `freeBetStake` > 0, `trueStake` ≠ stake, rótulo novo (`Half Win`, `Push`…) | sobe cru | *(a conferir)* |
+| `Lose` com retorno, `Win` que não fecha, `freeBetStake` > 0, `trueStake` ≠ stake, rótulo novo no bilhete (`Half Win`, `Push`…) | sobe cru | *(a conferir)* |
 
 Medido: `Lose` 12 e `Win` 1 nas liquidadas, `Open` 4. O resto é a régua acima, travada por
 clone no harness, **não** por amostra real. O bloco sempre leva
 `Status (API): result=… · betStatus=… · betType=… (Double) · betId=…`.
 
-A perna liquidada diz o próprio resultado (`[perna ganha]` / `[perna perdida]`). A perna da
+A perna liquidada diz o próprio resultado (`[perna ganha]` / `[perna perdida]` /
+`[perna anulada (push)]`; o Push foi medido no `52019175`, s443). O bilhete continua decidido
+pelo dinheiro. A perna da
 aberta leva só `Estado da perna (casa): finished|graded`, sem marcar resultado.
 
 ---
@@ -201,7 +221,8 @@ Campo `stake`, na moeda da conta; a conversão para R$ é do `/salvar`.
 ## 13. Pegadinhas (resumo rápido)
 
 1. **`profit`/`payout` e o "Est. Return" da tela são LUCRO**, não retorno (§2.5).
-2. **Aberta embrulhada, liquidada plana** (§2.5).
+2. **Aberta embrulhada, liquidada plana** (§2.5). **Simples sem `legs`**, com a seleção solta e a
+   liga da aberta no embrulho (§2.5, s443).
 3. **Sem data de evento**: a Data é a colocação (§4).
 4. **Odd do bilhete ≠ produto das pernas** (§11).
 5. **Moeda fora do bilhete**: vem da conta (§1).
@@ -215,8 +236,10 @@ Campo `stake`, na moeda da conta; a conversão para R$ é do `/salvar`.
 - [ ] Nenhuma aberta liquidada; nenhuma perdida com odd zero.
 - [ ] Coluna Data = colocação em São Paulo.
 - [ ] Contagem capturada == Open Bets + liquidadas do Statement.
-- [ ] **1ª simples / anulada / meia / cashout / freebet:** salvar o JSON como fixture e trocar o
-      clone do harness.
+- [x] **1ª simples e 1º Push** (s443, conta do Gabriel): fixtures `3et.simples.settled.json` e
+      `3et.simples.open.json`, travadas em `simplesReais` (harness) e no `test_adaptador_et.py`.
+- [ ] **1ª anulada / meia / cashout / freebet:** salvar o JSON como fixture e trocar o clone do
+      harness.
 - [ ] **1ª aposta da exchange:** medir onde ela aparece (fora de `betsByDate`?) antes de ligar.
 
 ---
@@ -234,7 +257,19 @@ duplas): `extensor/harness/fixtures/3et.settled.json` e `3et.open.json`.
 | 51758258 | Dupla futebol americano | `Lose` | 20,00 | 11,062 | 0 | 06/11/2026 21:06 | JSON |
 | 51867098 | Dupla futebol americano | `Open` | 20,00 | 9,765 | potencial 195,30 | 07/11/2026 18:35 | card |
 
-**Sem amostra:** simples · anulada · meia · cashout · freebet · boost · sistema · exchange.
+**Simples e Push (s443, conta do Gabriel, 10-11/11/2026):** `3et.simples.settled.json` (4 simples
+liquidadas + a dupla com Push) e `3et.simples.open.json` (2 simples abertas).
+
+| Código | Tipo | Estado | Stake (USD) | Odd | Retorno (USD) | Colocação (SP) |
+|---|---|---|---|---|---|---|
+| 51663167 | Simples NFL, `Team Points` | `Win` | 25,00 | 3,25 | 81,25 | 05/11/2026 10:36 |
+| 51666575 | Simples basquete, prop de jogador | `Lose` | 36,00 | 1,94 | 0 | 05/11/2026 14:07 |
+| 51851882 | Simples NFL, `Total Touchdowns` (aberta e liquidada) | `Lose` | 50,00 | 2,19 | 0 | 07/11/2026 16:05 |
+| 52022943 | Simples NCAA, `Team Points` | `Win` | 36,00 | 3,90 | 140,40 | 10/11/2026 20:49 |
+| 52028388 | Simples NBA, `HDP` | `Open` | 2,00 | 1,96 | potencial 3,92 | 11/11/2026 07:50 |
+| 52019175 | Dupla com perna `Push` (DNB) | `Lose` | 24,00 | 11,798 | 0 | 10/11/2026 15:14 |
+
+**Sem amostra:** simples anulada · meia · cashout · freebet · boost · sistema · exchange.
 
 ---
 
@@ -246,7 +281,7 @@ duplas): `extensor/harness/fixtures/3et.settled.json` e `3et.open.json`.
 3. Estar logado na 3et (qualquer página: o inject parte do cookie).
 4. Conectar → Copiar bilhetes. O toast diz `respostas` e `vistos`; HTTP 401/403 = sessão caída.
 5. Conferir no dashboard: contagem, código, colocação, odd e moeda.
-6. Na 1ª simples/anulada/cashout/freebet, cumprir os itens da §14.
+6. Na 1ª anulada/meia/cashout/freebet, cumprir os itens da §14.
 
 ---
 
