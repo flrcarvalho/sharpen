@@ -20,7 +20,10 @@ cruzadas com os cards de `/pt/my-bets/sports`.
   • MERCADO da props: `<jogador> <estatística>` ("Matisse Thybulle rebounds"), com o nome na
     frente para a chave `{jogador}` do dicionário generalizar; seleção `<over|under> <linha>`.
   • Sem amostra, RECUSA: corrida, XMulti, promoção/boost (`promotionBet`, `customPrices`,
-    `adjustments`), cashout parcial (`cashouts`) e cashout com retorno ≠ stake.
+    `adjustments`), cashout parcial (`cashouts`) e cashout com retorno ≠ stake. A XMulti vai pela
+    IA, que a liquida pelo texto desde a s445.
+  • ALIASES (s445): a aberta de props/XMulti não traz `iid` e a extensão a grava com o UUID do
+    `bet.id`; o `aliases(cru)` da liquidada devolve esse UUID para o `/salvar` adotar a linha.
 """
 from __future__ import annotations
 
@@ -57,6 +60,20 @@ def codigo(cru) -> str:
         return ""
     m = _IID.match(str(cru.get("iid") or ""))
     return m.group(1) if m else ""
+
+
+def aliases(cru) -> list[str]:
+    """Os OUTROS códigos com que esta mesma aposta já pode estar no banco (s445).
+
+    A aberta de props (`SwishBet`) e de XMulti não traz `iid`: a extensão a grava com o UUID
+    (`bet.id`) como código. Liquidada, ela volta do histórico com o número do `iid`. O `bet.id`
+    é o mesmo nas duas listas (medido: 689207229 = 18295be1-…, conta do Gabriel), então o cru
+    da liquidada diz qual linha aberta é ela."""
+    if not isinstance(cru, dict):
+        return []
+    cod = codigo(cru)
+    uid = str((cru.get("bet") or {}).get("id") or "").strip()
+    return [uid] if cod and uid and uid != cod else []
 
 
 def _d(v) -> Decimal | None:

@@ -896,7 +896,7 @@ app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), na
 # gravação moram em `app/ficha.py` (decisão do Feca, 11/10). A isenção de CSRF dela está
 # em `_CAPTURA_ISENTAS`, como a das outras rotas da extensão.
 from ficha import router as _ficha_router  # noqa: E402
-from ficha import moedas_do_cru, registrar_alerta_moeda  # noqa: E402
+from ficha import aliases_do_cru, moedas_do_cru, registrar_alerta_moeda  # noqa: E402
 app.include_router(_ficha_router)
 
 # Kalshi (s439): chave cifrada, Sincronizar e Caixa automática. Único ponto de registro,
@@ -4768,11 +4768,19 @@ async def gravar_tsv(body: SalvarRequest, dono: str, dono_view: str,
         except (ValueError, TypeError):
             criado_base = None
 
+    # Outros códigos da MESMA aposta, pelo cru guardado (s445): a Stake.com grava a aberta com o
+    # UUID e devolve a liquidada com o número. O UPSERT adota a linha aberta (Migração C).
+    aliases: dict = {}
+    if casa_key and parceiro_txt and rows:
+        aliases = await aliases_do_cru(
+            dono, casa_key, parceiro_txt,
+            [(r.get("codigo_bilhete") or "").strip() for r in rows])
+
     if rows:
         inseridos, atualizados, ids, alertas, duplicatas = await upsert_bilhetes(
             rows, dono, confianca=body.confianca, criado_base=criado_base, origem=origem,
             coproprietarios=coproprietarios(dono), codigo_ocr=body.codigo_ocr,
-            carimbos=body.carimbos, freebets=body.freebets,
+            carimbos=body.carimbos, freebets=body.freebets, aliases=aliases,
         )
     else:
         inseridos, atualizados, ids, alertas, duplicatas = 0, 0, [], [], {}

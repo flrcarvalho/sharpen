@@ -1844,8 +1844,14 @@ async def upsert_bilhetes(
     coproprietarios: list[str] | None = None, codigo_ocr: bool = False,
     carimbos: dict[str, str] | None = None,
     freebets: dict[str, str] | None = None,
+    aliases: dict[str, list[str]] | None = None,
 ) -> tuple[int, int, list[int], list[str], dict]:
     """Retorna (inseridos, atualizados, ids, alertas, duplicatas).
+
+    `aliases` é `{código: [outros códigos da MESMA aposta]}`, lido do cru guardado
+    (`ficha.aliases_do_cru`, s445). Alimenta a Migração C: a linha que a aposta deixou
+    com o código antigo é adotada pelo novo em vez de virar uma segunda linha.
+
 
     duplicatas: {str(db_id): [occurrence, total]} — bets suspeitas de duplicidade no lote.
 
@@ -2053,6 +2059,48 @@ async def upsert_bilhetes(
                          )""",
                     sig, row.get("casa", ""), row.get("parceiro", ""), codigo, dono,
                 )
+                # Migração C (s445): adota a linha que a MESMA aposta deixou com OUTRO código.
+                # A Stake.com grava a aberta de props/XMulti com o UUID (`bet.id`) e a devolve
+                # liquidada com o número do `iid`; sem isto a liquidada entra como linha nova e
+                # a aberta fica `aberta` para sempre (o "atrasadas" do Gabriel). O par vem do
+                # CRU guardado (`aliases_do_cru`), nunca de semelhança: é a casa dizendo que é a
+                # mesma aposta. Uma linha por vez (`LIMIT 1`) e o mesmo guard NOT EXISTS da
+                # Migração A — colisão aqui abortaria o lote inteiro.
+                for alias in (aliases or {}).get(codigo, ()):
+                    st_c = await conn.execute(
+                        """
+                        UPDATE bilhetes SET assinatura = $1, codigo_bilhete = $2
+                         WHERE id = (SELECT id FROM bilhetes
+                                      WHERE dono = $3 AND casa = $4 AND parceiro = $5
+                                        AND lower(codigo_bilhete) = lower($6)
+                                      ORDER BY id LIMIT 1)
+                           AND NOT EXISTS (
+                               SELECT 1 FROM bilhetes b2
+                                WHERE b2.dono = $3 AND b2.casa = $4 AND b2.parceiro = $5
+                                  AND (b2.assinatura = $1
+                                       OR lower(b2.codigo_bilhete) = lower($2))
+                           )
+                        """,
+                        sig, codigo, dono, row.get("casa", ""), row.get("parceiro", ""), alias,
+                    )
+                    if st_c.endswith(" 1"):
+                        logger.info("upsert: %s adotou a linha do código %s (mesma aposta)",
+                                    codigo, alias)
+                        continue
+                    # As duas linhas já existem: a aberta antiga sobra. Avisa, nunca apaga.
+                    resta = await conn.fetchval(
+                        """SELECT count(*) FROM bilhetes
+                            WHERE dono = $1 AND casa = $2 AND parceiro = $3
+                              AND lower(codigo_bilhete) = lower($4)
+                              AND extraction_state = 'aberta'""",
+                        dono, row.get("casa", ""), row.get("parceiro", ""), alias,
+                    )
+                    if resta:
+                        alertas.append(
+                            f"A aposta {codigo} já tem linha própria e sobrou outra ABERTA com o "
+                            f"código {alias}, que é a mesma aposta antes de liquidar. Exclua a "
+                            "aberta para não contar duas vezes."
+                        )
                 # Migração B: adota linha sem código que bate em data+aposta+stake+odd
                 # (bets importadas via imagem antes do suporte a XLS). Mesmo guard
                 # NOT EXISTS da Migração A: só adota se a assinatura de destino estiver

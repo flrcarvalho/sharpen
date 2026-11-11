@@ -975,6 +975,7 @@
     "0.7.55": "Betrebels também pelo domínio betrebels.com; conserto, não vira aviso (s418, 16/10/2026)",
     "0.7.56": "1win: múltipla ganha com perna anulada deixa de ficar aberta; conserto, não vira aviso (s419, 18/10/2026)",
     "0.7.58": "MyStake: o bônus de odd (+5%) entra no retorno e na odd da ganha; conserto, não vira aviso (s422, 18/10/2026)",
-    "0.7.74": "3et: aposta simples e perna Push passam a ser lidas (a simples ia sem seleção); conserto, não vira aviso (s443, 11/11/2026)"
+    "0.7.74": "3et: aposta simples e perna Push passam a ser lidas (a simples ia sem seleção); conserto, não vira aviso (s443, 11/11/2026)",
+    "0.7.75": "Stake.com: múltipla de props (XMulti) liquidada deixa de ficar aberta, e a aposta aberta não duplica ao liquidar; conserto, não vira aviso (s446, 11/11/2026)"
   }
 }

@@ -109,6 +109,35 @@
     };
   }
 
+  // XMulti (s445, conta do Gabriel): cada `outcomes[]` traz a perna em `prices[]` (uma por perna
+  // nos 167 medidos) e o resultado em `result._status` (won/lost/pending). Dois formatos dentro:
+  //   • `SwishMarketOutcome` = props de jogador, igual à SwishBet (jogador, estatística, linha;
+  //     `lineType` no PREÇO, não na perna). A perna de props NÃO traz resultado (`result` null).
+  //   • `SportMarketOutcome` = aposta comum: seleção em `outcome.name`, mercado em `_market.name`,
+  //     jogo em `_fixture` (o mesmo SportFixture da SportBet).
+  function pernasXMulti(o) {
+    const res = _s(o && o.result && o.result._status);
+    const precos = Array.isArray(o && o.prices) ? o.prices : [];
+    return precos.map((pr) => {
+      const out = (pr && pr.outcome) || {};
+      if (out.__typename === "SwishMarketOutcome" || out.competitor) {
+        const p = pernaSwish({ outcome: out, odds: pr.odds, lineType: pr.lineType, cancel: false });
+        p.status = res;
+        p.props = true;
+        return p;
+      }
+      const fx = _fixture(o._fixture);
+      return {
+        status: res,
+        anulada: _n(out.voidFactor),
+        odd: _n(pr.odds != null ? pr.odds : out.odds),
+        selecao: _limpo(out.name),
+        mercado: _limpo(o._market && o._market.name),
+        jogo: fx.jogo, liga: fx.liga, esporte: fx.esporte, inicio: fx.inicio,
+      };
+    });
+  }
+
   function parseBet(iid, b) {
     if (!b || !b.id) return null;
     const tipo = _s(b.__typename);
@@ -117,6 +146,10 @@
               : (b._potentialMultiplier != null ? b._potentialMultiplier : b.betPotentialMultiplier));
     return {
       id: _codigo(iid || (b.bet && b.bet.iid), b.id),
+      // O `bet.id` (UUID) é o ÚNICO id que a aposta tem nas DUAS listas: a aberta (props e XMulti)
+      // não traz `iid`, e o código dela sai o UUID; liquidada, ela volta com o número (s445).
+      uid: _s(b.id),
+      multPago: _n(b.payoutMultiplier),
       tipo: tipo,                               // SportBet · SwishBet · RacingBet · SportsbookXMultiBet
       status: _s(b.status || b._betStatus || b.betStatus),
       ativa: b.active === true,
@@ -131,7 +164,8 @@
       cashoutParcial: Array.isArray(b.cashouts) && b.cashouts.length > 0,
       colocada: _quando(b.createdAt),
       pernas: tipo === "SportBet" ? outs.map(pernaSport)
-            : tipo === "SwishBet" ? outs.map(pernaSwish) : [],
+            : tipo === "SwishBet" ? outs.map(pernaSwish)
+            : tipo === "SportsbookXMultiBet" ? [].concat(...outs.map(pernasXMulti)) : [],
     };
   }
 
@@ -152,10 +186,21 @@
     } catch (e) {}
   }
 
-  // A versão LIQUIDADA vence a ABERTA.
+  // A versão LIQUIDADA vence a ABERTA — pelo código E pelo `bet.id`. A aberta de props/XMulti
+  // chega com o UUID como código e a liquidada com o número: sem o `uid`, as duas iriam no lote.
+  const porUid = new Map();                    // bet.id → código guardado
   function guardar(b) {
+    const outro = b.uid ? porUid.get(b.uid) : "";
+    if (outro && outro !== b.id) {
+      const ex2 = byId.get(outro);
+      if (ex2 && !ex2.ativa && b.ativa) return;          // a liquidada já está no lote
+      if (ex2 && ex2.ativa && !b.ativa) byId.delete(outro);
+    }
     const ex = byId.get(b.id);
-    if (!ex || ex.ativa || !b.ativa) byId.set(b.id, b);
+    if (!ex || ex.ativa || !b.ativa) {
+      byId.set(b.id, b);
+      if (b.uid) porUid.set(b.uid, b.id);
+    }
   }
 
   function _registrar(iid, raw) {

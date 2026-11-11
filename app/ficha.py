@@ -330,6 +330,55 @@ async def moedas_do_cru_conn(conn, dono: str, casa_key: str, parceiro: str,
     return out
 
 
+async def aliases_do_cru(dono: str, casa_key: str, parceiro: str, codigos: list[str]) -> dict:
+    """{código: [outros códigos da MESMA aposta]}, pelo `aliases(cru)` do adaptador da família
+    (s445). É a casa que troca o id da aposta entre a lista de abertas e o histórico (a Stake.com:
+    UUID aberta, número liquidada); sem isto a liquidada entra como linha nova e a aberta fica
+    `aberta` para sempre. Família sem `aliases` não entra. Nunca levanta: sem cru, sem adoção."""
+    codigos = sorted({c for c in codigos if c})
+    if not codigos or not casa_key:
+        return {}
+    try:
+        from adaptadores import adaptador
+        from database import get_pool
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT DISTINCT ON (codigo) codigo, familia, cru FROM captura_crua "
+                "WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND codigo = ANY($4::text[]) "
+                "ORDER BY codigo, recebido_em DESC, id DESC",
+                dono, casa_key.upper(), parceiro or "", codigos)
+        out = {}
+        for r in rows:
+            mod = adaptador(r["familia"])
+            if mod is None or not hasattr(mod, "aliases"):
+                continue
+            cru = r["cru"] if isinstance(r["cru"], dict) else json.loads(r["cru"])
+            al = [a for a in (mod.aliases(cru) or []) if a and a != r["codigo"]]
+            if al:
+                out[r["codigo"]] = al
+        return out
+    except Exception:  # noqa: BLE001 — a adoção é melhoria; sem ela o /salvar segue como antes
+        logger.warning("ficha: aliases do cru indisponíveis para %s/%s", dono, casa_key,
+                       exc_info=True)
+        return {}
+
+
+def absorvidos(familia: str, cru) -> list[str]:
+    """Os códigos que o bilhete deste cru SUBSTITUI, pelo `absorvidos(cru)` do adaptador da
+    família (s445: a sub-posição juntada da Cloudbet substitui as linhas por `uuid` de captura
+    anterior). Família sem a função, ou que falhe: nada a substituir."""
+    from adaptadores import adaptador
+    f = getattr(adaptador(familia), "absorvidos", None)
+    if f is None:
+        return []
+    try:
+        return [str(c) for c in (f(cru) or []) if c]
+    except Exception:  # noqa: BLE001 — cru torto não derruba nada: só não substitui
+        logger.warning("ficha: absorvidos de %s falhou", familia, exc_info=True)
+        return []
+
+
 async def moedas_do_cru(dono: str, casa_key: str, parceiro: str, codigos: list[str]) -> dict:
     """`moedas_do_cru_conn` com conexão própria. Nunca levanta: sem banco, vale a da conta."""
     try:

@@ -113,3 +113,29 @@ def test_retorno_que_nao_fecha_recusa():
 def test_sem_amostra_recusa(campos, motivo):
     with pytest.raises(Recusa, match=motivo):
         stc.adaptar(_clone(**campos), "STAKECOM")
+
+
+# ── aliases (s445): o UUID da aberta é o outro código da MESMA aposta ─────────────────────
+# Crus reais da conta do Gabriel (`stakecom.xmulti.json`): a XMulti 689207229 estava ABERTA como
+# `18295be1-…` (a lista de abertas não traz `iid`) e voltou liquidada com o número.
+_XM = json.loads((_FIX / "stakecom.xmulti.json").read_text(encoding="utf-8"))
+_XM_LIQ = {stc.codigo(x): {"iid": x["iid"], "bet": x["bet"]} for x in _XM["settled"]}
+
+
+def test_aliases_da_liquidada_e_o_uuid_da_aberta():
+    """Mutação: `aliases` devolvendo [] → a liquidada não acha a aberta e duplica."""
+    aberta = _XM["active"]["activeSportsbookXMultiBetList"][0]
+    assert stc.aliases(_XM_LIQ["689207229"]) == [aberta["id"]]
+
+
+def test_aberta_sem_iid_nao_tem_alias():
+    """A aberta não sabe o número que vai ter: sem `iid`, nada a adotar (e não levanta)."""
+    aberta = _XM["active"]["activeSportsbookXMultiBetList"][0]
+    assert stc.aliases({"iid": "", "bet": aberta}) == []
+    assert stc.aliases(None) == [] and stc.aliases({}) == []
+
+
+def test_xmulti_segue_recusada_pela_ficha():
+    """A XMulti vai pela IA (o texto agora a liquida); a Ficha continua recusando sem chutar."""
+    with pytest.raises(Recusa, match="tipo"):
+        stc.adaptar(_XM_LIQ["689158437"], "STAKECOM")

@@ -561,6 +561,25 @@
   // (`sportBetList` + as quatro listas de abertas) da Stake internacional (s428). `stcById`
   // guarda 1 bilhete por código (o número do `iid`); a versão LIQUIDADA vence a aberta.
   const stcById = new Map();         // código(string) → bilhete
+  const stcPorUid = new Map();       // bet.id (UUID) → código guardado
+  // A aberta de props/XMulti vem com o UUID (`bet.id`) como código e a liquidada com o número
+  // do `iid` (s445): a mesma aposta, dois códigos. O `uid` liga as duas e a liquidada vence
+  // também aqui, porque este mapa ACUMULA entre mensagens (a aberta da 1ª chamada da página
+  // chega antes do replay trazer a liquidada).
+  function _guardarSTC(b) {
+    if (!b || !b.id) return;
+    const outro = b.uid ? stcPorUid.get(b.uid) : "";
+    if (outro && outro !== b.id) {
+      const ex2 = stcById.get(outro);
+      if (ex2 && !ex2.ativa && b.ativa) return;
+      if (ex2 && ex2.ativa && !b.ativa) stcById.delete(outro);
+    }
+    const ex = stcById.get(b.id);
+    if (!ex || ex.ativa || !b.ativa) {
+      stcById.set(b.id, b);
+      if (b.uid) stcPorUid.set(b.uid, b.id);
+    }
+  }
   let stcFimReal = false;
   let stcHookVivo = false, stcRespostas = 0;
   let stcSemToken = false, stcErro = "";
@@ -571,13 +590,7 @@
       if (typeof d.respostas === "number") stcRespostas = d.respostas;
       stcSemToken = !!d.semToken;
       stcErro = d.erro ? String(d.erro) : "";
-      if (Array.isArray(d.bilhetes)) {
-        for (const b of d.bilhetes) {
-          if (!b || !b.id) continue;
-          const ex = stcById.get(b.id);
-          if (!ex || ex.ativa || !b.ativa) stcById.set(b.id, b);
-        }
-      }
+      if (Array.isArray(d.bilhetes)) for (const b of d.bilhetes) _guardarSTC(b);
       if (d.fim) stcFimReal = true;
     }
   });
@@ -5743,11 +5756,16 @@
   //   • "Retirado" no card = status `cashout`; o medido devolveu a stake (60,01 → V).
   //   • SwishBet = props de jogador (jogador, estatística, linha, over/under); a perna não diz se
   //     ganhou ou perdeu, só `cancel`.
-  // NÃO MEDIDO: SportBet liquidada, cashout ≠ stake, cancelada, corrida, XMulti, boost/promoção.
+  //   • XMulti (`SportsbookXMultiBet`, s445, 29 da conta do Gabriel): múltipla que mistura props
+  //     de jogador e aposta comum. Status em `_betStatus` (settled/confirmed), retorno em
+  //     `payout`, odd em `_potentialMultiplier`; perda = payout 0, ganha = payout = stake × odd.
+  //     A perna comum diz won/lost/pending; a de props não diz nada.
+  // NÃO MEDIDO: SportBet liquidada, cashout ≠ stake, cancelada, corrida, boost/promoção.
   // Só o DINHEIRO decide; o resto sobe "a conferir". De-para na CASA_STAKECOM.md §5.
   const _quaseSTC = (a, b) => typeof a === "number" && typeof b === "number" && Math.abs(a - b) < 0.005;
   const _PERNA_STC = { pending: "aberta", won: "ganha", lost: "perdida", void: "anulada", cancelled: "anulada" };
   const _abertaSTC = (b) => b.ativa || b.status === "confirmed" || b.status === "pending";
+  const _TIPOS_STC = new Set(["SportBet", "SwishBet", "SportsbookXMultiBet"]);
 
   function _dataEventoSTC(b) {
     let max = null;
@@ -5761,7 +5779,7 @@
     const conferir = (m) => cru.trim() + (m ? " · " + m : "") + " (a conferir — não liquidar automaticamente)";
     if (_abertaSTC(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
     if (!(st > 0)) return conferir("sem stake");
-    if (b.tipo !== "SportBet" && b.tipo !== "SwishBet") return conferir("tipo " + (b.tipo || "(vazio)") + " sem amostra");
+    if (!_TIPOS_STC.has(b.tipo)) return conferir("tipo " + (b.tipo || "(vazio)") + " sem amostra");
     if (b.promocao) return conferir("promoção/boost/ajuste sem amostra");
     if (b.cashoutParcial) return conferir("cashout parcial sem amostra");
     if (_quaseSTC(ret, st) || b.status === "cancelled" || b.status === "cancelPending") {
@@ -5774,6 +5792,11 @@
     if (/^settled/.test(b.status || "")) {
       if (ret === 0) return "Perdeu → L";
       if (_quaseSTC(ret, st * b.odd)) return "Ganhou → W (retorno " + _dinSHF(ret) + " " + moeda + ")";
+      // XMulti com perna anulada: a casa paga stake × `payoutMultiplier`, menor que a odd cheia.
+      // O número da casa prova a vitória; a odd é a do dinheiro (MASTER_RESULTADO, W).
+      if (b.tipo === "SportsbookXMultiBet" && ret > st && b.multPago > 0 && _quaseSTC(ret, st * b.multPago)) {
+        return "Ganhou → W (retorno " + _dinSHF(ret) + " " + moeda + " com perna anulada; odd = retorno ÷ stake)";
+      }
       return conferir("retorno não fecha com stake × odd");
     }
     return conferir("");
@@ -5797,8 +5820,11 @@
     const pernas = b.pernas || [];
     const n = pernas.length;
     const jogos = new Set(pernas.map((p) => p.jogo).filter(Boolean));
-    if (b.tipo !== "SportBet" && b.tipo !== "SwishBet") {
+    if (!_TIPOS_STC.has(b.tipo)) {
       L.push("Tipo: " + (b.tipo || "(vazio)") + " (sem amostra — a conferir)");
+    } else if (b.tipo === "SportsbookXMultiBet" && n > 1) {
+      // A XMulti é a múltipla da casa: a odd é a do bilhete (`_potentialMultiplier`).
+      L.push("Tipo: Múltipla (" + n + " seleções em " + jogos.size + " jogos; a odd é a do bilhete)");
     } else if (n > 1 && jogos.size === 1) {
       L.push("Tipo: Criar Aposta / mesmo jogo (" + n + " seleções; a odd é a do conjunto)");
     } else if (n === 1) {
@@ -5820,10 +5846,10 @@
     for (const p of pernas) {
       let est = "";
       if (p.anulada === 1) est = "anulada";
-      else if (b.tipo === "SportBet") est = _PERNA_STC[p.status] || (p.status ? "status " + p.status : "");
+      else if (b.tipo === "SportBet" || b.tipo === "SportsbookXMultiBet") est = _PERNA_STC[p.status] || (p.status ? "status " + p.status : "");
       else if (umaSoSwish) est = /^Perdeu/.test(res) ? "perdida" : /^Ganhou/.test(res) ? "ganha" : _abertaSTC(b) ? "aberta" : "";
       const marca = est ? " [perna " + est + "]" : "";
-      if (b.tipo === "SwishBet") {
+      if (b.tipo === "SwishBet" || p.props) {
         L.push("- Props de jogador: " + (p.jogador || "(sem jogador)") + " · " + (p.estatistica || "(sem estatística)") +
                " · " + (p.lado || "") + " " + (p.linha != null ? String(p.linha) : "") + marca);
       } else {
@@ -5858,6 +5884,7 @@
       }
     };
     stcById.clear();
+    stcPorUid.clear();
     stcFimReal = false;
     try { window.postMessage({ __sharpenupSTCReq: true }, "*"); } catch (e) {}
     await sleep(400);

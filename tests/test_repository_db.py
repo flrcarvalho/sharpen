@@ -3690,3 +3690,82 @@ def test_d44_correcao_humana_nao_e_desfeita():
     assert not d["oferecida"] and d["motivo"] == "corrigida à mão"
     assert feito == {"corrigidas": 0, "recusadas": [{"id": d["id"], "motivo": "corrigida à mão"}]}
     assert res == "W"
+
+# ── Migração C (s445): a aposta que troca de código entre aberta e liquidada ────────────────
+# O caso: a Stake.com do Gabriel. A aberta de props/XMulti não traz `iid` e a extensão a grava
+# com o UUID (`bet.id`); liquidada, ela volta do histórico com o número. Sem adoção, a
+# liquidada entrava como linha nova e a aberta ficava `aberta` para sempre ("atrasadas").
+# O par vem do cru (`ficha.aliases_do_cru`); aqui ele chega pronto em `aliases`.
+_UUID = "18295be1-18c6-4fee-859d-00c401239fca"
+
+
+def _stc(**kw):
+    base = dict(casa="Stake.com", parceiro="gfatuch [Fatuch]", data="10/11/2026",
+                esporte="Múltiplos", aposta="Múltiplos", descricao="A // B // C",
+                stake="40,00", odd="10,97827363", resultado="")
+    base.update(kw)
+    return _row(**base)
+
+
+def test_liquidada_adota_a_aberta_de_outro_codigo():
+    """Mutação: tirar a Migração C → 2 linhas, a aberta sobra."""
+    async def body():
+        await _reset()
+        _i, _u, ids, _a, _d = await repository.upsert_bilhetes(
+            [_stc(codigo_bilhete=_UUID)], "TAliasA")
+        assert (await _get("TAliasA", _UUID))["extraction_state"] == "aberta"
+        ins, upd, ids2, alertas, _d2 = await repository.upsert_bilhetes(
+            [_stc(codigo_bilhete="689207229", resultado="L")], "TAliasA",
+            aliases={"689207229": [_UUID]})
+        assert (ins, upd) == (0, 1), "a liquidada entrou como linha nova"
+        assert ids2 == ids, "adotou outra linha física"
+        assert await _count("TAliasA") == 1
+        r = await _get("TAliasA", "689207229")
+        assert r["resultado"] == "L" and r["extraction_state"] == "resolvida"
+        assert await _get("TAliasA", _UUID) is None
+        assert not alertas
+    _run(body())
+
+
+def test_sem_alias_a_liquidada_continua_linha_nova():
+    """Controle: sem o par do cru, nada é adotado por semelhança."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_stc(codigo_bilhete=_UUID)], "TAliasB")
+        ins, _u, _i, _a, _d = await repository.upsert_bilhetes(
+            [_stc(codigo_bilhete="689207229", resultado="L")], "TAliasB")
+        assert ins == 1 and await _count("TAliasB") == 2
+    _run(body())
+
+
+def test_alias_nao_atravessa_conta_nem_dono():
+    """O par é da conta: a aberta de OUTRA conta, ou de outro dono, com o mesmo UUID, fica."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes(
+            [_stc(codigo_bilhete=_UUID, parceiro="outra [X]")], "TAliasC")
+        await repository.upsert_bilhetes([_stc(codigo_bilhete=_UUID)], "TAliasOutro")
+        ins, _u, _i, _a, _d = await repository.upsert_bilhetes(
+            [_stc(codigo_bilhete="689207229", resultado="L")], "TAliasC",
+            aliases={"689207229": [_UUID]})
+        assert ins == 1
+        assert await _count("TAliasC") == 2
+        assert (await _get("TAliasOutro", _UUID))["extraction_state"] == "aberta"
+    _run(body())
+
+
+def test_as_duas_ja_existem_avisa_e_nao_apaga():
+    """Liquidada e aberta já gravadas (captura antiga): a adoção colidiria. Não apaga nada,
+    não aborta o lote, e AVISA apontando a aberta que sobrou."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_stc(codigo_bilhete=_UUID)], "TAliasD")
+        await repository.upsert_bilhetes(
+            [_stc(codigo_bilhete="689207229", resultado="L")], "TAliasD")
+        ins, upd, _i, alertas, _d = await repository.upsert_bilhetes(
+            [_stc(codigo_bilhete="689207229", resultado="L")], "TAliasD",
+            aliases={"689207229": [_UUID]})
+        assert (ins, upd) == (0, 1)
+        assert await _count("TAliasD") == 2
+        assert any(_UUID in a and "689207229" in a for a in alertas), alertas
+    _run(body())

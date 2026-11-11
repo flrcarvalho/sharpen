@@ -103,6 +103,14 @@ cashout parcial e cashout com retorno ≠ stake.
 ## 3. ID do bilhete
 
 - **Numérico de 9 dígitos** (`676297455`), o "ID da Aposta" do modal (`676.297.455`).
+- ⚠️ **A aberta de props (`SwishBet`) e de XMulti NÃO traz `iid`** (s445, conta do Gabriel): o
+  código dela é o UUID do `bet.id` (`18295be1-…`). Liquidada, a MESMA aposta volta do histórico
+  com o número (`689207229`). O `bet.id` é igual nas duas listas, e é ele que liga as duas:
+  - na extensão, a liquidada vence a aberta pelo `bet.id` (`guardar`/`_guardarSTC`), não só
+    pelo código;
+  - no servidor, o cru da liquidada diz o UUID (`adaptadores/stc.aliases`) e o `/salvar` adota a
+    linha aberta antiga (Migração C do UPSERT, `aliases_do_cru`). Sem isso a liquidada entrava
+    como linha nova e a aberta ficava `aberta` para sempre.
 - Os 288 bilhetes `Stake.com` da base (import do Jaao26) têm códigos de import (`0`…`7`), sem
   relação com o id da casa.
 
@@ -125,9 +133,19 @@ colocação (`createdAt`) sai no bloco e no carimbo de colocação.
 | `settled*` · `payout` 0 | Perdeu | `L` |
 | `settled*` · `payout` = stake × odd | Ganhou | `W` |
 | `cashout` · `payout` ≠ stake | Cashout | `W`, odd = retorno ÷ stake (`MASTER_RESULTADO §5.6`) |
-| corrida, XMulti, promoção, cashout parcial, retorno que não fecha | sobe cru | *(a conferir)* |
+| XMulti (`SportsbookXMultiBet`) · `_betStatus` settled · `payout` = stake × `payoutMultiplier` < stake × odd | Ganhou com perna anulada | `W`, odd = retorno ÷ stake |
+| corrida, promoção, cashout parcial, retorno que não fecha | sobe cru | *(a conferir)* |
 
 Medido no recon: 7 ganhas, 7 perdidas e 1 retirada (= stake) em props, 3 abertas comuns.
+
+**XMulti (s445):** a múltipla da casa que mistura props de jogador e aposta comum. O status mora
+em `_betStatus` (`settled`/`confirmed`), a odd em `_potentialMultiplier`, o retorno em `payout`.
+Cada `outcomes[]` traz a perna em `prices[]`: `SwishMarketOutcome` (props, sem resultado por
+perna) ou `SportMarketOutcome` (comum: seleção em `outcome.name`, mercado em `_market.name`,
+jogo em `_fixture`, resultado em `result._status`). Medido em 29 XMulti da conta do Gabriel:
+perdida = `payout` 0, ganha = `payout` = stake × odd. Até a 0.7.74 todas subiam "a conferir" e
+a IA as deixava ABERTAS: 15 liquidadas apareceram como "atrasadas", ~700 USDT em aberto na
+Caixa. A Ficha segue recusando XMulti; vai pela IA.
 
 ---
 
@@ -199,6 +217,8 @@ Campo `amount`, na moeda da conta.
 4. **`iid` fora da aposta no histórico**; a props não o repete (§2.5).
 5. **`customBet` true em múltipla de 2 jogos** (§2.5).
 6. **Ponto no nome** da casa: chave `STAKECOM` (§1).
+7. **A aposta troca de código ao liquidar** (UUID aberta → número liquidada), §3.
+8. **XMulti tem status em `_betStatus`**, não em `status`, e perna em `prices[]` (§5).
 
 ---
 
@@ -225,7 +245,17 @@ settled.json` e `stakecom.active.json`.
 | 674775479 | Multi de Mesmo Jogo com 2 seleções | Derrota | 40,01 | 2,45 | 0 | card |
 | 678433549 | F1, primeiro a fazer pit stop (Hamilton) | Ativo | 30 | 21 | — | JSON |
 
-**Sem amostra:** aposta comum liquidada · cashout ≠ stake · cancelada · corrida · XMulti · boost.
+XMulti (s445, conta do Gabriel): `extensor/harness/fixtures/stakecom.xmulti.json`.
+
+| ID | Tipo | Status | Stake | Odd | Pagamento |
+|---|---|---|---|---|---|
+| 689158437 | XMulti de 3 (2 props + 1 comum) | Derrota | 40 | 8,55631372 | 0 |
+| 689168071 | XMulti de 3 (2 props + 1 comum) | Vitória | 40 | 9,44747988 | 377,90 |
+| 689759345 | XMulti de 2 comuns | Vitória | 50 | 4,375 | 218,75 |
+| 689207229 | XMulti de 3; aberta era `18295be1-…` | Derrota | 40 | 10,97827363 | 0 |
+
+**Sem amostra:** aposta comum liquidada · cashout ≠ stake · cancelada · corrida · boost · XMulti
+com perna anulada.
 
 ---
 
