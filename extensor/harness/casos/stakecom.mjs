@@ -232,6 +232,21 @@ async function xmulti(falhas, fmt) {
     const s2 = linha(fmt(Object.assign({}, w, { retorno: 200, multPago: 9 })), "Status:");
     if (!/a conferir/.test(s2)) falhas.push("xmulti: retorno que não fecha nem com a odd nem com o payoutMultiplier não subiu a conferir");
   }
+  // s451: a múltipla de PROPS (`SwishBet` de 3 pernas) também paga stake × payoutMultiplier com
+  // perna anulada. Números do cru real 690343621 (Gabriel, 11/11): subia "a conferir" e ficava
+  // aberta. A casa não marca qual perna caiu (`cancel` false nas três).
+  {
+    const perna = (j, e, l, o) => ({ status: "", anulada: 0, odd: o, jogador: j, estatistica: e, linha: l, lado: "under", jogo: "A - B" });
+    const props = { id: "690343621", uid: "x", tipo: "SwishBet", status: "settled", ativa: false, moeda: "USDT",
+                    stake: 70, retorno: 274.46288203255324, multPago: 3.9208983147507603, odd: 6.5742764, colocada: 1762894713,
+                    pernas: [perna("Anthony Cirelli", "shots", 1.5, 1.9580967), perna("Logan Cooley", "shots", 2.5, 1.676727),
+                             perna("Kel'el Ware", "rebounds", 8.5, 2.0024028)] };
+    const s3 = linha(fmt(props), "Status:");
+    if (!/^Ganhou → W .*perna anulada; odd = retorno ÷ stake\)$/.test(s3)) falhas.push(`props múltipla (690343621): perna anulada não virou W pelo payoutMultiplier ("${s3}")`);
+    // Na SIMPLES de props o multiplicador é a própria odd: retorno fora dela continua a conferir.
+    const simples = Object.assign({}, props, { pernas: props.pernas.slice(0, 1) });
+    if (!/a conferir/.test(linha(fmt(simples), "Status:"))) falhas.push("props simples com retorno ≠ stake × odd virou W pelo payoutMultiplier");
+  }
   return 1;
 }
 

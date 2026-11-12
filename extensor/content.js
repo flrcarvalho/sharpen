@@ -5980,9 +5980,13 @@
     if (/^settled/.test(b.status || "")) {
       if (ret === 0) return "Perdeu → L";
       if (_quaseSTC(ret, st * b.odd)) return "Ganhou → W (retorno " + _dinSHF(ret) + " " + moeda + ")";
-      // XMulti com perna anulada: a casa paga stake × `payoutMultiplier`, menor que a odd cheia.
-      // O número da casa prova a vitória; a odd é a do dinheiro (MASTER_RESULTADO, W).
-      if (b.tipo === "SportsbookXMultiBet" && ret > st && b.multPago > 0 && _quaseSTC(ret, st * b.multPago)) {
+      // Múltipla com perna anulada: a casa paga stake × `payoutMultiplier`, menor que a odd cheia.
+      // O número da casa prova a vitória; a odd é a do dinheiro (MASTER_RESULTADO, W). Vale para
+      // a XMulti e para a múltipla de props (`SwishBet` com 2+ pernas, s451: 690343621 do Gabriel,
+      // 70 × 3,92089831 = 274,46 com a odd cheia 6,57). A props NÃO diz qual perna caiu (`cancel`
+      // false nas três): o bloco não marca nenhuma. Na simples o multiplicador é a própria odd.
+      const multipla = b.tipo === "SportsbookXMultiBet" || (b.tipo === "SwishBet" && (b.pernas || []).length > 1);
+      if (multipla && ret > st && b.multPago > 0 && _quaseSTC(ret, st * b.multPago)) {
         return "Ganhou → W (retorno " + _dinSHF(ret) + " " + moeda + " com perna anulada; odd = retorno ÷ stake)";
       }
       return conferir("retorno não fecha com stake × odd");

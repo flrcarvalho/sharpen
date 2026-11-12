@@ -133,7 +133,7 @@ colocação (`createdAt`) sai no bloco e no carimbo de colocação.
 | `settled*` · `payout` 0 | Perdeu | `L` |
 | `settled*` · `payout` = stake × odd | Ganhou | `W` |
 | `cashout` · `payout` ≠ stake | Cashout | `W`, odd = retorno ÷ stake (`MASTER_RESULTADO §5.6`) |
-| XMulti (`SportsbookXMultiBet`) · `_betStatus` settled · `payout` = stake × `payoutMultiplier` < stake × odd | Ganhou com perna anulada | `W`, odd = retorno ÷ stake |
+| XMulti (`SportsbookXMultiBet`) ou props de 2+ pernas (`SwishBet`) · settled · `payout` = stake × `payoutMultiplier` < stake × odd | Ganhou com perna anulada | `W`, odd = retorno ÷ stake |
 | corrida, promoção, cashout parcial, retorno que não fecha | sobe cru | *(a conferir)* |
 
 Medido no recon: 7 ganhas, 7 perdidas e 1 retirada (= stake) em props, 3 abertas comuns.
@@ -253,6 +253,11 @@ XMulti (s445, conta do Gabriel): `extensor/harness/fixtures/stakecom.xmulti.json
 | 689168071 | XMulti de 3 (2 props + 1 comum) | Vitória | 40 | 9,44747988 | 377,90 |
 | 689759345 | XMulti de 2 comuns | Vitória | 50 | 4,375 | 218,75 |
 | 689207229 | XMulti de 3; aberta era `18295be1-…` | Derrota | 40 | 10,97827363 | 0 |
+
+| 690343621 | Props de 3 (Cirelli, Cooley, Ware), uma perna anulada | Vitória | 70 | 6,5742764 | 274,46 (× 3,92089831) |
+
+> A props de várias pernas **não diz qual perna caiu**: `cancel` vem false nas três (s451). O
+> dinheiro prova a vitória; o bloco não marca perna nenhuma como anulada.
 
 **Sem amostra:** aposta comum liquidada · cashout ≠ stake · cancelada · corrida · boost · XMulti
 com perna anulada.
