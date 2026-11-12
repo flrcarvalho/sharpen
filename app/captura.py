@@ -308,6 +308,28 @@ def casa_tem_captura(casa_key: str) -> bool:
     return (casa_key or "").strip().upper() in CASAS_COM_CAPTURA
 
 
+# Casas com FICHA (s450, D50 + relatório `custo_print_2026-11-10` §6): a extensão manda o CRU
+# delas e há adaptador em `app/adaptadores` (família do inject). Nelas o `/extrair` recusa
+# print e PDF: a aposta entra pela extensão, sem IA. Texto colado continua. As `.bet.br` ficam
+# FORA (decisão do Feca, 11/11/2026): a família pode ter adaptador, mas pela extensão elas vão
+# como texto à IA, e bloquear o print ali não corta custo. A lista é derivada do manifesto
+# (família com adaptador × host fora de `.bet.br` × `_HOSTS_POR_CASA`) e o gate
+# `tests/test_bloqueio_print.py` a refaz: casa nova com adaptador quebra o teste até entrar aqui.
+CASAS_COM_FICHA = frozenset({
+    "1WIN", "1XBIT", "20BET", "3ET", "BETCOIN", "BETFURY", "BETMARTINI", "BETPANDA", "BETREBELS",
+    "CLOUDBET", "DEXSPORT", "DUEL", "GOLDENBET", "JACK", "KIKOBET", "LOCASBET", "MEGAPARI",
+    "MELBET", "MYSTAKE", "PARIPESA", "SAPPHIREBET", "SHUFFLE", "SPORTAZA", "SPORTSBETIO",
+    "STAKECOM", "THUNDERPICK", "TORNADOBET", "VAVADA", "VAVE",
+})
+MSG_PRINT_BLOQUEADO = ("Esta casa é extraída pela extensão SharpenUp. Abra a aba da casa e "
+                       "capture por ela.")
+
+
+def casa_com_ficha(casa_key: str) -> bool:
+    """A casa (chave canônica) entra pela Ficha, e o print dela é recusado (s450)."""
+    return (casa_key or "").strip().upper() in CASAS_COM_FICHA
+
+
 def casa_de_host(host: str) -> str | None:
     """casa_key da casa CONHECIDA dona do domínio, ou None se não reconhecido.
     Casa o host exato ou subdomínio (ex.: myactivity.betfair.bet.br → BETFAIR)."""

@@ -1454,6 +1454,18 @@ button.pc-dia:focus-visible { outline: 2px solid var(--accent); outline-offset: 
 }
 .capbox:hover, .capbox.drag { border-color: rgba(var(--accent-rgb),.75); background: linear-gradient(180deg, rgba(var(--accent-rgb),.09), transparent); }
 .capbox--txt { cursor: text; }
+/* s450: casa com Ficha, print recusado. Borda sólida em --line (sem o tracejado de "solte
+   aqui"), sem hover e sem cursor de clique. A frase vai em --ink-soft 11px (label, 6,3:1): não
+   usa `opacity`, que derrubaria a tinta abaixo do piso (Escada de Tinta). */
+.capbox.is-bloqueada, .capbox.is-bloqueada:hover { cursor: not-allowed; border-style: solid;
+  border-color: var(--line); background: var(--surface); }
+.capbox.is-bloqueada .capbox__icon { background: var(--surface-2); border-color: var(--line); color: var(--ink-soft); }
+.capbox.is-bloqueada .capbox__hint { text-align: center; padding: 0 12px; line-height: 1.5; }
+/* Etiqueta "pela extensão" ao lado da casa (idcard). Label: mono caixa alta em --ink-soft,
+   10px, pill neutra; mesma geometria da `.contas-casa-count`, num papel diferente. */
+.ficha-tag { flex: none; font-family: var(--font-mono); font-size: var(--text-xxs); font-weight: 500;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: var(--r-pill); padding: 2px 7px; cursor: help; white-space: nowrap; }
 .capbox__hd { display: flex; align-items: center; gap: 11px; }
 .capbox__icon { width: 40px; height: 40px; border-radius: 11px; background: rgba(var(--accent-rgb),.12); border: 1px solid rgba(var(--accent-rgb),.3); display: grid; place-items: center; color: var(--accent-2); flex: none; }
 .capbox__icon svg { width: 21px; height: 21px; }
@@ -4148,6 +4160,13 @@ function casaDisplay(nome) {
 // cá recriaria a armadilha dos três mapas de favicon.
 const CASAS_CAPTURA = new Set();
 function temCaptura(casa) { return CASAS_CAPTURA.has(casa); }
+// s450: casas com FICHA, em que o print é recusado (`GET /casas` → `ficha`, mesma regra do
+// `captura`: o servidor decide, a tela só lê). A frase é a MESMA do servidor
+// (`captura.MSG_PRINT_BLOQUEADO`): a tela evita o susto, a trava de verdade é o `/extrair`.
+const CASAS_FICHA = new Set();
+function temFicha(casa) { return CASAS_FICHA.has(casa); }
+const MSG_PRINT_BLOQUEADO = 'Esta casa é extraída pela extensão SharpenUp. Abra a aba da casa e capture por ela.';
+function printBloqueado() { return !!(parceiroSelecionado && temFicha(parceiroSelecionado.casa)); }
 // `modo`: 'pill' (marca escrita, só onde sobra largura) | 'icon' (só a lâmina) |
 // 'decor' (lâmina DECORATIVA, dentro de um botão que já se explica por escrito).
 // O 'decor' existe por acessibilidade: com o rótulo próprio, o botão "Usar o
@@ -4368,13 +4387,17 @@ const RES_CLASS = { W: 'r-W', L: 'r-L', V: 'r-V', HW: 'r-HW', HL: 'r-HL' };
 async function carregarCasas() {
   try {
     const r = await fetch('/casas');
-    const { casas, dominios, captura } = await r.json();
+    const { casas, dominios, captura, ficha } = await r.json();
     if (dominios) Object.assign(DOMINIOS, dominios);   // domínios das casas novas → favicon
     // Selo de captura (s344). Repovoa em vez de recriar o Set: `temCaptura` é lida por
     // renders que já podem estar montados. Servidor antigo sem o campo → Set vazio, e
     // a tela fica exatamente como era (nenhum selo), nunca quebrada.
     CASAS_CAPTURA.clear();
     (captura || []).forEach(c => CASAS_CAPTURA.add(c));
+    CASAS_FICHA.clear();
+    (ficha || []).forEach(c => CASAS_FICHA.add(c));
+    // A conta pode ter sido restaurada antes desta resposta: trava e etiqueta se acertam aqui.
+    if (parceiroSelecionado) { aplicarBloqueioPrint(parceiroSelecionado.casa); atualizarBotaoConta(); }
     await Promise.all(casas.map(c => carregarParceiros(c)));
     casasCarregadas = casas;
     renderCasaList();
@@ -5601,8 +5624,13 @@ function atualizarBotaoConta() {
   const nomeCasa = NOMES[parceiroSelecionado.casa] || parceiroSelecionado.casa;
   // s344: o nome vai num span próprio (é ele que trunca) e o selo fica ao lado. Em
   // 250px a pill não cabe — aqui é sempre a lâmina, como no dropdown logo abaixo.
+  // s450: casa com Ficha, o print é recusado, e a etiqueta "pela extensão" toma o LUGAR do
+  // selo: os dois dizem que o SharpenUp lê a casa, e ela diz mais (só por ele). Lado a lado,
+  // medido em headless, o nome truncava (Thunderpick pedia 98px e tinha 90).
   casaEl.innerHTML = '<span>' + esc(nomeCasa) + '</span>'
-    + seloCaptura(parceiroSelecionado.casa, 'icon');
+    + (temFicha(parceiroSelecionado.casa)
+      ? '<span class="ficha-tag" title="' + esc(MSG_PRINT_BLOQUEADO) + '">pela extensão</span>'
+      : seloCaptura(parceiroSelecionado.casa, 'icon'));
   document.getElementById('ctx-parceiro').textContent = parceiroSelecionado.nome;
   const chip = document.getElementById('ctx-hchip');
   chip.innerHTML = '';
@@ -6417,6 +6445,7 @@ function aplicarModoCasa(casa) {
   // também tira o rail, por isso a condição olha a view.
   try { _pcAplicarLayout(); } catch (_) {}   // s433: a Polymarket também tem painel
   document.querySelector('.workfull').classList.add('sem-rail');   // s433: sem RAIO-X
+  aplicarBloqueioPrint(casa);
   // SharpenUp: só clicável nas casas conectáveis; nas demais fica visível porém esmaecido.
   const conn = document.getElementById('btn-conectar-ext');
   if (conn) {
@@ -6811,11 +6840,27 @@ document.addEventListener('visibilitychange', () => {
 // ── Upload ────────────────────────────────────────────────────────────────────
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
-dropZone.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+// s450: casa com Ficha, a caixa fica travada com a frase do servidor no lugar da instrução, e
+// clique, arrasto e colagem não acrescentam nada. Texto colado (a caixa ao lado) continua.
+// `casa` vem de quem aplica o modo (`aplicarModoCasa`); o texto original fica no `dataset` do
+// próprio elemento, lido na 1ª chamada (esta função pode rodar antes deste trecho do script).
+function aplicarBloqueioPrint(casa) {
+  const dz = document.getElementById('drop-zone');
+  if (!dz) return;
+  const trava = temFicha(casa);
+  const h = dz.querySelector('.capbox__hd .h'), hint = dz.querySelector('.capbox__hint');
+  if (h.dataset.orig === undefined) { h.dataset.orig = h.textContent; hint.dataset.orig = hint.innerHTML; }
+  dz.classList.toggle('is-bloqueada', trava);
+  dz.setAttribute('aria-disabled', trava ? 'true' : 'false');
+  h.textContent = trava ? 'indisponível nesta casa' : h.dataset.orig;
+  hint.innerHTML = trava ? esc(MSG_PRINT_BLOQUEADO) : hint.dataset.orig;
+}
+dropZone.addEventListener('click', () => { if (!printBloqueado()) fileInput.click(); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); if (!printBloqueado()) dropZone.classList.add('drag'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
 dropZone.addEventListener('drop', e => {
   e.preventDefault(); dropZone.classList.remove('drag');
+  if (printBloqueado()) { setStatus(MSG_PRINT_BLOQUEADO, 'warn'); return; }
   adicionarArquivos([...e.dataTransfer.files]);
 });
 fileInput.addEventListener('change', () => { adicionarArquivos([...fileInput.files]); fileInput.value = ''; });
@@ -6823,6 +6868,7 @@ fileInput.addEventListener('change', () => { adicionarArquivos([...fileInput.fil
 document.addEventListener('paste', e => {
   if (!parceiroSelecionado) return;
   const imgs = [...e.clipboardData.files].filter(f => f.type.startsWith('image/'));
+  if (imgs.length && printBloqueado()) { setStatus(MSG_PRINT_BLOQUEADO, 'warn'); e.preventDefault(); return; }
   if (imgs.length) { adicionarArquivos(imgs); e.preventDefault(); }
 });
 

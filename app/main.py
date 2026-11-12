@@ -4047,7 +4047,10 @@ async def listar_casas(dono: str = Depends(dono_leitura)):
     # igualdade e não normaliza nada — `casa` é TEXTO e cada grafia é uma casa diferente
     # no sistema, então quem sabe converter é `_display_to_key`, que mora aqui.
     captura = [c for c in casas if _captura.casa_tem_captura(_display_to_key(c))]
-    return {"casas": casas, "dominios": dominios, "captura": captura}
+    # `ficha` (s450): as casas desta resposta em que o print é recusado (`casa_com_ficha`),
+    # na mesma grafia de `casas`, pelo mesmo motivo do `captura`.
+    ficha = [c for c in casas if _captura.casa_com_ficha(_display_to_key(c))]
+    return {"casas": casas, "dominios": dominios, "captura": captura, "ficha": ficha}
 
 
 class CasaMetaRequest(BaseModel):
@@ -4434,6 +4437,11 @@ async def extrair(
     casa_key = _display_to_key(casa)
     if not casa_key.strip():
         raise HTTPException(400, "Casa não informada.")
+    # s450: casa com Ficha não aceita print nem PDF, antes de ler arquivo e de chamar a IA. A
+    # aposta entra pela extensão (cru, sem IA); texto colado continua. As `.bet.br` ficam fora.
+    if _captura.casa_com_ficha(casa_key) and (any(f.filename for f in imagens)
+                                              or any(f.filename for f in pdfs)):
+        raise HTTPException(400, _captura.MSG_PRINT_BLOQUEADO)
     # Modo cego (Fase 2 worldwide): casa sem CASA_*.md NÃO é mais rejeitada —
     # a extração roda só com os masters globais e o sistema aprende pelo uso.
     # (build_system já lida com a ausência do manual.)
