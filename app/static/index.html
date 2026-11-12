@@ -1454,10 +1454,11 @@ button.pc-dia:focus-visible { outline: 2px solid var(--accent); outline-offset: 
 }
 .capbox:hover, .capbox.drag { border-color: rgba(var(--accent-rgb),.75); background: linear-gradient(180deg, rgba(var(--accent-rgb),.09), transparent); }
 .capbox--txt { cursor: text; }
-/* s450: casa com Ficha, print recusado. Borda sólida em --line (sem o tracejado de "solte
-   aqui"), sem hover e sem cursor de clique. A frase vai em --ink-soft 11px (label, 6,3:1): não
-   usa `opacity`, que derrubaria a tinta abaixo do piso (Escada de Tinta). */
-.capbox.is-bloqueada, .capbox.is-bloqueada:hover { cursor: not-allowed; border-style: solid;
+/* s450: casa com Ficha, print e PDF recusados; a planilha (.csv/.xls) continua por aqui, então
+   a caixa segue clicável e acende ao arrastar. Fora do arrasto, borda sólida em --line (sem o
+   tracejado de "solte aqui") e sem o realce de hover. A frase vai em --ink-soft 11px (label,
+   6,3:1): não usa `opacity`, que derrubaria a tinta abaixo do piso (Escada de Tinta). */
+.capbox.is-bloqueada:not(.drag), .capbox.is-bloqueada:not(.drag):hover { border-style: solid;
   border-color: var(--line); background: var(--surface); }
 .capbox.is-bloqueada .capbox__icon { background: var(--surface-2); border-color: var(--line); color: var(--ink-soft); }
 .capbox.is-bloqueada .capbox__hint { text-align: center; padding: 0 12px; line-height: 1.5; }
@@ -6840,30 +6841,46 @@ document.addEventListener('visibilitychange', () => {
 // ── Upload ────────────────────────────────────────────────────────────────────
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
-// s450: casa com Ficha, a caixa fica travada com a frase do servidor no lugar da instrução, e
-// clique, arrasto e colagem não acrescentam nada. Texto colado (a caixa ao lado) continua.
+// s450: casa com Ficha, print e PDF ficam com a extensão; a PLANILHA (.csv/.xls) continua por
+// esta caixa, como no servidor. A caixa mostra a frase do servidor, o seletor de arquivo só
+// oferece planilha, e o que chega por arrasto passa por `receberArquivos`, que deixa a planilha
+// entrar e recusa o resto com a frase. Texto colado (a caixa ao lado) continua.
 // `casa` vem de quem aplica o modo (`aplicarModoCasa`); o texto original fica no `dataset` do
 // próprio elemento, lido na 1ª chamada (esta função pode rodar antes deste trecho do script).
+const ACCEPT_PLANILHA = '.csv,text/csv,.xls,.xlsx';
 function aplicarBloqueioPrint(casa) {
-  const dz = document.getElementById('drop-zone');
-  if (!dz) return;
+  const dz = document.getElementById('drop-zone'), fi = document.getElementById('file-input');
+  if (!dz || !fi) return;
   const trava = temFicha(casa);
   const h = dz.querySelector('.capbox__hd .h'), hint = dz.querySelector('.capbox__hint');
   if (h.dataset.orig === undefined) { h.dataset.orig = h.textContent; hint.dataset.orig = hint.innerHTML; }
+  if (fi.dataset.orig === undefined) fi.dataset.orig = fi.accept;
   dz.classList.toggle('is-bloqueada', trava);
-  dz.setAttribute('aria-disabled', trava ? 'true' : 'false');
-  h.textContent = trava ? 'indisponível nesta casa' : h.dataset.orig;
-  hint.innerHTML = trava ? esc(MSG_PRINT_BLOQUEADO) : hint.dataset.orig;
+  fi.accept = trava ? ACCEPT_PLANILHA : fi.dataset.orig;
+  h.textContent = trava ? 'nesta casa, só planilha · .csv e .xls' : h.dataset.orig;
+  hint.innerHTML = trava ? esc(MSG_PRINT_BLOQUEADO) + '<br>Planilha .csv ou .xls continua por aqui · <b>Escolher arquivo</b>'
+    : hint.dataset.orig;
 }
-dropZone.addEventListener('click', () => { if (!printBloqueado()) fileInput.click(); });
-dropZone.addEventListener('dragover', e => { e.preventDefault(); if (!printBloqueado()) dropZone.classList.add('drag'); });
+function ehPlanilha(f) { return f.type === 'text/csv' || /\.(csv|xls|xlsx)$/i.test(f.name); }
+// Casa com Ficha: só a planilha entra; o resto (print, PDF) é recusado com a frase do servidor.
+function separarPelaFicha(files) {
+  if (!printBloqueado()) return { aceitos: files, recusados: 0 };
+  const aceitos = files.filter(ehPlanilha);
+  return { aceitos, recusados: files.length - aceitos.length };
+}
+function receberArquivos(files) {
+  const { aceitos, recusados } = separarPelaFicha(files);
+  if (recusados) setStatus(MSG_PRINT_BLOQUEADO, 'warn');
+  if (aceitos.length) adicionarArquivos(aceitos);
+}
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
 dropZone.addEventListener('drop', e => {
   e.preventDefault(); dropZone.classList.remove('drag');
-  if (printBloqueado()) { setStatus(MSG_PRINT_BLOQUEADO, 'warn'); return; }
-  adicionarArquivos([...e.dataTransfer.files]);
+  receberArquivos([...e.dataTransfer.files]);
 });
-fileInput.addEventListener('change', () => { adicionarArquivos([...fileInput.files]); fileInput.value = ''; });
+fileInput.addEventListener('change', () => { receberArquivos([...fileInput.files]); fileInput.value = ''; });
 
 document.addEventListener('paste', e => {
   if (!parceiroSelecionado) return;
