@@ -59,7 +59,7 @@ import logging
 import os
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import cambio as _cambio
 import casa_chave as _cc
@@ -800,11 +800,12 @@ async def registrar(dono: str, casa_key: str, capturadas: int, ja_no_banco: int,
 # Uma amostra das apostas que a Ficha gravou também é lida pela IA, numa chamada À PARTE e em
 # segundo plano, só para comparar o dinheiro: stake, resultado e odd (P/L, na liquidada). A
 # IA não grava nada: a resposta dela vai só para `vigia_ficha`. Desligado com
-# `VIGIA_POR_DIA` vazio ou 0; ligado, é o máximo de apostas numa chamada. D28 (Feca,
-# 14/10/2026): UMA chamada por casa virada por dia (dia de Brasília), de qualquer dono, na
-# primeira captura do dia com aposta da Ficha ainda não conferida naquele resultado (a aberta
-# conferida volta a valer quando liquida). Ligado em 14/10/2026 com 3, por 2 semanas: rever
-# em 27/10 (BACKLOG). A chamada à parte e não no lote da
+# `VIGIA_POR_DIA` vazio ou 0; ligado, é o máximo de apostas numa chamada (o nome ficou do
+# tempo em que a chamada era diária). D28 (Feca, 14/10/2026): UMA chamada por casa virada,
+# de qualquer dono, na primeira captura com aposta da Ficha ainda não conferida naquele
+# resultado (a aberta conferida volta a valer quando liquida). Ligado em 14/10/2026 com 3,
+# uma por DIA; desde a s449 (RC46, parecer 023 §2.5, como a D28 previa) uma por SEMANA, de
+# segunda a domingo no horário de Brasília (`semana_brasilia`). A chamada à parte e não no lote da
 # IA porque o lote volta para a extensão, que o grava pelo `/salvar`: a IA escreveria por
 # cima da Ficha.
 
@@ -815,33 +816,41 @@ def vigia_por_dia() -> int:
         return 0
 
 
+def semana_brasilia(agora: datetime | None = None) -> str:
+    """A semana do vigia (RC46): a SEGUNDA-FEIRA dela, em ISO, no horário de Brasília (UTC-3,
+    sem horário de verão desde 2019, a mesma conta do `hoje` do `main._vigia_rodar`). Domingo
+    23:59 em Brasília já é segunda em UTC e continua na semana que acaba."""
+    local = (agora or datetime.now(timezone.utc)).astimezone(timezone.utc) - timedelta(hours=3)
+    return (local.date() - timedelta(days=local.weekday())).isoformat()
+
+
 async def vigia_vagas(conn, casa_key: str) -> int:
-    """Quantas apostas a chamada de hoje pode levar: `VIGIA_POR_DIA`, ou 0 se esta casa já
-    teve a sua chamada hoje (dia de Brasília), de QUALQUER dono (D28)."""
+    """Quantas apostas a chamada desta semana pode levar: `VIGIA_POR_DIA`, ou 0 se esta casa já
+    teve a sua chamada na semana (segunda a domingo, Brasília), de QUALQUER dono (D28, RC46)."""
     ja = await conn.fetchval(
         "SELECT EXISTS (SELECT 1 FROM vigia_ficha WHERE casa = $1 AND "
-        "(criado_em AT TIME ZONE 'America/Sao_Paulo')::date = "
-        "(NOW() AT TIME ZONE 'America/Sao_Paulo')::date)", (casa_key or "").upper())
+        "date_trunc('week', criado_em AT TIME ZONE 'America/Sao_Paulo') = "
+        "date_trunc('week', NOW() AT TIME ZONE 'America/Sao_Paulo'))", (casa_key or "").upper())
     return 0 if ja else vigia_por_dia()
 
 
 _vigia_reservas: set = set()
 
 
-def vigia_reservar(casa_key: str, hoje: str) -> bool:
-    """Reserva a chamada do dia desta casa NESTE processo: duas capturas ao mesmo tempo (Feca e
-    Gabriel) passariam as duas pelo `vigia_vagas` antes de a primeira gravar. Supõe um
-    processo só, como a espera pelo cru."""
-    k = ((casa_key or "").upper(), hoje)
+def vigia_reservar(casa_key: str, semana: str) -> bool:
+    """Reserva a chamada da semana desta casa NESTE processo: duas capturas ao mesmo tempo (Feca
+    e Gabriel) passariam as duas pelo `vigia_vagas` antes de a primeira gravar. Supõe um
+    processo só, como a espera pelo cru. `semana` = `semana_brasilia()`."""
+    k = ((casa_key or "").upper(), semana)
     if k in _vigia_reservas:
         return False
     _vigia_reservas.add(k)
     return True
 
 
-def vigia_soltar(casa_key: str, hoje: str) -> None:
+def vigia_soltar(casa_key: str, semana: str) -> None:
     """Devolve a reserva quando a chamada não aconteceu (nada a conferir, ou falhou)."""
-    _vigia_reservas.discard(((casa_key or "").upper(), hoje))
+    _vigia_reservas.discard(((casa_key or "").upper(), semana))
 
 
 async def vigia_candidatos(conn, dono: str, casa_key: str, codigos: list[str],

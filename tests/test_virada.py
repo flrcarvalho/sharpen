@@ -897,17 +897,32 @@ def test_vigia_compara_o_dinheiro_nao_a_forma():
 
 
 def test_vigia_uma_chamada_por_casa_mesmo_com_duas_capturas_ao_mesmo_tempo():
-    """D28 (s416): a reserva do dia é por casa (de qualquer dono) e só volta quando a chamada
-    não aconteceu. Duas capturas juntas (Feca e Gabriel) passariam as duas pelo banco antes de
-    a primeira gravar. Mutação W9 (reserva sempre livre): detectada."""
+    """D28 (s416): a reserva é por casa (de qualquer dono) e só volta quando a chamada não
+    aconteceu. Duas capturas juntas (Feca e Gabriel) passariam as duas pelo banco antes de a
+    primeira gravar. Desde a RC46 (s449) a chave é a SEMANA (`semana_brasilia`).
+    Mutação W9 (reserva sempre livre): detectada."""
     virada._vigia_reservas.clear()
-    assert virada.vigia_reservar("dexsport", "14/10/2026") is True
-    assert virada.vigia_reservar("DEXSPORT", "14/10/2026") is False      # a 2ª captura
-    assert virada.vigia_reservar("DEXSPORT", "15/10/2026") is True       # outro dia
-    assert virada.vigia_reservar("DUEL", "14/10/2026") is True           # outra casa
-    virada.vigia_soltar("DEXSPORT", "14/10/2026")                        # não chamou
-    assert virada.vigia_reservar("DEXSPORT", "14/10/2026") is True
+    assert virada.vigia_reservar("dexsport", "2026-11-09") is True
+    assert virada.vigia_reservar("DEXSPORT", "2026-11-09") is False      # a 2ª captura
+    assert virada.vigia_reservar("DEXSPORT", "2026-11-16") is True       # outra semana
+    assert virada.vigia_reservar("DUEL", "2026-11-09") is True           # outra casa
+    virada.vigia_soltar("DEXSPORT", "2026-11-09")                        # não chamou
+    assert virada.vigia_reservar("DEXSPORT", "2026-11-09") is True
     virada._vigia_reservas.clear()
+
+
+def test_vigia_semana_de_segunda_a_domingo_no_horario_de_brasilia():
+    """RC46 (s449): a semana do vigia vai de segunda a domingo em Brasília. A terça e o domingo
+    23:59 (já segunda 02:59 em UTC) são da semana de 09/11; segunda 00:00 em Brasília abre a
+    seguinte. Mutações (detectadas): V1 a chave volta a ser o dia, V2 a semana em UTC."""
+    from datetime import datetime, timezone
+    S = virada.semana_brasilia
+    utc = timezone.utc
+    assert S(datetime(2026, 11, 9, 3, 0, tzinfo=utc)) == "2026-11-09"      # seg 00:00 BRT
+    assert S(datetime(2026, 11, 10, 15, 0, tzinfo=utc)) == "2026-11-09"    # terça
+    assert S(datetime(2026, 11, 16, 2, 59, tzinfo=utc)) == "2026-11-09"    # dom 23:59 BRT
+    assert S(datetime(2026, 11, 16, 3, 0, tzinfo=utc)) == "2026-11-16"     # seg 00:00 BRT
+    assert S(datetime(2026, 11, 9, 2, 59, tzinfo=utc)) == "2026-11-02"     # dom 23:59 BRT
 
 
 def test_vigia_desligado_sem_a_variavel(monkeypatch):

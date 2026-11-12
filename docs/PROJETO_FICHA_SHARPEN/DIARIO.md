@@ -5,7 +5,7 @@
 
 ---
 
-- **2026-11-11 · s449 · RC44:** depois de esperar o cru, o `/extrair` refaz o "já no banco" com o mesmo filtro de conta e tira do lote da IA o que a rota do cru liquidou na espera (`app/main.py`, `test_rc44_corrida_da_rota_do_cru_com_o_extrair`; mutações R1 e R2 detectadas). Sem push nem deploy.
+- **2026-11-11 · s449 · RC44 e RC46:** depois de esperar o cru, o `/extrair` refaz o "já no banco" com o mesmo filtro de conta e tira do lote da IA o que a rota do cru liquidou na espera (`app/main.py`, `test_rc44_corrida_da_rota_do_cru_com_o_extrair`; mutações R1 e R2 detectadas). **RC46:** o vigia passa a uma chamada por casa por semana, segunda a domingo em Brasília (`virada.semana_brasilia`, `test_vigia_uma_chamada_por_casa_por_semana`; mutações V1, V2 e W9 detectadas). Sem push nem deploy.
 
 ## 2026-11-07 · s438 · D44: bônus na aposta ajusta a odd
 

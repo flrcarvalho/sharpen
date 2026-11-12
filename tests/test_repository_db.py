@@ -2250,6 +2250,67 @@ def test_vigia_le_pela_ia_compara_e_nao_grava(monkeypatch):
     assert vagas == 0 and ja == [] and aberta == [aceita]
 
 
+def test_vigia_uma_chamada_por_casa_por_semana(monkeypatch):
+    """RC46 (s449, parecer 023 §2.5, como a D28 previa): o vigia chama a IA uma vez por casa por
+    SEMANA (segunda a domingo, Brasília), não mais por dia. Duas capturas na mesma semana, em
+    dias diferentes: uma chamada. A chamada anterior na semana passada (domingo 23:59 em
+    Brasília, que já é segunda em UTC): mais uma. A reserva em memória é limpa entre as
+    capturas para a prova ser a do banco, como depois de um restart.
+    Mutações (s449, detectadas): V1 a cota volta a ser do dia, V2 a semana em UTC.
+    Não cobre: a chamada à IA de verdade (dublê)."""
+    import main
+    import virada
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
+    monkeypatch.setenv("VIGIA_POR_DIA", "2")
+    chamadas = []
+
+    async def ia_duble(system, texto_, faltantes, modelo, instrucao, pensamento=None):
+        chamadas.append(list(faltantes))
+        linha = (f"10/10/2026	Múltiplos		{sess.casa}	{sess.parceiro}	Múltipla	{_IA_ACEITA}"
+                 f"	99	7,6	W	{aceita}")
+        return [linha], {"input": 100, "output": 50, "cache_read": 0, "cache_write": 0}
+    monkeypatch.setattr(main, "_repescar_faltantes", ia_duble)
+    monkeypatch.setattr(main, "build_system", lambda casa_key: [])
+    # a chamada anterior, movida no tempo: `$1` = o instante, em Brasília, relativo ao início
+    # da semana corrente
+    mover = ("UPDATE vigia_ficha SET criado_em = (date_trunc('week', NOW() AT TIME ZONE "
+             "'America/Sao_Paulo') + $1::interval) AT TIME ZONE 'America/Sao_Paulo', "
+             "ficha = ficha || '{\"resultado\": \"\"}'")
+    # outro dia da MESMA semana: segunda 00:01, ou domingo 23:00 se hoje for segunda
+    mesma = ("SELECT CASE WHEN extract(isodow FROM NOW() AT TIME ZONE 'America/Sao_Paulo') = 1 "
+             "THEN interval '6 days 23 hours' ELSE interval '1 minute' END")
+
+    async def rodar():
+        pool = await get_pool()
+        await _virada_ponta_a_ponta(sess, payload, texto)
+        await asyncio.sleep(0.3)                        # o vigia vai por `_fire`
+        uma = len(chamadas)
+        async with pool.acquire() as conn:
+            await conn.execute(mover, await conn.fetchval(mesma))
+        virada._vigia_reservas.clear()
+        await main._vigia_rodar(sess.dono, "VAVADA", sess.casa, sess.parceiro, texto, [aceita])
+        mesma_semana = len(chamadas)
+        async with pool.acquire() as conn:
+            await conn.execute(mover, timedelta(minutes=-1))     # domingo 23:59 da anterior
+        virada._vigia_reservas.clear()
+        await main._vigia_rodar(sess.dono, "VAVADA", sess.casa, sess.parceiro, texto, [aceita])
+        async with pool.acquire() as conn:
+            uso = await conn.fetchval("SELECT count(*) FROM uso_tokens WHERE caminho = 'vigia' "
+                                      "AND dono = $1", sess.dono)
+        virada._vigia_reservas.clear()
+        return uma, mesma_semana, len(chamadas), uso
+    from datetime import timedelta
+
+    async def limpar():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM uso_tokens WHERE caminho = 'vigia'")
+    _run(limpar())
+    assert _run(rodar()) == (1, 1, 2, 2)
+    assert chamadas == [[aceita], [aceita]]
+
+
 async def _corrigir_fora_do_master():
     import dicionario
     pool = await get_pool()

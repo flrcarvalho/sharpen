@@ -794,14 +794,15 @@ async def _vigia_rodar(dono: str, casa_key: str, casa: str, parceiro: str, texto
                        candidatos: list[str]) -> None:
     """Vigia da virada (s415, `virada.vigia_*`): lê pela IA, numa chamada à parte, até
     `VIGIA_POR_DIA` apostas que a Ficha gravou e que estão nesta captura
-    (`virada.vigia_candidatos`), UMA chamada por casa e dia de qualquer dono (D28), passa a
-    resposta pelos mesmos fiscais determinísticos do titular e compara o DINHEIRO com a linha
-    da Ficha. A resposta não vai para o `/salvar`: a IA não grava nada. Nunca levanta."""
+    (`virada.vigia_candidatos`), UMA chamada por casa e SEMANA de qualquer dono (D28, RC46),
+    passa a resposta pelos mesmos fiscais determinísticos do titular e compara o DINHEIRO com a
+    linha da Ficha. A resposta não vai para o `/salvar`: a IA não grava nada. Nunca levanta."""
     import virada as _virada
     from datetime import datetime, timedelta, timezone
     hoje = (datetime.now(timezone.utc) - timedelta(hours=3)).strftime("%d/%m/%Y")
-    if not _virada.vigia_reservar(casa_key, hoje):
-        return                                          # outra captura já leva a de hoje
+    semana = _virada.semana_brasilia()
+    if not _virada.vigia_reservar(casa_key, semana):
+        return                                          # outra captura já leva a da semana
     chamou = False
     try:
         from database import get_pool
@@ -831,7 +832,7 @@ async def _vigia_rodar(dono: str, casa_key: str, casa: str, parceiro: str, texto
         logger.exception("vigia: falhou para %s/%s", dono, casa_key)
     finally:
         if not chamou:
-            _virada.vigia_soltar(casa_key, hoje)
+            _virada.vigia_soltar(casa_key, semana)
 
 
 async def _barreira_lembrar(dono: str, casa: str, texto: str | None) -> None:
