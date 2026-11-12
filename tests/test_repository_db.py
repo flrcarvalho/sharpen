@@ -3945,3 +3945,114 @@ def test_s445_absorcao_nas_duas_pontas(monkeypatch):
         await cru_chega()
         assert await _codigos(sess.dono) == [leg]
     _run(dois())
+
+
+# ── s448: a CASA reliquidou uma aposta já liquidada ──────────────────────────────────────────
+# 1win 381894004 da Ellen [Eu] (Feca, 11/11/2026): paga como ganha a 2,84, refeita como perdida
+# dois dias depois; o pré-dedup e o `virada._liquidados` pulavam o código liquidado e o banco
+# ficou com W para sempre. Mutações em `tools`/scratch da sessão, lista no STATUS.
+# Não cobre: a IA lendo o bloco reaberto (dublada nos testes da barreira) e a captura real.
+
+def _uw(codigo, **kw):
+    base = dict(casa="1win", parceiro="Ellen [Eu]", codigo_bilhete=codigo,
+                descricao="Kristiansund KBK 2º Tempo", stake="40,00", odd="2,84", resultado="W")
+    base.update(kw)
+    return _row(**base)
+
+
+async def _linha_1win(dono, codigo):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchrow("SELECT id, resultado, odd, extraction_state FROM bilhetes "
+                                   "WHERE dono = $1 AND codigo_bilhete = $2", dono, codigo)
+
+
+def test_s448_resolvidos_reabre_a_reliquidada_e_respeita_o_humano():
+    """W no banco e L no texto: sai do "já resolvido". Correção HUMANA de resultado (origem
+    NULL) manda e segue pulada; a correção de ROBÔ (origem 'ficha') não blinda nada."""
+    async def body():
+        await _reset()
+        d = "TReliq"
+        await _sql("DELETE FROM correcoes WHERE dono = $1", d)
+        await repository.upsert_bilhetes([_uw("R1"), _uw("R2"), _uw("R3", resultado="L"),
+                                          _uw("R4", parceiro="Outra conta")], d)
+        r1, r2 = await _linha_1win(d, "R1"), await _linha_1win(d, "R2")
+        await _sql("INSERT INTO correcoes (bilhete_id, dono, casa, campo, valor_anterior, "
+                   "valor_novo, origem) VALUES ($1, $2, '1win', 'resultado', 'L', 'W', NULL), "
+                   "($3, $2, '1win', 'resultado', 'L', 'W', 'ficha')", r2["id"], d, r1["id"])
+        cods = ["R1", "R2", "R3", "R4"]
+        v = {c: "L" for c in cods}
+        return (await repository.get_codigos_resolvidos(cods, d, "1win", "Ellen [Eu]"),
+                await repository.get_codigos_resolvidos(cods, d, "1win", "Ellen [Eu]",
+                                                        vereditos=v),
+                await repository.get_codigos_resolvidos(cods, d, "1win", "Ellen [Eu]",
+                                                        vereditos={"R1": "W", "R3": "HL"}))
+    sem, com, iguais = _run(body())
+    assert sem == {"R1", "R2", "R3"}, "sem vereditos, o pré-dedup é o de sempre"
+    assert com == {"R2", "R3"}, "R1 reabre; R2 tem correção humana; R3 já é L"
+    assert iguais == {"R1", "R2", "R3"}, "mesma classe não reabre"
+
+
+def test_s448_upsert_da_reliquidacao_troca_resultado_e_odd():
+    """W → L e L → W numa linha JÁ resolvida: o resultado troca (sempre trocou) e a odd vai
+    junto, senão a L → W ficaria com a odd velha e o lucro errado. Mesma classe (W → HW) não
+    descongela a odd."""
+    async def body():
+        await _reset()
+        d = "TReliqU"
+        await repository.upsert_bilhetes([_uw("A1"), _uw("A2", resultado="L", odd="6,18"),
+                                          _uw("A3"), _uw("A4")], d)
+        await repository.upsert_bilhetes([_uw("A1", resultado="L", odd="8,52"),
+                                          _uw("A2", resultado="W", odd="3,17"),
+                                          _uw("A3", resultado="HW", odd="9,99"),
+                                          _uw("A4", resultado="", odd="9,99")], d)
+        return [await _linha_1win(d, c) for c in ("A1", "A2", "A3", "A4")]
+    a1, a2, a3, a4 = _run(body())
+    assert (a1["resultado"], a1["odd"]) == ("L", "8,52")
+    assert (a2["resultado"], a2["odd"]) == ("W", "3,17"), "L → W leva a odd da reliquidação"
+    assert (a3["resultado"], a3["odd"]) == ("HW", "2,84"), "mesma classe: odd segue congelada"
+    assert (a4["resultado"], a4["odd"]) == ("W", "2,84"),         "releitura SEM resultado (aba Em aberto) não rebaixa nem descongela a odd"
+    assert repository.calcular_pl("40,00", a2["odd"], "W") == 86.8
+
+
+def test_s448_ficha_regrava_a_reliquidada(monkeypatch):
+    """A rota da Ficha: o cru final diz W e o banco tem L (a casa reliquidou depois de a linha
+    ser gravada). Antes o `_liquidados` pulava o código e nada mudava. Com correção humana de
+    resultado, segue pulado."""
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA", sombra="VAVADA")
+
+    async def rodar(humano):
+        import ficha
+        import json as _json
+        import virada
+        await _reset()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM correcoes WHERE dono = $1", sess.dono)
+            await conn.execute("DELETE FROM captura_crua WHERE dono = $1", sess.dono)
+            await conn.execute("DELETE FROM ficha_virada WHERE dono = $1", sess.dono)
+            await _simples_no_banco(conn, sess, pela_ficha=True)
+            linha = await conn.fetchrow("SELECT id FROM bilhetes WHERE codigo_bilhete = $1",
+                                        _SIMPLES)
+            # o banco ficou com a liquidação ANTIGA, de outra classe, e de outro cru
+            await conn.execute("UPDATE bilhetes SET resultado = 'L', odd = '9,99' WHERE id = $1",
+                               linha["id"])
+            await conn.execute("UPDATE ficha_virada SET impressao = 'cru-antigo' "
+                               "WHERE codigo = $1", _SIMPLES)
+            if humano:
+                await conn.execute(
+                    "INSERT INTO correcoes (bilhete_id, dono, casa, campo, valor_anterior, "
+                    "valor_novo, origem) VALUES ($1, $2, 'Vavada', 'resultado', 'W', 'L', NULL)",
+                    linha["id"], sess.dono)
+            crus = _json.loads((Path(__file__).resolve().parent / "ficha_crus_familias.json")
+                               .read_text(encoding="utf-8"))
+            f = ficha.montar_ficha("shf", crus[_SIMPLES], "VAVADA")
+            feitos, fica = await virada.aplicar(conn, sess.dono, "VAVADA", sess.casa,
+                                                sess.parceiro, {_SIMPLES: f})
+            r = await conn.fetchrow("SELECT resultado, odd FROM bilhetes WHERE id = $1",
+                                    linha["id"])
+            return feitos, (r["resultado"], r["odd"])
+    feitos, linha = _run(rodar(False))
+    assert feitos == {_SIMPLES} and linha == ("W", "1,82"), (linha, feitos)
+    feitos, linha = _run(rodar(True))
+    assert linha == ("L", "9,99"), "correção humana manda sobre a reliquidação"

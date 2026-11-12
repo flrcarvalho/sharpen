@@ -78,6 +78,9 @@ def _hashes(texto):
             for c, b in repository.blocos_por_codigo(texto).items()}
 
 
+_ULTIMA_CHAMADA: dict = {}   # o que o pré-dedup mandou ao banco na última `_rodar` (s448)
+
+
 def _rodar(texto, *, resolvidos=(), memoria=None, nao_salvos=(), apagados=(), casa="Novibet"):
     """Roda o `_dedup_superbet_text` real com as duas idas ao banco dubladas.
 
@@ -88,11 +91,18 @@ def _rodar(texto, *, resolvidos=(), memoria=None, nao_salvos=(), apagados=(), ca
     `apagados`: o hash está no `bloco_visto`, mas a linha saiu de `bilhetes` (o usuário
     apagou). Somem com o JOIN e aparecem com `exigir_linha=False` (s447)."""
     memoria = memoria or {}
+    vistos = _ULTIMA_CHAMADA
+    vistos.clear()
     orig_res = main.get_codigos_resolvidos
     orig_con = main.blocos_conhecidos
 
-    async def _fake_resolvidos(codigos, dono, casa=None, parceiro=None):
-        return {c for c in codigos if c in set(resolvidos)}
+    async def _fake_resolvidos(codigos, dono, casa=None, parceiro=None, vereditos=None):
+        # `resolvidos` pode ser {código: resultado gravado} (s448): o dublê só imita o SQL
+        # (o que está liquidado nesta conta) e usa o `reliquidou` REAL para o resto.
+        gravado = resolvidos if isinstance(resolvidos, dict) else {c: "" for c in resolvidos}
+        vistos["vereditos"] = dict(vereditos or {})
+        return {c for c in codigos if c in gravado
+                and not repository.reliquidou(gravado[c], (vereditos or {}).get(c))}
 
     async def _fake_conhecidos(dono, casa, codigos, parceiro=None, gravados=False,
                                exigir_linha=True):
@@ -374,3 +384,80 @@ def test_aposta_apagada_e_recapturada_conta_como_texto_igual_para_a_ficha(monkey
     assert recebidos["codigos"] == set(apagados)
     assert skipped == 0 and _codigos(saida) == set(apagados), \
         "a barreira não pode pular a apagada: sem a linha, ela tem de ser relida"
+
+
+# ── s448: a CASA reliquidou uma aposta já liquidada ──────────────────────────
+# Blocos REAIS da captura da 1win do Feca (Ellen [Eu], 11/11/2026), recortados nas linhas que
+# a decisão usa. A 381894004 foi paga como ganha a 2,84 (perna do Kristiansund anulada) e a
+# casa a refez como PERDIDA em 09/11 16:55; o banco ficou com W porque o pré-dedup a pulava.
+
+UMWIN_RELIQUIDADA = """[Código: 381894004]
+Data (evento mais recente): 07/11/2026 12:00:00
+Stake: 40,00
+Moeda: USDT
+Status: Perdeu → L
+Status (API): status=1 · betType=express
+Tipo: Múltipla (2 seleções)
+Odd: 8,52 (a da casa, cortada em 2 casas — é a que paga)
+Liquidado em: 09/11/2026 16:55:41
+
+[Código: 390629480]
+Data (evento mais recente): 11/11/2026 13:30:00
+Stake: 50,00
+Moeda: USDT
+Status: Perdeu → L
+Status (API): status=1 · betType=express
+Tipo: Múltipla (2 seleções)
+Odd: 5,01 (a da casa, cortada em 2 casas — é a que paga)
+Liquidado em: 11/11/2026 13:48:40
+"""
+
+UMWIN_A_CONFERIR = UMWIN_RELIQUIDADA.replace(
+    "Status: Perdeu → L\nStatus (API): status=1 · betType=express\nTipo: Múltipla (2 seleções)\n"
+    "Odd: 8,52", "Status: status 9 — a conferir\nStatus (API): status=9 · betType=express\n"
+    "Tipo: Múltipla (2 seleções)\nOdd: 8,52", 1)
+
+
+def test_vereditos_do_texto_le_o_status_de_cada_bloco():
+    v = repository.vereditos_do_texto(repository.blocos_por_codigo(UMWIN_RELIQUIDADA))
+    assert v == {"381894004": "L", "390629480": "L"}
+    sem = repository.vereditos_do_texto(repository.blocos_por_codigo(UMWIN_A_CONFERIR))
+    assert sem == {"390629480": "L"}, "sem `→ X` não há veredito: nada se reabre sem prova"
+
+
+def test_reliquidou_compara_so_a_classe():
+    r = repository.reliquidou
+    assert r("W", "L") and r("L", "W") and r("V", "L") and r("HL", "W") and r("W", "V")
+    assert not r("W", "W") and not r("HW", "W") and not r("HL", "L"), \
+        "mesma classe não é reliquidação: o texto escreve W também para meia vitória"
+    assert not r("", "L") and not r("W", "") and not r("W", None) and not r("X", "L")
+
+
+def test_reliquidada_pela_casa_volta_a_leitura():
+    """O caso: banco W, casa L. O bilhete deixa de ser "já resolvido" e segue para a leitura."""
+    saida, skipped = _rodar(UMWIN_RELIQUIDADA,
+                            resolvidos={"381894004": "W", "390629480": "L"}, casa="1win")
+    assert _codigos(saida) == {"381894004"}, "a reliquidada vai, a que bate segue pulada"
+    assert skipped == 1
+    assert _ULTIMA_CHAMADA["vereditos"] == {"381894004": "L", "390629480": "L"}, \
+        "o pré-dedup tem de mandar o veredito de cada bloco ao banco"
+
+
+def test_liquidada_que_bate_continua_pulada():
+    saida, skipped = _rodar(UMWIN_RELIQUIDADA,
+                            resolvidos={"381894004": "L", "390629480": "L"}, casa="1win")
+    assert saida == "" and skipped == 2, "sem contradição o pré-dedup economiza como sempre"
+
+
+def test_mesma_classe_nao_reabre():
+    """Banco HL, texto L: meia derrota e derrota são a mesma classe. Reabrir aqui faria a IA
+    reler toda meia a cada captura, e o rótulo do texto nem decide a meia."""
+    saida, skipped = _rodar(UMWIN_RELIQUIDADA,
+                            resolvidos={"381894004": "HL", "390629480": "L"}, casa="1win")
+    assert saida == "" and skipped == 2
+
+
+def test_bloco_sem_veredito_nao_reabre():
+    saida, skipped = _rodar(UMWIN_A_CONFERIR,
+                            resolvidos={"381894004": "W", "390629480": "L"}, casa="1win")
+    assert saida == "" and skipped == 2, "'a conferir' não prova reliquidação nenhuma"

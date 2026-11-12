@@ -58,15 +58,17 @@ def test_sem_conta_mantem_o_filtro_antigo():
 
 def test_com_conta_filtra_casa_e_parceiro():
     c = _chamar(repository.get_codigos_resolvidos, ["A1"], "Feca", "Tivo", "Feca [Eu]")
-    assert "AND casa = $3" in c.sql
-    assert "AND parceiro = $4" in c.sql
+    # `b.` desde a s448: a subconsulta da correção humana lê `correcoes`, que também tem
+    # `casa`. O apelido é o que segura o filtro na tabela certa (ver `_filtro_conta`).
+    assert "AND b.casa = $3" in c.sql
+    assert "AND b.parceiro = $4" in c.sql
     assert c.params == [["A1"], "Feca", "Tivo", "Feca [Eu]"]
 
 
 def test_so_casa_numera_certo():
     # Parceiro vazio (chamador que só sabe a casa) não pode deixar um $4 órfão no SQL.
     c = _chamar(repository.get_codigos_resolvidos, ["A1"], "Feca", "Tivo", "")
-    assert "AND casa = $3" in c.sql and "$4" not in c.sql
+    assert "AND b.casa = $3" in c.sql and "$4" not in c.sql
     assert c.params == [["A1"], "Feca", "Tivo"]
 
 

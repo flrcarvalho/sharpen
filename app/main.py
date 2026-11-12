@@ -84,7 +84,8 @@ from repository import (
     extracoes_do_trial,
     deletar_bilhetes, excluir_bilhetes_lote,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
-    get_codigos_resolvidos, get_tipster_por_codigo, remover_bilhetes_supersedidos,
+    get_codigos_resolvidos, vereditos_do_texto, get_tipster_por_codigo,
+    remover_bilhetes_supersedidos,
     polymarket_conta_em_usd, caixa_polymarket_sync,
     codigos_em_outra_conta,
     flags_pos_edicao, flags_pos_edicao_lote, atualizar_bilhetes_lote,
@@ -1457,13 +1458,16 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     codigos = [i for i in ids if i]
     # Escopado na CONTA: bilhete que já existe em OUTRA conta do mesmo dono não pode
     # sumir do lote desta aqui (ver a nota em `repository.py`).
-    ja_resolvidos = await get_codigos_resolvidos(codigos, dono, casa, parceiro)
+    # O de-para de hash usa o MESMO recorte do gravador. Ver o aviso do docstring.
+    blocos_txt = blocos_por_codigo(text)
+    # `vereditos` (s448): o liquidado cujo `Status: … → X` contradiz o resultado gravado é a
+    # CASA reliquidando, e volta à leitura em vez de ser pulado (`get_codigos_resolvidos`).
+    ja_resolvidos = await get_codigos_resolvidos(codigos, dono, casa, parceiro,
+                                                 vereditos=vereditos_do_texto(blocos_txt))
     # Para PULAR, a leitura anterior tem de ter chegado ao banco (`gravados`, s424): sem
     # isso, a aposta aberta que liquidou e cuja leitura não foi salva era pulada para
     # sempre como "sem mudança" (MyStake 308613169). Ver `blocos_conhecidos`.
     conhecidos = await blocos_conhecidos(dono, casa, codigos, parceiro, gravados=True)
-    # O de-para de hash usa o MESMO recorte do gravador. Ver o aviso do docstring.
-    blocos_txt = blocos_por_codigo(text)
     por_codigo = {k: hash_bloco(v) for k, v in blocos_txt.items()}
     pela_ficha: set[str] = set()
     segurados: set[str] = set()

@@ -831,9 +831,9 @@ bilhete. O que já duplicou sai por `reparar_duplicatas_codigo_ocr.py` (print) e
 ### Fonte determinística manda; extração por IA congela.
 
 O UPSERT **congela** `odd`, `data`, `stake`, `esporte`, `aposta` e `descricao` assim que a
-aposta resolve. Isso protege a extração por IA: a re-leitura é ruidosa e sobrescrever seria
-pior que manter. **Exceção: `origem='sync'`** (fonte determinística — hoje só o
-`/polymarket/sync`, que lê a API on-chain). Para ela esses campos são sempre refrescados.
+aposta resolve: a re-leitura da IA é ruidosa. **Exceções:** `origem='sync'` (fonte
+determinística, o `/polymarket/sync`) refresca todos; e a **reliquidação** (a casa troca a
+CLASSE do resultado, W↔L↔V) leva a odd junto. → [o caso](docs/casos/CASOS_CAPTURA.md)
 
 **Por que a exceção existe:** `resultado` **nunca foi congelado**. Com fonte determinística
 isso deixava a linha **meio atualizada** — resultado novo, odd velha — e virava lucro

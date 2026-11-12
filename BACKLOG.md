@@ -836,6 +836,20 @@ verdade. Falta:
   UPSERT, mas isso é dedução.
 - Sub-posição em mais de uma moeda e cru acima de 64 KB (~150 apostas): sem amostra.
 
+### 2.3 Reliquidação: quantas apostas a casa refez e o banco não viu (s448). **VIVA, sem medição**
+
+Desde a s448 o liquidado cujo veredito do texto (ou do cru final, na Ficha) é de outra classe
+volta à leitura e o UPSERT troca resultado e odd juntos
+([o caso](docs/casos/CASOS_CAPTURA.md)). Visto **uma** vez (1win 381894004, Ellen [Eu]). Falta:
+- **Medir a base:** diff `captura_crua` (cru mais recente, `ficha.derivar`) × `bilhetes` por
+  classe de resultado, todas as casas viradas e todos os donos, só leitura. Precisa de leitura
+  de produção, que o modo auto barrou em 11/11 (pedir ao Feca). As achadas corrigem sozinhas na
+  próxima captura de cada conta, menos as com correção humana de `resultado`.
+- **Casa que não escreve `→ X` no Status** (texto sem veredito) e print: a reliquidação
+  continua invisível nelas. Listar quais são antes de concluir que "está coberto".
+- **Primeira reliquidação real depois do deploy:** conferir no log `reliquidação: N bilhete(s)`
+  (pré-dedup) ou `virada: reliquidação` (Ficha) e a linha trocada no banco.
+
 ## 3. Decisão do Feca pendente
 
 ### 3.0b Dólar e "≈ R$" da carteira Polymarket sem ponto de milhar (s433). **VIVA**

@@ -270,6 +270,26 @@ async def _liquidados(conn, dono: str, casa_key: str, codigos: list[str]) -> set
     return {r["codigo_bilhete"] for r in rows}
 
 
+async def _reliquidados(conn, dono: str, casa_key: str, novos: dict) -> set[str]:
+    """Dos códigos liquidados no banco, os que a CASA reliquidou (s448): `novos` = {código:
+    resultado que a Ficha do cru tirou}, e sai o código cuja linha está noutra CLASSE
+    (`repository.reliquidou`). A linha com correção humana de `resultado` (`correcoes.origem`
+    NULL) não sai: correção humana manda sobre a captura. Sem isso o `_liquidados` (D10) fazia
+    a Ficha nunca regravar o liquidado, e o W que a 1win refez como L ficava W para sempre."""
+    if not novos:
+        return set()
+    from repository import reliquidou
+    rows = await conn.fetch(
+        "SELECT b.codigo_bilhete, b.resultado, EXISTS (SELECT 1 FROM correcoes c "
+        "WHERE c.bilhete_id = b.id AND c.dono = b.dono AND c.campo = 'resultado' "
+        "AND c.origem IS NULL) AS humano "
+        "FROM bilhetes b WHERE b.dono = $1 AND b.codigo_bilhete = ANY($2::text[]) "
+        f"AND b.extraction_state = 'resolvida' AND {_KB} = $3",
+        dono, list(novos), casa_key)
+    return {r["codigo_bilhete"] for r in rows
+            if not r["humano"] and reliquidou(r["resultado"], novos.get(r["codigo_bilhete"]))}
+
+
 async def _no_banco(conn, dono: str, casa_key: str, codigos: list[str]) -> set[str]:
     """Códigos com linha no banco NESTA casa, em qualquer estado. "Cru igual, já gravado pela
     Ficha" só vale com a linha lá: o usuário que EXCLUI a aposta e recaptura manda o mesmo cru,
@@ -293,6 +313,21 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
     if not cods:
         return set(), {}
     liquidados = await _liquidados(conn, dono, casa_key, cods)
+    if liquidados:
+        # s448: o liquidado que a casa RELIQUIDOU (o cru final diz outra classe) volta a ser
+        # gravado. Ficha recusada ou cru aberto não prova nada e segue pulado (D10).
+        novos = {}
+        for cod in liquidados:
+            f, motivos = candidatas.get(cod) or (None, None)
+            if f is not None and not motivos and cru_final(f):
+                try:
+                    novos[cod] = _ficha.derivar(f)["resultado"]
+                except Exception:  # noqa: BLE001 — cru que não se deriva não reabre nada
+                    continue
+        if (reabrir := await _reliquidados(conn, dono, casa_key, novos)):
+            logger.info("virada: reliquidação de %s/%s pela Ficha: %s", dono, casa_key,
+                        sorted(reabrir)[:10])
+            liquidados -= reabrir
     termos = await _dic.carregar(conn, casa_key)
     estado = {r["codigo"]: (r["impressao"], r["estado"]) for r in await conn.fetch(
         "SELECT codigo, impressao, estado FROM ficha_virada WHERE dono = $1 AND casa = $2 "

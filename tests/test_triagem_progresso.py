@@ -47,7 +47,7 @@ Status: Perdeu → L
 def _rodar(texto, resolvidos=()):
     orig_res, orig_con = main.get_codigos_resolvidos, main.blocos_conhecidos
 
-    async def _fake_resolvidos(codigos, dono, casa=None, parceiro=None):
+    async def _fake_resolvidos(codigos, dono, casa=None, parceiro=None, vereditos=None):
         return {c for c in codigos if c in set(resolvidos)}
 
     async def _fake_conhecidos(dono, casa, codigos, parceiro=None, gravados=False,

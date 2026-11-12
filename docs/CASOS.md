@@ -1132,3 +1132,8 @@ conforme a tela que lia. Hoje o `_c2num` delega ao `parseNum` (`app.js`).
 O muro do histórico do navegador (a travada que o "reconectar" não curava) e a memória
 indexada pela visão em vez da aposta moram lá. Partição aberta em 2026-09-20, quando este
 arquivo encostou no teto de 60 KB.
+
+## Casos de captura que não chega ao banco → [`casos/CASOS_CAPTURA.md`](casos/CASOS_CAPTURA.md)
+
+A aposta que a casa reliquidou depois de liquidada (1win, s448) e o pré-dedup pulava para
+sempre mora lá.

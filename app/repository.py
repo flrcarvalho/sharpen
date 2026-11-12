@@ -2217,8 +2217,22 @@ async def upsert_bilhetes(
                                  AND NULLIF(bilhetes.resultado, '') IS NOT NULL
                             THEN bilhetes.extraction_state
                             ELSE EXCLUDED.extraction_state END,
+                        -- RELIQUIDAÇÃO (s448): a casa trocou a CLASSE do resultado de
+                        -- uma linha já resolvida (W ↔ L ↔ V). O resultado nunca foi
+                        -- congelado, então ele já mudava; a odd não, e L → W ficaria
+                        -- com a odd velha: o UPSERT meio-atualizado, lucro errado. A odd
+                        -- anda JUNTO com a troca de classe, e só com ela (W → HW, mesma
+                        -- classe, segue congelada: quem decide a meia é a odd da casa).
                         odd = CASE WHEN bilhetes.extraction_state = 'aberta'
                                         OR EXCLUDED.origem = 'sync'
+                                        OR (CASE WHEN NULLIF(EXCLUDED.resultado, '') IN ('W','HW') THEN '+'
+                                                 WHEN NULLIF(EXCLUDED.resultado, '') IN ('L','HL') THEN '-'
+                                                 WHEN NULLIF(EXCLUDED.resultado, '') = 'V' THEN '0' END)
+                                           IS DISTINCT FROM
+                                           (CASE WHEN bilhetes.resultado IN ('W','HW') THEN '+'
+                                                 WHEN bilhetes.resultado IN ('L','HL') THEN '-'
+                                                 WHEN bilhetes.resultado = 'V' THEN '0' END)
+                                           AND EXCLUDED.resultado IN ('W','HW','L','HL','V')
                                    THEN COALESCE(NULLIF(EXCLUDED.odd, ''), bilhetes.odd)
                                    ELSE bilhetes.odd END,
                         data = CASE WHEN bilhetes.extraction_state = 'aberta'
@@ -6247,8 +6261,44 @@ async def get_codigos_existentes(codigos: list[str], dono: str, casa: str | None
     return {row["codigo_bilhete"] for row in rows}
 
 
+# ── Reliquidação: a CASA muda o resultado de aposta já liquidada (s448) ──────────────────
+# O pré-dedup existe para não pagar leitura do que já está resolvido, e por isso o bilhete
+# liquidado NUNCA mais chegava ao banco. Quando a casa reliquida (1win 381894004 da Ellen
+# [Eu], Feca, 11/11/2026: paga como ganha a 2,84 com a perna do Kristiansund anulada e
+# refeita como PERDIDA dois dias depois), o Sharpen ficava com o resultado velho para
+# sempre, sem erro, e só a Caixa denunciava (113,60 USDT acima da casa).
+# A prova é de graça: o bloco da extensão traz o veredito (`Status: … → X`). Bloco que
+# CONTRADIZ o resultado gravado deixa de ser "já resolvido" e segue para a leitura. Só a
+# CLASSE conta (ganhou, perdeu, devolveu), como no `virada.contradiz`: o texto escreve `W`
+# também para meia vitória, e quem decide a meia é a leitura, não o rótulo.
+# **Correção humana manda** (`correcoes.origem` NULL no campo `resultado`): a aposta que
+# alguém corrigiu à mão continua pulada, mesmo com a casa dizendo outra coisa.
+CLASSE_RESULTADO = {"W": "+", "HW": "+", "L": "-", "HL": "-", "V": "0"}
+_VEREDITO_BLOCO = re.compile(r"Status:[^\n]*→\s*(HW|HL|W|L|V)\b")
+
+
+def vereditos_do_texto(blocos: dict[str, str] | None) -> dict[str, str]:
+    """{código: veredito} dos blocos que trazem `Status: … → X`. Bloco sem veredito (aberta,
+    "a conferir", casa que não o escreve) fica de fora: sem prova, nada se reabre."""
+    out = {}
+    for cod, bloco in (blocos or {}).items():
+        m = _VEREDITO_BLOCO.search(bloco or "")
+        if cod and m:
+            out[cod] = m.group(1)
+    return out
+
+
+def reliquidou(gravado: str | None, veredito: str | None) -> bool:
+    """O veredito novo é de OUTRA classe que o resultado gravado. Qualquer lado
+    desconhecido (vazio, rótulo fora do código) não prova nada."""
+    a = CLASSE_RESULTADO.get((gravado or "").strip().upper())
+    b = CLASSE_RESULTADO.get((veredito or "").strip().upper())
+    return bool(a and b and a != b)
+
+
 async def get_codigos_resolvidos(codigos: list[str], dono: str, casa: str | None = None,
-                                 parceiro: str | None = None) -> set[str]:
+                                 parceiro: str | None = None,
+                                 vereditos: dict[str, str] | None = None) -> set[str]:
     """Retorna subset de codigos já salvos E liquidados (extraction_state = 'resolvida').
 
     Usado no pré-dedup de texto: pula bilhetes que já estão no banco como resolvidos, mas
@@ -6257,19 +6307,35 @@ async def get_codigos_resolvidos(codigos: list[str], dono: str, casa: str | None
 
     Com `casa`/`parceiro`, "já tenho esse bilhete" passa a significar "já tenho NESTA
     conta" — ver a nota de escopo acima.
+
+    `vereditos` ({código: W/L/V/HW/HL} do texto, `vereditos_do_texto`): o código cujo
+    veredito CONTRADIZ o resultado gravado sai do conjunto, para a casa que reliquidou
+    chegar ao banco (s448, nota acima). Linha com correção humana de `resultado` não sai.
     """
     if not codigos:
         return set()
     params = [codigos, dono]
-    sql = ("""SELECT codigo_bilhete FROM bilhetes
-               WHERE codigo_bilhete = ANY($1::text[])
-                 AND extraction_state = 'resolvida'
-                 AND dono = $2""")
-    sql += _filtro_conta(params, casa, parceiro)
+    sql = ("""SELECT b.codigo_bilhete, b.resultado,
+                     EXISTS (SELECT 1 FROM correcoes c
+                              WHERE c.bilhete_id = b.id AND c.dono = b.dono AND c.campo = 'resultado'
+                                AND c.origem IS NULL) AS humano
+                FROM bilhetes b
+               WHERE b.codigo_bilhete = ANY($1::text[])
+                 AND b.extraction_state = 'resolvida'
+                 AND b.dono = $2""")
+    sql += _filtro_conta(params, casa, parceiro, "b")
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(sql, *params)
-    return {row["codigo_bilhete"] for row in rows}
+    resolvidos = {row["codigo_bilhete"] for row in rows}
+    vereditos = vereditos or {}
+    reabrir = {r["codigo_bilhete"] for r in rows
+               if not r["humano"]
+               and reliquidou(r["resultado"], vereditos.get(r["codigo_bilhete"]))}
+    if reabrir:
+        logger.info("reliquidação: %d bilhete(s) que a casa mudou depois de liquidar voltam "
+                    "à leitura · %s/%s %s", len(reabrir), dono, casa, sorted(reabrir)[:10])
+    return resolvidos - reabrir
 
 
 async def codigos_em_outra_conta(codigos: list[str], dono: str, casa: str,
