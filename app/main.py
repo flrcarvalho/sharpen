@@ -1472,8 +1472,11 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
         # N3 (parecer 012): a Ficha só tira o código se o cru é desta captura OU se o bloco
         # não mudou desde a última leitura. Texto mudado com cru velho vai para a IA. Aqui
         # a pergunta é só "o texto mudou?", e a régua é a solta: o bilhete que a Ficha
-        # resolve foi ela quem gravou, ANTES de o hash ser lembrado.
-        vistos_hash = await blocos_conhecidos(dono, casa, codigos, parceiro)
+        # resolve foi ela quem gravou, ANTES de o hash ser lembrado. E não exige a linha no
+        # banco (s447): aposta apagada e recapturada com o texto igual tem o cru guardado
+        # válido, e a extensão não reenvia cru igual. Com o JOIN ela ficava segurada sem saída.
+        vistos_hash = await blocos_conhecidos(dono, casa, codigos, parceiro,
+                                              exigir_linha=False)
         iguais = {c for c in codigos if por_codigo.get(c) is not None
                   and vistos_hash.get(c) == por_codigo[c]}
         # `no_texto` + `info` (s423): o código que a Ficha recusou e que ESTE texto não traz

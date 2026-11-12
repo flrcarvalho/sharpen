@@ -78,12 +78,15 @@ def _hashes(texto):
             for c, b in repository.blocos_por_codigo(texto).items()}
 
 
-def _rodar(texto, *, resolvidos=(), memoria=None, nao_salvos=()):
+def _rodar(texto, *, resolvidos=(), memoria=None, nao_salvos=(), apagados=(), casa="Novibet"):
     """Roda o `_dedup_superbet_text` real com as duas idas ao banco dubladas.
 
     `nao_salvos`: códigos cujo hash está na memória mas cuja leitura NÃO chegou ao banco
     (o bilhete é mais velho que o hash). O dublê imita o SQL de `blocos_conhecidos`: com
-    `gravados=True` eles somem do retorno; sem, aparecem (s424)."""
+    `gravados=True` eles somem do retorno; sem, aparecem (s424).
+
+    `apagados`: o hash está no `bloco_visto`, mas a linha saiu de `bilhetes` (o usuário
+    apagou). Somem com o JOIN e aparecem com `exigir_linha=False` (s447)."""
     memoria = memoria or {}
     orig_res = main.get_codigos_resolvidos
     orig_con = main.blocos_conhecidos
@@ -91,15 +94,17 @@ def _rodar(texto, *, resolvidos=(), memoria=None, nao_salvos=()):
     async def _fake_resolvidos(codigos, dono, casa=None, parceiro=None):
         return {c for c in codigos if c in set(resolvidos)}
 
-    async def _fake_conhecidos(dono, casa, codigos, parceiro=None, gravados=False):
+    async def _fake_conhecidos(dono, casa, codigos, parceiro=None, gravados=False,
+                               exigir_linha=True):
         return {c: memoria[c] for c in codigos
-                if c in memoria and not (gravados and c in set(nao_salvos))}
+                if c in memoria and not (gravados and c in set(nao_salvos))
+                and not (exigir_linha and c in set(apagados))}
 
     main.get_codigos_resolvidos = _fake_resolvidos
     main.blocos_conhecidos = _fake_conhecidos
     try:
         return asyncio.run(
-            main._dedup_superbet_text(texto, "Feca", "Novibet", "conta1"))
+            main._dedup_superbet_text(texto, "Feca", casa, "conta1"))
     finally:
         main.get_codigos_resolvidos = orig_res
         main.blocos_conhecidos = orig_con
@@ -334,3 +339,38 @@ def test_shuffle_nanoid_e_sensivel_a_caixa():
     saida, skipped = _rodar(SHF_LOTE, resolvidos=[outra_caixa])
     assert skipped == 0
     assert "aB3xQ9kLm2Pz7Rt0Yw4Ue" in _codigos(saida)
+
+
+# ── s447: apagou e recapturou numa casa virada ───────────────────────────────
+
+
+def test_aposta_apagada_e_recapturada_conta_como_texto_igual_para_a_ficha(monkeypatch):
+    """O caso da Cloudbet do Feca (11/11/2026): 32 apostas abertas gravadas pela Ficha,
+    apagadas pelo usuário e recapturadas 25 s depois com o texto igual. A extensão não
+    reenvia cru igual, então o cru guardado é velho; e o `iguais` exigia a linha no banco,
+    que tinha sido apagada. Resultado: "texto mudou sem cru novo", 32 seguradas, 0 gravadas.
+
+    O `iguais` tem de olhar só o hash. E a BARREIRA continua exigindo a linha: a apagada
+    não pode ser pulada como "sem mudança" (ela tem de voltar à Ficha ou à IA)."""
+    import virada
+    recebidos = {}
+
+    async def _resolver(dono, casa_key, casa, parceiro, codigos, iguais, **kw):
+        recebidos["iguais"] = set(iguais)
+        recebidos["codigos"] = set(codigos)
+        return set(), 0.0, {}, set()
+
+    async def _nada(*a, **k):
+        return None
+
+    monkeypatch.setattr(virada, "virada", lambda k: True)
+    monkeypatch.setattr(virada, "resolver_no_extrair", _resolver)
+    monkeypatch.setattr(virada, "registrar", _nada)
+    monkeypatch.setattr(virada, "vigia_por_dia", lambda: 0)
+    apagados = ["475962111", "475962999"]
+    saida, skipped = _rodar(NOVIBET_ABERTA, memoria=_hashes(NOVIBET_ABERTA),
+                            apagados=apagados)
+    assert recebidos["iguais"] == set(apagados), "a apagada com texto igual é texto igual"
+    assert recebidos["codigos"] == set(apagados)
+    assert skipped == 0 and _codigos(saida) == set(apagados), \
+        "a barreira não pode pular a apagada: sem a linha, ela tem de ser relida"

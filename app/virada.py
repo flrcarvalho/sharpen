@@ -470,6 +470,16 @@ def contradiz(f, bloco) -> bool:
     return _CLASSE.get(res) != _CLASSE[m.group(1)]
 
 
+def texto_desmente(f, bloco) -> bool:
+    """O texto traz veredito (`Status: … → X`) e o cru guardado não o confirma: cru ainda
+    aberto, ou liquidado em outra classe. Sem veredito no texto, ou Ficha recusada (None),
+    não desmente: a recusa segue o caminho dela no `aplicar`. É a trava do texto IGUAL com cru
+    velho (s447), que desde então vale também para a aposta apagada e recapturada."""
+    if not f or not _VEREDITO.search(bloco or ""):
+        return False
+    return not cru_final(f) or contradiz(f, bloco)
+
+
 _LINHA_NA_CASA = (f"EXISTS (SELECT 1 FROM bilhetes b WHERE b.dono = f.dono "
                   f"AND b.codigo_bilhete = f.codigo AND {_KB} = f.casa)")
 # Excluída de propósito: pela lixeira de apostas (toda exclusão da tela, desde a Fase 7) ou junto
@@ -679,6 +689,12 @@ async def resolver_no_extrair(dono: str, casa_key: str, casa: str, parceiro: str
                             candidatas[cod] = fm       # (a) cru liquidado: Ficha, sem IA
                         else:
                             quer[cod] = f.get("impressao") or ""   # (b) cru aberto, ou desmentido
+                        continue
+                    if not c["fresco"] and texto_desmente(fm[0], (blocos or {}).get(cod)):
+                        # Texto igual, mas ele já traz um veredito que o cru velho não confirma
+                        # (cru aberto, ou outra classe): a última leitura foi da IA sobre um
+                        # texto mais novo que o cru. Espera o cru novo, como no (b) (s447).
+                        quer[cod] = (fm[0] or {}).get("impressao") or ""
                         continue
                     candidatas[cod] = fm
                 faltam = [cod for cod in codigos if cod not in candidatas and cod not in fica

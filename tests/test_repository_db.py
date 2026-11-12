@@ -923,6 +923,27 @@ def test_hash_sem_bilhete_no_banco_nao_e_conhecido():
     _run(body())
 
 
+def test_s447_texto_igual_nao_exige_a_linha_no_banco():
+    """s447 (Cloudbet do Feca, 11/11/2026): a pergunta "o texto mudou?" da Ficha
+    (`exigir_linha=False`) vê o hash da aposta APAGADA; a barreira (com o JOIN) não vê, e
+    por isso nunca pula a apagada. Escopo dono + casa, como a chave do `bloco_visto`."""
+    async def body():
+        await _reset_barreira()
+        texto = "[Código: APAG1]\nStake: R$ 10,00\nStatus: Em aberto\n"
+        assert await repository.registrar_blocos_vistos("TDonoA", "Cloudbet", texto) == 1
+        esperado = repository.hash_bloco(repository.blocos_por_codigo(texto)["APAG1"])
+        assert await repository.blocos_conhecidos(
+            "TDonoA", "Cloudbet", ["APAG1"], "Ellen [Eu]") == {}
+        assert await repository.blocos_conhecidos(
+            "TDonoA", "Cloudbet", ["APAG1"], "Ellen [Eu]", exigir_linha=False) \
+            == {"APAG1": esperado}
+        assert await repository.blocos_conhecidos(
+            "TDonoB", "Cloudbet", ["APAG1"], exigir_linha=False) == {}
+        assert await repository.blocos_conhecidos(
+            "TDonoA", "Stake.com", ["APAG1"], exigir_linha=False) == {}
+    _run(body())
+
+
 def test_hash_de_leitura_nao_salva_nao_vale_para_pular():
     """s424 (MyStake 308613169): a aposta ABERTA já tem linha no banco, então o JOIN
     sozinho não distingue "li e salvei" de "li e não salvei". A barreira (`gravados=True`)

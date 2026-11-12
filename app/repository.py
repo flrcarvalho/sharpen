@@ -6475,7 +6475,8 @@ def hash_bloco(bruto: str | None) -> str:
 
 
 async def blocos_conhecidos(dono: str, casa: str, codigos, parceiro: str | None = None,
-                            gravados: bool = False) -> dict[str, str]:
+                            gravados: bool = False,
+                            exigir_linha: bool = True) -> dict[str, str]:
     """`{código: hash}` do que a barreira pode pular. Falha devolve `{}` — sem memória
     ela não pula nada, que é o lado seguro.
 
@@ -6503,10 +6504,36 @@ async def blocos_conhecidos(dono: str, casa: str, codigos, parceiro: str | None 
 
     O escopo de conta segue o mesmo de `get_codigos_resolvidos` — "já tenho este
     bilhete" significa "já tenho NESTA conta".
+
+    ⚠️ **`exigir_linha=False` é só para quem pergunta "o texto mudou?", nunca para PULAR**
+    (s447). É o `iguais` da Ficha: texto igual ao da última leitura quer dizer que o cru
+    guardado ainda descreve a aposta, e isso não depende de a linha existir. Com o JOIN, a
+    aposta que o usuário APAGOU e recapturou caía como "texto mudou"; o cru, igual, não é
+    reenviado pela extensão (`cruEnviado`), e a aposta aberta ficava segurada como
+    "captura incompleta" sem saída nenhuma (Cloudbet do Feca, 11/11/2026: 32 apagadas,
+    recapturadas, 0 gravadas). Sem a linha não há conta para filtrar: o escopo é dono e
+    casa, como a chave do `bloco_visto`, e o código é único na casa.
     """
     codigos = [c for c in (codigos or []) if c]
     if not codigos:
         return {}
+    if not exigir_linha:
+        assert not gravados, "gravados exige a linha no banco"
+        try:
+            params = [codigos, dono]
+            sql = """SELECT codigo, bloco_hash FROM bloco_visto
+                      WHERE codigo = ANY($1::text[]) AND dono = $2"""
+            if casa:
+                params.append(casa)
+                sql += f" AND casa = ${len(params)}"
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                linhas = await conn.fetch(sql, *params)
+            return {r["codigo"]: r["bloco_hash"] for r in linhas}
+        except Exception:
+            logger.warning("barreira: leitura de bloco_visto falhou (segue sem pular nada)",
+                           exc_info=True)
+            return {}
     try:
         params = [codigos, dono]
         sql = """SELECT b.codigo_bilhete AS codigo, v.bloco_hash

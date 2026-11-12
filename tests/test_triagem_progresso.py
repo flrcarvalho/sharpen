@@ -50,7 +50,8 @@ def _rodar(texto, resolvidos=()):
     async def _fake_resolvidos(codigos, dono, casa=None, parceiro=None):
         return {c for c in codigos if c in set(resolvidos)}
 
-    async def _fake_conhecidos(dono, casa, codigos, parceiro=None, gravados=False):
+    async def _fake_conhecidos(dono, casa, codigos, parceiro=None, gravados=False,
+                               exigir_linha=True):
         return {}
 
     main.get_codigos_resolvidos, main.blocos_conhecidos = _fake_resolvidos, _fake_conhecidos

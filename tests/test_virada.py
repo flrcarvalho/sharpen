@@ -63,6 +63,14 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   D40a. a gravação volta a usar a descrição estrita         → d40_descricao_fora_do_dicionario
   D40b. a forma estrita passa a usar o texto da casa        → d40_descricao_fora_do_dicionario
   D40c. perna sem mercado nem seleção grava vazia           → d40_so_a_perna_sem_mercado
+  s447 (apagou e recapturou; `iguais` sem exigir a linha no banco):
+  S1. sem a trava do texto igual com veredito             → s447_texto_igual_com_veredito…
+  S2. a trava vale também para o cru fresco               → s447_cru_fresco_nao_passa…
+  S3. a trava ignora se o texto tem veredito              → s447_texto_igual_com_veredito…
+  (o `exigir_linha=False` no `/extrair` em `test_barreira_recaptura.py`; a consulta no banco
+  em `test_repository_db.py::test_s447_texto_igual_nao_exige_a_linha_no_banco`)
+Inócua (registrada, não é buraco): `texto_desmente` sem o `not cru_final(f)`: com cru aberto o
+`contradiz` já dá verdadeiro (aberto não tem classe de resultado). O termo fica pela leitura.
 Inócua (registrada, não é buraco): `virada()` aceitar `*` — o `casas_viradas()` já tira o `*`
 da lista antes, então o código segue certo sem a linha.
 
@@ -701,6 +709,56 @@ def test_d39_cru_velho_liquidado_que_o_texto_desmente_e_segurado(monkeypatch):
     feitos, _, fica, seg = asyncio.run(virada.resolver_no_extrair(
         "TDono", "VAVADA", "Vavada", "c", ["5508528206"], blocos=bloco))
     assert feitos == set() and vistos == [] and seg == {"5508528206"}
+
+
+def test_s447_texto_igual_com_veredito_que_o_cru_velho_nao_confirma_e_segurado(monkeypatch):
+    """s447: desde que o `iguais` deixou de exigir a linha no banco (a apagada e recapturada
+    conta como texto igual), "texto igual" pode ser o de uma leitura da IA mais nova que o cru.
+    Se o texto já diz o resultado e o cru guardado está aberto, ou diz outra classe, a Ficha
+    NÃO grava o cru velho: espera o cru novo. Sem veredito no texto, ou veredito que o cru
+    confirma, a Ficha resolve como sempre."""
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
+    monkeypatch.setattr(virada, "FOLGA", 0.0)
+    cod = "5508528206"
+    ganhou = {cod: f"[Código: {cod}]\nStatus: Ganhou → W\n"}
+    perdeu = {cod: f"[Código: {cod}]\nStatus: Perdeu → L\n"}
+    aberto = {cod: f"[Código: {cod}]\nStatus: Em aberto\n"}
+    # cru velho ABERTO, texto igual com veredito: segura
+    _banco(monkeypatch, crus=[_cru_velho(status=0)])
+    vistos = _gravador(monkeypatch)
+    feitos, _, fica, seg = asyncio.run(virada.resolver_no_extrair(
+        "TDono", "VAVADA", "Vavada", "c", [cod], {cod}, blocos=ganhou))
+    assert feitos == set() and vistos == [] and seg == {cod}
+    # cru velho ABERTO, texto igual sem veredito: a Ficha grava (o caso da Cloudbet)
+    _banco(monkeypatch, crus=[_cru_velho(status=0)])
+    vistos = _gravador(monkeypatch)
+    feitos, _, fica, seg = asyncio.run(virada.resolver_no_extrair(
+        "TDono", "VAVADA", "Vavada", "c", [cod], {cod}, blocos=aberto))
+    assert feitos == {cod} and seg == set()
+    # cru velho LIQUIDADO (W), texto igual dizendo L: segura; dizendo W: grava
+    _banco(monkeypatch, crus=[_cru_velho()])
+    vistos = _gravador(monkeypatch)
+    feitos, _, fica, seg = asyncio.run(virada.resolver_no_extrair(
+        "TDono", "VAVADA", "Vavada", "c", [cod], {cod}, blocos=perdeu))
+    assert feitos == set() and seg == {cod}
+    _banco(monkeypatch, crus=[_cru_velho()])
+    vistos = _gravador(monkeypatch)
+    feitos, _, fica, seg = asyncio.run(virada.resolver_no_extrair(
+        "TDono", "VAVADA", "Vavada", "c", [cod], {cod}, blocos=ganhou))
+    assert feitos == {cod} and seg == set()
+
+
+def test_s447_cru_fresco_nao_passa_pela_trava_do_texto(monkeypatch):
+    """A trava é só do cru VELHO: cru desta captura é a verdade da casa, e manda."""
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
+    monkeypatch.setattr(virada, "FOLGA", 0.0)
+    cod = "5508528206"
+    _banco(monkeypatch, crus=[{"codigo": cod, "familia": "vb", "fresco": True,
+                               "cru": json.dumps(dict(CRUS[cod], status=0))}])
+    _gravador(monkeypatch)
+    feitos, _, fica, seg = asyncio.run(virada.resolver_no_extrair(
+        "TDono", "VAVADA", "Vavada", "c", [cod], blocos={cod: "Status: Ganhou → W"}))
+    assert feitos == {cod} and seg == set()
 
 
 def test_d39_contradiz_so_pela_classe_do_resultado():
