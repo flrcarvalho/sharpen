@@ -461,3 +461,36 @@ def test_bloco_sem_veredito_nao_reabre():
     saida, skipped = _rodar(UMWIN_A_CONFERIR,
                             resolvidos={"381894004": "W", "390629480": "L"}, casa="1win")
     assert saida == "" and skipped == 2, "'a conferir' não prova reliquidação nenhuma"
+
+
+# ── RC44: a rota do cru grava durante a espera do `/extrair` ─────────────────
+
+
+def test_rc44_liquidada_pela_rota_do_cru_durante_a_espera_nao_vai_a_ia(monkeypatch):
+    """A corrida da 20BET do Gabriel (06/11/2026, parecer 023 §2.3): o "já no banco" do
+    pré-dedup deu vazio, a rota do cru gravou as apostas liquidadas enquanto o `/extrair`
+    esperava o cru, e a `aplicar` as pulou (`_liquidados`) sem motivo. 129 foram à IA à toa.
+
+    O dublê da Ficha grava no "banco" (o dict do dublê de `get_codigos_resolvidos`) no meio
+    da chamada e não resolve nem dá motivo, como a `aplicar` faz com o liquidado. Depois da
+    espera o `/extrair` tem de perguntar de novo. Mutação: sem a segunda conferência, as
+    duas vão à IA (detectada)."""
+    import virada
+    banco: dict = {}
+    registro = {}
+
+    async def _resolver(dono, casa_key, casa, parceiro, codigos, iguais, **kw):
+        banco.update({"475962111": "W", "475962999": "L"})   # a rota do cru gravou agora
+        return set(), 0.0, {}, set()
+
+    async def _registrar(dono, casa_key, capturadas, ja_no_banco, pela_ficha, inalterados,
+                         para_ia, espera=0.0, motivos=None, segurados=0):
+        registro.update(ja_no_banco=ja_no_banco, para_ia=para_ia, motivos=motivos)
+
+    monkeypatch.setattr(virada, "virada", lambda k: True)
+    monkeypatch.setattr(virada, "resolver_no_extrair", _resolver)
+    monkeypatch.setattr(virada, "registrar", _registrar)
+    monkeypatch.setattr(virada, "vigia_por_dia", lambda: 0)
+    saida, skipped = _rodar(NOVIBET_UMA_LIQUIDOU, resolvidos=banco)
+    assert saida == "" and skipped == 2, "liquidada durante a espera não vai à IA"
+    assert registro == {"ja_no_banco": 2, "para_ia": 0, "motivos": {}}

@@ -1606,10 +1606,13 @@ _IA_ACEITA = ("Over 11.5 Escanteios [Vicenza v Pisa] // "
               "Haro Rioja (F) +1.5 Sets [Haro Rioja (F) v Haris (F)]")
 
 
-async def _virada_ponta_a_ponta(sess, payload, texto, antes=None, virar_no_extrair=None):
+async def _virada_ponta_a_ponta(sess, payload, texto, antes=None, virar_no_extrair=None,
+                                na_espera=None):
     """Rota da Ficha → `/extrair` (o pré-dedup de sempre) → IA dublê → `/salvar`.
     `antes` = linha que a IA já tinha gravado (código, resultado). `virar_no_extrair` = a
-    chave passa a valer só DEPOIS da rota (o cru chegou antes da virada)."""
+    chave passa a valer só DEPOIS da rota (o cru chegou antes da virada). `na_espera` (RC44) =
+    a corrida: a rota do cru roda DENTRO da espera do `/extrair` (`virada.esperar_cru`), depois
+    do primeiro "já no banco", seguida de `na_espera()`."""
     import os
     import ficha
     import main
@@ -1630,16 +1633,31 @@ async def _virada_ponta_a_ponta(sess, payload, texto, antes=None, virar_no_extra
             tsv=f"10/10/2026\tFutebol\t\t{sess.casa}\t{sess.parceiro}\tML\tTime A [A vs B]"
                 f"\t10\t2\t{res}\t{cod}", casa=sess.casa, parceiro=sess.parceiro),
             sess.dono, sess.dono)
-    resp = await ficha.receber(payload)
+    import virada
+    espera_real = virada.esperar_cru
+    if na_espera is None:
+        resp = await ficha.receber(payload)
+    else:
+        resp = {}
+
+        async def _corrida(dono, casa_key, *a, **k):
+            resp.update(await ficha.receber(payload))
+            await na_espera()
+            return 0.0
+        virada.esperar_cru = _corrida
     if virar_no_extrair is not None:
         os.environ["FICHA_CASAS_VIRADAS"] = virar_no_extrair
-    para_ia, cortados = await main._dedup_superbet_text(texto, sess.dono, sess.casa,
-                                                        sess.parceiro)
+    try:
+        para_ia, cortados = await main._dedup_superbet_text(texto, sess.dono, sess.casa,
+                                                            sess.parceiro)
+    finally:
+        virada.esperar_cru = espera_real
     lidos = repository.codigos_do_texto(para_ia)
     tsv = "\n".join(f"10/10/2026\tFutebol\t\t{sess.casa}\t{sess.parceiro}\tML\t"
                     f"Time A [A vs B]\t10\t2\tL\t{c}" for c in lidos)
-    await main.gravar_tsv(main.SalvarRequest(tsv=tsv, casa=sess.casa, parceiro=sess.parceiro),
-                          sess.dono, sess.dono)
+    if lidos:                         # lote vazio não vai ao `/salvar` (a extensão não manda)
+        await main.gravar_tsv(main.SalvarRequest(tsv=tsv, casa=sess.casa,
+                                                 parceiro=sess.parceiro), sess.dono, sess.dono)
     await asyncio.sleep(0.1)          # a métrica vai por `_fire`
     async with pool.acquire() as conn:
         banco = {r["codigo_bilhete"]: (r["origem"], r["resultado"]) for r in await conn.fetch(
@@ -1660,6 +1678,46 @@ def test_virada_tres_bilhetes_chegam_ao_banco(monkeypatch):
     assert (lidos, cortados) == ([recusada], 2)
     assert banco == {aceita: ("ficha", "W"), recusada: ("extracao", "L")}
     assert _run(_avisos_ficha(sess.dono)) == {sem_cru: "captura_incompleta"}
+
+
+def test_rc44_corrida_da_rota_do_cru_com_o_extrair(monkeypatch):
+    """RC44 (parecer 023 §2.3, a 20BET do Gabriel em 06/11/2026): o `/extrair` calcula o "já no
+    banco" ANTES de esperar o cru; a rota do cru grava a aceita LIQUIDADA nesse meio-tempo e a
+    `aplicar` a pula (`_liquidados`) sem motivo. Ela ia à IA à toa. Depois da espera, o
+    `/extrair` pergunta de novo, com a mesma função e o mesmo filtro de conta.
+
+    E a outra metade: na mesma janela, o código da recusada é gravado noutra CONTA do mesmo
+    dono e casa. Aqui ele continua indo à IA e entra na conta certa; com o `_liquidados` da
+    virada (sem filtro de conta) ele sumiria do lote desta.
+    Mutações (s449, detectadas): R1 sem a segunda conferência (a aceita vai à IA), R2 a
+    segunda conferência sem a conta (a recusada some do lote).
+    Não cobre: a espera de verdade (o dublê de `esperar_cru` roda a rota do cru dentro dela)."""
+    import main
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
+    outra = "outra [Op]"
+
+    async def na_espera():
+        await main.gravar_tsv(main.SalvarRequest(
+            tsv=f"10/10/2026	Futebol		{sess.casa}	{outra}	ML	Time A [A vs B]"
+                f"	10	2	L	{recusada}", casa=sess.casa, parceiro=outra),
+            sess.dono, sess.dono)
+    resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(sess, payload, texto,
+                                                              na_espera=na_espera))
+    assert resp["fichas"] == {"aceitas": 1, "recusadas": 1} and resp["na_planilha"] == 1
+    assert lidos == [recusada], "a liquidada pela rota do cru na espera não vai à IA"
+    assert cortados == 2
+    async def linhas():
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            return sorted(tuple(r.values()) for r in await conn.fetch(
+                "SELECT codigo_bilhete, parceiro, origem, resultado FROM bilhetes "
+                "WHERE dono = $1", sess.dono))
+    assert _run(linhas()) == sorted([
+        (aceita, sess.parceiro, "ficha", "W"),
+        (recusada, sess.parceiro, "extracao", "L"),
+        (recusada, outra, "extracao", "L")])
+    assert sess.log == [{"capturadas": 3, "ja_no_banco": 1, "pela_ficha": 0, "para_ia": 1}]
 
 
 def test_virada_semente_nao_vota_na_linha_da_propria_ficha(monkeypatch):

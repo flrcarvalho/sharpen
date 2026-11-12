@@ -1462,8 +1462,9 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     blocos_txt = blocos_por_codigo(text)
     # `vereditos` (s448): o liquidado cujo `Status: … → X` contradiz o resultado gravado é a
     # CASA reliquidando, e volta à leitura em vez de ser pulado (`get_codigos_resolvidos`).
+    vereditos = vereditos_do_texto(blocos_txt)
     ja_resolvidos = await get_codigos_resolvidos(codigos, dono, casa, parceiro,
-                                                 vereditos=vereditos_do_texto(blocos_txt))
+                                                 vereditos=vereditos)
     # Para PULAR, a leitura anterior tem de ter chegado ao banco (`gravados`, s424): sem
     # isso, a aposta aberta que liquidou e cuja leitura não foi salva era pulada para
     # sempre como "sem mudança" (MyStake 308613169). Ver `blocos_conhecidos`.
@@ -1492,6 +1493,19 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
             dono, casa_key, casa, parceiro, [c for c in dict.fromkeys(codigos)
                                              if c not in ja_resolvidos], iguais,
             no_texto=list(dict.fromkeys(codigos)), info=info, blocos=blocos_txt)
+        # RC44 (parecer 023 §2.3): a rota do cru pode gravar DURANTE a espera acima, e o código
+        # que ela liquidou nesse meio-tempo a `aplicar` pula (`_liquidados`, D10) sem dar
+        # motivo: ele ia à IA à toa (20BET do Gabriel, 06/11: 129 apostas, US$ 0,94). Refaz o
+        # "já no banco" com a MESMA função e o MESMO filtro de conta, só para quem ainda iria à
+        # IA. Nunca com o `_liquidados` da virada: ele não filtra a conta, e a aposta de outra
+        # conta do mesmo dono sumiria do lote desta (a nota de escopo acima).
+        restantes = [c for c in dict.fromkeys(codigos) if c not in ja_resolvidos
+                     and c not in pela_ficha and c not in segurados]
+        if restantes and (tardios := await get_codigos_resolvidos(
+                restantes, dono, casa, parceiro, vereditos=vereditos)):
+            logger.info("virada: %d código(s) liquidado(s) pela rota do cru durante a espera "
+                        "saem do lote da IA · %s/%s", len(tardios), dono, casa)
+            ja_resolvidos = set(ja_resolvidos) | tardios
 
     mantidos: list[str] = []
     vistos: set[str] = set()

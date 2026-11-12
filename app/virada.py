@@ -307,7 +307,9 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
                   candidatas: dict) -> tuple[set, dict]:
     """`candidatas` = {código: (Ficha ou None, motivos de recusa)}. Grava o que a Ficha resolve
     e devolve (códigos que a Ficha resolveu, {código: motivo} dos que ficam com a IA).
-    Código liquidado no banco não entra em nenhum dos dois: o pré-dedup de sempre o tira."""
+    Código liquidado no banco não entra em nenhum dos dois: o pré-dedup de sempre o tira, e o
+    que a rota do cru liquidou durante a espera sai na segunda conferência do `/extrair`
+    (RC44, `main._dedup_superbet_text`)."""
     casa_key = (casa_key or "").upper()
     cods = [c for c in candidatas if c]
     if not cods:
