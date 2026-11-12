@@ -1720,6 +1720,48 @@ def test_rc44_corrida_da_rota_do_cru_com_o_extrair(monkeypatch):
     assert sess.log == [{"capturadas": 3, "ja_no_banco": 1, "pela_ficha": 0, "para_ia": 1}]
 
 
+def test_liquidada_em_outra_conta_vai_a_ia_com_motivo_proprio(monkeypatch):
+    """s449 (ponto 2 da RC44): o código liquidado noutra CONTA do mesmo dono e casa, e não nesta,
+    vai à IA nesta conta (o pré-dedup filtra a conta), mas a `aplicar` o pulava sem motivo e a
+    `virada_log` o contava como "à IA sem motivo", junto da corrida. Agora leva
+    `liquidada em outra conta` (coluna `outra_conta`). O liquidado NESTA conta continua sem
+    motivo (ele não vai à IA: o pré-dedup e a RC44 o tiram).
+    Mutações (s449, detectadas): O1 sem o motivo (volta a pular calado), O2 a divisão sem a
+    conta (o liquidado nesta conta ganha o motivo).
+    Não cobre: a IA (dublê) nem a Ficha gravando o código noutra conta (D10: ela não grava)."""
+    import main
+    import virada
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA")
+    outra = "outra [Op]"
+
+    async def na_espera():
+        await main.gravar_tsv(main.SalvarRequest(
+            tsv=f"10/10/2026	Futebol		{sess.casa}	{outra}	ML	Time A [A vs B]"
+                f"	10	2	L	{recusada}", casa=sess.casa, parceiro=outra),
+            sess.dono, sess.dono)
+    _, lidos, _, _ = _run(_virada_ponta_a_ponta(sess, payload, texto, na_espera=na_espera))
+    assert lidos == [recusada]
+
+    async def ler():
+        # a `aplicar` direto, com dois liquidados: a aceita (nesta conta, pela rota do cru) e um
+        # código só na outra (a recusada já entrou nesta conta pela IA dublê)
+        so_na_outra = "5500000099"
+        await main.gravar_tsv(main.SalvarRequest(
+            tsv=f"10/10/2026	Futebol		{sess.casa}	{outra}	ML	Time A [A vs B]"
+                f"	10	2	L	{so_na_outra}", casa=sess.casa, parceiro=outra),
+            sess.dono, sess.dono)
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            log = dict(await conn.fetchrow("SELECT outra_conta, ficha_recusada FROM virada_log"))
+            _, fica = await virada.aplicar(conn, sess.dono, "VAVADA", sess.casa, sess.parceiro,
+                                           {aceita: (None, ["x"]), so_na_outra: (None, ["x"])})
+            return log, fica, so_na_outra
+    log, fica, so_na_outra = _run(ler())
+    assert log == {"outra_conta": 1, "ficha_recusada": 0}
+    assert fica == {so_na_outra: virada.OUTRA_CONTA}, "o liquidado nesta conta não ganha motivo"
+
+
 def test_virada_semente_nao_vota_na_linha_da_propria_ficha(monkeypatch):
     """O esporte da linha `origem='ficha'` saiu do dicionário: votar nela seria o dicionário
     votando em si mesmo. A aceita gravada pela Ficha fica sem par; a linha da IA vota."""

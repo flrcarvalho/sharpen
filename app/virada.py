@@ -247,7 +247,9 @@ MOTIVOS = {
     "cru não chegou": "cru_nao_chegou",
     "texto mudou sem cru novo": "sem_cru_novo",
     "captura incompleta esgotada": "captura_esgotada",      # D39: a saída do segurado
+    "liquidada em outra conta": "outra_conta",              # s449: vai à IA, nesta conta
 }
+OUTRA_CONTA = "liquidada em outra conta"
 ESGOTADA = "captura incompleta esgotada"
 
 
@@ -258,15 +260,20 @@ def no_master(esporte: str | None, categoria: str | None) -> bool:
         categoria in taxonomia.categorias_canonicas()
 
 
-async def _liquidados(conn, dono: str, casa_key: str, codigos: list[str]) -> set[str]:
+async def _liquidados(conn, dono: str, casa_key: str, codigos: list[str],
+                      parceiro: str | None = None) -> set[str]:
     """Códigos já LIQUIDADOS no banco NESTA casa, de qualquer origem: a Ficha não os reescreve
     (D10). O mesmo código noutra casa do dono é outra aposta (s423, BACKLOG §4.18): sem a casa,
-    a Ficha nem a decidia, e ela não gravava, não ficava `ia` nem virava pendente."""
-    rows = await conn.fetch(
-        "SELECT DISTINCT codigo_bilhete FROM bilhetes WHERE dono = $1 "
-        "AND codigo_bilhete = ANY($2::text[]) AND extraction_state = 'resolvida' "
-        f"AND {_K} = $3",
-        dono, codigos, casa_key)
+    a Ficha nem a decidia, e ela não gravava, não ficava `ia` nem virava pendente. Com
+    `parceiro`, só os liquidados NESTA conta (o filtro do pré-dedup, `repository._filtro_conta`)."""
+    sql = ("SELECT DISTINCT codigo_bilhete FROM bilhetes WHERE dono = $1 "
+           "AND codigo_bilhete = ANY($2::text[]) AND extraction_state = 'resolvida' "
+           f"AND {_K} = $3")
+    args = [dono, codigos, casa_key]
+    if parceiro:
+        sql += " AND parceiro = $4"
+        args.append(parceiro)
+    rows = await conn.fetch(sql, *args)
     return {r["codigo_bilhete"] for r in rows}
 
 
@@ -309,7 +316,8 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
     e devolve (códigos que a Ficha resolveu, {código: motivo} dos que ficam com a IA).
     Código liquidado no banco não entra em nenhum dos dois: o pré-dedup de sempre o tira, e o
     que a rota do cru liquidou durante a espera sai na segunda conferência do `/extrair`
-    (RC44, `main._dedup_superbet_text`)."""
+    (RC44, `main._dedup_superbet_text`). A exceção é o liquidado só noutra CONTA: fica com a
+    IA, com o motivo `OUTRA_CONTA` (s449)."""
     casa_key = (casa_key or "").upper()
     cods = [c for c in candidatas if c]
     if not cods:
@@ -330,6 +338,12 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
             logger.info("virada: reliquidação de %s/%s pela Ficha: %s", dono, casa_key,
                         sorted(reabrir)[:10])
             liquidados -= reabrir
+    # s449: o liquidado só noutra CONTA do mesmo dono e casa não sai no pré-dedup (ele filtra a
+    # conta) e vai à IA nesta conta, o que está certo. Mas ia sem motivo, e a `virada_log` o
+    # contava junto da corrida da RC44. Agora leva o motivo próprio; a Ficha continua sem
+    # gravá-lo (D10) e o `ficha_virada` não muda: o código é do dono e casa, não da conta.
+    outra_conta = (liquidados - await _liquidados(conn, dono, casa_key, list(liquidados),
+                                                  parceiro)) if liquidados and parceiro else set()
     termos = await _dic.carregar(conn, casa_key)
     estado = {r["codigo"]: (r["impressao"], r["estado"]) for r in await conn.fetch(
         "SELECT codigo, impressao, estado FROM ficha_virada WHERE dono = $1 AND casa = $2 "
@@ -345,6 +359,9 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
         novo_estado[cod] = ("", "ia", motivo)
 
     for cod in cods:
+        if cod in outra_conta:
+            fica[cod] = OUTRA_CONTA
+            continue
         if cod in liquidados:
             continue
         f, motivos = candidatas[cod]

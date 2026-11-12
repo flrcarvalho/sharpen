@@ -1048,6 +1048,9 @@ ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS sem_cru_novo   INTEGER NOT NULL 
 ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS captura_incompleta INTEGER NOT NULL DEFAULT 0;
 -- D39, a saída: quantos SEGURADOS esgotaram (2 `/extrair` ou 24 h sem cru novo) e foram à IA.
 ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS captura_esgotada INTEGER NOT NULL DEFAULT 0;
+-- s449: o código liquidado noutra CONTA do mesmo dono e casa, e não nesta. Vai à IA nesta conta
+-- (o pré-dedup filtra a conta), e antes ia sem motivo nenhum (a `aplicar` só o pulava).
+ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS outra_conta INTEGER NOT NULL DEFAULT 0;
 
 -- D42 (s438): todo voto que a semente RECUSA fica registrado com o motivo e o termo (antes sumia em
 -- silêncio), e a perna que a Ficha grava com o texto da casa por falta de par (`origem =
