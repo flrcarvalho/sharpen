@@ -526,10 +526,15 @@ def contradiz(f, bloco) -> bool:
 
 def texto_desmente(f, bloco) -> bool:
     """O texto traz veredito (`Status: … → X`) e o cru guardado não o confirma: cru ainda
-    aberto, ou liquidado em outra classe. Sem veredito no texto, ou Ficha recusada (None),
-    não desmente: a recusa segue o caminho dela no `aplicar`. É a trava do texto IGUAL com cru
-    velho (s447), que desde então vale também para a aposta apagada e recapturada."""
-    if not f or not _VEREDITO.search(bloco or ""):
+    aberto, ou liquidado em outra classe. Sem veredito no texto, ou Ficha recusada, não
+    desmente: a recusa segue o caminho dela no `aplicar` (vai à IA). É a trava do texto IGUAL
+    com cru velho (s447), que desde então vale também para a aposta apagada e recapturada.
+
+    ⚠ A recusa NÃO chega como None: o `montar_ficha` devolve `{"codigo", "cru_recusado": True}`,
+    um dict sem `status`, e o `not cru_final(f)` o lia como "cru aberto". A aposta que só a IA
+    lê era segurada à espera de um cru que a extensão nunca reenvia (s451, Stake.com do
+    Gabriel: 20 XMulti liquidadas fora da base depois de apagar e recapturar)."""
+    if not f or f.get("cru_recusado") or not _VEREDITO.search(bloco or ""):
         return False
     return not cru_final(f) or contradiz(f, bloco)
 

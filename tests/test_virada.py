@@ -67,6 +67,8 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   S1. sem a trava do texto igual com veredito             → s447_texto_igual_com_veredito…
   S2. a trava vale também para o cru fresco               → s447_cru_fresco_nao_passa…
   S3. a trava ignora se o texto tem veredito              → s447_texto_igual_com_veredito…
+  s451 (a recusa da Ficha é um dict, não None):
+  S4. `texto_desmente` sem a trava do `cru_recusado`      → s451_ficha_recusada_com_texto_igual…
   (o `exigir_linha=False` no `/extrair` em `test_barreira_recaptura.py`; a consulta no banco
   em `test_repository_db.py::test_s447_texto_igual_nao_exige_a_linha_no_banco`)
 Inócua (registrada, não é buraco): `texto_desmente` sem o `not cru_final(f)`: com cru aberto o
@@ -783,6 +785,38 @@ def test_d39_ficha_recusada_com_texto_mudado_segue_para_a_ia(monkeypatch):
         "TDono", "VAVADA", "Vavada", "c", ["5508528206"]))
     assert fica == {"5508528206": "texto mudou sem cru novo"} and seg == set()
     assert conn.motivos["5508528206"] == "texto mudou sem cru novo"
+
+
+def test_s451_ficha_recusada_com_texto_igual_e_veredito_vai_a_ia(monkeypatch):
+    """s451 (Stake.com do Gabriel, 12/11/2026): XMulti liquidada, apagada e recapturada. O cru
+    é VELHO (a extensão não reenvia cru igual), o texto é IGUAL ao da última leitura e traz o
+    veredito. A Ficha recusa a XMulti, então só a IA lê: a aposta vai à IA, nunca é segurada.
+    Antes, o dict de recusa do `montar_ficha` (sem `status`) passava por "cru aberto" no
+    `texto_desmente` e 20 de 69 ficavam fora da base, sem erro.
+
+    O cru é o REAL da fixture e a Ficha passa pelo `montar_ficha` de verdade: o teste antigo
+    da s447 nunca exerceu a recusa, porque a supunha None."""
+    from adaptadores import stc
+    fix = (Path(__file__).resolve().parents[1] / "extensor" / "harness" / "fixtures"
+           / "stakecom.xmulti.json")
+    xm = json.loads(fix.read_text(encoding="utf-8"))
+    cod = "689158437"                       # XMulti de 3, Derrota, 40 USDT, payout 0
+    cru = next({"iid": x["iid"], "bet": x["bet"]} for x in xm["settled"]
+               if stc.codigo(x) == cod)
+    f, mot = ficha.montar_ficha("stc", cru, "STAKECOM")
+    assert f.get("cru_recusado") and mot                       # a premissa: a Ficha recusa
+    assert not virada.texto_desmente(f, "Status: Perdeu → L")
+
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "STAKECOM")
+    monkeypatch.setattr(virada, "FOLGA", 0.0)
+    conn = _banco(monkeypatch, crus=[{"codigo": cod, "familia": "stc", "fresco": False,
+                                      "cru": json.dumps(cru)}])
+    vistos = _gravador(monkeypatch)
+    feitos, _, fica, seg = asyncio.run(virada.resolver_no_extrair(
+        "Gabriel", "STAKECOM", "Stake.com", "gfatuch [Fatuch]", [cod], {cod},
+        blocos={cod: f"[Código: {cod}]\nStatus: Perdeu → L\n"}))
+    assert seg == set() and conn.segurados == set()
+    assert feitos == set() and vistos == [] and cod in fica
 
 
 def test_chave_da_casa_bate_com_o_registro_inteiro():
