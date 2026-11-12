@@ -288,6 +288,16 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0777",
+      "v": "v0.7.77",
+      "data": "2026-11-12",
+      "texto": "Nova casa no SharpenUp: **CopaWin**.",
+      "itens": [
+        "Atualize a extensão e dê Ctrl+Shift+R na aba da CopaWin **e** na aba do painel.",
+        "Capture logado em wncopa.com. Print e PDF da CopaWin passam a ser recusados: a aposta entra pela extensão."
+      ]
+    },
+    {
       "id": "su-0773",
       "v": "v0.7.73",
       "data": "2026-11-10",

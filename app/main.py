@@ -295,6 +295,10 @@ _CASA_DISPLAY: dict[str, str] = {
     # manual, como `Cloudbet` (medido em 10/11/2026: 283 bilhetes, 2 contas, 2 casas_meta, 874
     # correcoes, uma grafia só), então vale a da base.
     "CLOUDBET":       "Cloudbet",
+    # Plataforma PRÓPRIA (s451, `wncopa.com`, API `/api/bet/my-bets`). A base JÁ tinha a casa,
+    # por print e pelo bot, como `CopaWin` (medido em 12/11/2026: 303 bilhetes, 1 conta, 1
+    # casas_meta, 199 correcoes, 13 uso_tokens, uma grafia só), então vale a da base.
+    "COPAWIN":        "CopaWin",
     "BETESPORTE":     "BETesporte",
     "BETFAIR":        "Betfair",
     "BETFAST":        "Betfast",
@@ -1249,6 +1253,9 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # Cloudbet (s442) — plataforma própria. ID = `uuid` da APOSTA (36 caracteres, o "ID:" do card
     # expandido). O `positionId` (hash de 40) é da posição e não é código.
     "CLOUDBET",
+    # CopaWin (s451) — plataforma própria. ID = `id` do bilhete, numérico de 6 dígitos
+    # (`660753`), o mesmo do `data-bet-id` do card. O `id` de cada item (7 dígitos) é da perna.
+    "COPAWIN",
     "BETPIX365",
     # Estrela Bet (s303) — 5ª casa Altenar. Mesmo espaço de IDs do motor: numérico de 10
     # dígitos, o mesmo número que o rodapé do card estampa como `ID:`.

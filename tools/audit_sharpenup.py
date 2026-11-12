@@ -186,6 +186,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # Cloudbet (s442): a perdida Bet Builder de 09/11/2026 (30 USDT @6,934), conta do recon.
     # `uuid` da APOSTA (o "ID:" do card expandido), nunca o `positionId` da posição.
     "CLOUDBET":   "225709c2-3e94-467c-9812-37379a7082cf",
+    # CopaWin (s451): a ganha de 07/11/2026 (R$ 825 @2,20, retorno R$ 1.815), conta do Jaao26.
+    # `id` do bilhete (o `data-bet-id` do card), nunca o `id` do item (a perna).
+    "COPAWIN":    "660730",
     # `internal_bet_id` real da conta (a perdida de 07/08, stake R$18,88 @3,95) — numérico de
     # 7 dígitos. ⚠ É o ID que o CARD estampa; o `ticket_id` (11 dígitos) NÃO vai para o
     # marcador, senão print e captura gerariam códigos diferentes para o mesmo bilhete.

@@ -1870,10 +1870,11 @@ Entrou na 0.7.69, 11ª Altenar, espelho da Vavada, recon LOGADO na conta do Feca
   jogo em andamento: **decisão do Feca** (regra × pedir a data na legenda, `25-10 4h35`).
 - **`0.5❌` sem o `u`** não vira linha de stake (`RE_LINHA_STAKE` exige o `u`). Ao vivo vira aviso
   ("assumi 1u"), não perda calada.
-- **Casas sem `CASA_*.md`:** `Win.Bet`, `CopaWin` e `99play` só existem no bot e nos mapas de
-  favicon. Leitura por print na tela de Extração não tem arquivo de tradução.
-- **CopaWin e 99play caem no globo:** o CopaWin não publica favicon nenhum e o da 99play só existe
-  num CDN (`api.koraigaming.com`) que o Google S2 não lê.
+- **Casas sem `CASA_*.md`:** `Win.Bet` e `99play` só existem no bot e nos mapas de
+  favicon (a CopaWin ganhou o dela na s451). Leitura por print na tela de Extração não tem arquivo de tradução.
+- **99play cai no globo:** o favicon dela só existe num CDN (`api.koraigaming.com`) que o Google
+  S2 não lê. A CopaWin estava em `copawnbr.com`; a s451 passou os mapas a `wncopa.com`, o domínio
+  medido no recon, e o ícone **não foi conferido** na tela.
 - **As 9 abertas do passado** (`SPN202610-28/30/31/32/35/36/37/47/48`) não estão no storage do bot:
   o resultado entra pelo dashboard, não por edição da legenda.
 

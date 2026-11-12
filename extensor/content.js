@@ -454,6 +454,30 @@
     }
   });
 
+  // Bilhetes da COPAWIN capturados pelo cw_inject.js (mundo MAIN) — `GET /api/bet/my-bets`,
+  // plataforma PRÓPRIA (s451). A 1ª página vem no HTML, então o inject BUSCA a lista só com o
+  // cookie, página a página até `pagination.total_pages`. `cwById` guarda 1 bilhete por id; a
+  // versão LIQUIDADA vence a aberta.
+  const cwById = new Map();          // id(string) → bilhete
+  let cwFimReal = false;
+  let cwHookVivo = false, cwRespostas = 0;
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupCWData) {
+      if (d.hook) cwHookVivo = true;
+      if (typeof d.respostas === "number") cwRespostas = d.respostas;
+      if (Array.isArray(d.bilhetes)) {
+        const aberta = (b) => b.status === "pending" || b.status === "active";
+        for (const b of d.bilhetes) {
+          if (!b || !b.id) continue;
+          const ex = cwById.get(b.id);
+          if (!ex || aberta(ex) || !aberta(b)) cwById.set(b.id, b);
+        }
+      }
+      if (d.fim) cwFimReal = true;
+    }
+  });
+
   // Bilhetes da SHUFFLE capturados pelo shf_inject.js (mundo MAIN) — o GraphQL `GetSportsBets`
   // (`sportsBetsV3`), já normalizado. Plataforma PRÓPRIA (s401), a 1ª casa GraphQL. O inject
   // aprende o `authorization` de qualquer chamada GraphQL autenticada da página e pede a lista
@@ -1649,6 +1673,12 @@
       // repagina `placed` e `finished` até `meta.totalPages`. SEM fallback de texto: o shadow
       // DOM esconde os cards do `innerText`, e o robô genérico mandaria a casca para a IA.
       blocos = await roboDXPassive(ctx);
+    } else if (casa === "copawin") {
+      // Busca ativa (cw_inject, plataforma PRÓPRIA — s451). A 1ª página de "Minhas Apostas" vem
+      // no HTML, sem chamada de API: o inject pede `/api/bet/my-bets` só com o cookie, até
+      // `pagination.total_pages`. SEM fallback de texto: o card mostra o retorno POTENCIAL até
+      // na perdida, e a IA leria derrota como ganho.
+      blocos = await roboCWPassive(ctx);
     } else if (casa === "shuffle") {
       // Passivo + replay (shf_inject, plataforma PRÓPRIA — s401), a 1ª casa GraphQL. A TELA É
       // ESTREITA: pede `first: 9` com o filtro de uma aba. O replay pede a lista SEM filtro e
@@ -1913,6 +1943,9 @@
         betcoin:    { nome: "Betcoin",    hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         dexsport:   { nome: "DEX Sport",  hook: dxHookVivo, resp: dxRespostas, vistos: dxById.size,
                       extra: dxRespostas === 0 ? " · abra Esportes → Minhas apostas e rode de novo" : "" },
+        // CopaWin (s451): só o cookie. Zero respostas = sessão caída (a API devolve erro).
+        copawin:    { nome: "CopaWin",    hook: cwHookVivo, resp: cwRespostas, vistos: cwById.size,
+                      extra: cwRespostas === 0 ? " · faça login em wncopa.com, abra Minhas Apostas e rode de novo" : "" },
         // Shuffle (s401): o token sai de qualquer chamada GraphQL autenticada da página. Sem
         // ele (`semToken`) a sessão não está logada ou a página não carregou os esportes.
         shuffle:    { nome: "Shuffle",    hook: shfHookVivo, resp: shfRespostas, vistos: shfById.size,
@@ -5032,6 +5065,161 @@
     processar();
     console.log("[SharpenUp] Dexsport: " + blocos.length + " bilhete(s) · dxById=" + dxById.size +
                 " · hook=" + dxHookVivo + " · respostas=" + dxRespostas + " · fimReal=" + dxFimReal);
+    return blocos;
+  }
+
+  // ── CopaWin (plataforma própria, `wncopa.com` — s451) ──────────────────────────
+  // Formata 1 bilhete de `GET /api/bet/my-bets` (normalizado pelo cw_inject) no bloco que a IA
+  // lê. Leituras VALIDADAS contra o card (recon de 12/11/2026, 15 liquidados):
+  //   • dinheiro em REAL (a casa só opera em R$ e a API não manda moeda).
+  //   • `actual_return` é o dinheiro que voltou; `potential_return` é o que o CARD estampa como
+  //     "RETORNO" até na PERDIDA (Náutico 660703: card R$ 2.247,00, voltou 0). Nunca decidir
+  //     pelo potencial.
+  //   • `total_odds` vem cheio em todo status (sem a armadilha da KTO).
+  //   • `created_at` em Brasília (o card mostra igual); o evento em UTC, que o inject já fez
+  //     epoch — aqui sai em São Paulo pelo `_dhJB`.
+  //   • ODD TURBINADA: 4 seleções de 4 jogos vendidas como `single` de UM item
+  //     (`market_key: "combined"`), sem odd por seleção, com `leg_statuses` por seleção.
+  // O que NÃO se decide aqui: status desconhecido sobe cru, "a conferir". O de-para vive na
+  // CASA_COPAWIN.md. `player_note`/`live_description` (recado interno da casa) nunca entram.
+  const _abertaCW = (b) => b.status === "pending" || b.status === "active";
+  const _PERNA_CW = { won: "ganha", lost: "perdida", void: "anulada", pending: "em aberto", active: "em aberto" };
+  const _comboCW = (s) => s && s.mercadoKey === "combined" && Array.isArray(s.pernasCombo) && s.pernasCombo.length > 0;
+
+  // Evento mais recente: no combo, `last_event_at` é o último jogo do pacote.
+  function _dataEventoCW(b) {
+    let max = null;
+    for (const s of (b.sels || [])) {
+      for (const t of [s.inicio, s.ultimo]) {
+        if (t != null && isFinite(t) && (max == null || t > max)) max = t;
+      }
+    }
+    return max;
+  }
+
+  // Odd: W → retorno ÷ stake conciliado com a da casa; o resto → a da casa.
+  function _oddCW(b) {
+    const st = b.stake, pay = b.retorno;
+    if (b.status === "won" && st > 0 && pay > 0 && Math.abs(pay - st) >= 0.005) return _conciliaJB(pay, st, b.odd);
+    return b.odd > 0 ? b.odd : null;
+  }
+
+  // Leitura pelo DINHEIRO + o status cru. Retorno zero só é derrota com `lost`; ganho só com
+  // `won` E retorno = stake × odd no centavo (meia vitória, boost e cashout não fecham e sobem a
+  // conferir: não há amostra de nenhum dos três).
+  function _resultadoCW(b) {
+    const cru = "status \"" + b.status + "\"";
+    if (_abertaCW(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    const st = b.stake, pay = b.retorno;
+    if (b.status === "cashout") return "Cash Out com retorno " + (pay == null ? "ausente" : "R$ " + _brl(pay)) + " (sem amostra; a conferir — não liquidar automaticamente)";
+    if (pay == null || !(st > 0)) return cru + " sem stake ou retorno (a conferir — não liquidar automaticamente)";
+    if (pay === 0) return b.status === "lost" ? "Perdeu → L" : "retorno zero com " + cru + " (a conferir — não liquidar automaticamente)";
+    if (Math.abs(pay - st) < 0.005) {
+      return b.status === "void" ? "Devolvida/void (retorno = stake) → V"
+        : "retorno = stake com " + cru + " (a conferir — não liquidar automaticamente)";
+    }
+    if (b.status === "won" && b.odd > 0 && Math.abs(pay - st * b.odd) <= 0.01) return "Ganhou → W (retorno R$ " + _brl(pay) + ")";
+    return "Retorno R$ " + _brl(pay) + " com " + cru + " (não fecha stake × odd: HW/HL, boost ou cashout; a conferir — não liquidar automaticamente)";
+  }
+
+  function _tipoCW(b) {
+    const sels = b.sels || [], n = sels.length;
+    if (n === 1 && _comboCW(sels[0])) {
+      return "Odd Turbinada (combo da casa · " + sels[0].pernasCombo.length + " seleções · odd do conjunto, sem odd por seleção)";
+    }
+    if (b.tipo === "multiple" || n >= 2) return "Múltipla (" + n + " seleções)";
+    if (n === 1) return "Simples";
+    return b.tipo ? "tipo \"" + b.tipo + "\"" : "";
+  }
+
+  function formatTicketCW(b) {
+    const L = [];
+    L.push("[Código: " + b.id + "]");
+    const dev = _dhJB(_dataEventoCW(b));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    const dh = _dhJB(b.ts);
+    if (dh) L.push("Data (colocação): " + dh);
+    L.push("Stake: " + _brl(b.stake));
+    L.push("Status: " + _resultadoCW(b));
+    L.push("Status (API): status " + b.status + " · type " + (b.tipo || "?"));
+    const odd = _oddCW(b);
+    if (odd != null) L.push("Odd: " + _odd(odd));
+    const tipo = _tipoCW(b);
+    if (tipo) L.push("Tipo: " + tipo);
+    if (_abertaCW(b) && b.potencial > 0) L.push("Retorno potencial: R$ " + _brl(b.potencial));
+    L.push("Seleções:");
+    const sels = b.sels || [];
+    for (const s of sels) {
+      if (_comboCW(s)) {
+        // Uma linha por seleção do pacote, com o jogo e o resultado que a casa deu a ela.
+        const labels = String(s.label || "").split("||").map((x) => x.trim());
+        const jogos = (s.jogosCombo && s.jogosCombo.length) ? s.jogosCombo : String(s.jogo || "").split("||").map((x) => x.trim());
+        L.push("- " + (s.mercado || "Combo") + " [conjunto " + (_PERNA_CW[s.status] || "status " + s.status) + "]");
+        s.pernasCombo.forEach((st, i) => {
+          L.push("    • " + (labels[i] || "?") + " [perna " + (_PERNA_CW[st] || "status " + st) + "]" + (jogos[i] ? " · Jogo: " + jogos[i] : ""));
+        });
+        const ctx2 = [];
+        if (s.esporte) ctx2.push("Esporte: " + s.esporte);
+        if (s.inicio) ctx2.push("Início: " + _dhJB(s.inicio));
+        if (ctx2.length) L.push("    " + ctx2.join(" · "));
+        continue;
+      }
+      const bits = [];
+      if (s.mercado) bits.push(s.mercado + ":");
+      bits.push(s.label || "");
+      bits.push("[perna " + (_PERNA_CW[s.status] || "status " + s.status) + "]");
+      L.push("- " + bits.join(" ").trim());
+      const ctx2 = [];
+      if (s.jogo) ctx2.push("Jogo: " + s.jogo);
+      if (s.esporte) ctx2.push("Esporte: " + s.esporte);
+      if (s.inicio) ctx2.push("Início: " + _dhJB(s.inicio));
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (s.odd != null && sels.length > 1) L.push("    Odd da seleção: " + _odd(s.odd));
+    }
+    return L.join("\n");
+  }
+
+  async function roboCWPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    const processar = () => {
+      const todos = Array.from(cwById.values()).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      for (const b of todos) {
+        const cod = String(b.id || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }
+        usados.add(cod);
+        // Janela de dias corta só as LIQUIDADAS (pela colocação, a data do card); aberta nunca.
+        const dt = (b.ts != null && isFinite(b.ts)) ? b.ts * 1000 : NaN;
+        const passou = !_abertaCW(b) && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketCW(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+
+    // Rodada nova começa do zero (lição da s393, DEX Sport): o inject zera o lado dele no
+    // mesmo pedido e busca a lista de novo.
+    cwById.clear();
+    cwFimReal = false;
+    try { window.postMessage({ __sharpenupCWReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+    processar();
+
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !cwFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (cwById.size > ultTotal) { ultTotal = cwById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;
+    }
+    await sleep(400);
+    processar();
+    console.log("[SharpenUp] CopaWin: " + blocos.length + " bilhete(s) · cwById=" + cwById.size +
+                " · hook=" + cwHookVivo + " · respostas=" + cwRespostas + " · fimReal=" + cwFimReal);
     return blocos;
   }
 
