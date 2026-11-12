@@ -5,6 +5,7 @@
 
 ---
 
+- **2026-11-11 · s450 · D50:** "nada pode ser gasto sem ser medido"; o `uso_tokens.caminho` passa a marcar `print` e `pdf`, e o aquecedor grava o seu uso (`caminho='aquecedor'`); `tests/test_uso_caminho.py`, mutações U1 a U4 detectadas. Sem push.
 - **2026-11-11 · s449 · RC44 e RC46:** depois de esperar o cru, o `/extrair` refaz o "já no banco" com o mesmo filtro de conta e tira do lote da IA o que a rota do cru liquidou na espera (`app/main.py`, `test_rc44_corrida_da_rota_do_cru_com_o_extrair`; mutações R1 e R2 detectadas). **RC46:** o vigia passa a uma chamada por casa por semana, segunda a domingo em Brasília (`virada.semana_brasilia`, `test_vigia_uma_chamada_por_casa_por_semana`; mutações V1, V2 e W9 detectadas). No ar desde 11/11 22:42 (deploy `786759cd`). Depois, o código liquidado só noutra conta ganha o motivo `liquidada em outra conta` (`virada_log.outra_conta`; mutações O1 a O3 detectadas), sem push.
 
 ## 2026-11-07 · s438 · D44: bônus na aposta ajusta a odd

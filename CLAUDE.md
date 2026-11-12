@@ -136,15 +136,7 @@ também abre nomeando uma casa, o modelo lê as duas instruções como uma só e
 medido daquele canal, e escrever a casa observada no prompt transforma uma medição
 datada em condição de entrada. Mesma família de "assinatura tem ERA".
 
-**Como escrever:** liste `NOMES_CASAS` (`src/casas.js`), peça `"casa"` no JSON e diga
-explicitamente que *casa, layout ou formato diferente NÃO é motivo de erro — "ilegível"
-é sobre a IMAGEM*. No código, a precedência é **legenda → print → default**, passando o
-que a visão devolveu por `casaPorTexto` (canoniza a grafia; verbatim ali cria conta
-paralela) e **avisando no apoio quando é o default que decide** — casa errada não dá
-erro, dá conta paralela.
-
-Gate barato: o teste assere que a **1ª linha do prompt** não contém nome de casa nenhum.
-Exporte o `SYSTEM` só para isso.
+**Como escrever o prompt, a precedência da casa e o gate:** [`docs/RUNBOOK_PERFIL_TIPSTER.md`](docs/RUNBOOK_PERFIL_TIPSTER.md).
 
 **O FORMATO do bilhete também não se herda da amostra.** Casa que vende N apostas
 simples num print só (stake e retorno **por seleção**, "Aposta Total" no rodapé) quebra
@@ -193,6 +185,17 @@ linha que **nunca existiu**.
 > Sintoma para reconhecer isso noutro escritor: o log diz "0 novas, 0
 > atualizadas" e ninguém lê o log. Contagem devolvida pela API é dado, não
 > enfeite — compare com o que você mandou.
+
+---
+
+## Nada pode ser gasto sem ser medido (D50, Feca, 11/11/2026)
+
+Toda chamada paga à Anthropic grava tokens e custo no `uso_tokens` (`registrar_uso`), com
+`caminho` (vazio = texto, `print`, `pdf`, `vigia`, `aquecedor`). **Nada que mede desliga antes
+de outro registro cobrir o que ele media.**
+
+Gasta sem registro (RC48): o **sharpen-bot** (`vision.js`), o **socantos-bot** e o serviço
+**`web`** da Railway. O **aquecedor** (`main._cache_warmer`) também, até a s449.
 
 ---
 

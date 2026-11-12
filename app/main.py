@@ -749,21 +749,54 @@ async def _cache_warmer():
     no breakpoint), devolve `content: []` e `stop_reason: "max_tokens"` e **não fatura token
     de saída**. O `max_tokens=1` anterior era o workaround antigo, que gerava uma resposta
     de um token para descartar.
+
+    D50 (Feca, 11/11/2026, "nada pode ser gasto sem ser medido"): cada chamada grava o uso
+    em `uso_tokens`, `caminho = 'aquecedor'`, com o `usage` que a resposta já traz. O dono é
+    `AQUECEDOR_DONO`: o gasto é do sistema, de ninguém em particular.
     """
     await asyncio.sleep(30)
     while True:
-        for variante in _variantes_do_aquecedor():
-            try:
-                await _client.messages.create(
-                    model=DEFAULT_MODEL,
-                    max_tokens=0,
-                    system=build_system("SUPERBET"),
-                    messages=[{"role": "user", "content": "warmup"}],
-                    **variante,
-                )
-            except Exception:
-                pass
+        await _aquecer_uma_vez()
         await asyncio.sleep(_WARMER_INTERVALO)
+
+
+async def _aquecer_uma_vez() -> None:
+    """Uma rodada do aquecedor: uma chamada por variante, cada uma com o uso registrado (D50)."""
+    for variante in _variantes_do_aquecedor():
+        try:
+            r = await _client.messages.create(
+                model=DEFAULT_MODEL,
+                max_tokens=0,
+                system=build_system("SUPERBET"),
+                messages=[{"role": "user", "content": "warmup"}],
+                **variante,
+            )
+            _fire(registrar_uso(AQUECEDOR_DONO, "SUPERBET", DEFAULT_MODEL, 1, 0,
+                                _tokens_da_resposta(r), caminho="aquecedor"))
+        except Exception:
+            pass
+
+
+AQUECEDOR_DONO = "_sistema"
+
+
+def _tokens_da_resposta(r) -> dict:
+    """O `usage` de uma resposta da Anthropic no formato do `registrar_uso`."""
+    u = getattr(r, "usage", None)
+    return {"input": getattr(u, "input_tokens", 0) or 0,
+            "output": getattr(u, "output_tokens", 0) or 0,
+            "cache_read": getattr(u, "cache_read_input_tokens", 0) or 0,
+            "cache_write": getattr(u, "cache_creation_input_tokens", 0) or 0}
+
+
+def _caminho_do_lote(base: list[dict], tem_pdf: bool, caminho: str | None) -> str | None:
+    """`uso_tokens.caminho` de uma extração (D50): 'pdf' no lote com página de PDF, 'print' no
+    lote com imagem colada, e o que já vinha (vazio no texto, 'contrato4' e cia.) no resto.
+    Lote misto de imagem e PDF conta como 'pdf'. Sem isto o print não aparecia no registro: só a
+    sombra o marcava (`sombra_modelo.tem_imagem`)."""
+    if caminho is None and any(b.get("type") == "image" for b in base):
+        return "pdf" if tem_pdf else "print"
+    return caminho
 
 
 def _variantes_do_aquecedor() -> list[dict]:
@@ -4433,6 +4466,7 @@ async def extrair(
     # PDFs → cada página vira um bloco de imagem, no mesmo caminho das colagens.
     # A renderização é CPU-bound (síncrona); roda em thread para NÃO travar o event
     # loop enquanto converte um extrato de muitas páginas (seguraria os outros requests).
+    _tem_pdf = False   # D50: o registro separa 'pdf' de 'print' (`_caminho_do_lote`)
     for pdf in pdfs:
         raw = await pdf.read()
         if not raw:
@@ -4445,6 +4479,7 @@ async def extrair(
             if total_bytes > _MAX_TOTAL_BYTES:
                 raise HTTPException(413, "Tamanho total das imagens excede 60 MB.")
         base_content.extend(blocos)
+        _tem_pdf = _tem_pdf or bool(blocos)
 
     # Teto combinado: imagens coladas + páginas de PDF não passam de _MAX_PDF_PAGES
     # (cada uma vira um chunk potencial na extração).
@@ -4556,6 +4591,7 @@ async def extrair(
         system = build_system(casa_key)
         chunks = _build_chunks(base_x, instrucao_block, casa_key)
         use_parallel = len(chunks) > 1
+        caminho = _caminho_do_lote(base_x, _tem_pdf, caminho)
 
         logger.info("extrair: casa=%s modelo=%s imgs=%d texts=%d chunks=%d parallel=%s",
                     casa_key, modelo,
