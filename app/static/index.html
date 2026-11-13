@@ -6919,14 +6919,47 @@ function b64ParaFile(b64, mediaType, nome) {
   return new File([arr], nome, { type: mediaType || 'image/png' });
 }
 
+// s453 — Conta ARQUIVADA não recebe aposta nova sem o dono confirmar (pedido do Feca). Em
+// 13/11/2026 a captura da 1win caiu na `Feca [Eu]`, arquivada desde 28/10, e a Ficha gravou 13
+// apostas lá; a tela aceita as duas abas desde a s381. A pergunta vem antes de CONECTAR (a Ficha
+// grava pela sessão, sem passar pelo /extrair) e antes de PROCESSAR. O servidor recusa com 409
+// quem chega sem `confirmar_arquivada` (`main._trava_conta_arquivada`). A resposta vale para a
+// conta enquanto a página estiver aberta: perguntar a cada lote viraria clique automático.
+const _arquivadaConfirmada = new Set();
+async function _confirmarContaArquivada() {
+  const p = parceiroSelecionado;
+  if (!p || !_contaAtivaArquivada() || _arquivadaConfirmada.has(p.id)) return true;
+  const cad = (parceirosArquivadosCache[p.casa] || []).find(x => x.id === p.id) || {};
+  const iso = String(cad.arquivada_em || '').slice(0, 10);
+  const desde = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? ' desde <b>' + iso.split('-').reverse().join('/') + '</b>' : '';
+  const ok = await shConfirm({
+    eyebrow: 'Conta arquivada',
+    titulo: 'Processar nesta conta?',
+    corpo: '<p>A conta <b>' + esc(p.nome) + '</b> está arquivada' + desde + '. Tem certeza de que '
+         + 'deseja processar novas apostas nela?</p>'
+         + '<p>Se as apostas são de outra conta, cancele e escolha a conta certa.</p>',
+    acao: 'Processar mesmo assim',
+    cancelar: 'Cancelar',
+  });
+  if (ok) _arquivadaConfirmada.add(p.id);
+  return ok;
+}
+
 async function conectarExtensao() {
   if (!parceiroSelecionado) { setStatus('Selecione uma conta antes de conectar a extensão.', 'warn'); return; }
+  if (!(await _confirmarContaArquivada())) return;
   desconectarExtensao(false);   // encerra ponte anterior, se houver
   try {
     const r = await fetch('/captura/parear', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ casa: parceiroSelecionado.casa, parceiro: parceiroSelecionado.nome }),
+      body: JSON.stringify({ casa: parceiroSelecionado.casa, parceiro: parceiroSelecionado.nome,
+                             confirmar_arquivada: _arquivadaConfirmada.has(parceiroSelecionado.id) }),
     });
+    if (r.status === 409) {     // conta arquivada que a tela não sabia (cadastro desatualizado)
+      const j = await r.json().catch(() => ({}));
+      extStatus(String((j && j.detail) || 'Conta arquivada.'), 'warn');
+      return;
+    }
     if (!r.ok) throw new Error('parear');
     const d = await r.json();
     extSessao = { sessao_id: d.sessao_id, codigo: d.codigo };
@@ -7979,6 +8012,7 @@ async function _avisarSeTemCaptura() {
 
 document.getElementById('btn-extrair').addEventListener('click', async () => {
   if (!parceiroSelecionado) return;
+  if (!(await _confirmarContaArquivada())) return;   // s453
 
   // s345 — casa com captura: avisa antes de gastar leitura de IA num bilhete que a
   // extensão traria exato. Só para TEXTO e PRINT: CSV/XLS é import de planilha, outro
@@ -7994,6 +8028,7 @@ document.getElementById('btn-extrair').addEventListener('click', async () => {
   const form = new FormData();
   form.append('casa', parceiroSelecionado.casa);
   form.append('parceiro', parceiroSelecionado.nome);
+  if (_arquivadaConfirmada.has(parceiroSelecionado.id)) form.append('confirmar_arquivada', '1');
   // 'modelo' não é enviado: o backend decide via config.py (DEFAULT_MODEL).
   const txt = document.getElementById('texto').value.trim();
   if (txt) form.append('texto', txt);

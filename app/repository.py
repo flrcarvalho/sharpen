@@ -5301,6 +5301,34 @@ async def list_parceiros(dono: str, casa: str | None = None, incluir_arquivados:
                  renovacoes=_renovacoes_de(r["renovacoes"])) for r in rows]
 
 
+async def conta_arquivada(dono: str, casa: str, parceiro: str) -> dict | None:
+    """A conta está arquivada? `{"arquivada_em": date | None}` se sim, None se ativa ou se não
+    existe no cadastro (s453). A casa é comparada pela chave (`casa_chave`), porque a tela manda o
+    nome de exibição e a extensão a chave.
+
+    Por quê: em 13/11/2026 a captura da 1win caiu na `Feca [Eu]`, arquivada desde 28/10, e a
+    Ficha gravou 13 apostas lá. A trava (`main._trava_conta_arquivada`) pergunta antes."""
+    if not dono or not casa or not (parceiro or "").strip():
+        return None
+    import casa_chave as _cc
+    # Falha ABERTA: a trava é uma pergunta, não o dado. Com o banco fora a extração falha logo
+    # adiante de qualquer jeito, e travar aqui só trocaria um erro pelo outro.
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            r = await conn.fetchrow(
+                f"SELECT arquivado, arquivada_em FROM parceiros WHERE dono = $1 "
+                f"AND {_cc.sql('casa')} = $2 AND nome = $3 ORDER BY arquivado ASC LIMIT 1",
+                dono, _cc.chave(casa), parceiro.strip())
+    except Exception:  # noqa: BLE001
+        logger.warning("conta_arquivada: leitura falhou para %s/%s (segue sem travar)", dono, casa,
+                       exc_info=True)
+        return None
+    if r is None or not r["arquivado"]:
+        return None
+    return {"arquivada_em": r["arquivada_em"]}
+
+
 def _renovacoes_de(blob) -> list[dict]:
     lista = json.loads(blob) if isinstance(blob, str) else (blob or [])
     return sorted((x for x in lista if isinstance(x, dict)), key=lambda x: str(x.get("data") or ""))

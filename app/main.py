@@ -64,7 +64,7 @@ import cambio as _cambio
 from prompts import build_system
 import contrato_texto as _contrato
 from repository import (
-    absorver_consolidadas,
+    absorver_consolidadas, conta_arquivada,
     registrar_extracao, fechar_extracao, listar_extracoes, painel_conta,
     alinhar_tsv, categorias_do_dono, codigos_odd_vazia, odd_vazia_ganha,
     analisar_extracao,
@@ -4099,6 +4099,30 @@ async def uso_tokens_endpoint(dias: int = 30, dono: str = Depends(usuario_atual)
 class ParearRequest(BaseModel):
     casa: str
     parceiro: str = ""
+    confirmar_arquivada: bool = False   # s453: o dono confirmou processar em conta arquivada
+
+
+async def _trava_conta_arquivada(dono: str, casa: str, parceiro: str, confirmado: bool) -> None:
+    """Conta ARQUIVADA não recebe aposta nova sem o dono confirmar (s453, pedido do Feca).
+
+    O caso: em 13/11/2026 a captura da 1win caiu na `Feca [Eu]`, arquivada desde 28/10, porque a
+    tela de Extração aceita as duas abas (s381). A Ficha gravou 13 apostas lá antes de alguém
+    notar, e a marca de "já lido" deixou 4 liquidações presas na conta certa. Medido em 60 dias:
+    3 capturas na conta errada, 2 delas numa ARQUIVADA de nome quase igual (`eu` × `Eu`).
+
+    Duas portas, porque a Ficha grava pela sessão da extensão sem passar pelo `/extrair`: o
+    pareamento (`/captura/parear`) e o `/extrair`. A tela pergunta antes (`shConfirm`) e manda
+    `confirmar_arquivada`; o 409 aqui é a rede para quem chega sem a pergunta. Confirmar não
+    reativa a conta: arquivar continua sendo decisão de cadastro."""
+    if confirmado:
+        return
+    arq = await conta_arquivada(dono, casa, parceiro)
+    if arq is None:
+        return
+    quando = arq["arquivada_em"]
+    desde = f" desde {quando:%d/%m/%Y}" if quando else ""
+    raise HTTPException(409, f"A conta {parceiro.strip()} está arquivada{desde}. Confirme na tela "
+                             "para processar novas apostas nela, ou escolha outra conta.")
 
 
 @app.post("/captura/parear")
@@ -4106,6 +4130,7 @@ async def captura_parear(req: ParearRequest, dono: str = Depends(usuario_atual))
     """Dashboard cria a sessão de pareamento. Usa o dono REAL (dado novo vai para
     quem está logado — mesma regra de /extrair)."""
     casa_key = _display_to_key(req.casa)
+    await _trava_conta_arquivada(dono, casa_key, req.parceiro or "", req.confirmar_arquivada)
     sess = _captura.criar_sessao(dono, _casa_display(casa_key), casa_key, (req.parceiro or "").strip())
     return {"sessao_id": sess.sessao_id, "codigo": sess.codigo, "modo": sess.modo,
             "casa": sess.casa, "parceiro": sess.parceiro}
@@ -4419,6 +4444,7 @@ async def extrair(
     pdfs: list[UploadFile] = File(default=[]),
     xls_file: Optional[UploadFile] = File(default=None),
     data_referencia: Optional[str] = Form(None),
+    confirmar_arquivada: str = Form(""),   # s453: "1" = o dono confirmou a conta arquivada
     # Criação de dado NOVO usa o dono REAL (usuario_atual), não dono_efetivo: em
     # modo "ver como operador", uma extração nova vai para a base de quem está
     # LOGADO, nunca para a do operador visualizado — evita poluir a base alheia por
@@ -4444,6 +4470,7 @@ async def extrair(
     casa_key = _display_to_key(casa)
     if not casa_key.strip():
         raise HTTPException(400, "Casa não informada.")
+    await _trava_conta_arquivada(dono, casa_key, parceiro, confirmar_arquivada == "1")
     # s450: casa com Ficha não aceita print nem PDF, antes de ler arquivo e de chamar a IA. A
     # aposta entra pela extensão (cru, sem IA); texto colado continua. As `.bet.br` ficam fora.
     if _captura.casa_com_ficha(casa_key) and (any(f.filename for f in imagens)
