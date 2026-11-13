@@ -150,7 +150,11 @@ def test_esporte_pelo_gameid():
     assert _montar(CRUS["S4965610"])[0]["pernas"][0]["esporte_casa"] == "Counter-Strike"
     assert _montar(CRUS["C2225866"])[0]["pernas"][0]["esporte_casa"] == "Basketball"
     f, _ = _montar(_clone(gameId=99))
-    assert f["pernas"][0]["esporte_casa"] is None                   # ausência, não palpite
+    # D49 (Feca, 11/11/2026): o id fora do mapa vai como a casa manda, nunca um palpite de nome;
+    # o dicionário traduz quando aprender o termo e, até lá, manda a aposta à IA.
+    assert f["pernas"][0]["esporte_casa"] == "gameId 99"
+    f, _ = _montar(_clone(gameId=None))
+    assert f["pernas"][0]["esporte_casa"] is None
 
 
 def test_mercado_de_jogador_vira_chave_de_qualquer_jogador():

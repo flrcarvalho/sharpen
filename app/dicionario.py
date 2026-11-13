@@ -43,10 +43,17 @@ SEP = " | "                      # chave mercado + seleção
 # Termos VAGOS (s412): nunca entram no dicionário e sempre vão para a IA. `especiais` virou
 # `Futebol` para todas as casas com 1 voto (7Games, bet de Futebol e Tênis juntos). D36 (Feca,
 # 19/10): `sporttypeid 300` é a gaveta de especiais da Altenar, não um esporte (`content.js`,
-# `CASA_ESPORTIVA §12.2`); tinha virado `E-Sports` com 1 voto no `*` e na ESPORTIVA. D37 (Feca,
-# 18/10): `sporttypeid 34` e `31` também não são esporte (o bilhete diz Tênis de Mesa e Críquete,
-# mas o id não é a fonte); o esporte sai do evento, pela IA.
-VAGOS = frozenset({"especiais", "sporttypeid 300", "sporttypeid 34", "sporttypeid 31"})
+# `CASA_ESPORTIVA §12.2`); tinha virado `E-Sports` com 1 voto no `*` e na ESPORTIVA. A D37 (18/10),
+# que punha o `sporttypeid 34` e o `31` aqui, foi revogada pela D49 (abaixo).
+VAGOS = frozenset({"especiais", "sporttypeid 300"})
+
+# D49 (Feca, 11/11/2026; revoga a D37): o número da Altenar É esporte. Em todo o cru guardado
+# (14.928 pernas) cada `sportTypeId` anda com um `sportId` só, e os jogos confirmam o nome
+# (`Auditorias/consultoria_ficha_2026-10/medicoes/2026-11-10_rc45_lista.md`). Vale para todas as
+# casas (`*`) com o peso de uma correção do Feca: `carregar` põe esta camada embaixo das linhas
+# `origem='feca'` do banco (uma correção gravada ainda vence) e a semente não aprende por cima.
+ESPORTE_D49 = {"sporttypeid 34": "Tênis de Mesa", "sporttypeid 31": "Críquete",
+               "sporttypeid 23": "Futsal", "sporttypeid 82": "Rugby"}
 
 # `Total` SEM qualificador (s412, Feca): a categoria principal do esporte. Esporte fora daqui:
 # a IA decide. Tênis e Vôlei dependem da linha: até 4,5 é Sets.
@@ -292,7 +299,8 @@ async def carregar(conn, casa_key: str, familia: bool = True) -> dict:
     acima."""
     ck = (casa_key or "").upper()
     da_familia = await irmas(conn, ck) if familia else []
-    camadas: dict = {}                     # (é do Feca, nível 0 geral · 1 família · 2 casa) → termos
+    # (é do Feca, nível 0 geral · 1 família · 2 casa) → termos. A D49 nasce no geral do Feca.
+    camadas: dict = {(True, 0): {("esporte", t): s for t, s in ESPORTE_D49.items()}}
     votos_familia: dict = {}               # (é do Feca, chave) → traduções das irmãs
     for r in await conn.fetch(
             "SELECT casa, tipo, termo_casa, termo_sharpen, origem FROM dicionario_termos "
@@ -658,6 +666,7 @@ async def semear(conn, gatilho: str = "manual", hoje=None) -> dict:
         logging.getLogger("scanner").exception("dicionário: semente_recusa não gravada")
     feca = [(r["casa"], r["tipo"], r["termo_casa"]) for r in await conn.fetch(
         "SELECT casa, tipo, termo_casa FROM dicionario_termos WHERE origem = 'feca'")]
+    feca += [("*", "esporte", t) for t in ESPORTE_D49]       # D49: decisão do Feca no código
     unanimes = {k: v for k, v in unanimes.items() if not coberto_pelo_feca(feca, *k)}
     revisao = [r for r in revisao if not coberto_pelo_feca(feca, r["casa"], r["tipo"], r["termo"])]
     antes = {(r["casa"], r["tipo"], r["termo_casa"]): r["termo_sharpen"] for r in await conn.fetch(

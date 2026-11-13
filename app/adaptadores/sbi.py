@@ -18,7 +18,8 @@ USDT, recon de 25/10/2026), cada valor cruzado com o card.
   • PERNA: `status` 0 aberta · 1 ganha · 2 perdida; `voidFactor` 1 é anulada (cinza no card),
     qualquer que seja o `status`. A odd da perna é a turbinada quando houver.
   • ESPORTE: só o `sport.slug` (`soccer`, `ice-hockey`); vai em inglês para o dicionário `*`
-    traduzir. Slug fora do mapa vai VAZIO.
+    traduzir. Slug fora do mapa vai COMO A CASA ESCREVE (`table-tennis`, `darts`), e o dicionário
+    decide (D49, Feca, 11/11/2026: antes ia vazio e a aposta ia à IA mesmo com o termo no `*`).
   • Sem amostra, RECUSA: freebet, cashout (`cashout.instances`) e mais de uma aposta no bilhete
     (sistema). O texto continua levando esses bilhetes à IA.
   • Bet Builder (D43, s438): perna única `Bet Builder`, as seleções juntas por ";". Vai pela
@@ -117,6 +118,11 @@ def _status(t: dict, sels: list) -> str:
                  f"{t.get('stakeAmount')!r} e odd {odd!r} (sem amostra; a conferir)")
 
 
+def _esporte(s: dict) -> str | None:
+    slug = _limpo((s.get("sport") or {}).get("slug"))
+    return _ESPORTE.get(slug, slug) or None
+
+
 def _perna(s: dict) -> dict:
     jogo = _limpo(s.get("eventName"))
     partes = re.split(r"\s+(?:-|vs)\s+", jogo, maxsplit=1)
@@ -124,7 +130,7 @@ def _perna(s: dict) -> dict:
     sel = _limpo(s.get("name"))
     m = _LINHA.match(sel)
     return {
-        "esporte_casa": _ESPORTE.get(str((s.get("sport") or {}).get("slug") or "")),
+        "esporte_casa": _esporte(s),
         "liga_casa": None,
         "evento": jogo,
         "mandante": casa or None,

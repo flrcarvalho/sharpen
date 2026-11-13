@@ -6,7 +6,8 @@
   · D35: `Mortes`, `kills` e `Abates` são `Kills` no estilo da descrição, em todas as casas
     (`descricao_ficha.estilo`, que decide a forma do voto e da regravação);
   · D36: `sporttypeid 300` é vago (gaveta de especiais da Altenar), nunca traduzido;
-  · D37: `sporttypeid 34` e `31` também (o esporte sai do evento, pela IA).
+  · D37 (`sporttypeid 34` e `31` vagos) foi REVOGADA pela D49 (11/11/2026): o gate dela é
+    `tests/test_dicionario_d49.py`.
 
 Não cobre: o termo vago que já estivesse gravado no banco (o 300 foi apagado pelo script).
 
@@ -16,8 +17,7 @@ Mutações (s423), cada uma derrubou ao menos um teste daqui:
   K1. sem a regra do Kills no `estilo`                 → test_d35_kills
   K2. a regra só em minúsculas (sem `re.I`)            → test_d35_kills
   V1. `sporttypeid 300` fora do `VAGOS`                → test_d36_d37_sporttypeid_e_vago[300]
-  V2. `sporttypeid 34` fora do `VAGOS`                 → test_d36_d37_sporttypeid_e_vago[34]
-  V3. `sporttypeid 31` fora do `VAGOS`                 → test_d36_d37_sporttypeid_e_vago[31]
+  (V2 e V3, o 34 e o 31 fora do `VAGOS`, deixaram de ser mutação com a D49.)
   E1. um esporte novo tirado do Master                 → test_d33_esportes_no_master
 """
 import asyncio
@@ -50,9 +50,10 @@ def test_d35_kills():
     assert e("{ent} Mortensen") == "{ent} Mortensen"
 
 
-@pytest.mark.parametrize("sid", ["300", "34", "31"])
+@pytest.mark.parametrize("sid", ["300"])
 def test_d36_d37_sporttypeid_e_vago(sid):
-    """D36 (300) e D37 (34 e 31): nunca traduzidos, mesmo com o termo no dicionário."""
+    """D36 (300): nunca traduzido, mesmo com o termo no dicionário (o 34 e o 31 da D37 saíram
+    com a D49)."""
     termo = f"sporttypeid {sid}"
     assert termo in dicionario.VAGOS
     f = {"tipo": "simples", "pernas": [{"esporte_casa": f"sportTypeId {sid}", "mercado_casa": "x",

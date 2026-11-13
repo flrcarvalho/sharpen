@@ -17,8 +17,8 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   8. retorno = stake não vira anulada                           → test_retorno_igual_a_stake_e_anulada
 
 O QUE NÃO COBRE: anulada inteira, cashout, freebet e sistema reais (a conta não tinha; os testes
-de dinheiro clonam a perdida); `liga_casa` (a casa não manda a liga no bilhete); esporte de slug
-fora do mapa (vai vazio).
+de dinheiro clonam a perdida); `liga_casa` (a casa não manda a liga no bilhete).
+D49 (s450): o slug fora do mapa vai como a casa escreve (`test_slug_fora_do_mapa_vai_como_a_casa`).
 """
 import copy
 import json
@@ -101,6 +101,22 @@ def test_perna_anulada_como_o_card():
     assert [p["status_perna"] for p in f["pernas"]] == ["ganha", "perdida", "aberta"]
     assert f["pernas"][0]["mercado_casa"] == "1º tempo - Cadiz CF total de escanteios"
     assert f["pernas"][2]["esporte_casa"] == "Basketball"
+
+
+def _com_slug(slug):
+    c = copy.deepcopy(CRUS[GANHA])
+    c["bets"][0]["selections"][0]["sport"] = {"slug": slug} if slug is not None else None
+    return c
+
+
+def test_slug_fora_do_mapa_vai_como_a_casa():
+    """D49 (Feca, 11/11/2026): antes ia vazio e a aposta ia à IA, mesmo com `table-tennis` no
+    dicionário `*`. O slug conhecido continua traduzido para o inglês do mapa."""
+    assert _montar(_com_slug("table-tennis"))[0]["pernas"][0]["esporte_casa"] == "table-tennis"
+    assert _montar(_com_slug("darts"))[0]["pernas"][0]["esporte_casa"] == "darts"
+    assert _montar(_com_slug("ice-hockey"))[0]["pernas"][0]["esporte_casa"] == "Ice Hockey"
+    assert _montar(_com_slug(""))[0]["pernas"][0]["esporte_casa"] is None
+    assert _montar(_com_slug(None))[0]["pernas"][0]["esporte_casa"] is None
 
 
 def test_aberta():

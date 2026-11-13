@@ -20,7 +20,9 @@ O cru é um item de `data.wagers` de `GET /api/wagers/v2/resolved` ou `/pending`
     bilhete.
   • esporte: a casa só manda `gameId`. O nome sai do mapa medido pela liga de cada bilhete
     (`CASA_THUNDERPICK §1.2`), escrito em inglês para o dicionário `*` traduzir; id fora do mapa
-    vai VAZIO (ausência, não palpite), e o dicionário manda a aposta à IA.
+    vai como a casa manda, `gameId <n>` (D49, Feca, 11/11/2026; o mesmo desenho do `sportTypeId`
+    da Altenar): o dicionário traduz quando aprender o termo e, até lá, manda a aposta à IA.
+    Nunca um palpite de nome.
   • MERCADO DE JOGADOR: a casa escreve `Player <Sobrenome> <Nome> - <mercado>` (`Player Doncic
     Luka - total points (incl. overtime)`). A Ficha leva `<Nome> <Sobrenome> <mercado>`: o
     último pedaço é sempre o primeiro nome (medido em 23/10/2026 contra a descrição da IA nos
@@ -111,7 +113,7 @@ def _perna(p: dict, estado) -> dict:
     sel, linha = _limpo(p.get("selectionName")), _limpo(p.get("selectionTotal"))
     gid = p.get("gameId")
     return {
-        "esporte_casa": _ESPORTE.get(gid) if isinstance(gid, int) else None,
+        "esporte_casa": (_ESPORTE.get(gid) or f"gameId {gid}") if isinstance(gid, int) else None,
         "liga_casa": _limpo((p.get("competition") or {}).get("name")) or None,
         "evento": f"{casa} - {fora}" if casa and fora else _limpo(p.get("eventName")),
         "mandante": casa or None,
