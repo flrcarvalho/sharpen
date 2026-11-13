@@ -6382,7 +6382,9 @@
   //   • no Bet Builder (`SAME_GAME_PARLAY`) a perna repete a odd do conjunto: não é odd própria;
   //   • a data do bloco é a do evento (`cutoffTime`), a mais recente das pernas; a colocação
   //     vai ao lado. Os dois chegam em UTC e saem em São Paulo.
-  // NÃO MEDIDO (a conta não tinha): ganha, simples, cashout, freebet, boost. Só o DINHEIRO
+  //   • CASHOUT (s453, medido 13/11/2026): a casa cria uma aposta LAY de cashout na mesma
+  //     sub-posição; o inject não a deixa virar bilhete e soma o dinheiro dela na original.
+  // NÃO MEDIDO (a conta não tinha): freebet, boost, cashout parcial. Só o DINHEIRO
   // decide: retorno = stake prova V; o resto sobe cru, "a conferir". O de-para vive na
   // CASA_CLOUDBET.md §5.
   const _PERNA_CB = { WIN: "ganha", LOSS: "perdida", PUSH: "anulada (push)", PENDING: "não decidida" };
@@ -6406,10 +6408,18 @@
     if (b.aberta) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
     if (!(st > 0)) return conferir("sem stake");
     if (b.cashout) return conferir("isCashoutBet, sem amostra");
+    // Cashout (s453): só com a contra-aposta da casa somada e conferida no `portfolio` (cb_inject
+    // `_cashout`). Sem ela o lucro é só o da original (−stake) e não prova nada.
+    if (b.resultado === "CASHED_OUT" && !(b.cashoutContra > 0)) return conferir("cashout sem a aposta de cashout da casa");
     const ret = _retornoCB(b);
     if (ret == null) return conferir("sem returnAmount");
     // Retorno = stake: P/L zero, V qualquer que seja o rótulo (rede do dinheiro).
     if (_quaseCB(ret, st, 0.005)) return "Retorno = stake (" + _dinSHF(st) + m + ", " + cru + ") → V";
+    // MASTER_RESULTADO §5.6: cashout diferente da stake, maior OU menor, é W com odd = cashout ÷ stake.
+    if (b.resultado === "CASHED_OUT" && ret >= 0) {
+      return "Cashout de " + _dinSHF(ret) + m + " → W (odd = cashout ÷ stake = " +
+             _oddTxtKTO(Math.round((ret / st) * 1e8) / 1e8) + ")";
+    }
     if (b.resultado === "LOSS") return Math.abs(ret) < 0.005 ? "Perdeu → L" : conferir("retorno " + _dinSHF(ret) + m);
     // PARTIAL (medido em 11/11/2026, s445): parlay ganho com perna PUSH, 30 × 2,85 × 1,87 =
     // 159,885 e a casa pagou 159,87. Só entra pelo ramo da perna anulada, que o dinheiro decide.

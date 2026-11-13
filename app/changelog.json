@@ -997,6 +997,7 @@
     "0.7.58": "MyStake: o bônus de odd (+5%) entra no retorno e na odd da ganha; conserto, não vira aviso (s422, 18/10/2026)",
     "0.7.74": "3et: aposta simples e perna Push passam a ser lidas (a simples ia sem seleção); conserto, não vira aviso (s443, 11/11/2026)",
     "0.7.75": "Stake.com: múltipla de props (XMulti) liquidada deixa de ficar aberta, e a aposta aberta não duplica ao liquidar; conserto, não vira aviso (s446, 11/11/2026)",
-    "0.7.76": "Cloudbet: as apostas repetidas da mesma posição viram uma linha, como na casa, e as simples e as apostas além da 20ª passam a ser lidas; conserto, não vira aviso (s445, 11/11/2026)"
+    "0.7.76": "Cloudbet: as apostas repetidas da mesma posição viram uma linha, como na casa, e as simples e as apostas além da 20ª passam a ser lidas; conserto, não vira aviso (s445, 11/11/2026)",
+    "0.7.79": "Cloudbet: o cashout passa a liquidar a aposta e a aposta de cashout da casa deixa de virar aposta; conserto, não vira aviso (s453, 13/11/2026)"
   }
 }

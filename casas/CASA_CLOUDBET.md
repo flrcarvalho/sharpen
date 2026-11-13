@@ -185,7 +185,8 @@ centavo**, ou ter perna `PUSH` (a casa refaz a odd sem ela: 6,934 ÷ 1,97 = 3,52
 | qualquer · `returnAmount` = 0 (retorno = stake) | P/L zero | `V` |
 | `WIN` · stake + returnAmount = stake × price (± 1 centavo) | Ganhou | `W` |
 | `WIN` ou `PARTIAL` · retorno > stake · alguma perna `PUSH` | Ganhou, odd = retorno ÷ stake | `W` |
-| `LOSS` com retorno, `WIN` que não fecha sem PUSH, `isCashoutBet`, rótulo novo | sobe cru | *(a conferir)* |
+| `CASHED_OUT` · original + aposta de cashout (§7) somam o `portfolio` | Cashout, odd = cashout ÷ stake | `W` (ou `V` se cashout = stake) |
+| `LOSS` com retorno, `WIN` que não fecha sem PUSH, `CASHED_OUT` sem a prova do §7, rótulo novo | sobe cru | *(a conferir)* |
 
 Medido: `LOSS` 4 e `ACCEPTED` 15 (s442); em 11/11/2026 (s445, `cloudbet.posicoes.json`) `WIN` de
 simples e de Bet Builder, `PUSH` de simples (retorno = stake) e `PARTIAL`: parlay com uma perna
@@ -209,9 +210,28 @@ o bilhete sobe "a conferir" até ser medido.
 
 ## 7. Cashout
 
-`isCashoutBet` = `false` e `cashoutAmount` = `0` em toda a amostra. Com `isCashoutBet` o bilhete
-sobe "a conferir" (e a Ficha recusa). A regra global (`MASTER_RESULTADO §5.1.2` e `§5.6`) vale
-quando for medido.
+**Medido em 13/11/2026 (s453), o 1º da casa** (`extensor/harness/fixtures/cloudbet.cashout.json`).
+A Cloudbet registra o cashout como uma **aposta CONTRÁRIA** na mesma sub-posição da original:
+
+| Aposta | `side` | `isCashoutBet` | Stake | `price` | `result` | `returnAmount` |
+|---|---|---|---|---|---|---|
+| 942c19e8 (a original) | `BACK` | `false` | 400 | 8,161 | `CASHED_OUT` | −400 |
+| de512916 (o cashout) | `LAY` | `true` | 3.129,82 | 1,043 | `CASHED_OUT` | +134,58 |
+
+A sub-posição passa a `betCount` 2, com `portfolio.USDT.returnAmount` −265,42 e `cashoutAmount`
+134,58. O card diz "Aposta (2 aposta(s)) $0.00" e "L/P −$265,42", e segue **Pendente** (os jogos
+não aconteceram, mas o risco é zero: o P/L está travado).
+
+- ⚠️ **A LAY não é aposta.** Lida como bilhete, entrava com 3.129,82 USDT @ 1,043 e a Caixa contava
+  essa stake em aberto (Ellen, 13/11/2026: disponível projetado −3.101,53). O `cb_inject.js` nunca a
+  emite; ela sobe no cru da original, em `cashout: [...]`.
+- **O dinheiro é a soma das duas**, e só vale se bater com o `portfolio` da sub-posição: cashout =
+  stake + Σ `returnAmount` = 400 − 265,42 = **134,58**. Regra global (`MASTER_RESULTADO §5.6`):
+  cashout ≠ stake → `W`, odd = cashout ÷ stake = **0,33645**; cashout = stake → `V`.
+- **Captura anterior gravou a LAY como aposta:** o `absorvidos` do adaptador `cb` a tira da base
+  (lixeira) quando a original volta.
+- Sem a contra-aposta no cru, ou com a soma fora do `portfolio`: "a conferir", e a Ficha recusa.
+  Não medido: cashout parcial, cashout de juntada (§2.6).
 
 ---
 
@@ -279,7 +299,8 @@ Campo `stake` do detalhe, na moeda nativa da aposta; a conversão para R$ é do 
 - [ ] Coluna Data = início do evento em São Paulo.
 - [ ] Contagem capturada == Active + Bet history.
 - [x] ~~1ª ganha / simples / posição com mais de uma aposta~~: `cloudbet.posicoes.json` (s445).
-- [ ] **1º cashout / freebet / aposta em outra cripto / juntada ABERTA / sub-posição em duas
+- [x] ~~1º cashout~~: `cloudbet.cashout.json` (s453, §7).
+- [ ] **Freebet / aposta em outra cripto / juntada ABERTA / sub-posição em duas
       moedas:** salvar o JSON como fixture e trocar o clone do harness.
 - [ ] **1ª captura do Jaao26:** conferir que as 283 apostas por print não duplicaram (§3).
 
@@ -298,7 +319,7 @@ de 3): `extensor/harness/fixtures/cloudbet.recon.json`.
 | c763f002-… | Bet Builder ATL×LAL + GS×NO | `LOSS` (Won 1 · Lost 1 · Pending 1) | 30 | 6,48 | 09/11/2026 18:41:53 | 10/11 00:00 | card |
 | 1e7c2017-… | Parlay 3 jogos | `ACCEPTED` | 30 | 6,937 | 09/11/2026 16:16:57 | — | card (`@ 6.93`) |
 
-**Sem amostra:** ganha · simples · cashout · freebet · boost · outra cripto.
+**Sem amostra:** freebet · boost · outra cripto · cashout parcial. (Ganha e simples: s445; cashout: s453.)
 
 ---
 

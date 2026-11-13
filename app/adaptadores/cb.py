@@ -29,8 +29,12 @@ USDT: 15 abertas e 4 perdidas, todas múltiplas de 3).
     (`betLegIdentifier`), stake e retorno somados, odd = Σ(stake × price) ÷ Σ stake, resultado
     pela régua de uma aposta em CADA uma (todas iguais, senão RECUSA). `absorvidos(cru)` diz os
     uuids que ela substitui. RECUSA se juntou menos apostas que o `betCount` da sub-posição.
-  • Sem amostra, RECUSA: cashout (`isCashoutBet`), cru de uma aposta em sub-posição de várias,
-    perna sem evento. O texto continua levando esses bilhetes à IA.
+  • CASHOUT (s453, `CASA_CLOUDBET §5`, medido 13/11/2026): a casa cria uma aposta LAY com
+    `isCashoutBet` na sub-posição da original, que fica `CASHED_OUT`. O inject sobe a original com
+    `cashout: [contra-apostas]`; status `cashout`, retorno = stake + Σ returnAmount das duas,
+    conferido no `portfolio` da sub-posição. `absorvidos` tira a LAY que captura antiga gravou.
+  • Sem amostra, RECUSA: cashout sem a contra-aposta no cru (`isCashoutBet` solto), cru de uma
+    aposta em sub-posição de várias, perna sem evento. O texto continua levando esses bilhetes à IA.
 """
 from __future__ import annotations
 
@@ -108,6 +112,11 @@ def bilhetes_da_resposta(resposta) -> list:
         for p in it.get("positions") or []:
             leg = p.get("betLegIdentifier")
             bets = [b for b in ((resposta["detalhes"].get(leg) or {}).get("bets") or []) if b.get("uuid")]
+            contra = [b for b in bets if b.get("isCashoutBet") is True]
+            if contra:                     # s453: a aposta de cashout nunca é bilhete próprio
+                for bet in (b for b in bets if b.get("isCashoutBet") is not True):
+                    out.append({"aposta": bet, "posicao": it, "eventos": evs_de([bet]), "cashout": contra})
+                continue
             if len(bets) > 1 and len({_assinatura(b) for b in bets}) == 1:
                 out.append(_cru_grupo(leg, bets, it, evs_de(bets)))
                 continue
@@ -129,10 +138,46 @@ def codigo(cru) -> str:
     return "" if not isinstance(a, dict) or not a.get("uuid") else str(a["uuid"])
 
 
+def _contra(cru) -> list | None:
+    """As apostas de CASHOUT da casa que o `cb_inject.js` sobe junto da original (s453), ou None."""
+    c = (cru or {}).get("cashout") if isinstance(cru, dict) else None
+    return c if isinstance(c, list) and c and all(isinstance(x, dict) for x in c) else None
+
+
+def _cashout(a: dict, contra: list, sub: dict | None, n_casa) -> tuple[str, Decimal]:
+    """(status, retorno) do cashout (s453, `CASA_CLOUDBET §5`). A casa cria uma aposta LAY com
+    `isCashoutBet` na mesma sub-posição; o lucro do cashout é a soma dos `returnAmount` das duas
+    (−400 + 134,58 = −265,42, o L/P do card) e tem de bater com o `portfolio` da sub-posição, a
+    conta que a própria casa faz. Qualquer coisa fora do medido RECUSA."""
+    if a.get("isCashoutBet") is True or a.get("state") == "ACCEPTED" or a.get("result") != "CASHED_OUT":
+        raise Recusa(f"cashout com a original em state {a.get('state')!r} result {a.get('result')!r}")
+    if any(x.get("isCashoutBet") is not True or x.get("state") == "ACCEPTED" for x in contra):
+        raise Recusa("aposta de cashout aberta ou sem isCashoutBet")
+    if n_casa != 1 + len(contra):
+        raise Recusa(f"sub-posição com {n_casa} apostas e o cru com {1 + len(contra)}")
+    stake = _dec(a.get("stake"))
+    lucros = [_dec(x.get("returnAmount")) for x in [a, *contra]]
+    if stake is None or stake <= 0 or any(x is None for x in lucros):
+        raise Recusa("cashout sem stake ou sem returnAmount")
+    lucro = sum(lucros)
+    port = ((sub or {}).get("portfolio") or {}).get(_limpo(a.get("baseCurrency")).upper()) or {}
+    casa = _dec(port.get("returnAmount"))
+    if casa is None or abs(casa - lucro) > _MEIO_CENTAVO:
+        raise Recusa(f"cashout: lucro {lucro} não bate com o portfolio da casa ({port.get('returnAmount')!r})")
+    return "cashout", stake + lucro
+
+
 def absorvidos(cru) -> list[str]:
     """Os códigos que este cru TOMA o lugar: os uuids das apostas juntadas, menos o próprio
     código. Captura anterior a s445 gravava cada uma como linha (código = uuid); é por esta
-    lista, comparada por igualdade exata, que o servidor tira essas linhas avulsas da base."""
+    lista, comparada por igualdade exata, que o servidor tira essas linhas avulsas da base.
+
+    No cashout (s453) são as apostas de cashout da casa: captura anterior gravava a LAY como
+    aposta (3.129,82 USDT @ 1,043, a 1ª medida). Só saem com a original no banco
+    (`absorver_consolidadas`)."""
+    if (contra := _contra(cru)) is not None and _apostas(cru) is None:
+        cod = codigo(cru)
+        return sorted({str(x.get("uuid")) for x in contra if x.get("uuid") and str(x.get("uuid")) != cod})
     ap = _apostas(cru)
     if ap is None:
         return []
@@ -292,6 +337,11 @@ def adaptar(cru: dict, casa_key: str) -> dict:
         if n_casa != len(ap):
             raise Recusa(f"sub-posição com {n_casa} apostas na casa e {len(ap)} no cru")
         status, ret, stake, odd, sels, colocada, liquidada = _grupo(a, ap)
+    elif _contra(cru) is not None:
+        status, ret = _cashout(a, _contra(cru), sub, n_casa)
+        stake, odd, sels = _dec(a.get("stake")), a.get("price"), a.get("selections") or []
+        colocada = _iso(a.get("createTime"))
+        liquidada = _iso(a.get("completeTime"))
     else:
         if a.get("isCashoutBet") is True:
             raise Recusa("cashout sem amostra (o texto leva à IA)")

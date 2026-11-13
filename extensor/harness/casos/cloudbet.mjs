@@ -290,6 +290,7 @@ export async function rodar() {
   testes += await posicoesJuntadas(falhas);
   testes += await detalhePaginado(falhas);
   testes += await oddPonderada(falhas);
+  testes += await cashout(falhas);
   return { falhas, testes };
 }
 
@@ -451,5 +452,46 @@ async function liquidadaVenceAberta(falhas) {
   const b = ((ultima && ultima.bilhetes) || []).filter((x) => x.posicao === liq.positionId);
   if (b.length !== 1) falhas.push(`liquidada × aberta: a posição veio ${b.length} vez(es)`);
   else if (b[0].aberta) falhas.push("liquidada × aberta: a versão aberta venceu");
+  return 1;
+}
+
+// ── s453: cashout ───────────────────────────────────────────────────────────────────────────
+// Fixture `cloudbet.cashout.json`, o 1º cashout medido (13/11/2026, USDT, crus de produção). A
+// casa cria uma aposta LAY com `isCashoutBet` na MESMA sub-posição: ela virava um bilhete de
+// 3.129,82 @ 1,043. Card: "Aposta (2 aposta(s)) $0.00", "L/P −$265,42"; portfolio
+// `returnAmount` −265,42 e `cashoutAmount` 134,58.
+// Mutações (13/11/2026): a LAY volta a ser bilhete; lucro só da original; sem conferir o
+// portfolio; formatador sem o ramo do cashout. 4 de 4 detectadas.
+const BACK = "942c19e8-da04-484e-bbcd-9654e7b394d3";
+const LAY = "de512916-8fb8-4883-b951-8cbc9beb1eb8";
+const FXC = () => JSON.parse(fixture("cloudbet.cashout.json"));
+
+async function cashout(falhas) {
+  const fmt = carregarContent().pegar("formatTicketCB");
+  const { ultima } = await rodarPadrao(FXC(), []);
+  const bs = (ultima && ultima.bilhetes) || [];
+  if (bs.length !== 1 || bs[0].id !== BACK) falhas.push(`cashout: esperava só a ${BACK}, vieram ${bs.map((b) => b.id).join(", ")}`);
+  if (bs.some((b) => b.id === LAY)) falhas.push("cashout: a aposta LAY de cashout virou bilhete");
+  const b = bs.find((x) => x.id === BACK);
+  if (b) {
+    if (Math.abs(b.lucro - -265.42) > 1e-9) falhas.push(`cashout: lucro ${b.lucro}, o card diz −265,42`);
+    const st = linha(fmt(b), "Status:");
+    if (st !== "Cashout de 134,58 USDT → W (odd = cashout ÷ stake = 0,33645)") falhas.push(`cashout: status "${st}"`);
+    if (linha(fmt(b), "Stake:") !== "400,00") falhas.push(`cashout: stake "${linha(fmt(b), "Stake:")}"`);
+    const st2 = linha(fmt(Object.assign({}, b, { cashoutContra: 0, lucro: -400 })), "Status:");
+    if (!CONFERIR.test(st2)) falhas.push(`cashout sem a contra-aposta virou "${st2}"`);
+  }
+  const c = ((ultima && ultima.cru) || []).find((x) => x.codigo === BACK);
+  if (!c || !Array.isArray(c.cru.cashout) || c.cru.cashout.map((x) => x.uuid).join() !== LAY) falhas.push("cashout: o cru da original não levou a aposta de cashout");
+  if (((ultima && ultima.cru) || []).some((x) => x.codigo === LAY)) falhas.push("cashout: a LAY subiu como cru próprio");
+
+  // O portfolio da casa não fecha com a soma: não liquida.
+  const fx = FXC();
+  fx.lista_liquidadas.items[0].positions[0].portfolio.USDT.returnAmount = "-200";
+  const r2 = await rodarPadrao(fx, []);
+  const b2 = ((r2.ultima && r2.ultima.bilhetes) || []).find((x) => x.id === BACK);
+  const st3 = b2 ? linha(fmt(b2), "Status:") : "";
+  if (!CONFERIR.test(st3)) falhas.push(`cashout com portfolio que não fecha virou "${st3}"`);
+  if (((r2.ultima && r2.ultima.bilhetes) || []).some((x) => x.id === LAY)) falhas.push("cashout sem prova: a LAY virou bilhete");
   return 1;
 }

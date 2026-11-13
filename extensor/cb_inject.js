@@ -261,6 +261,24 @@
     };
   }
 
+  // O dinheiro do cashout (s453). Medido: BACK 400 @ 8,161 `returnAmount` −400 + LAY 3.129,82 @
+  // 1,043 `returnAmount` +134,58 = −265,42, o "L/P −$265,42" do card e o `returnAmount` do
+  // `portfolio` da sub-posição; o `cashoutAmount` dele é 134,58 (= stake + lucro). Só vale com a
+  // prova da casa: original liquidada como CASHED_OUT, contra-apostas liquidadas e a soma igual ao
+  // portfolio. Sem isso o bilhete segue com o lucro só da original e o formatador sobe "a conferir".
+  function _cashout(b, bet, contra, it, leg, m) {
+    b.cashoutContra = 0;
+    if (b.aberta || _s(bet.result) !== "CASHED_OUT" || contra.some((x) => _s(x.state) === "ACCEPTED")) return;
+    const lucros = [bet].concat(contra).map((x) => _n(x.returnAmount));
+    if (lucros.some((x) => typeof x !== "number")) return;
+    const sub = ((it && it.positions) || []).find((p) => p && p.betLegIdentifier === leg);
+    const port = sub && sub.portfolio && sub.portfolio[m];
+    const lucro = _soma(lucros);
+    if (!port || typeof _n(port.returnAmount) !== "number" || Math.abs(lucro - _n(port.returnAmount)) > 0.005) return;
+    b.lucro = lucro;
+    b.cashoutContra = contra.length;
+  }
+
   // Emite SEMPRE hook:true + respostas (heartbeat), mesmo com 0 bilhetes. NUNCA leva o token.
   function enviar() {
     try {
@@ -410,6 +428,22 @@
     for (const { leg, m, it, bets } of grupos) {
       const nomes = new Map();
       for (const p of (it.positions || [])) for (const s of ((p && p.selections) || [])) nomes.set(_chaveSel(s), s);
+      // CASHOUT (s453, o 1º medido, 13/11/2026): a casa registra o cashout como uma aposta
+      // CONTRÁRIA na mesma sub-posição (`side: LAY`, `isCashoutBet: true`), e a original passa a
+      // `result: CASHED_OUT`. A LAY não é aposta, é o mecanismo do cashout: virava um bilhete de
+      // 3.129,82 USDT @ 1,043 e a Caixa contava a stake dela em aberto. Ela nunca vira bilhete; o
+      // dinheiro dela vai para a original e sobe no cru (`cashout`), para a Ficha conferir.
+      const contra = bets.filter((x) => x && x.isCashoutBet === true);
+      if (contra.length) {
+        const reais = bets.filter((x) => !(x && x.isCashoutBet === true));
+        for (const bet of reais) {
+          const b = parseAposta(bet, it, nomes, eventos);
+          if (!b) continue;
+          if (reais.length === 1) _cashout(b, bet, contra, it, leg, m);
+          guardar(b, { aposta: bet, posicao: it, eventos: evsDe(b), cashout: contra });
+        }
+        continue;
+      }
       // Junta só se TODAS têm as mesmas seleções (46 de 46 no recon). Senão, cada uma sozinha.
       const mesma = bets.length > 1 && bets.every((x) => _assinaturaSel(x) === _assinaturaSel(bets[0]));
       if (mesma) {

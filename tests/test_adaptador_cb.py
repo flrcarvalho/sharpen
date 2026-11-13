@@ -35,7 +35,10 @@ s445 (11/11/2026), sub-posição juntada, fixture `cloudbet.posicoes.json` (medi
 (6 de 6. Inócua: tirar `!= cod` do `absorvidos`, porque o código da juntada é o
 `betLegIdentifier` e nunca coincide com um uuid; o servidor tira o próprio código de novo.)
 
-O QUE NÃO COBRE: cashout, freebet, boost, aposta em moeda que não USDT, Criar Aposta com perna
+s453 (13/11/2026), cashout, fixture `cloudbet.cashout.json` (crus de produção): mutações 18 a 21
+na seção do fim, 4 de 4 detectadas.
+
+O QUE NÃO COBRE: cashout parcial e cashout de juntada, freebet, boost, aposta em moeda que não USDT, Criar Aposta com perna
 PUSH (sem amostra: `status_perna` None), juntada ABERTA (a conta não tinha) e sub-posição em mais
 de uma moeda.
 """
@@ -310,3 +313,60 @@ def test_odd_e_ponderada_pela_stake_nao_media_simples():
     c = {cb.codigo(x): x for x in cb.bilhetes_da_resposta(pos)}[L6]
     f, d = _montar(c)
     assert (d["stake"], d["odd"]) == ("50", "7,068")
+
+
+# ── Cashout (s453) ───────────────────────────────────────────────────────────────────────────
+# Fixture `cloudbet.cashout.json`: o 1º cashout medido, 13/11/2026, conta em USDT, os crus de
+# produção. Card da casa: "Aposta (2 aposta(s)) $0.00" e "L/P −$265,42". O gabarito é o card e o
+# `portfolio` da sub-posição (`cashoutAmount` 134,58), nunca o código.
+# Mutações (13/11/2026), cada uma com o teste ao lado vermelho:
+#  18. a LAY volta a ser bilhete próprio                  → test_cashout_a_lay_nao_vira_bilhete
+#  19. lucro só da original (sem somar a LAY)             → test_cashout_e_w_pelo_valor_do_card
+#  20. sem conferir o portfolio                           → test_cashout_que_nao_bate_com_a_casa_recusa
+#  21. absorvidos sem a LAY                               → test_cashout_absorve_a_lay_gravada_antes
+_CASH = json.loads((_FIX.parent / "cloudbet.cashout.json").read_text(encoding="utf-8"))
+BACK = "942c19e8-da04-484e-bbcd-9654e7b394d3"         # 400 USDT @ 8,161, CASHED_OUT
+LAY = "de512916-8fb8-4883-b951-8cbc9beb1eb8"          # a aposta de cashout, 3.129,82 @ 1,043
+
+
+def _cash():
+    return {cb.codigo(c): c for c in cb.bilhetes_da_resposta(copy.deepcopy(_CASH))}
+
+
+def test_cashout_a_lay_nao_vira_bilhete():
+    crus = _cash()
+    assert list(crus) == [BACK]
+    assert [x["uuid"] for x in crus[BACK]["cashout"]] == [LAY]
+
+
+def test_cashout_e_w_pelo_valor_do_card():
+    """Card: L/P −265,42. Cashout 134,58 ≠ stake 400 → W com odd = 134,58 ÷ 400 = 0,33645
+    (MASTER_RESULTADO §5.6), e o P/L 400 × (0,33645 − 1) = −265,42 fecha com o card."""
+    f, d = _montar(_cash()[BACK])
+    assert (f["status"], f["retorno"], f["stake"]) == ("cashout", "134.58", "400")
+    assert (d["resultado"], d["stake"], d["odd"]) == ("W", "400", "0,33645")
+
+
+def test_cashout_que_nao_bate_com_a_casa_recusa():
+    c = _cash()[BACK]
+    c["posicao"]["positions"][0]["portfolio"]["USDT"]["returnAmount"] = "-200"
+    with pytest.raises(Recusa):
+        cb.adaptar(c, "CLOUDBET")
+    c = _cash()[BACK]                                        # LAY ainda aberta
+    c["cashout"][0]["state"] = "ACCEPTED"
+    with pytest.raises(Recusa):
+        cb.adaptar(c, "CLOUDBET")
+    c = _cash()[BACK]                                        # original não é CASHED_OUT
+    c["aposta"]["result"] = "LOSS"
+    with pytest.raises(Recusa):
+        cb.adaptar(c, "CLOUDBET")
+    c = _cash()[BACK]                                        # cru sem a contra-aposta
+    del c["cashout"]
+    with pytest.raises(Recusa):
+        cb.adaptar(c, "CLOUDBET")
+
+
+def test_cashout_absorve_a_lay_gravada_antes():
+    """Captura anterior a s453 gravou a LAY como aposta: ela sai pelo `absorvidos`."""
+    assert cb.absorvidos(_cash()[BACK]) == [LAY]
+    assert cb.absorvidos(CRUS[PARLAY]) == []

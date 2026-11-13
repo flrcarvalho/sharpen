@@ -1,0 +1,304 @@
+{
+ "_origem": "Cloudbet, conta em USDT, 13/11/2026 (s453): o 1o cashout medido. Posicao 47ed41fd: BACK 400 @ 8,161 (result CASHED_OUT) + LAY de cashout 3129,82 @ 1,043 (isCashoutBet). Card: 'Aposta (2 aposta(s)) $0.00', 'L/P -$265,42'. Os crus de producao (captura_crua), sem campo de identidade.",
+ "lista_abertas": {
+  "hasNext": false,
+  "items": []
+ },
+ "lista_liquidadas": {
+  "hasNext": false,
+  "items": [
+   {
+    "type": "PARLAY",
+    "betCount": 2,
+    "positions": [
+     {
+      "status": "COMPLETED",
+      "betCount": 2,
+      "aggregate": {
+       "odds": "0",
+       "currency": "USD",
+       "stakeAmount": "0",
+       "returnAmount": "-265.42",
+       "cashoutAmount": "134.58",
+       "potentialReturnAmount": "0"
+      },
+      "portfolio": {
+       "USDT": {
+        "betCount": 2,
+        "stakeAmount": "0",
+        "returnAmount": "-265.42",
+        "cashoutAmount": "134.58",
+        "potentialReturnAmount": "0"
+       }
+      },
+      "selections": [
+       {
+        "name": "Under 1.5",
+        "params": "player_key=s-pascal-siakam&total=1.5",
+        "result": "PENDING",
+        "eventId": "37236865",
+        "outcome": "under",
+        "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+        "marketName": "Pascal Siakam Total 3-Pointers Made",
+        "outcomeName": "Under 1.5"
+       },
+       {
+        "name": "Under 3.5",
+        "params": "player_key=s-nickeil-alexander-minus-walker&total=3.5",
+        "result": "PENDING",
+        "eventId": "37237314",
+        "outcome": "under",
+        "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+        "marketName": "Nickeil Alexander-Walker Total 3-Pointers Made",
+        "outcomeName": "Under 3.5"
+       },
+       {
+        "name": "Over 0.5",
+        "params": "player_key=s-shai-gilgeous-minus-alexander&total=0.5",
+        "result": "PENDING",
+        "eventId": "37237212",
+        "outcome": "over",
+        "marketKey": "basketball.player_props_blocks_player_ou_incl_ot",
+        "marketName": "Shai Gilgeous-Alexander Total Blocks",
+        "outcomeName": "Over 0.5"
+       }
+      ],
+      "betLegIdentifier": "47ed41fdf692a6f382e8bbd108b3ed1d2c0fba70",
+      "cashoutSupported": true
+     }
+    ],
+    "positionId": "47ed41fdf692a6f382e8bbd108b3ed1d2c0fba70",
+    "positionTime": "2026-11-13T16:16:36Z",
+    "positionStatus": "COMPLETED"
+   }
+  ]
+ },
+ "detalhes": {
+  "47ed41fdf692a6f382e8bbd108b3ed1d2c0fba70": {
+   "bets": [
+    {
+     "side": "BACK",
+     "type": "PARLAY",
+     "uuid": "942c19e8-da04-484e-bbcd-9654e7b394d3",
+     "price": "8.161",
+     "stake": "400",
+     "state": "COMPLETED",
+     "result": "CASHED_OUT",
+     "channel": "WEB",
+     "betSlipId": "7982755b-d724-4264-a872-858717ea21c2",
+     "createTime": "2026-11-13T16:15:49.14607Z",
+     "isMultiple": true,
+     "selections": [
+      {
+       "price": "1.86",
+       "params": "player_key=s-shai-gilgeous-minus-alexander&total=0.5",
+       "result": "PENDING",
+       "eventId": "37237212",
+       "outcome": "over",
+       "sportKey": "basketball",
+       "marketKey": "basketball.player_props_blocks_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_blocks_player_ou_incl_ot/over?player_key=s-shai-gilgeous-minus-alexander&total=0.5",
+       "categoryKey": "usa",
+       "adjustedPrice": "1.86",
+       "competitionKey": "t8f-nba"
+      },
+      {
+       "price": "2.13",
+       "params": "player_key=s-nickeil-alexander-minus-walker&total=3.5",
+       "result": "PENDING",
+       "eventId": "37237314",
+       "outcome": "under",
+       "sportKey": "basketball",
+       "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_three_pointers_player_ou_incl_ot/under?player_key=s-nickeil-alexander-minus-walker&total=3.5",
+       "categoryKey": "usa",
+       "adjustedPrice": "2.13",
+       "competitionKey": "t8f-nba"
+      },
+      {
+       "price": "2.06",
+       "params": "player_key=s-pascal-siakam&total=1.5",
+       "result": "PENDING",
+       "eventId": "37236865",
+       "outcome": "under",
+       "sportKey": "basketball",
+       "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_three_pointers_player_ou_incl_ot/under?player_key=s-pascal-siakam&total=1.5",
+       "categoryKey": "usa",
+       "adjustedPrice": "2.06",
+       "competitionKey": "t8f-nba"
+      }
+     ],
+     "baseCurrency": "USDT",
+     "completeTime": "2026-11-13T16:16:36Z",
+     "isCashoutBet": false,
+     "returnAmount": "-400",
+     "adjustedPrice": "0",
+     "spendingPoints": "0",
+     "betLegsIdentifier": "47ed41fdf692a6f382e8bbd108b3ed1d2c0fba70",
+     "potentialReturnAmount": "3264.4",
+     "exhaustedPotentialReturnAmount": "3264.4"
+    },
+    {
+     "side": "LAY",
+     "type": "SAME_GAME_PARLAY",
+     "uuid": "de512916-8fb8-4883-b951-8cbc9beb1eb8",
+     "price": "1.043",
+     "stake": "3129.82",
+     "state": "COMPLETED",
+     "result": "CASHED_OUT",
+     "channel": "WEB",
+     "betSlipId": "9783f670-df7d-11f1-bbd5-0f1f8c9ca667",
+     "createTime": "2026-11-13T16:16:35.480704Z",
+     "isMultiple": false,
+     "selections": [
+      {
+       "price": "1.043",
+       "params": "player_key=s-pascal-siakam&total=1.5",
+       "result": "",
+       "eventId": "37236865",
+       "outcome": "under",
+       "sportKey": "basketball",
+       "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_three_pointers_player_ou_incl_ot/under?player_key=s-pascal-siakam&total=1.5",
+       "categoryKey": "usa",
+       "adjustedPrice": "0",
+       "competitionKey": "t8f-nba"
+      },
+      {
+       "price": "1.043",
+       "params": "player_key=s-pascal-siakam&total=1.5",
+       "result": "PENDING",
+       "eventId": "37236865",
+       "outcome": "under",
+       "sportKey": "basketball",
+       "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_three_pointers_player_ou_incl_ot/under?player_key=s-pascal-siakam&total=1.5",
+       "categoryKey": "usa",
+       "adjustedPrice": "1.043",
+       "competitionKey": "t8f-nba"
+      },
+      {
+       "price": "1.043",
+       "params": "player_key=s-nickeil-alexander-minus-walker&total=3.5",
+       "result": "PENDING",
+       "eventId": "37237314",
+       "outcome": "under",
+       "sportKey": "basketball",
+       "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_three_pointers_player_ou_incl_ot/under?player_key=s-nickeil-alexander-minus-walker&total=3.5",
+       "categoryKey": "usa",
+       "adjustedPrice": "1.043",
+       "competitionKey": "t8f-nba"
+      },
+      {
+       "price": "1.043",
+       "params": "player_key=s-shai-gilgeous-minus-alexander&total=0.5",
+       "result": "PENDING",
+       "eventId": "37237212",
+       "outcome": "over",
+       "sportKey": "basketball",
+       "marketKey": "basketball.player_props_blocks_player_ou_incl_ot",
+       "marketUrl": "basketball.player_props_blocks_player_ou_incl_ot/over?player_key=s-shai-gilgeous-minus-alexander&total=0.5",
+       "categoryKey": "usa",
+       "adjustedPrice": "1.043",
+       "competitionKey": "t8f-nba"
+      }
+     ],
+     "baseCurrency": "USDT",
+     "completeTime": "2026-11-13T16:16:36Z",
+     "isCashoutBet": true,
+     "returnAmount": "134.58",
+     "adjustedPrice": "0",
+     "spendingPoints": "0",
+     "betLegsIdentifier": "47ed41fdf692a6f382e8bbd108b3ed1d2c0fba70",
+     "potentialReturnAmount": "3264.4",
+     "exhaustedPotentialReturnAmount": "0"
+    }
+   ]
+  }
+ },
+ "eventos": {
+  "37236865": {
+   "id": 37236865,
+   "key": "c5f9-indiana-pacers-v-c683-new-york-knicks",
+   "away": {
+    "key": "c683-new-york-knicks",
+    "name": "NY Knicks"
+   },
+   "home": {
+    "key": "c5f9-indiana-pacers",
+    "name": "IND Pacers"
+   },
+   "name": "IND Pacers v NY Knicks",
+   "sport": {
+    "key": "basketball",
+    "name": "Basketball"
+   },
+   "status": "TRADING",
+   "cutoffTime": "2026-11-14T00:00:00Z",
+   "competition": {
+    "key": "basketball-usa-nba",
+    "name": "NBA",
+    "category": {
+     "key": "usa",
+     "name": "USA"
+    }
+   }
+  },
+  "37237212": {
+   "id": 37237212,
+   "key": "c1aa773-la-clippers-v-c68e-oklahoma-city-thunder",
+   "away": {
+    "key": "c68e-oklahoma-city-thunder",
+    "name": "OKC Thunder"
+   },
+   "home": {
+    "key": "c1aa773-la-clippers",
+    "name": "LA Clippers"
+   },
+   "name": "LA Clippers v OKC Thunder",
+   "sport": {
+    "key": "basketball",
+    "name": "Basketball"
+   },
+   "status": "TRADING",
+   "cutoffTime": "2026-11-14T03:30:00Z",
+   "competition": {
+    "key": "basketball-usa-nba",
+    "name": "NBA",
+    "category": {
+     "key": "usa",
+     "name": "USA"
+    }
+   }
+  },
+  "37237314": {
+   "id": 37237314,
+   "key": "c9e3-chicago-bulls-v-c9dc-atlanta-hawks",
+   "away": {
+    "key": "c9dc-atlanta-hawks",
+    "name": "ATL Hawks"
+   },
+   "home": {
+    "key": "c9e3-chicago-bulls",
+    "name": "CHI Bulls"
+   },
+   "name": "CHI Bulls v ATL Hawks",
+   "sport": {
+    "key": "basketball",
+    "name": "Basketball"
+   },
+   "status": "TRADING",
+   "cutoffTime": "2026-11-14T01:00:00Z",
+   "competition": {
+    "key": "basketball-usa-nba",
+    "name": "NBA",
+    "category": {
+     "key": "usa",
+     "name": "USA"
+    }
+   }
+  }
+ }
+}
