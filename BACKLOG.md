@@ -1862,6 +1862,21 @@ Entrou na 0.7.69, 11ª Altenar, espelho da Vavada, recon LOGADO na conta do Feca
 - Espelho numerado (`sportaza-5178.com`): domínio novo entra no manifest, `popup.js` e
   `_HOSTS_POR_CASA`, com versão nova.
 
+### 4.0y CopaWin: virar a Ficha e validar a 1ª captura (s451). **VIVA, harness com fixture real**
+
+Entrou na 0.7.77 (aviso ao grupo na 0.7.78), plataforma própria, família `cw`, recon LOGADO
+na conta limitada do Feca (`CASA_COPAWIN.md`). Harness e adaptador com 15 bilhetes reais.
+- **Virada:** `COPAWIN` em `FICHA_SOMBRA_CASAS`, `FICHA_CASAS_VIRADAS` e
+  `EXTRACAO_SEM_PENSAMENTO` (Railway, serviço `extrator`; comando com o Feca), depois
+  `python scripts/semear_dicionario.py --aplicar`.
+- **Botão Conectar em produção:** `_casaConectavel('CopaWin')` × controle negativo, e
+  `COPAWIN` em `captura` no `/casas`. O Chrome travou antes da prova.
+- **1ª captura pela extensão instalada**, conferida no `virada_log` (pela_ficha × para_ia).
+- **Sem amostra, o adaptador recusa:** aberta, múltipla, cashout, boost e a Odd Turbinada.
+  Medir cada uma quando aparecer numa conta viva.
+- **Jaao26 entrava por print** (166 bilhetes, 15 a 27/10). Com `COPAWIN` em `CASAS_COM_FICHA`,
+  print e PDF dela são recusados no `/extrair`: ele precisa da extensão.
+
 ### 4.0u Soh Props - Nômade: o que ficou aberto no onboarding (s430). **VIVA, medida**
 
 - **Jogo da madrugada postado na véspera.** `4h35` postado às 18:58 do dia 23 é jogo do dia 24, e o
