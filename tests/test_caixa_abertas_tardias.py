@@ -56,13 +56,9 @@ def _aposta(bid, criado_em, data="05/09/2026", stake="150,00"):
 
 
 def _rodar(conn, novas, monkeypatch):
-    # `hoje` é lido de `date.today()`; fixamos para o dia do corte (o cenário medido).
+    # `hoje` é lido de `_hoje_caixa()` (Brasília); fixamos no dia do corte (o cenário medido).
     import repository
-    class _Data(date):
-        @classmethod
-        def today(cls):
-            return CORTE
-    monkeypatch.setattr(repository, "date", _Data)
+    monkeypatch.setattr(repository, "_hoje_caixa", lambda: CORTE.isoformat())
     return asyncio.run(_caixa_adotar_abertas_tardias(conn, "Feca", novas))
 
 
@@ -130,3 +126,36 @@ def test_lote_sem_aberta_nova_nao_consulta_nada(monkeypatch):
     conn = ConnDuble(_inicial())
     assert _rodar(conn, [], monkeypatch) == 0
     assert conn.updates == []
+
+
+# ── s453: o "hoje" da Caixa é o de BRASÍLIA, não o do relógio UTC do Railway ─────────
+# Jonathan, Cloudbet, ativou 12/11/2026 23:54 BRT (= 13/11 02:54 UTC) com corte 12/11.
+# Com `date.today()` em UTC o corte parecia passado e o `abertas_corte` saiu vazio.
+# Mutações: trocar `_hoje_caixa` de volta por `date.today()` nas duas chamadas (o teste
+# do relógio pega o helper; o de adoção pega a chamada) e tirar o fuso do helper.
+
+def _relogio(monkeypatch, instante_utc):
+    import repository
+    class _DT(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return instante_utc.astimezone(tz) if tz else instante_utc.replace(tzinfo=None)
+    monkeypatch.setattr(repository, "datetime", _DT)
+
+
+def test_s453_hoje_da_caixa_as_23h54_de_brasilia_ainda_e_o_mesmo_dia(monkeypatch):
+    import repository
+    _relogio(monkeypatch, datetime(2026, 11, 13, 2, 54, 55, tzinfo=timezone.utc))
+    assert repository._hoje_caixa() == "2026-11-12"
+
+
+def test_s453_ativacao_noturna_adota_as_abertas_vivas(monkeypatch):
+    """O caso medido inteiro, sem dublar o `hoje`: só o relógio é fixado em UTC."""
+    import repository
+    ativ = datetime(2026, 11, 13, 2, 54, 55, tzinfo=timezone.utc)
+    _relogio(monkeypatch, datetime(2026, 11, 13, 2, 55, 30, tzinfo=timezone.utc))
+    conn = ConnDuble(_inicial(criado_em=ativ, corte=date(2026, 11, 12)))
+    # Capturada às 23:50 BRT do dia 12, evento no dia 13: viva quando o saldo foi lido.
+    novas = [_aposta(436180, datetime(2026, 11, 13, 2, 50, tzinfo=timezone.utc), data="13/11/2026")]
+    n = asyncio.run(repository._caixa_adotar_abertas_tardias(conn, "Feca", novas))
+    assert n == 1 and conn.updates == [([436180], 140)]

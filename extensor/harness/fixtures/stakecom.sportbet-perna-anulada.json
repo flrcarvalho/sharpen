@@ -1,0 +1,511 @@
+{
+ "bet": {
+  "id": "5fbf402d-dc51-42f7-b03d-20c4878244ae",
+  "bet": {
+   "iid": "sport:691299159",
+   "__typename": "Bet"
+  },
+  "active": false,
+  "amount": 70,
+  "payout": 313.74,
+  "status": "settled",
+  "cashouts": [],
+  "currency": "usdt",
+  "outcomes": [
+   {
+    "id": "ea070bc4-35d9-4f1d-ad1f-97e66e2e4a96",
+    "odds": 1.62,
+    "market": {
+     "id": "e478f42b-15f0-42db-b19d-029e16f0ac02",
+     "name": "Hipótese dupla",
+     "extId": "10",
+     "status": "settled",
+     "provider": "betradar",
+     "__typename": "SportMarket",
+     "specifiers": "",
+     "templateExtId": "10",
+     "customBetAvailable": true
+    },
+    "status": "voided",
+    "fixture": {
+     "id": "5443350f-022e-431b-8af6-9fcf802145af",
+     "data": {
+      "teams": [
+       {
+        "name": "Doncaster Rovers FC",
+        "extId": "sr:competitor:84",
+        "qualifier": "home",
+        "__typename": "SportFixtureTeam"
+       },
+       {
+        "name": "Leyton Orient FC",
+        "extId": "sr:competitor:83",
+        "qualifier": "away",
+        "__typename": "SportFixtureTeam"
+       }
+      ],
+      "startTime": "Sat, 14 Nov 2026 15:00:00 GMT",
+      "__typename": "SportFixtureDataMatch",
+      "isOutright": false,
+      "competitors": [
+       {
+        "name": "Doncaster Rovers FC",
+        "extId": "sr:competitor:84",
+        "country": "Inglaterra",
+        "iconPath": null,
+        "__typename": "SportFixtureCompetitor",
+        "countryCode": "GB",
+        "defaultName": "Doncaster",
+        "abbreviation": "DON"
+       },
+       {
+        "name": "Leyton Orient FC",
+        "extId": "sr:competitor:83",
+        "country": "Inglaterra",
+        "iconPath": null,
+        "__typename": "SportFixtureCompetitor",
+        "countryCode": "GB",
+        "defaultName": "Leyton Orient",
+        "abbreviation": "LEY"
+       }
+      ]
+     },
+     "name": "Doncaster Rovers FC - Leyton Orient FC",
+     "slug": "1794668400000-doncaster-leyton-orient-london",
+     "extId": "sr:match:72341362",
+     "status": "ended",
+     "provider": "betradar",
+     "__typename": "SportFixture",
+     "tournament": {
+      "id": "8be231a8-b7fe-497c-9c13-f3f33e9b04ef",
+      "name": "League One",
+      "slug": "league-one",
+      "category": {
+       "id": "a6b53401-44c7-4e13-a560-ed1de8189773",
+       "name": "Inglaterra",
+       "slug": "england",
+       "sport": {
+        "id": "5b4b60b9-ed95-41e7-97e3-f33aa172cf12",
+        "name": "Futebol",
+        "slug": "soccer",
+        "__typename": "Sport",
+        "cashoutEnabled": true,
+        "cashoutConfiguration": {
+         "baseLoad": 0.001,
+         "__typename": "StakeSportCashoutConfiguration",
+         "cashoutEnabled": true,
+         "varianceSensitivity": 0.8
+        }
+       },
+       "__typename": "SportCategory",
+       "cashoutEnabled": true
+      },
+      "__typename": "SportTournament",
+      "cashoutEnabled": true
+     },
+     "eventStatus": {
+      "clock": {
+       "matchTime": null,
+       "__typename": "SportFixtureEventStatusClock",
+       "remainingTime": null
+      },
+      "awayScore": null,
+      "homeScore": null,
+      "statistic": {
+       "corners": {
+        "away": null,
+        "home": null,
+        "__typename": "SportFixtureEventStatusStatisticHomeAway"
+       },
+       "redCards": {
+        "away": null,
+        "home": null,
+        "__typename": "SportFixtureEventStatusStatisticHomeAway"
+       },
+       "__typename": "FixtureSportEventStatusStatistic",
+       "yellowCards": {
+        "away": null,
+        "home": null,
+        "__typename": "SportFixtureEventStatusStatisticHomeAway"
+       }
+      },
+      "__typename": "SportFixtureEventStatusData",
+      "matchStatus": "Por iniciar",
+      "periodScores": null,
+      "awayGameScore": null,
+      "homeGameScore": null,
+      "currentTeamServing": null
+     },
+     "marketCount": 0,
+     "streamExists": false,
+     "cashoutEnabled": true,
+     "stakeFixtureId": "74725b1b-8b4a-4925-bca8-c0aae79833e1"
+    },
+    "outcome": {
+     "id": "ea070bc4-35d9-4f1d-ad1f-97e66e2e4a96",
+     "name": "empate ou Leyton Orient FC",
+     "odds": 1.62,
+     "active": true,
+     "payout": 0,
+     "__typename": "SportMarketOutcome",
+     "voidFactor": 1,
+     "probabilities": 0.57907736,
+     "customBetAvailable": true
+    },
+    "totalOdds": null,
+    "__typename": "SportBetOutcome"
+   },
+   {
+    "id": "76ec4564-4deb-444e-b315-3c3daec1e55f",
+    "odds": 2.7,
+    "market": {
+     "id": "58f9a2c0-f6c4-493d-9153-85b36858aa50",
+     "name": "Handicap de sets",
+     "extId": "188",
+     "status": "settled",
+     "provider": "betradar",
+     "__typename": "SportMarket",
+     "specifiers": "hcp=-1.5",
+     "templateExtId": "188",
+     "customBetAvailable": false
+    },
+    "status": "won",
+    "fixture": {
+     "id": "9f049926-822c-4dd9-b4e7-d0d348dec0ff",
+     "data": {
+      "teams": [
+       {
+        "name": "Arago de Sete",
+        "extId": "sr:competitor:43346",
+        "qualifier": "home",
+        "__typename": "SportFixtureTeam"
+       },
+       {
+        "name": "Royan Atlantique Volleyball",
+        "extId": "sr:competitor:1057607",
+        "qualifier": "away",
+        "__typename": "SportFixtureTeam"
+       }
+      ],
+      "startTime": "Fri, 13 Nov 2026 18:30:00 GMT",
+      "__typename": "SportFixtureDataMatch",
+      "isOutright": false,
+      "competitors": [
+       {
+        "name": "Arago de Sete",
+        "extId": "sr:competitor:43346",
+        "country": null,
+        "iconPath": null,
+        "__typename": "SportFixtureCompetitor",
+        "countryCode": null,
+        "defaultName": "Arago de Sete",
+        "abbreviation": "ADS"
+       },
+       {
+        "name": "Royan Atlantique Volleyball",
+        "extId": "sr:competitor:1057607",
+        "country": "França",
+        "iconPath": null,
+        "__typename": "SportFixtureCompetitor",
+        "countryCode": "FR",
+        "defaultName": "Royan Atlantique Volleyball",
+        "abbreviation": "ROY"
+       }
+      ]
+     },
+     "name": "Arago de Sete - Royan Atlantique Volleyball",
+     "slug": "1794594600000-arago-de-sete-royan-atlantique-volleyball",
+     "extId": "sr:match:73951248",
+     "status": "ended",
+     "provider": "betradar",
+     "__typename": "SportFixture",
+     "tournament": {
+      "id": "fe1d5251-7bb1-4341-8b48-6b14488b0fb3",
+      "name": "Liga A",
+      "slug": "ligue-a",
+      "category": {
+       "id": "3e31cd7e-f8da-4d70-b944-7dfb798cdf7e",
+       "name": "França",
+       "slug": "france",
+       "sport": {
+        "id": "c1cc7eff-6135-40d0-9485-1f737950b3b1",
+        "name": "Voleibol",
+        "slug": "volleyball",
+        "__typename": "Sport",
+        "cashoutEnabled": true,
+        "cashoutConfiguration": {
+         "baseLoad": 0.2,
+         "__typename": "StakeSportCashoutConfiguration",
+         "cashoutEnabled": true,
+         "varianceSensitivity": 1.5
+        }
+       },
+       "__typename": "SportCategory",
+       "cashoutEnabled": true
+      },
+      "__typename": "SportTournament",
+      "cashoutEnabled": true
+     },
+     "eventStatus": {
+      "clock": {
+       "matchTime": null,
+       "__typename": "SportFixtureEventStatusClock",
+       "remainingTime": null
+      },
+      "awayScore": 0,
+      "homeScore": 3,
+      "statistic": {
+       "corners": {
+        "away": null,
+        "home": null,
+        "__typename": "SportFixtureEventStatusStatisticHomeAway"
+       },
+       "redCards": {
+        "away": null,
+        "home": null,
+        "__typename": "SportFixtureEventStatusStatisticHomeAway"
+       },
+       "__typename": "FixtureSportEventStatusStatistic",
+       "yellowCards": {
+        "away": null,
+        "home": null,
+        "__typename": "SportFixtureEventStatusStatisticHomeAway"
+       }
+      },
+      "__typename": "SportFixtureEventStatusData",
+      "matchStatus": "Finalizado",
+      "periodScores": [
+       {
+        "awayScore": 20,
+        "homeScore": 25,
+        "__typename": "SportFixtureEventStatusPeriodScore",
+        "matchStatus": "1º set"
+       },
+       {
+        "awayScore": 12,
+        "homeScore": 25,
+        "__typename": "SportFixtureEventStatusPeriodScore",
+        "matchStatus": "2º set"
+       },
+       {
+        "awayScore": 19,
+        "homeScore": 25,
+        "__typename": "SportFixtureEventStatusPeriodScore",
+        "matchStatus": "3º set"
+       }
+      ],
+      "awayGameScore": null,
+      "homeGameScore": null,
+      "currentTeamServing": "away"
+     },
+     "marketCount": 0,
+     "streamExists": false,
+     "cashoutEnabled": true,
+     "stakeFixtureId": "5156693c-de68-4010-b601-b086ffdde8d1"
+    },
+    "outcome": {
+     "id": "76ec4564-4deb-444e-b315-3c3daec1e55f",
+     "name": "Arago de Sete (-1.5)",
+     "odds": 2.7,
+     "active": true,
+     "payout": 1,
+     "__typename": "SportMarketOutcome",
+     "voidFactor": 0,
+     "probabilities": 0.3271,
+     "customBetAvailable": false
+    },
+    "totalOdds": null,
+    "__typename": "SportBetOutcome"
+   },
+   {
+    "id": "28d52980-b010-4ab8-b05a-4b5c5356d124",
+    "odds": 1.66,
+    "market": {
+     "id": "4ffa2c6e-1ebc-4c38-b3c4-95cde97804aa",
+     "name": "Handicap de sets",
+     "extId": "188",
+     "status": "settled",
+     "provider": "betradar",
+     "__typename": "SportMarket",
+     "specifiers": "hcp=-1.5",
+     "templateExtId": "188",
+     "customBetAvailable": false
+    },
+    "status": "won",
+    "fixture": {
+     "id": "03c67d51-e179-4746-affb-9a4de03b94ea",
+     "data": {
+      "teams": [
+       {
+        "name": "Osasco VC",
+        "extId": "sr:competitor:46533",
+        "qualifier": "home",
+        "__typename": "SportFixtureTeam"
+       },
+       {
+        "name": "Sesi Voleibol Bauru",
+        "extId": "sr:competitor:506876",
+        "qualifier": "away",
+        "__typename": "SportFixtureTeam"
+       }
+      ],
+      "startTime": "Sat, 14 Nov 2026 00:00:00 GMT",
+      "__typename": "SportFixtureDataMatch",
+      "isOutright": false,
+      "competitors": [
+       {
+        "name": "Osasco VC",
+        "extId": "sr:competitor:46533",
+        "country": null,
+        "iconPath": null,
+        "__typename": "SportFixtureCompetitor",
+        "countryCode": null,
+        "defaultName": "Osasco Audax",
+        "abbreviation": "OSA"
+       },
+       {
+        "name": "Sesi Voleibol Bauru",
+        "extId": "sr:competitor:506876",
+        "country": "Brasil",
+        "iconPath": null,
+        "__typename": "SportFixtureCompetitor",
+        "countryCode": "BR",
+        "defaultName": "Concilig/Volei Bauru",
+        "abbreviation": "SES"
+       }
+      ]
+     },
+     "name": "Osasco VC - Sesi Voleibol Bauru",
+     "slug": "1794614400000-osasco-vc-sesi-volei-bauru",
+     "extId": "sr:match:75360796",
+     "status": "ended",
+     "provider": "betradar",
+     "__typename": "SportFixture",
+     "tournament": {
+      "id": "5fe5e8d2-be70-4ed1-a3e6-9c6fbd96cffb",
+      "name": "Superliga Feminina",
+      "slug": "superliga-women",
+      "category": {
+       "id": "6ed582e1-6a64-43bd-bf2a-a609b7b4e83c",
+       "name": "Brasil",
+       "slug": "brazil",
+       "sport": {
+        "id": "c1cc7eff-6135-40d0-9485-1f737950b3b1",
+        "name": "Voleibol",
+        "slug": "volleyball",
+        "__typename": "Sport",
+        "cashoutEnabled": true,
+        "cashoutConfiguration": {
+         "baseLoad": 0.2,
+         "__typename": "StakeSportCashoutConfiguration",
+         "cashoutEnabled": true,
+         "varianceSensitivity": 1.5
+        }
+       },
+       "__typename": "SportCategory",
+       "cashoutEnabled": true
+      },
+      "__typename": "SportTournament",
+      "cashoutEnabled": true
+     },
+     "eventStatus": {
+      "clock": {
+       "matchTime": null,
+       "__typename": "SportFixtureEventStatusClock",
+       "remainingTime": null
+      },
+      "awayScore": 3,
+      "homeScore": 2,
+      "statistic": {
+       "corners": {
+        "away": null,
+        "home": null,
+        "__typename": "SportFixtureEventStatusStatisticHomeAway"
+       },
+       "redCards": {
+        "away": null,
+        "home": null,
+        "__typename": "SportFixtureEventStatusStatisticHomeAway"
+       },
+       "__typename": "FixtureSportEventStatusStatistic",
+       "yellowCards": {
+        "away": null,
+        "home": null,
+        "__typename": "SportFixtureEventStatusStatisticHomeAway"
+       }
+      },
+      "__typename": "SportFixtureEventStatusData",
+      "matchStatus": "Finalizado",
+      "periodScores": [
+       {
+        "awayScore": 25,
+        "homeScore": 19,
+        "__typename": "SportFixtureEventStatusPeriodScore",
+        "matchStatus": "1º set"
+       },
+       {
+        "awayScore": 25,
+        "homeScore": 16,
+        "__typename": "SportFixtureEventStatusPeriodScore",
+        "matchStatus": "2º set"
+       },
+       {
+        "awayScore": 22,
+        "homeScore": 25,
+        "__typename": "SportFixtureEventStatusPeriodScore",
+        "matchStatus": "3º set"
+       },
+       {
+        "awayScore": 20,
+        "homeScore": 25,
+        "__typename": "SportFixtureEventStatusPeriodScore",
+        "matchStatus": "4º set"
+       },
+       {
+        "awayScore": 15,
+        "homeScore": 12,
+        "__typename": "SportFixtureEventStatusPeriodScore",
+        "matchStatus": "5º set"
+       }
+      ],
+      "awayGameScore": null,
+      "homeGameScore": null,
+      "currentTeamServing": "home"
+     },
+     "marketCount": 0,
+     "streamExists": false,
+     "cashoutEnabled": true,
+     "stakeFixtureId": "498f5bd4-e96e-47e3-acbd-05282c914f7f"
+    },
+    "outcome": {
+     "id": "28d52980-b010-4ab8-b05a-4b5c5356d124",
+     "name": "Sesi Voleibol Bauru (1.5)",
+     "odds": 1.59,
+     "active": true,
+     "payout": 1,
+     "__typename": "SportMarketOutcome",
+     "voidFactor": 0,
+     "probabilities": 0.59032,
+     "customBetAvailable": false
+    },
+    "totalOdds": null,
+    "__typename": "SportBetOutcome"
+   }
+  ],
+  "createdAt": "Fri, 13 Nov 2026 15:35:27 GMT",
+  "customBet": false,
+  "qrCodeUrl": null,
+  "updatedAt": "Sat, 14 Nov 2026 02:46:17 GMT",
+  "__typename": "SportBet",
+  "voidReason": null,
+  "adjustments": [],
+  "activeAmount": null,
+  "customPrices": [],
+  "promotionBet": null,
+  "cashoutDisabled": true,
+  "payoutMultiplier": 4.482,
+  "cashoutMultiplier": 0,
+  "potentialMultiplier": 7.260840000000001
+ },
+ "iid": "sport:691299159"
+}

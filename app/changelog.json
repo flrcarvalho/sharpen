@@ -1001,6 +1001,7 @@
     "0.7.79": "Cloudbet: o cashout passa a liquidar a aposta e a aposta de cashout da casa deixa de virar aposta; conserto, não vira aviso (s453, 13/11/2026)",
     "0.7.80": "CopaWin: o cashout passa a liquidar a aposta (W com odd = cashout ÷ stake) em vez de ficar aberta; conserto, não vira aviso (s454, 14/11/2026)",
     "0.7.81": "CopaWin: múltipla ganha com perna anulada e ganha com a odd arredondada pela casa deixam de ficar abertas; conserto, não vira aviso (s453, 14/11/2026)",
-    "0.7.82": "CopaWin: meia vitória e meia derrota de linha asiática partida deixam de ficar abertas (HW/HL com a odd da casa); conserto, não vira aviso (s453, 14/11/2026)"
+    "0.7.82": "CopaWin: meia vitória e meia derrota de linha asiática partida deixam de ficar abertas (HW/HL com a odd da casa); conserto, não vira aviso (s453, 14/11/2026)",
+    "0.7.83": "Stake.com: múltipla comum (SportBet) com perna anulada deixa de ficar aberta (W pelo multiplicador pago da casa); conserto, não vira aviso (s453, 14/11/2026)"
   }
 }

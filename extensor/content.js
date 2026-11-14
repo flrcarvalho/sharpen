@@ -6036,9 +6036,14 @@
       // a XMulti e para a múltipla de props (`SwishBet` com 2+ pernas, s451: 690343621 do Gabriel,
       // 70 × 3,92089831 = 274,46 com a odd cheia 6,57). A props NÃO diz qual perna caiu (`cancel`
       // false nas três): o bloco não marca nenhuma. Na simples o multiplicador é a própria odd.
-      const multipla = b.tipo === "SportsbookXMultiBet" || (b.tipo === "SwishBet" && (b.pernas || []).length > 1);
-      if (multipla && ret > st && b.multPago > 0 && _quaseSTC(ret, st * b.multPago)) {
-        return "Ganhou → W (retorno " + _dinSHF(ret) + " " + moeda + " com perna anulada; odd = retorno ÷ stake)";
+      // s453 (Gabriel, 691299159, 14/11/2026): a `SportBet` múltipla também paga assim (1 perna
+      // `voided` + 2 `won`, 70 × 4,482 = 313,74 com a odd cheia 7,26) e ficava fora da lista de
+      // tipos; a aposta ficou aberta e a Caixa 313,74 USDT abaixo da casa. Quem prova é o
+      // DINHEIRO da casa (retorno = stake × `payoutMultiplier`), não o tipo: vale para toda
+      // múltipla. Na SIMPLES o multiplicador é a própria odd, e fora dela segue a conferir.
+      if ((b.pernas || []).length > 1 && ret > 0 && b.multPago > 0 && _quaseSTC(ret, st * b.multPago)) {
+        return "Ganhou → W (retorno " + _dinSHF(ret) + " " + moeda + " = stake × multiplicador pago da casa, " +
+               "perna anulada; odd = retorno ÷ stake)";
       }
       return conferir("retorno não fecha com stake × odd");
     }

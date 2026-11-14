@@ -139,3 +139,30 @@ def test_xmulti_segue_recusada_pela_ficha():
     """A XMulti vai pela IA (o texto agora a liquida); a Ficha continua recusando sem chutar."""
     with pytest.raises(Recusa, match="tipo"):
         stc.adaptar(_XM_LIQ["689158437"], "STAKECOM")
+
+
+# ── s453: SportBet múltipla com perna anulada (cru real 691299159, conta do Gabriel) ──────
+# 1 perna `voided` + 2 `won`: a casa pagou 70 × 4,482 = 313,74 (odd cheia 7,26084). Até aqui o
+# adaptador recusava, o texto dizia "a conferir", a aposta ficou ABERTA e a Caixa 313,74 USDT
+# abaixo da casa. Mutações: tirar o ramo do `payoutMultiplier` (recusa) e tirar a trava de 2+
+# pernas (a simples com multiplicador ≠ odd passa a ganhar).
+_ANULADA = json.loads((_FIX / "stakecom.sportbet-perna-anulada.json").read_text(encoding="utf-8"))
+
+
+def test_s453_multipla_com_perna_anulada_ganha_pelo_dinheiro():
+    f, d = _montar(_ANULADA)
+    assert stc.codigo(_ANULADA) == "691299159"
+    assert (f["status"], f["stake"], f["retorno"], d["resultado"]) == ("ganha", "70", "313.74", "W")
+    assert d["odd"] == "4,482"
+    assert [p["status_perna"] for p in f["pernas"]] == ["anulada", "ganha", "ganha"]
+
+
+def test_s453_retorno_fora_do_multiplicador_e_simples_seguem_recusadas():
+    c = copy.deepcopy(_ANULADA)
+    c["bet"]["payout"] = 300
+    with pytest.raises(Recusa, match="sem amostra"):
+        stc.adaptar(c, "STAKECOM")
+    s = copy.deepcopy(_ANULADA)
+    s["bet"]["outcomes"] = s["bet"]["outcomes"][1:2]
+    with pytest.raises(Recusa, match="sem amostra"):
+        stc.adaptar(s, "STAKECOM")

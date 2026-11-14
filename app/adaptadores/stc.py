@@ -112,6 +112,14 @@ def _status(b: dict) -> str:
             return "perdida"
         if odd and abs(ret - stake * odd) <= _MEIO_CENTAVO:
             return "ganha"
+        # s453 (691299159 do Gabriel): múltipla com perna anulada paga stake × `payoutMultiplier`
+        # (70 × 4,482 = 313,74), não stake × a odd cheia. O dinheiro da casa prova a vitória, e a
+        # Ficha deriva a odd (retorno ÷ stake). Vale para toda múltipla, qualquer tipo; na
+        # simples o multiplicador é a própria odd, e fora dela segue recusada.
+        mult = _d(b.get("payoutMultiplier"))
+        if (len(b.get("outcomes") or []) > 1 and ret > 0 and mult and mult > 0
+                and abs(ret - stake * mult) <= _MEIO_CENTAVO):
+            return "ganha"
     raise Recusa(f"status {st!r} com payout {b.get('payout')!r} sobre amount {b.get('amount')!r} "
                  f"e odd {_odd(b)!r} (sem amostra; a conferir)")
 

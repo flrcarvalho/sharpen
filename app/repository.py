@@ -3650,6 +3650,18 @@ def _caixa_valida(tipo: str, data: str, valor) -> tuple[str, float] | dict:
     return iso, valor
 
 
+def _hoje_caixa() -> str:
+    """O "hoje" da Caixa, no fuso de BRASÍLIA (a data que o operador digita no modal).
+
+    s453 (Jonathan, Cloudbet, 12/11/2026 23:54): `date.today()` no Railway é a data UTC.
+    Entre 21h e meia-noite de Brasília ela já é AMANHÃ, o corte digitado (hoje em
+    Brasília) parecia PASSADO e caía no ramo "piso" de `_caixa_abertas_ids`: o
+    `abertas_corte` saiu vazio, as 11 apostas vivas tiveram o stake descontado duas
+    vezes e a Caixa nasceu R$ 284,57 abaixo da casa. 19 ativações caíram nessa janela.
+    """
+    return datetime.now(timezone(timedelta(hours=-3))).date().isoformat()
+
+
 def _caixa_abertas_ids(abertas: list[dict], corte: str, hoje: str, ate=None) -> list[int]:
     """Quais apostas ABERTAS já tinham tirado o stake da conta quando o saldo foi lido.
 
@@ -3721,7 +3733,7 @@ async def _caixa_adotar_abertas_tardias(conn, dono: str, novas: list[tuple]) -> 
     """
     if not novas:
         return 0
-    hoje = date.today().isoformat()
+    hoje = _hoje_caixa()
     total = 0
     for casa, parceiro in {(c, p) for c, p, _ in novas}:
         ini = await conn.fetchrow(
@@ -3758,7 +3770,7 @@ async def _caixa_adotar_abertas_tardias(conn, dono: str, novas: list[tuple]) -> 
 async def _caixa_abertas_no_corte(conn, dono: str, casa: str, parceiro: str,
                                   corte: str) -> list[int]:
     todas = await _caixa_apostas(conn, dono, casa, parceiro)
-    return _caixa_abertas_ids(todas, corte, date.today().isoformat())
+    return _caixa_abertas_ids(todas, corte, _hoje_caixa())
 
 
 async def caixa_editar_mov(dono: str, mov_id: int, data: str, valor: float,

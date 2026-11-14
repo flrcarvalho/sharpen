@@ -133,7 +133,7 @@ colocação (`createdAt`) sai no bloco e no carimbo de colocação.
 | `settled*` · `payout` 0 | Perdeu | `L` |
 | `settled*` · `payout` = stake × odd | Ganhou | `W` |
 | `cashout` · `payout` ≠ stake | Cashout | `W`, odd = retorno ÷ stake (`MASTER_RESULTADO §5.6`) |
-| XMulti (`SportsbookXMultiBet`) ou props de 2+ pernas (`SwishBet`) · settled · `payout` = stake × `payoutMultiplier` < stake × odd | Ganhou com perna anulada | `W`, odd = retorno ÷ stake |
+| Qualquer múltipla (2+ pernas: `SportBet`, `SwishBet`, XMulti; s453 incluiu a `SportBet`, caso 691299159) · settled · `payout` = stake × `payoutMultiplier` < stake × odd | Ganhou com perna anulada | `W`, odd = retorno ÷ stake |
 | corrida, promoção, cashout parcial, retorno que não fecha | sobe cru | *(a conferir)* |
 
 Medido no recon: 7 ganhas, 7 perdidas e 1 retirada (= stake) em props, 3 abertas comuns.

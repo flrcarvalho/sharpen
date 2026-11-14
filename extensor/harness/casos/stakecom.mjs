@@ -18,7 +18,8 @@
 //     `limit` acima de 50 devolve VAZIO sem erro (o replay nunca pede mais de 50).
 //
 // NÃO COBERTO (a conta não tinha): SportBet liquidada, cashout ≠ stake, cancelada, corrida,
-// boost/promoção, XMulti com perna anulada. A régua do dinheiro desses vai por CLONE abaixo. XHR
+// boost/promoção. Perna anulada (XMulti, props, SportBet 691299159 de s453) vai por clone com os
+// números do cru real. A régua do dinheiro desses vai por CLONE abaixo. XHR
 // também não. XMulti real: `xmulti()` no fim (s445).
 //
 // MUTAÇÃO INÓCUA registrada (s445): tirar o `byId.delete(outro)` do `guardar` do INJECT não quebra
@@ -246,6 +247,13 @@ async function xmulti(falhas, fmt) {
     // Na SIMPLES de props o multiplicador é a própria odd: retorno fora dela continua a conferir.
     const simples = Object.assign({}, props, { pernas: props.pernas.slice(0, 1) });
     if (!/a conferir/.test(linha(fmt(simples), "Status:"))) falhas.push("props simples com retorno ≠ stake × odd virou W pelo payoutMultiplier");
+    // s453: a SportBet múltipla também (cru real 691299159 do Gabriel, `fixtures/stakecom.sportbet-
+    // perna-anulada.json`: 1 perna voided + 2 won, 70 × 4,482 = 313,74 com a odd cheia 7,26084).
+    // Ficava fora da lista de tipos, subia "a conferir" e a Caixa ficou 313,74 USDT abaixo da casa.
+    const sport = Object.assign({}, props, { id: "691299159", tipo: "SportBet", retorno: 313.74, multPago: 4.482, odd: 7.26084 });
+    const s4 = linha(fmt(sport), "Status:");
+    if (!/^Ganhou → W .*perna anulada; odd = retorno ÷ stake\)$/.test(s4)) falhas.push(`SportBet múltipla (691299159): perna anulada não virou W pelo payoutMultiplier ("${s4}")`);
+    if (!/a conferir/.test(linha(fmt(Object.assign({}, sport, { pernas: sport.pernas.slice(0, 1) })), "Status:"))) falhas.push("SportBet simples com retorno ≠ stake × odd virou W pelo payoutMultiplier");
   }
   return 1;
 }
