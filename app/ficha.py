@@ -496,6 +496,22 @@ async def receber(payload: dict = Body(...)):
         _virada.cru_saiu(sess.dono, sess.casa_key)
 
 
+async def _conta_errada_do_lote(sess, codigos: list[str]) -> tuple[str, int] | None:
+    """A regra da s388 (`captura.conta_errada`) sobre os códigos do cru. Fail-OPEN, como a do
+    texto: consulta que falha deixa o lote seguir."""
+    codigos = sorted({c for c in codigos if c})
+    if not codigos:
+        return None
+    try:
+        from repository import codigos_em_outra_conta
+        por_conta = await codigos_em_outra_conta(codigos, sess.dono, sess.casa, sess.parceiro)
+    except Exception:  # noqa: BLE001
+        logger.exception("ficha: trava de conta errada não consultada, lote segue · %s/%s/%s",
+                         sess.dono, sess.casa_key, sess.parceiro)
+        return None
+    return _captura.conta_errada(len(codigos), por_conta)
+
+
 async def _processar(sess, payload: dict, versao: str) -> dict:
     origem = str(payload.get("origem") or "")
     casa_origem = _captura.casa_de_host(origem) if origem else None
@@ -527,6 +543,21 @@ async def _processar(sess, payload: dict, versao: str) -> dict:
                         "hash": _cru.impressao(filtrado), "removidos": removidos})
     ids = await gravar_cru(sess.dono, sess.casa_key, sess.parceiro, familia, versao, origem,
                            aceitos)
+    # s453 (1win da Ellen, 13/11/2026): a trava de conta errada (s388) só olhava o TEXTO, e o
+    # cru grava aposta sozinho: 13 apostas da 1win entraram na `Feca [Eu]` por aqui. Lote cuja
+    # maioria de códigos já é de OUTRA conta não grava aposta nem absorve linha nesta. O cru
+    # FICA guardado: a extensão não o reenvia, e é ele que o `/extrair` da conta certa usa
+    # (`virada.resolver_no_extrair` lê o cru por dono e casa). Recusar com 409 o perderia, e a
+    # aposta ficaria segurada na conta certa esperando um cru que não vem.
+    if (errada := await _conta_errada_do_lote(sess, [it["codigo"] for it in aceitos])):
+        conta, n = errada
+        logger.warning("ficha: %d de %d códigos do cru já são da conta %r · nada gravado em "
+                       "%s/%s/%s", n, len({it['codigo'] for it in aceitos}), conta, sess.dono,
+                       sess.casa_key, sess.parceiro)
+        return {"guardado": True, "recebidos": len(itens), "descartados": descartados,
+                "novos": sum(1 for i in ids if i is not None),
+                "fichas": {"aceitas": 0, "recusadas": 0}, "na_planilha": 0,
+                "conta_errada": conta}
     # Bilhete juntado (s445): as linhas que ele substitui saem quando ELE já está na base. O cru
     # sobe em paralelo ao texto, então quem chegar por último faz: aqui, ou o `/salvar`.
     juntados = {it["codigo"]: v for it in aceitos if (v := absorvidos(familia, it["cru"]))}

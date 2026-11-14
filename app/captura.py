@@ -374,6 +374,19 @@ _LOCK = threading.Lock()
 _SESSOES: dict[str, Sessao] = {}   # sessao_id -> Sessao
 
 
+def conta_errada(total: int, por_conta: dict[str, int]) -> tuple[str, int] | None:
+    """`(conta, n)` quando a MAIORIA dos `total` códigos do lote já é de outra conta do mesmo
+    dono e casa (`repository.codigos_em_outra_conta`); senão None. É a regra da trava de
+    captura na conta errada (s388), num lugar só: vale para o texto (`main._checar_conta_errada`)
+    e para o cru da Ficha (`ficha._processar`, s453). Maioria, e não "qualquer um": há bases com
+    código nas duas contas por captura errada antiga (28/09: germano/Bet365, 4 de 11), e ali o
+    lote é da conta que capturou."""
+    if total <= 0 or not por_conta:
+        return None
+    conta, n = max(por_conta.items(), key=lambda kv: kv[1])
+    return (conta, n) if 2 * n > total else None
+
+
 def _agora() -> float:
     return time.time()
 

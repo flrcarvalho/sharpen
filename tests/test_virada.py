@@ -69,6 +69,10 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   S3. a trava ignora se o texto tem veredito              → s447_texto_igual_com_veredito…
   s451 (a recusa da Ficha é um dict, não None):
   S4. `texto_desmente` sem a trava do `cru_recusado`      → s451_ficha_recusada_com_texto_igual…
+  s453 (a marca "já gravado" vale por CONTA e só para cru aberto; 1win da Ellen):
+  E1. sem o `not cru_final(f)` no pulo                    → s453_cru_liquidado_com_a_linha_aberta…
+  E2. `_no_banco` sem o filtro de conta                   → s453_linha_so_noutra_conta…
+  E3. `aplicar` não passa o `parceiro` ao `_no_banco`     → s453_linha_so_noutra_conta…
   (o `exigir_linha=False` no `/extrair` em `test_barreira_recaptura.py`; a consulta no banco
   em `test_repository_db.py::test_s447_texto_igual_nao_exige_a_linha_no_banco`)
 Inócua (registrada, não é buraco): `texto_desmente` sem o `not cru_final(f)`: com cru aberto o
@@ -461,7 +465,11 @@ class _Conn:
         if "extraction_state" in sql:
             return [{"codigo_bilhete": c} for c in self.liquidados]
         if "FROM bilhetes" in sql:
-            return [{"codigo_bilhete": c} for c in self.no_banco if c in a[1]]
+            # `no_banco`: código, ou (código, conta) para a linha que é de UMA conta (s453)
+            linhas = [x if isinstance(x, tuple) else (x, None) for x in self.no_banco]
+            conta = a[3] if "parceiro =" in sql else None
+            return [{"codigo_bilhete": c} for c, p in linhas
+                    if c in a[1] and (conta is None or p in (None, conta))]
         if "FROM ficha_virada" in sql:
             return [{"codigo": c, "impressao": i, "estado": e}
                     for c, (i, e) in self.estado.items()]
@@ -584,12 +592,41 @@ def test_d10_liquidada_no_banco_nao_e_reescrita(monkeypatch):
     assert "5508528206" not in conn.estado
 
 
+def _registros_aberta():
+    """Os `_registros()` com a aposta boa ainda ABERTA na casa (o cru antes de liquidar)."""
+    f = dict(_ficha("5508528206"), status="aberta")
+    return [ficha._registro(f, []), _registros()[1]]
+
+
 def test_cru_igual_ja_gravado_pela_ficha_sai_sem_regravar(monkeypatch):
     monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
     _banco(monkeypatch, estado={"5508528206": ("x", "ficha")},      # impressão do _ficha
-           no_banco=["5508528206"])
+           no_banco=[("5508528206", SESS.parceiro)])
     vistos = _gravador(monkeypatch)
-    assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 1 and vistos == []
+    assert asyncio.run(virada.gravar_aceitas(SESS, _registros_aberta())) == 1 and vistos == []
+
+
+def test_s453_cru_liquidado_com_a_linha_aberta_nesta_conta_e_regravado(monkeypatch):
+    """s453 (1win da Ellen, 13/11/2026): a captura na conta errada deixou a marca "ficha" com o
+    cru LIQUIDADO. Na conta certa a linha está aberta (se estivesse liquidada, o `_liquidados`
+    a tiraria antes). Cru liquidado nunca é "já gravado": a Ficha liquida a linha."""
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
+    _banco(monkeypatch, estado={"5508528206": ("x", "ficha")},
+           no_banco=[("5508528206", SESS.parceiro)])
+    vistos = _gravador(monkeypatch)
+    assert asyncio.run(virada.gravar_aceitas(SESS, _registros())) == 1
+    assert [v[0] for v in vistos] == ["5508528206"]
+
+
+def test_s453_linha_so_noutra_conta_nao_conta_como_gravada_nesta(monkeypatch):
+    """s453: a marca é por dono e casa. A linha que a Ficha gravou noutra conta (a arquivada, por
+    engano, ou a conta compartilhada) não prova nada sobre esta: a aposta aberta é gravada aqui."""
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "VAVADA")
+    _banco(monkeypatch, estado={"5508528206": ("x", "ficha")},
+           no_banco=[("5508528206", "Feca [Eu]")])
+    vistos = _gravador(monkeypatch)
+    assert asyncio.run(virada.gravar_aceitas(SESS, _registros_aberta())) == 1
+    assert [v[0] for v in vistos] == ["5508528206"]
 
 
 def test_cru_igual_sem_a_linha_no_banco_e_regravado(monkeypatch):

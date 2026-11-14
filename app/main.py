@@ -4223,12 +4223,10 @@ async def captura_validar(req: ValidarRequest):
 #
 # Fail-OPEN: se a consulta falhar, o lote passa. A trava protege contra erro de operação
 # raro; derrubar toda captura quando o banco soluça seria trocar um defeito por outro.
-def _conta_errada(total: int, por_conta: dict[str, int]) -> tuple[str, int] | None:
-    """`(conta, n)` quando a maioria dos `total` códigos do lote é de outra conta."""
-    if total <= 0 or not por_conta:
-        return None
-    conta, n = max(por_conta.items(), key=lambda kv: kv[1])
-    return (conta, n) if 2 * n > total else None
+#
+# s453: a regra mora em `captura.conta_errada`, porque o CRU da Ficha (`/captura/ficha`) grava
+# aposta sem passar por aqui. Foi por lá que 13 apostas da 1win entraram na `Feca [Eu]`.
+_conta_errada = _captura.conta_errada
 
 
 async def _checar_conta_errada(sess, texto: str) -> None:

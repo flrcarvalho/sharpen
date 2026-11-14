@@ -297,16 +297,22 @@ async def _reliquidados(conn, dono: str, casa_key: str, novos: dict) -> set[str]
             if not r["humano"] and reliquidou(r["resultado"], novos.get(r["codigo_bilhete"]))}
 
 
-async def _no_banco(conn, dono: str, casa_key: str, codigos: list[str]) -> set[str]:
+async def _no_banco(conn, dono: str, casa_key: str, codigos: list[str],
+                    parceiro: str | None = None) -> set[str]:
     """Códigos com linha no banco NESTA casa, em qualquer estado. "Cru igual, já gravado pela
     Ficha" só vale com a linha lá: o usuário que EXCLUI a aposta e recaptura manda o mesmo cru,
-    e sem esta conferência a Ficha a dava por gravada e ela não voltava, nem pela IA (s429)."""
+    e sem esta conferência a Ficha a dava por gravada e ela não voltava, nem pela IA (s429).
+    Com `parceiro`, só a linha NESTA conta (s453): a marca do `ficha_virada` é por dono e casa,
+    e a linha de OUTRA conta não prova que esta recebeu a gravação."""
     if not codigos:
         return set()
-    rows = await conn.fetch(
-        "SELECT DISTINCT codigo_bilhete FROM bilhetes WHERE dono = $1 "
-        f"AND codigo_bilhete = ANY($2::text[]) AND {_K} = $3",
-        dono, codigos, casa_key)
+    sql = ("SELECT DISTINCT codigo_bilhete FROM bilhetes WHERE dono = $1 "
+           f"AND codigo_bilhete = ANY($2::text[]) AND {_K} = $3")
+    args = [dono, codigos, casa_key]
+    if parceiro:
+        sql += " AND parceiro = $4"
+        args.append(parceiro)
+    rows = await conn.fetch(sql, *args)
     return {r["codigo_bilhete"] for r in rows}
 
 
@@ -348,8 +354,14 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
     estado = {r["codigo"]: (r["impressao"], r["estado"]) for r in await conn.fetch(
         "SELECT codigo, impressao, estado FROM ficha_virada WHERE dono = $1 AND casa = $2 "
         "AND codigo = ANY($3::text[])", dono, casa_key, cods)}
+    # s453 (1win da Ellen, 13/11/2026): a captura caiu na conta arquivada `Feca [Eu]` e a Ficha
+    # gravou lá as liquidações; a marca (dono + casa + código) ficou "ficha" com o cru final. Na
+    # recaptura na conta certa, a linha ABERTA da Ellen bastava para "já gravado", e as 4 ficaram
+    # presas. Agora vale só a linha NESTA conta, e cru liquidado nunca pula: se a linha desta
+    # conta estivesse liquidada, o `_liquidados` acima já a teria tirado.
     gravados = await _no_banco(conn, dono, casa_key,
-                               [c for c in cods if (estado.get(c) or ("", ""))[1] == "ficha"])
+                               [c for c in cods if (estado.get(c) or ("", ""))[1] == "ficha"],
+                               parceiro)
     resolvidos, fica, novo_estado, gravar = set(), {}, {}, []
     sem_par: list = []            # D42: as pernas que vão com o texto da casa (`virada.py:145`)
     com_texto_da_casa: set = set()
@@ -380,7 +392,7 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
             ia(cod, "descrição fora do dicionário")
             continue
         imp = f.get("impressao") or ""
-        if estado.get(cod) == (imp, "ficha") and cod in gravados:
+        if estado.get(cod) == (imp, "ficha") and cod in gravados and not cru_final(f):
             resolvidos.add(cod)            # cru igual, já gravado pela Ficha: só sai do lote
             continue
         gravar.append((f, esporte, categoria, desc))

@@ -28,6 +28,10 @@ Mutações provadas (aplicadas ao `ficha.py`, teste ao lado vermelho):
  13. erro do adaptador que não é Recusa sobe (500)          → test_erro_qualquer_do_adaptador…
  14. rota desligada responde 200                           → test_rota_desligada_e_503…
  15. reprocesso grava a Ficha sem o `cru_id`              → test_reprocesso_usa_a_mesma…
+  s453 (trava de conta errada no cru, 14/11/2026):
+ D1. sem a trava no `_processar`                          → test_s453_cru_de_outra_conta…
+ D2. consulta que falha trava o lote (fail-closed)         → test_s453_minoria_noutra_conta…
+ D3. a consulta pela CHAVE da casa (o banco grava o nome)  → test_s453_cru_de_outra_conta…
 
 MUTAÇÃO INÓCUA, registrada e sem asserção inventada: tirar o `< d` da perna perdida
 (`_data`). A data geral é a da perna MAIS RECENTE e a perdida é uma das pernas, então ela
@@ -225,7 +229,15 @@ class _Sessao:
 
 @pytest.fixture
 def cliente(monkeypatch):
-    g = {"cru": [], "fichas": []}
+    g = {"cru": [], "fichas": [], "outra_conta": {}, "consultas": []}
+
+    async def _outra_conta(codigos, dono, casa, parceiro):     # s453: trava de conta errada
+        g["consultas"].append((list(codigos), dono, casa, parceiro))
+        if g["outra_conta"] is None:
+            raise RuntimeError("banco fora")
+        return g["outra_conta"]
+    import repository
+    monkeypatch.setattr(repository, "codigos_em_outra_conta", _outra_conta)
 
     async def _gravar_cru(dono, casa_key, parceiro, familia, versao, origem, itens):
         g["cru"].append({"dono": dono, "casa": casa_key, "parceiro": parceiro,
@@ -281,6 +293,46 @@ def test_com_a_chave_a_ficha_e_montada_pelo_adaptador(cliente):
     assert r["fichas"] == {"aceitas": 5, "recusadas": 0}
     reg = g["fichas"][0]["registros"][0]
     assert reg["aceita"] and reg["cru_id"] == 1
+
+
+def test_s453_cru_de_outra_conta_guarda_o_cru_e_nao_grava_aposta(cliente, monkeypatch):
+    """s453 (1win da Ellen, 13/11/2026): o cru grava aposta sem passar pela trava do texto
+    (s388), e 13 apostas entraram na conta arquivada. Lote cuja MAIORIA de códigos já é de outra
+    conta guarda o cru (o `/extrair` da conta certa o usa) e não monta Ficha, não grava, não
+    absorve."""
+    c, g = cliente
+    import virada
+    chamou = []
+
+    async def _nao(*a, **kw):
+        chamou.append(a)
+        return 0
+    monkeypatch.setattr(virada, "gravar_aceitas", _nao)
+    monkeypatch.setattr(ficha, "absorvidos", lambda fam, cru: ["x"])   # tudo absorveria algo
+    import repository
+    monkeypatch.setattr(repository, "absorver_consolidadas", _nao)
+    itens = [_item(t) for t in _DEX_CRU[:5]]
+    g["outra_conta"] = {"Ellen [Eu]": 3}
+    r = _post(c, itens=itens).json()
+    assert r["conta_errada"] == "Ellen [Eu]" and r["na_planilha"] == 0
+    assert len(g["cru"]) == 1 and g["cru"][0]["parceiro"] == "Feca [Eu]"   # o cru fica
+    assert g["fichas"] == [] and chamou == []
+    cods, dono, casa, parceiro = g["consultas"][0]
+    assert sorted(cods) == sorted(t["id"] for t in _DEX_CRU[:5])
+    assert (dono, casa, parceiro) == ("Feca", "DEX Sport", "Feca [Eu]")
+
+
+def test_s453_minoria_noutra_conta_e_banco_fora_seguem(cliente):
+    """Minoria (herança de captura errada antiga, germano 28/09) e consulta que falha não travam:
+    a regra é a do texto, e ela é fail-open."""
+    c, g = cliente
+    itens = [_item(t) for t in _DEX_CRU[:5]]
+    g["outra_conta"] = {"Ellen [Eu]": 2}
+    r = _post(c, itens=itens).json()
+    assert "conta_errada" not in r and r["fichas"] == {"aceitas": 5, "recusadas": 0}
+    g["outra_conta"] = None
+    r = _post(c, itens=itens).json()
+    assert "conta_errada" not in r and r["fichas"] == {"aceitas": 5, "recusadas": 0}
 
 
 def test_o_servidor_filtra_de_novo_e_recalcula_o_hash(cliente):
