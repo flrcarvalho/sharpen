@@ -836,7 +836,13 @@ verdade. Falta:
   UPSERT, mas isso é dedução.
 - Sub-posição em mais de uma moeda e cru acima de 64 KB (~150 apostas): sem amostra.
 
-### 2.3 Reliquidação: quantas apostas a casa refez e o banco não viu (s448). **VIVA, sem medição**
+### 2.3 Reliquidação: quantas apostas a casa refez e o banco não viu (s448). **VIVA, medida em parte (s453)**
+
+> **s453 (14/11, varredura de 4 agentes, só leitura, 26 casas com cru):** 0 aberta presa por
+> formatador fora da Stake 691299159 (consertada, 0.7.83). Reliquidação antiga achada só na
+> Vavada (399827 L→W, 400375 W→L, Feca) e odd de boost congelada (381869, 412346, 429158):
+> corrigidas por `scripts/corrigir_vavada_dinheiro_s453.py`, com os Ajustes que as tinham
+> absorvido reduzidos ao resíduo. O resto do item abaixo segue valendo.
 
 Desde a s448 o liquidado cujo veredito do texto (ou do cru final, na Ficha) é de outra classe
 volta à leitura e o UPSERT troca resultado e odd juntos
@@ -849,6 +855,39 @@ volta à leitura e o UPSERT troca resultado e odd juntos
   continua invisível nelas. Listar quais são antes de concluir que "está coberto".
 - **Primeira reliquidação real depois do deploy:** conferir no log `reliquidação: N bilhete(s)`
   (pré-dedup) ou `virada: reliquidação` (Ficha) e a linha trocada no banco.
+
+### 2.4 Caixa: o que a varredura da s453 deixou aberto (14/11/2026). **VIVA, medida**
+
+Consertado na s453: fuso do "hoje" (`_hoje_caixa`), liquidada antes da ativação
+(`liquidadas_corte`, só Caixa ligada daqui em diante), Stake SportBet com perna anulada.
+Fica, por ordem de dinheiro:
+- **Kalshi: venda e liquidação fora de yes/no somem do lote** (`app/kalshi.py` ~283-312,
+  428-431) e a ordem gravada aberta fica aberta para sempre: Feca 413105 (US$ 29,96, a
+  divergência de +29,98 desde 02/11) e Jaao26 (+39,90 constante desde 03/11, não provada). Os
+  `alertas` do sync não são gravados em lugar nenhum: persistir antes de tudo.
+- **Tardia já liquidada:** aposta feita E liquidada antes da ativação, capturada depois, conta
+  o P/L (Gabriel MyStake darlyf 04/11: 5 apostas, −200). Prova possível: `aposta_em` (confirmar
+  o fuso) no lugar de `criado_em`.
+- **Ficha recusa e a IA nunca conclui, em silêncio** (arrudex 14/11: 20bet 69437421, 69437500,
+  69438021 e Thunderpick C2293869/890/891/903/930, C2292237 sem linha; Jonathan Stake 687220975).
+  `ficha_virada` = `ia` sem `extracao_log` depois: precisa de contador/alerta por conta.
+- **10 Caixas ligadas antes da `liquidadas_corte`** com o defeito D1 (Gabriel Thunderpick
+  laurabianchi146 −300; Jonathan Superbet viniga03 −250,84; Feca Pinnacle +216,24; Jonathan Bet365
+  sandroquadros +202,39; Jaao26 GoldeBet +102,50 e 7Games +50; Ewanderson OnaBet −25; Jonathan
+  Betfair Vanessa +13,28; Jaao26 Bet365 Vinicius +13,23). Onde já houve Ajuste, está absorvido;
+  onde não, a próxima conferência acusa e o Ajuste resolve. Não recalcular para trás.
+- **Famílias latentes de "a conferir" com retorno que o dinheiro prova** (0 caso vivo hoje):
+  Cloudbet LOSS com retorno > 0 e WIN que não fecha (`_resultadoCB`); 3et Lose com retorno e Win
+  que não fecha (`_resultadoET`); 1win status 2 com bônus de múltipla (`_resultadoTP`, Jaao26
+  343965882); DEX (`_resultadoDX`); Sportsbet.io cashout (`_resultadoSBI` + `sbi.py:160`);
+  Thunderpick cashout/cancelamento/múltipla com perna void (C2291370 vai prender se ganhar);
+  20bet formatador atrás do adaptador (`_resultadoVV` × `vv.py:139`); BetBy `cashed out`.
+  **MyStake/Tivo `Result 3 || ret 0 → L` decide pelo rótulo** (`_resultadoTV`): Result 3 com
+  WinAmount > 0 viraria L. Regra única: o dinheiro decide (0 → L, = stake → V, fórmulas, senão
+  W @ retorno ÷ stake), como o `_resultadoCW`.
+- `_caixa_criado_iso` faz `.date()` de datetime UTC (captura noturna vira o dia seguinte).
+- Thunderpick "Cancelled by player" (7 de outubro, Gabriel) gravadas L: o cru não diz se a
+  stake voltou. Jonathan CopaWin 707567/707953 HL com odd 0,5 (P/L igual, cosmético).
 
 ## 3. Decisão do Feca pendente
 

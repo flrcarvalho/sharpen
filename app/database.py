@@ -782,6 +782,11 @@ ALTER TABLE caixa_mov ADD COLUMN IF NOT EXISTS moeda TEXT;
 -- blockchain de onde o depósito/saque/ajuste saiu. Único por conta, para o sync poder
 -- regravar a lista inteira a cada rodada sem duplicar. NULL = lançamento à mão.
 ALTER TABLE caixa_mov ADD COLUMN IF NOT EXISTS ref TEXT;
+-- s453: `liquidadas_corte` → só em `inicial` com corte = HOJE: ids das apostas JÁ LIQUIDADAS no
+-- instante da ativação com evento a partir do corte. `bilhetes.data` é a do EVENTO, e o retorno
+-- delas já está no saldo informado; sem a lista a projeção somava o P/L de novo (Jonathan CopaWin
+-- 12/11: −367,25 na 1ª conferência). NULL = conta ligada antes disto (o Ajuste já absorveu).
+ALTER TABLE caixa_mov ADD COLUMN IF NOT EXISTS liquidadas_corte INTEGER[];
 CREATE UNIQUE INDEX IF NOT EXISTS caixa_mov_ref ON caixa_mov (parceiro_id, ref)
     WHERE ref IS NOT NULL;
 

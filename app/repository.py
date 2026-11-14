@@ -3261,6 +3261,8 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL",
 
     corte = ini.get("data")
     abertas_corte = {int(i) for i in (ini.get("abertas_corte") or [])}
+    # s453: liquidadas ANTES da ativação com evento ≥ corte (ver `_caixa_liquidadas_ids`).
+    liquidadas_corte = {int(i) for i in (ini.get("liquidadas_corte") or [])}
 
     out = dict(vazio)
     out["ligada"] = True
@@ -3307,7 +3309,8 @@ def _caixa_projetar(movs: list[dict], apostas: list[dict], moeda: str = "BRL",
         # `Duka [Eu]`, R$ 301,00 — a Caixa acusava divergência que era dela). Sem data, o
         # único sinal de QUANDO o stake saiu da conta é `criado_em`.
         data_iso = _data_iso(a.get("data")) or _caixa_criado_iso(a.get("criado_em"))
-        if not no_corte and not (corte and data_iso and data_iso >= corte):
+        ja_no_saldo = bid is not None and int(bid) in liquidadas_corte
+        if not no_corte and (ja_no_saldo or not (corte and data_iso and data_iso >= corte)):
             # Fora da janela: já está embutida no saldo informado. Contamos só para
             # poder DIZER isso na tela (ver `pl_anterior` no dicionário acima).
             res_ant = (a.get("resultado") or "").strip().upper()
@@ -3420,6 +3423,7 @@ def _caixa_mov_dict(r) -> dict:
         "obs": r["obs"] or "",
         "projetado": None if r["projetado"] is None else float(r["projetado"]),
         "abertas_corte": list(r["abertas_corte"] or []),
+        "liquidadas_corte": list(r.get("liquidadas_corte") or []),
         "criado_em": criado.isoformat() if hasattr(criado, "isoformat") else str(criado),
         "moeda": r.get("moeda"),
         # s397: hash da transação do lançamento AUTOMÁTICO (Caixa da Polymarket); "" à mão.
@@ -3505,10 +3509,13 @@ async def caixa_lancar(dono: str, parceiro_id: int, tipo: str, data: str,
             corretora_id, taxa = tr
 
             abertas: list[int] | None = None
+            liquidadas: list[int] | None = None
             projetado: float | None = None
 
             if tipo == "inicial":
                 abertas = await _caixa_abertas_no_corte(conn, dono, p["casa"], p["nome"], data)
+                liquidadas = _caixa_liquidadas_ids(
+                    await _caixa_apostas(conn, dono, p["casa"], p["nome"]), data, _hoje_caixa())
                 await conn.execute(
                     "DELETE FROM caixa_mov WHERE dono = $1 AND parceiro_id = $2 AND tipo = 'inicial'",
                     dono, parceiro_id,
@@ -3548,6 +3555,11 @@ async def caixa_lancar(dono: str, parceiro_id: int, tipo: str, data: str,
                 # s398: BIGINT → int; NUMERIC → Decimal; ausência viaja como NULL.
                 corretora_id, None if taxa is None else Decimal(str(taxa)),
             )
+            if tipo == "inicial":
+                # Fora do INSERT de propósito: o gate dos 11 argumentos trava aquela forma.
+                await conn.execute(
+                    "UPDATE caixa_mov SET liquidadas_corte = $1 WHERE dono = $2 "
+                    "AND parceiro_id = $3 AND tipo = 'inicial'", liquidadas, dono, parceiro_id)
     logger.info("caixa: %s dono=%s conta=%s valor=%.2f data=%s",
                 tipo, dono, parceiro_id, valor, data)
     res = await caixa_conta(dono, parceiro_id)
@@ -3699,6 +3711,30 @@ def _caixa_abertas_ids(abertas: list[dict], corte: str, hoje: str, ate=None) -> 
             continue
         criado_iso = _caixa_criado_iso(criado)
         if (_data_iso(a.get("data")) or "") < corte or (criado_iso and criado_iso < corte):
+            out.append(a["id"])
+    return out
+
+
+def _caixa_liquidadas_ids(apostas: list[dict], corte: str, hoje: str) -> list[int]:
+    """Quais apostas JÁ LIQUIDADAS na ativação o `_caixa_projetar` contaria de novo.
+
+    PURA. O espelho do `_caixa_abertas_ids`: lá o stake da aberta saiu antes da leitura;
+    aqui o RETORNO da liquidada já entrou. A janela da projeção é `data ≥ corte`, e `data` é
+    a do EVENTO: aposta de hoje que já liquidou tem o lucro dentro do saldo que o operador
+    acabou de digitar, e somá-lo seria contar duas vezes. Medido (s453): Jonathan CopaWin
+    12/11, 8 apostas, −367,25 na 1ª conferência; 11 Caixas com o mesmo defeito.
+
+    Só com corte = HOJE (Brasília): é o único caso em que "liquidada agora" prova
+    "liquidada antes da leitura". Corte no passado não tem como saber quando cada uma liquidou.
+    """
+    if corte < hoje:
+        return []
+    out = []
+    for a in apostas:
+        if (a.get("resultado") or "").strip().upper() not in _RESULTADOS_VALIDOS:
+            continue
+        data_iso = _data_iso(a.get("data")) or _caixa_criado_iso(a.get("criado_em"))
+        if data_iso and data_iso >= corte:
             out.append(a["id"])
     return out
 
