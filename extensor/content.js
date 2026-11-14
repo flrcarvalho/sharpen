@@ -5131,6 +5131,23 @@
         : "retorno = stake com " + cru + " (a conferir — não liquidar automaticamente)";
     }
     if (b.status === "won" && b.odd > 0 && Math.abs(pay - st * b.odd) <= 0.01) return "Ganhou → W (retorno R$ " + _brl(pay) + ")";
+    // s453 (CopaWin do Gabriel, 14/11/2026): `won` que não fechava no centavo ficava "a conferir"
+    // e a IA o gravava ABERTO. Dois casos reais, ambos ganhos pelo dinheiro:
+    //   • 713707: `total_odds` vem com 2 casas (10.74) e a odd é 10,742; 300 × 10,74 = 3.222,00
+    //     e voltaram 3.222,60. Cabe no arredondamento: stake × 0,005 (meia unidade da 2ª casa).
+    //     A meia vitória erra por metade do LUCRO, muito além disso, e continua a conferir.
+    //   • 713692: múltipla com perna anulada (`has_void_leg`); a odd cai de 16,98 para 8,71 e
+    //     voltaram 2.613,00. Múltipla não tem meia vitória no bilhete: perna anulada ou meia
+    //     mexe na ODD, e quem prova é o dinheiro (W @ retorno ÷ stake, como o cashout §5.6).
+    if (b.status === "won" && pay > st) {
+      if (b.odd > 0 && Math.abs(pay - st * b.odd) <= st * 0.005 + 0.01) {
+        return "Ganhou → W (retorno R$ " + _brl(pay) + "; a odd da casa vem com 2 casas, odd = retorno ÷ stake)";
+      }
+      if (b.tipo === "multiple" && (b.sels || []).length >= 2) {
+        return "Ganhou → W (retorno R$ " + _brl(pay) + "; múltipla" + (b.pernaAnulada ? " com perna anulada" : "") +
+          ", odd = retorno ÷ stake)";
+      }
+    }
     return "Retorno R$ " + _brl(pay) + " com " + cru + " (não fecha stake × odd: HW/HL, boost ou cashout; a conferir — não liquidar automaticamente)";
   }
 

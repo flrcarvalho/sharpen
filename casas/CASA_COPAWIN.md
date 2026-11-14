@@ -116,6 +116,8 @@ para o marcador. Prefixo de tipo não é preciso: uma série só.
 | `lost` · retorno 0 | Perdeu | `L` |
 | `void` · retorno = stake | Devolvida | `V` |
 | `won` · retorno = stake × `total_odds` (± 1 centavo) | Ganhou | `W` |
+| `won` · retorno > stake, diferença ≤ stake × 0,005 (a `total_odds` vem com 2 casas) | Ganhou | `W`, odd = retorno ÷ stake |
+| `won` múltipla (`type: multiple`, 2+ itens) · retorno > stake | Ganhou (perna anulada ou meia muda a odd) | `W`, odd = retorno ÷ stake |
 | `cashout` + `cashout_used` 1 + retorno = `cashout_value` ≠ stake | Cashout | `W`, odd = retorno ÷ stake (§7) |
 | o mesmo, com retorno = stake | Cashout na stake | `V`, odd da casa |
 | cashout sem as três provas, `lost` com dinheiro, `won` que não fecha, `void` sem devolver, status novo | sobe cru | *(a conferir)* |
@@ -217,7 +219,10 @@ Campo `stake`, texto em R$.
 - [ ] Coluna Data = evento em São Paulo (Náutico 660703 → 07/11).
 - [ ] Contagem capturada == total da casa (`pagination.total`).
 - [x] **Cashout** (s454, `copawin.cashout.json`, §7).
-- [ ] **1ª aberta / múltipla / meia vitória / boost:** salvar o JSON como fixture,
+- [x] **Múltipla ganha** (s453, `copawin.won-multipla.json`, Gabriel 14/11/2026): 713692 com perna
+      anulada (16,98 → 8,71) e 713707 com `total_odds` 10.74 para a odd 10,742. Antes da 0.7.81
+      o bloco dizia "a conferir" e a IA gravava as duas abertas.
+- [ ] **Meia vitória simples / boost / múltipla na Ficha:** salvar o JSON como fixture,
       trocar o clone do harness e liberar na Ficha.
 - [ ] **Mais de uma página:** conferir que o inject parou em `total_pages` e não repetiu a 1ª.
 

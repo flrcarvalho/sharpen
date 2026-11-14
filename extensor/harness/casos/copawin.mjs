@@ -45,8 +45,9 @@
 //   • tirar o ramo `cashout` do formatador: todo caminho de `cashout` já termina "a conferir"
 //     (o ramo só melhora a frase).
 // CASHOUT (s454): 3 reais em `copawin.cashout.json` (`cashoutReal`). Mutações 4, 4 detectadas.
-// O QUE NÃO COBRE: aberta e múltipla REAIS (os testes acima usam clone do 660730 com o status
-// trocado), meia vitória real, boost por `boost_pct`.
+// MÚLTIPLA GANHA (s453): 2 reais em `copawin.won-multipla.json` (`wonQueNaoFechava`).
+// O QUE NÃO COBRE: aberta REAL (os testes acima usam clone do 660730 com o status trocado),
+// múltipla perdida real, meia vitória real, boost por `boost_pct`.
 import { rodarInject, carregarContent, fixture, linha } from "../sandbox.mjs";
 
 export const casa = "COPAWIN";
@@ -207,7 +208,53 @@ export async function rodar() {
   testes += await totalMentido(fx, falhas);
   testes += await segundaRodada(fx, falhas, fmt);
   testes += await cashoutReal(falhas, fmt);
+  testes += await wonQueNaoFechava(falhas, fmt, bilhetes.find((x) => x.id === "660730"));
   return { falhas, testes };
+}
+
+// s453 (CopaWin do Gabriel, 14/11/2026): 2 múltiplas GANHAS que a IA gravou abertas, porque o
+// bloco dizia "a conferir — não liquidar" (`copawin.won-multipla.json`, crus de produção sem
+// `user_id`). 713707: `total_odds` 10.74 com 2 casas, odd real 10,742 (3.222,60 ÷ 300).
+// 713692: perna anulada, a odd cai de 16,98 para 8,71 (2.613,00 ÷ 300).
+// Mutações (14/11/2026), 4 aplicadas, 4 detectadas: sem o ramo do arredondamento; sem o ramo da
+// múltipla; tolerância de 5% em vez de meia unidade da 2ª casa; sem o `pay > st`.
+async function wonQueNaoFechava(falhas, fmt, simples) {
+  const fx = JSON.parse(fixture("copawin.won-multipla.json"));
+  const { ultima } = await rodarInject({
+    inject: "cw_inject.js", href: "https://wncopa.com/my-bets", semRequisicaoInicial: true,
+    pedido: "__sharpenupCWReq",
+    responder: (url) => (/\/api\/bet\/my-bets/.test(url) ? JSON.stringify(fx) : null),
+  });
+  const bs = (ultima && ultima.bilhetes) || [];
+  if (bs.length !== 2) { falhas.push(`won-multipla: esperava 2 bilhetes, vieram ${bs.length}`); return 1; }
+  const esperado = {
+    "713692": [/^Ganhou → W \(retorno R\$ 2613,00; múltipla com perna anulada, odd = retorno ÷ stake\)$/, "8,71"],
+    "713707": [/^Ganhou → W \(retorno R\$ 3222,60; a odd da casa vem com 2 casas, odd = retorno ÷ stake\)$/, "10,742"],
+  };
+  let n = 0;
+  for (const b of bs) {
+    const t = fmt(b), [re, odd] = esperado[b.id] || [];
+    n++;
+    if (!re || !re.test(linha(t, "Status:"))) falhas.push(`won-multipla ${b.id}: status "${linha(t, "Status:")}"`);
+    if (linha(t, "Odd:") !== odd) falhas.push(`won-multipla ${b.id}: odd "${linha(t, "Odd:")}" (tinha de ser ${odd} = retorno ÷ stake)`);
+    if (/GANHOU|GANHANDO|empurrou/.test(t)) falhas.push(`won-multipla ${b.id}: recado interno da casa (player_note) entrou no bloco`);
+  }
+  // As bordas: o que continua a conferir.
+  const m = bs.find((x) => x.id === "713692");
+  const casos = [
+    // simples 825 @ 2,2: arredondamento cabe (825 × 0,005 = 4,125), 10 centavos de folga a mais não
+    [simples && { ...simples, retorno: 1817 }, /^Ganhou → W \(retorno R\$ 1817,00; a odd da casa vem com 2 casas/, "simples no arredondamento"],
+    [simples && { ...simples, retorno: 1825 }, CONF, "simples fora do arredondamento"],
+    [m && { ...m, retorno: 250 }, CONF, "múltipla won com retorno < stake"],
+    [m && { ...m, tipo: "single", sels: m.sels.slice(0, 1) }, CONF, "simples com perna anulada não é a regra da múltipla"],
+  ];
+  for (const [x, re, nome] of casos) {
+    if (!x) { falhas.push(`won-multipla (${nome}): bilhete-base ausente`); continue; }
+    n++;
+    const st = linha(fmt(x), "Status:");
+    if (!re.test(st)) falhas.push(`won-multipla (${nome}): status "${st}"`);
+  }
+  return n;
 }
 
 // CASHOUT (s454): os 3 reais da conta do Feca, 13/11/2026 (`copawin.cashout.json`, lidos na aba
