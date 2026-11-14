@@ -44,8 +44,9 @@
 //     harness não reproduz junto com a busca.
 //   • tirar o ramo `cashout` do formatador: todo caminho de `cashout` já termina "a conferir"
 //     (o ramo só melhora a frase).
-// O QUE NÃO COBRE: aberta, múltipla e cashout REAIS (a conta não tem nenhum; os testes acima
-// usam clone do 660730 com o status trocado), meia vitória real, boost por `boost_pct`.
+// CASHOUT (s454): 3 reais em `copawin.cashout.json` (`cashoutReal`). Mutações 4, 4 detectadas.
+// O QUE NÃO COBRE: aberta e múltipla REAIS (os testes acima usam clone do 660730 com o status
+// trocado), meia vitória real, boost por `boost_pct`.
 import { rodarInject, carregarContent, fixture, linha } from "../sandbox.mjs";
 
 export const casa = "COPAWIN";
@@ -205,7 +206,48 @@ export async function rodar() {
   }
   testes += await totalMentido(fx, falhas);
   testes += await segundaRodada(fx, falhas, fmt);
+  testes += await cashoutReal(falhas, fmt);
   return { falhas, testes };
+}
+
+// CASHOUT (s454): os 3 reais da conta do Feca, 13/11/2026 (`copawin.cashout.json`, lidos na aba
+// logada, SHA-256 conferido). Stake 200, cashout 180 → W @ 0,9 (MASTER_RESULTADO §5.6). Antes
+// da 0.7.80 o bloco dizia "a conferir — não liquidar" e a IA gravava os 3 ABERTOS.
+async function cashoutReal(falhas, fmt) {
+  const fx = JSON.parse(fixture("copawin.cashout.json"));
+  const { ultima } = await rodarInject({
+    inject: "cw_inject.js", href: "https://wncopa.com/my-bets", semRequisicaoInicial: true,
+    pedido: "__sharpenupCWReq",
+    responder: (url) => (/\/api\/bet\/my-bets/.test(url) ? JSON.stringify(fx) : null),
+  });
+  const bs = (ultima && ultima.bilhetes) || [];
+  if (bs.length !== 3) { falhas.push(`cashout: esperava 3 bilhetes, vieram ${bs.length}`); return 1; }
+  const CO = /^Cashout de R\$ 180,00 → W \(odd = cashout ÷ stake = 0,9\)$/;
+  let n = 0;
+  for (const b of bs) {
+    const t = fmt(b);
+    n++;
+    if (!CO.test(linha(t, "Status:"))) falhas.push(`cashout ${b.id}: status "${linha(t, "Status:")}"`);
+    if (linha(t, "Odd:") !== "0,9") falhas.push(`cashout ${b.id}: odd "${linha(t, "Odd:")}" (tinha de ser 180 ÷ 200 = 0,9)`);
+    if (linha(t, "Stake:") !== "200,00") falhas.push(`cashout ${b.id}: stake "${linha(t, "Stake:")}"`);
+    if (linha(t, "Retorno potencial:")) falhas.push(`cashout ${b.id}: "Retorno potencial" num bilhete liquidado`);
+  }
+  // Sem as três provas, continua a conferir; cashout = stake é V.
+  const b = bs.find((x) => x.id === "718109");
+  const casos = [
+    [{ ...b, cashout: { ...b.cashout, usado: false } }, CONF, "sem cashout_used"],
+    [{ ...b, status: "won" }, CONF, "cashout_used com status won"],
+    [{ ...b, cashout: { ...b.cashout, valor: 170 } }, CONF, "retorno ≠ cashout_value"],
+    [{ ...b, retorno: 200, cashout: { ...b.cashout, valor: 200 } }, /^Cashout = stake \(R\$ 200,00\) → V$/, "cashout = stake"],
+  ];
+  for (const [x, re, nome] of casos) {
+    n++;
+    const st = linha(fmt(x), "Status:");
+    if (!re.test(st)) falhas.push(`cashout (${nome}): status "${st}"`);
+  }
+  const v = linha(fmt(casos[3][0]), "Odd:");
+  if (v !== "2,2") falhas.push(`cashout = stake: odd "${v}" (V fica com a odd da casa)`);
+  return n;
 }
 
 // Armadilha 1, a outra metade: a casa ANUNCIA mais páginas do que tem (`total_pages: 5` com

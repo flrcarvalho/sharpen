@@ -5097,21 +5097,33 @@
     return max;
   }
 
-  // Odd: W → retorno ÷ stake conciliado com a da casa; o resto → a da casa.
+  // Cashout PROVADO (s454, 3 reais do Feca em 13/11/2026): status `cashout` + `cashout_used` +
+  // `actual_return` = `cashout_value`. Faltando qualquer uma das três, não é prova.
+  const _cashoutCW = (b) => b.status === "cashout" && !!(b.cashout && b.cashout.usado) &&
+    b.stake > 0 && b.retorno != null && b.cashout.valor != null && Math.abs(b.retorno - b.cashout.valor) < 0.005;
+
+  // Odd: W → retorno ÷ stake conciliado com a da casa; cashout ≠ stake → retorno ÷ stake
+  // (MASTER_RESULTADO §5.6); o resto → a da casa.
   function _oddCW(b) {
     const st = b.stake, pay = b.retorno;
+    if (_cashoutCW(b) && Math.abs(pay - st) >= 0.005) return Math.round((pay / st) * 1e8) / 1e8;
     if (b.status === "won" && st > 0 && pay > 0 && Math.abs(pay - st) >= 0.005) return _conciliaJB(pay, st, b.odd);
     return b.odd > 0 ? b.odd : null;
   }
 
   // Leitura pelo DINHEIRO + o status cru. Retorno zero só é derrota com `lost`; ganho só com
-  // `won` E retorno = stake × odd no centavo (meia vitória, boost e cashout não fecham e sobem a
-  // conferir: não há amostra de nenhum dos três).
+  // `won` E retorno = stake × odd no centavo (meia vitória e boost não fecham e sobem a conferir:
+  // não há amostra). Cashout só com as três provas do `_cashoutCW`; a perna fica com o `result`
+  // que a casa der depois (`pending`, `won`), e quem manda é o dinheiro.
   function _resultadoCW(b) {
     const cru = "status \"" + b.status + "\"";
     if (_abertaCW(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
     const st = b.stake, pay = b.retorno;
-    if (b.status === "cashout") return "Cash Out com retorno " + (pay == null ? "ausente" : "R$ " + _brl(pay)) + " (sem amostra; a conferir — não liquidar automaticamente)";
+    if (_cashoutCW(b)) {
+      if (Math.abs(pay - st) < 0.005) return "Cashout = stake (R$ " + _brl(st) + ") → V";
+      return "Cashout de R$ " + _brl(pay) + " → W (odd = cashout ÷ stake = " + _odd(Math.round((pay / st) * 1e8) / 1e8) + ")";
+    }
+    if (b.status === "cashout" || (b.cashout && b.cashout.usado)) return "Cash Out com retorno " + (pay == null ? "ausente" : "R$ " + _brl(pay)) + " sem as três provas (status cashout, cashout_used, retorno = cashout_value); a conferir — não liquidar automaticamente";
     if (pay == null || !(st > 0)) return cru + " sem stake ou retorno (a conferir — não liquidar automaticamente)";
     if (pay === 0) return b.status === "lost" ? "Perdeu → L" : "retorno zero com " + cru + " (a conferir — não liquidar automaticamente)";
     if (Math.abs(pay - st) < 0.005) {

@@ -15,8 +15,12 @@ liquidadas, 5 ganhas, 8 perdidas, 2 anuladas). Escrito ANTES do 1º cru real che
     `event_starts_at` em UTC (prova: a liquidação vem ~1h ANTES do evento em 6 bilhetes).
   • moeda: a API não manda. Vale a da conta (decisão do Feca, D0 pergunta 5); a casa só
     opera em real.
+  • CASHOUT (s454, 3 reais do Feca em 13/11/2026, fixture `copawin.cashout.json`): status
+    `cashout` + `cashout_used` 1 + `actual_return` = `cashout_value` → status `cashout`, e a
+    Ficha decide pelo dinheiro (≠ stake → W @ retorno ÷ stake; = stake → V). A perna fica com
+    o `result` que a casa der depois (`pending`, `won`): o dinheiro já saiu, e ele manda.
   • Sem amostra, RECUSA: aberta (`pending`/`active`), múltipla (`type` ≠ `single`), cashout
-    (status `cashout` ou `cashout_used`), boost (`boost_pct`) e a ODD TURBINADA
+    sem as três provas, boost (`boost_pct`) e a ODD TURBINADA
     (`market_key: "combined"`: 4 seleções num item só, sem odd por seleção — a Ficha exige
     odd em cada perna e inventá-la seria chute).
 """
@@ -56,10 +60,21 @@ def _status(t: dict) -> str:
     cru = f"status {st!r}"
     if st in ("pending", "active"):
         raise Recusa(f"{cru}: aberta sem amostra (a conferir)")
-    if st == "cashout" or str(t.get("cashout_used") or "0") not in ("0", "False", "false"):
-        raise Recusa(f"{cru}: cashout sem amostra (cashout_used {t.get('cashout_used')!r})")
+    usado = str(t.get("cashout_used") or "0") not in ("0", "False", "false")
     if stake is None or stake <= 0 or ret is None:
+        if st == "cashout" or usado:
+            raise Recusa(f"{cru}: cashout sem stake ou sem actual_return")
         raise Recusa(f"{cru}: sem stake ou sem actual_return")
+    if st == "cashout" or usado:
+        # s454 (medido em 14/11/2026, 3 cashouts reais do Feca, `copawin.cashout.json`): status
+        # `cashout` + `cashout_used: 1` + `actual_return` = `cashout_value`. As TRÊS provas
+        # juntas; faltando uma, recusa. O retorno decide W ou V na Ficha (MASTER_RESULTADO §5.6).
+        valor = _d(t.get("cashout_value"))
+        if st != "cashout" or not usado:
+            raise Recusa(f"{cru}: cashout pela metade (cashout_used {t.get('cashout_used')!r})")
+        if valor is None or abs(ret - valor) >= _CENTAVO:
+            raise Recusa(f"{cru}: cashout com actual_return {ret} ≠ cashout_value {valor}")
+        return "cashout"
     if st == "lost" and ret == 0:
         return "perdida"
     if st == "void" and abs(ret - stake) < _CENTAVO:

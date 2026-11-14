@@ -16,7 +16,11 @@ Mutações provadas (aplicadas, teste ao lado vermelho):
   7. aberta / múltipla / cashout / boost deixam de recusar    → test_sem_amostra_recusa
   8. colocação lida em UTC                                    → test_ganha_bate_com_o_card
 
-O QUE NÃO COBRE: aberta, múltipla, cashout e boost REAIS (a conta, limitada, não tem nenhum;
+Cashout (s454), 3 reais em `copawin.cashout.json`; mutações provadas: sem conferir
+`cashout_value`, sem exigir status E `cashout_used`, cashout virando `ganha`, ramo inteiro
+fora (4 de 4 detectadas).
+
+O QUE NÃO COBRE: aberta, múltipla e boost REAIS (a conta, limitada, não tem nenhum;
 os testes usam clone com o campo trocado), meia vitória real, `liquidada_em` contra a tela
 (o card não mostra a hora da liquidação).
 """
@@ -118,11 +122,52 @@ def test_dinheiro_que_nao_fecha_recusa(cod, campos, motivo):
     ({"status": "pending"}, None, "aberta"),
     ({"status": "active"}, None, "aberta"),
     ({"type": "multiple"}, None, "type"),
-    ({"status": "cashout"}, None, "cashout"),
-    ({"cashout_used": 1}, None, "cashout"),
+    ({"status": "cashout"}, None, "cashout"),            # sem cashout_used
+    ({"cashout_used": 1}, None, "cashout"),              # status won com cashout_used
     ({}, {"boost_pct": "10"}, "boost"),
     ({}, {"result": "half_won"}, "result"),
 ])
 def test_sem_amostra_recusa(campos, item, motivo):
     with pytest.raises(Recusa, match=motivo):
         cw.adaptar(_clone(GANHA, item=item, **campos), "COPAWIN")
+
+
+# ── Cashout (s454) ─────────────────────────────────────────────────────────────────────
+# Os 3 cashouts reais da conta do Feca (13/11/2026), lidos de `GET /api/bet/my-bets` na aba
+# logada e conferidos por SHA-256 contra a resposta da casa. O Feca: "dei 3 cashouts de 200
+# pra 180 ... perdi 20 em cada". Antes da s454 os 3 ficavam ABERTOS no banco.
+CASHOUTS = {str(c["id"]): c for c in cw.bilhetes_da_resposta(
+    json.loads((_FIX / "copawin.cashout.json").read_text(encoding="utf-8")))}
+
+
+@pytest.mark.parametrize("cod,odd_casa,perna", [
+    ("718108", "9", "aberta"),    # Malásia, perna ainda pending depois do cashout
+    ("718109", "2.2", "ganha"),   # Caernarfon: a perna GANHOU depois, e o dinheiro é o do cashout
+    ("718110", "1.95", "aberta"),
+])
+def test_cashout_real_vira_w_pelo_dinheiro(cod, odd_casa, perna):
+    f, d = _montar(CASHOUTS[cod])
+    assert (f["status"], f["stake"], f["retorno"], f["odd"]) == ("cashout", "200", "180", odd_casa)
+    assert (d["resultado"], d["odd"]) == ("W", "0,9")      # 180 ÷ 200, MASTER_RESULTADO §5.6
+    assert f["pernas"][0]["status_perna"] == perna
+
+
+def test_cashout_igual_a_stake_vira_v():
+    c = copy.deepcopy(CASHOUTS["718109"])
+    c.update(actual_return="200.00", cashout_value="200.00")
+    f, d = _montar(c)
+    assert f["status"] == "cashout" and (d["resultado"], d["odd"]) == ("V", "2,2")
+
+
+@pytest.mark.parametrize("campos", [
+    {"cashout_used": 0},                  # status cashout sem o carimbo de uso
+    {"status": "won"},                    # carimbo de uso sem o status
+    {"cashout_value": "170.00"},          # o dinheiro não bate com o valor do cashout
+    {"cashout_value": None},
+    {"actual_return": None},
+])
+def test_cashout_sem_as_tres_provas_recusa(campos):
+    c = copy.deepcopy(CASHOUTS["718108"])
+    c.update(campos)
+    with pytest.raises(Recusa, match="cashout"):
+        cw.adaptar(c, "COPAWIN")

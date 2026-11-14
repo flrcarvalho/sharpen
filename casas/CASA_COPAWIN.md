@@ -72,13 +72,13 @@ a IA leria derrota como ganho.
 | Campo | Confirmado na CopaWin |
 |---|---|
 | `id` | numérico de 6 dígitos (`660753`), o `data-bet-id` do card → `[Código:]` |
-| `status` | `won` · `lost` · `void` na amostra; a tela também conhece `pending`/`active` (Ativa) e `cashout` |
+| `status` | `won` · `lost` · `void` na amostra do recon; `cashout` medido na s454 (3 reais); a tela também conhece `pending`/`active` (Ativa) |
 | `type` | `single` em toda a amostra; a tela conhece `multiple` |
 | `stake` | texto, R$ |
 | `total_odds` | odd do bilhete, **cheia em todo status** (inclusive perdida) |
 | `potential_return` | stake × odd, o "RETORNO" do card. **Nunca entra** |
 | `actual_return` | o dinheiro que voltou: 0 na perdida, a stake na anulada |
-| `cashout_*` | `cashout_used` 0 e `cashout_value` "0.00" em toda a amostra |
+| `cashout_*` | `cashout_used` 0 e `cashout_value` "0.00" fora do cashout; no cashout, `cashout_used` 1 e `cashout_value` = `actual_return` (§7) |
 | `created_at` / `updated_at` | **horário de Brasília** (o card mostra o `created_at` verbatim) |
 | `items[]` | pernas: `sport`, `match_name`, `market_name`, `selection_name`, `odds`, `result`, `event_starts_at`, `last_event_at`, `boost_pct` |
 | `items[].event_starts_at` | **UTC** (prova: em 6 bilhetes a liquidação vem ~1h ANTES do evento lido como Brasília) |
@@ -88,7 +88,7 @@ a IA leria derrota como ganho.
 
 **Ficha (s451):** adaptador `app/adaptadores/cw.py`, gate `tests/test_adaptador_cw.py`. A
 Ficha aceita simples `won`/`lost`/`void` cujo dinheiro fecha (§5) e recusa o resto, que vai à
-IA pelo texto: aberta, múltipla, cashout, boost e a Odd Turbinada (sem odd por seleção).
+IA pelo texto: aberta, múltipla, cashout sem as três provas da §7, boost e a Odd Turbinada (sem odd por seleção).
 
 ---
 
@@ -116,7 +116,9 @@ para o marcador. Prefixo de tipo não é preciso: uma série só.
 | `lost` · retorno 0 | Perdeu | `L` |
 | `void` · retorno = stake | Devolvida | `V` |
 | `won` · retorno = stake × `total_odds` (± 1 centavo) | Ganhou | `W` |
-| `cashout`, `lost` com dinheiro, `won` que não fecha, `void` sem devolver, status novo | sobe cru | *(a conferir)* |
+| `cashout` + `cashout_used` 1 + retorno = `cashout_value` ≠ stake | Cashout | `W`, odd = retorno ÷ stake (§7) |
+| o mesmo, com retorno = stake | Cashout na stake | `V`, odd da casa |
+| cashout sem as três provas, `lost` com dinheiro, `won` que não fecha, `void` sem devolver, status novo | sobe cru | *(a conferir)* |
 
 Meia vitória/derrota **não têm status próprio**: a casa escreve "meia-vitória" na nota e
 devolve `won`/`lost`. O retorno não fecha com stake × odd e o bilhete sobe a conferir (o gate
@@ -140,9 +142,24 @@ uma linha por seleção com o jogo e o resultado. A Ficha recusa (exige odd por 
 
 ## 7. Cashout
 
-Sem amostra. O filtro "Cash Out" existe na tela e o endpoint `api/cashout/execute` no JS. O
-bloco sobe "Cash Out … a conferir"; a regra global (`MASTER_RESULTADO §5.1.2` e `§5.6`) se
-aplica quando o campo for medido.
+**Medido na s454 (14/11/2026)**, 3 cashouts reais da conta do Feca, feitos em 13/11
+(`extensor/harness/fixtures/copawin.cashout.json`, lidos na aba logada, SHA-256 conferido).
+Stake 200, cashout 180 em cada:
+
+| Campo | No cashout |
+|---|---|
+| `status` | `cashout` |
+| `cashout_used` | `1` |
+| `cashout_value` | `"180.00"` = `actual_return` |
+| `cashout_datetime` | = `updated_at` (Brasília) |
+| `cashout_odd` | a odd da colocação (`"9.000"`), **não** a do cashout |
+| `items[].result` | o que o jogo deu DEPOIS: `pending` (2) e `won` (1, Caernarfon). **Não é fonte** |
+
+**As três provas juntas** (`status cashout` + `cashout_used` + `actual_return = cashout_value`)
+liquidam pela regra global: diferente da stake → `W` com odd = retorno ÷ stake
+(`MASTER_RESULTADO §5.6`, 180 ÷ 200 = 0,9); igual à stake → `V` com a odd da casa
+(`§5.1.2`). Faltando uma, sobe a conferir. O `cashout_odd` não é a odd do cashout e nunca
+entra. Antes da 0.7.80 o bloco dizia "a conferir, não liquidar" e a IA gravava os 3 **abertos**.
 
 ---
 
@@ -199,7 +216,8 @@ Campo `stake`, texto em R$.
 - [ ] Nenhuma perdida com o potencial como retorno; nenhuma aberta liquidada.
 - [ ] Coluna Data = evento em São Paulo (Náutico 660703 → 07/11).
 - [ ] Contagem capturada == total da casa (`pagination.total`).
-- [ ] **1ª aberta / múltipla / cashout / meia vitória / boost:** salvar o JSON como fixture,
+- [x] **Cashout** (s454, `copawin.cashout.json`, §7).
+- [ ] **1ª aberta / múltipla / meia vitória / boost:** salvar o JSON como fixture,
       trocar o clone do harness e liberar na Ficha.
 - [ ] **Mais de uma página:** conferir que o inject parou em `total_pages` e não repetiu a 1ª.
 
@@ -219,7 +237,10 @@ Recon de 12/11/2026, conta inteira (**15 bilhetes**, todos liquidados, todos sim
 | 660701 | Total de Pontos — Colorado | `won` | 1.875,00 | 3,15 | 5.906,25 | 07/11/2026 14:41:32 | 07/11/2026 17:30 | JSON |
 | 652529 | Odd Turbinada (4 jogos) | `lost` | 15,00 | 2,64 | 0 | 07/11/2026 08:10:02 | 07/11/2026 17:05 | card |
 
-**Sem amostra:** aberta · múltipla · cashout · meia vitória/derrota · boost por `boost_pct`.
+Cashout (s454, 14/11/2026, conta do Feca): **718108, 718109, 718110**, stake 200, cashout 180 → `W` @ 0,9, em
+`extensor/harness/fixtures/copawin.cashout.json`.
+
+**Sem amostra:** aberta · múltipla · meia vitória/derrota · boost por `boost_pct`.
 
 ---
 
@@ -232,7 +253,7 @@ Recon de 12/11/2026, conta inteira (**15 bilhetes**, todos liquidados, todos sim
 3. Conectar → Copiar bilhetes. O toast diz `respostas` e `vistos`; zero respostas = sessão
    caída.
 4. Conferir no dashboard: contagem, código de 6 dígitos, data do evento e odd.
-5. Na 1ª aberta/múltipla/cashout, cumprir os itens da §14.
+5. Na 1ª aberta/múltipla, cumprir os itens da §14.
 
 ---
 
