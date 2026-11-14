@@ -5102,11 +5102,30 @@
   const _cashoutCW = (b) => b.status === "cashout" && !!(b.cashout && b.cashout.usado) &&
     b.stake > 0 && b.retorno != null && b.cashout.valor != null && Math.abs(b.retorno - b.cashout.valor) < 0.005;
 
+  // Meia vitória/derrota (s453, Jonathan, 7 reais de 14/11/2026): a casa não tem status próprio e
+  // devolve `won` até na meia derrota (a perna vem `lost`, o bilhete `won`). Só se decide com as
+  // DUAS provas: simples cuja seleção tem linha asiática PARTIDA (.25/.75: "Alcorcon (-1.25)",
+  // "Menos 2.75") e retorno que fecha a fórmula no centavo (`calcular_pl` ao contrário, CLAUDE.md):
+  // HW = stake ÷ 2 × odd + stake ÷ 2 (só com `won`); HL = stake ÷ 2. Sem linha partida, metade da
+  // stake pode ser cashout de metade, e continua a conferir. A odd é a da casa (é ela que a fórmula usa).
+  const _LINHA_PARTIDA_CW = /(?:^|[\s(])([+-]?\d+\.(?:25|75))(?=$|[\s)])/;
+  function _meiaCW(b) {
+    const sels = b.sels || [];
+    if (sels.length !== 1 || _comboCW(sels[0]) || !(b.stake > 0) || b.retorno == null || !(b.odd > 1)) return null;
+    const m = _LINHA_PARTIDA_CW.exec(sels[0].label || "");
+    if (!m) return null;
+    const st = b.stake, pay = b.retorno;
+    if (b.status === "won" && Math.abs(pay - (st / 2 * b.odd + st / 2)) <= 0.01) return { r: "HW", linha: m[1] };
+    if ((b.status === "won" || b.status === "lost") && Math.abs(pay - st / 2) <= 0.01) return { r: "HL", linha: m[1] };
+    return null;
+  }
+
   // Odd: W → retorno ÷ stake conciliado com a da casa; cashout ≠ stake → retorno ÷ stake
-  // (MASTER_RESULTADO §5.6); o resto → a da casa.
+  // (MASTER_RESULTADO §5.6); meia vitória/derrota → a da casa; o resto → a da casa.
   function _oddCW(b) {
     const st = b.stake, pay = b.retorno;
     if (_cashoutCW(b) && Math.abs(pay - st) >= 0.005) return Math.round((pay / st) * 1e8) / 1e8;
+    if (_meiaCW(b)) return b.odd;
     if (b.status === "won" && st > 0 && pay > 0 && Math.abs(pay - st) >= 0.005) return _conciliaJB(pay, st, b.odd);
     return b.odd > 0 ? b.odd : null;
   }
@@ -5125,6 +5144,9 @@
     }
     if (b.status === "cashout" || (b.cashout && b.cashout.usado)) return "Cash Out com retorno " + (pay == null ? "ausente" : "R$ " + _brl(pay)) + " sem as três provas (status cashout, cashout_used, retorno = cashout_value); a conferir — não liquidar automaticamente";
     if (pay == null || !(st > 0)) return cru + " sem stake ou retorno (a conferir — não liquidar automaticamente)";
+    const meia = _meiaCW(b);
+    if (meia && meia.r === "HW") return "Meia vitória → HW (retorno R$ " + _brl(pay) + " = stake ÷ 2 × odd + stake ÷ 2; linha asiática partida " + meia.linha + ")";
+    if (meia) return "Meia derrota → HL (retorno R$ " + _brl(pay) + " = stake ÷ 2; linha asiática partida " + meia.linha + ")";
     if (pay === 0) return b.status === "lost" ? "Perdeu → L" : "retorno zero com " + cru + " (a conferir — não liquidar automaticamente)";
     if (Math.abs(pay - st) < 0.005) {
       return b.status === "void" ? "Devolvida/void (retorno = stake) → V"

@@ -36,7 +36,8 @@
 // 5. O TEXTO DA PERNA NÃO É FONTE. `player_note` traz recado interno ("LIQUIDAR MANUALMENTE…",
 //    "GANHANDO") em bilhete já liquidado. A verdade é `status` + `actual_return`.
 // 6. Meia vitória/derrota não têm status próprio: a casa só escreve "meia-vitória" na nota
-//    e devolve `won`/`lost`. Retorno que não fecha com stake × odd sobe a conferir.
+//    e devolve `won`/`lost`. Com linha asiática partida e a fórmula no centavo vira HW/HL
+//    (s453, `meiaAsiatica`); sem a linha, retorno que não fecha stake × odd sobe a conferir.
 //
 // MUTAÇÕES (s451): 16 aplicadas, 14 detectadas. As 2 que escapam são INÓCUAS:
 //   • "aberta sobrescreve liquidada" no inject: o acumulado zera a cada pedido e uma busca
@@ -47,7 +48,7 @@
 // CASHOUT (s454): 3 reais em `copawin.cashout.json` (`cashoutReal`). Mutações 4, 4 detectadas.
 // MÚLTIPLA GANHA (s453): 2 reais em `copawin.won-multipla.json` (`wonQueNaoFechava`).
 // O QUE NÃO COBRE: aberta REAL (os testes acima usam clone do 660730 com o status trocado),
-// múltipla perdida real, meia vitória real, boost por `boost_pct`.
+// múltipla perdida real, boost por `boost_pct`. MEIA (s453): 7 reais em `copawin.meia-asiatica.json`.
 import { rodarInject, carregarContent, fixture, linha } from "../sandbox.mjs";
 
 export const casa = "COPAWIN";
@@ -209,7 +210,58 @@ export async function rodar() {
   testes += await segundaRodada(fx, falhas, fmt);
   testes += await cashoutReal(falhas, fmt);
   testes += await wonQueNaoFechava(falhas, fmt, bilhetes.find((x) => x.id === "660730"));
+  testes += await meiaAsiatica(falhas, fmt);
   return { falhas, testes };
+}
+
+// s453 (CopaWin do Jonathan, 14/11/2026): 7 simples de Handicap Asiático com linha PARTIDA que a
+// casa devolve `won` (6 meias derrotas e 1 meia vitória) e que a IA gravou abertas
+// (`copawin.meia-asiatica.json`, crus de produção sem `user_id`). Prova = linha .25/.75 na
+// seleção + retorno que fecha a fórmula no centavo. A odd é a da casa.
+// Mutações (14/11/2026), 4 aplicadas, 4 detectadas: sem a exigência da linha partida; HW também
+// com `lost`; a odd da meia por retorno ÷ stake; tolerância de R$ 1 em vez de 1 centavo.
+async function meiaAsiatica(falhas, fmt) {
+  const fx = JSON.parse(fixture("copawin.meia-asiatica.json"));
+  const { ultima } = await rodarInject({
+    inject: "cw_inject.js", href: "https://wncopa.com/my-bets", semRequisicaoInicial: true,
+    pedido: "__sharpenupCWReq",
+    responder: (url) => (/\/api\/bet\/my-bets/.test(url) ? JSON.stringify(fx) : null),
+  });
+  const bs = (ultima && ultima.bilhetes) || [];
+  if (bs.length !== 7) { falhas.push(`meia: esperava 7 bilhetes, vieram ${bs.length}`); return 1; }
+  const HL = (ret, linha) => new RegExp(`^Meia derrota → HL \\(retorno R\\$ ${ret} = stake ÷ 2; linha asiática partida ${linha.replace("+", "\\+")}\\)$`);
+  const esperado = {
+    "655775": [HL("87,50", "-1.25"), "2,03"],
+    "662066": [HL("50,00", "+1.75"), "1,76"],
+    "662233": [HL("25,00", "+1.75"), "1,76"],
+    "666355": [HL("75,00", "-1.25"), "2,18"],
+    "672724": [/^Meia vitória → HW \(retorno R\$ 435,00 = stake ÷ 2 × odd \+ stake ÷ 2; linha asiática partida -1\.75\)$/, "2,48"],
+    "698917": [HL("50,00", "+0.75"), "1,82"],
+    "705748": [HL("75,00", "+0.75"), "1,82"],
+  };
+  let n = 0;
+  for (const b of bs) {
+    const t = fmt(b), [re, odd] = esperado[b.id] || [];
+    n++;
+    if (!re || !re.test(linha(t, "Status:"))) falhas.push(`meia ${b.id}: status "${linha(t, "Status:")}"`);
+    if (linha(t, "Odd:") !== odd) falhas.push(`meia ${b.id}: odd "${linha(t, "Odd:")}" (tinha de ser a da casa, ${odd})`);
+  }
+  // As bordas: sem linha partida, com `lost` na meia vitória, ou fora do centavo, segue a conferir.
+  const hl = bs.find((x) => x.id === "655775"), hw = bs.find((x) => x.id === "672724");
+  const inteira = (b) => ({ ...b, sels: b.sels.map((s) => ({ ...s, label: s.label.replace(/\.(25|75)/, ".5") })) });
+  const casos = [
+    [hl && inteira(hl), "HL sem linha partida (pode ser cashout de metade)"],
+    [hw && inteira(hw), "HW sem linha partida"],
+    [hw && { ...hw, status: "lost" }, "HW com status lost"],
+    [hl && { ...hl, retorno: 88.5 }, "HL fora do centavo"],
+  ];
+  for (const [x, nome] of casos) {
+    if (!x) { falhas.push(`meia (${nome}): bilhete-base ausente`); continue; }
+    n++;
+    const st = linha(fmt(x), "Status:");
+    if (!CONF.test(st)) falhas.push(`meia (${nome}): status "${st}" (tinha de ficar a conferir)`);
+  }
+  return n;
 }
 
 // s453 (CopaWin do Gabriel, 14/11/2026): 2 múltiplas GANHAS que a IA gravou abertas, porque o

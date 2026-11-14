@@ -118,13 +118,16 @@ para o marcador. Prefixo de tipo não é preciso: uma série só.
 | `won` · retorno = stake × `total_odds` (± 1 centavo) | Ganhou | `W` |
 | `won` · retorno > stake, diferença ≤ stake × 0,005 (a `total_odds` vem com 2 casas) | Ganhou | `W`, odd = retorno ÷ stake |
 | `won` múltipla (`type: multiple`, 2+ itens) · retorno > stake | Ganhou (perna anulada ou meia muda a odd) | `W`, odd = retorno ÷ stake |
+| `won` simples, seleção com linha asiática **partida** (.25/.75) · retorno = stake ÷ 2 × odd + stake ÷ 2 | Meia vitória | `HW`, odd da casa |
+| `won`/`lost` simples, linha **partida** · retorno = stake ÷ 2 | Meia derrota | `HL`, odd da casa |
 | `cashout` + `cashout_used` 1 + retorno = `cashout_value` ≠ stake | Cashout | `W`, odd = retorno ÷ stake (§7) |
 | o mesmo, com retorno = stake | Cashout na stake | `V`, odd da casa |
 | cashout sem as três provas, `lost` com dinheiro, `won` que não fecha, `void` sem devolver, status novo | sobe cru | *(a conferir)* |
 
 Meia vitória/derrota **não têm status próprio**: a casa escreve "meia-vitória" na nota e
-devolve `won`/`lost`. O retorno não fecha com stake × odd e o bilhete sobe a conferir (o gate
-do retorno no servidor decide pelo número). Medido: `won` 5, `lost` 8, `void` 2. O bloco
+devolve `won` (até na meia DERROTA: a perna vem `lost`, o bilhete `won`). Desde a 0.7.82 (s453,
+7 reais do Jonathan) o formatador decide com as duas provas, linha partida na seleção e retorno
+no centavo da fórmula; sem a linha partida, metade da stake pode ser cashout e sobe a conferir. Medido: `won` 5, `lost` 8, `void` 2. O bloco
 sempre leva `Status (API): status … · type …`.
 
 ---
@@ -222,7 +225,8 @@ Campo `stake`, texto em R$.
 - [x] **Múltipla ganha** (s453, `copawin.won-multipla.json`, Gabriel 14/11/2026): 713692 com perna
       anulada (16,98 → 8,71) e 713707 com `total_odds` 10.74 para a odd 10,742. Antes da 0.7.81
       o bloco dizia "a conferir" e a IA gravava as duas abertas.
-- [ ] **Meia vitória simples / boost / múltipla na Ficha:** salvar o JSON como fixture,
+- [x] **Meia vitória/derrota simples** (s453, `copawin.meia-asiatica.json`, Jonathan 14/11/2026).
+- [ ] **Boost / múltipla e meia na Ficha:** salvar o JSON como fixture,
       trocar o clone do harness e liberar na Ficha.
 - [ ] **Mais de uma página:** conferir que o inject parou em `total_pages` e não repetiu a 1ª.
 
