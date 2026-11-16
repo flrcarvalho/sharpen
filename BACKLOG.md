@@ -1905,16 +1905,14 @@ Entrou na 0.7.69, 11ª Altenar, espelho da Vavada, recon LOGADO na conta do Feca
 
 Entrou na 0.7.84, plataforma própria, família `gc`, recon LOGADO no Chrome do Feca
 (`CASA_GIROCERTO.md`). Harness e adaptador com 50 bilhetes reais, inject provado ao vivo na aba.
-- **Virada:** `GIROCERTO` em `FICHA_SOMBRA_CASAS`, `FICHA_CASAS_VIRADAS` e
-  `EXTRACAO_SEM_PENSAMENTO` (Railway, serviço `extrator`; comando com o Feca), depois
-  `python scripts/semear_dicionario.py --aplicar`.
-- **Botão Conectar em produção:** `_casaConectavel('GiroCerto')` × controle negativo, e
-  `GIROCERTO` em `captura` no `/casas`.
+- ~~Virada nas 3 listas da Railway~~ e ~~botão Conectar provado em produção~~: feitos na s455
+  (16/11/2026). A semente manual travou (conexão perdida); a diária das 04h cobre, e só há o
+  que semear depois do 1º cru da GiroCerto.
 - **1ª captura pela extensão instalada**, conferida no `virada_log` (pela_ficha × para_ia).
-- **A API só entrega os 50 mais recentes, e print/PDF agora são recusados** (`CASAS_COM_FICHA`).
-  O Jaao26 fez 107 por print em 5 dias (~20/dia): sem captura a cada ~2 dias, o que sai da
-  janela não entra por caminho nenhum. **Decisão do Feca:** manter o bloqueio ou abrir exceção
-  de print para a GiroCerto.
+- **A API só entrega os 50 mais recentes.** Decidido (Feca, 16/11/2026): o print segue aceito
+  na GiroCerto (`captura.PRINT_LIBERADO`). Aberto: o mesmo bilhete por print e pela extensão
+  dedupa pelo `code`, mas o print da GiroCerto já errou 1 código em 107 (9 caracteres): medir
+  duplicata depois da 1ª captura.
 - **Sem amostra, o adaptador recusa:** aberta, múltipla/builder, cashout, freebet, turbinada.
   Medir cada uma quando aparecer numa conta viva.
 

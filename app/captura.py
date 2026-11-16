@@ -329,9 +329,20 @@ MSG_PRINT_BLOQUEADO = ("Esta casa é extraída pela extensão SharpenUp. Abra a 
                        "capture por ela.")
 
 
+# Exceção ao bloqueio de print, POR CASA (decisão do Feca, 16/11/2026, s455). A casa segue em
+# `CASAS_COM_FICHA` (a extensão manda o cru e a Ficha lê sem IA), mas o print e o PDF dela
+# continuam aceitos. Cenário da GiroCerto: a API só entrega as 50 apostas mais recentes, sem
+# paginação, e o Jaao26 fazia ~20 por dia por print; o que sai da janela antes de uma captura
+# só entra por print. Se a casa ganhar histórico na API, a exceção pode cair — quem reavaliar
+# precisa saber que ela nasceu da janela de 50.
+PRINT_LIBERADO = frozenset({"GIROCERTO"})
+
+
 def casa_com_ficha(casa_key: str) -> bool:
-    """A casa (chave canônica) entra pela Ficha, e o print dela é recusado (s450)."""
-    return (casa_key or "").strip().upper() in CASAS_COM_FICHA
+    """O print da casa (chave canônica) é recusado: ela entra pela Ficha (s450) e não está
+    em `PRINT_LIBERADO` (s455)."""
+    k = (casa_key or "").strip().upper()
+    return k in CASAS_COM_FICHA and k not in PRINT_LIBERADO
 
 
 def casa_de_host(host: str) -> str | None:

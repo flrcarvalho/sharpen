@@ -47,7 +47,8 @@ Medido no recon de 15/11/2026 (Chrome do Feca):
 - **Sem paginação: são os 50 mais recentes.** Nenhum parâmetro muda isso (`limit`, `offset`,
   `page`, `cursor`, `before`, `take/skip` devolvem os mesmos 50), e a tela também só mostra 50.
   O fim é a 1ª resposta. Quem não captura com frequência perde o que passou do 50º: **o que
-  saiu da janela da API só entra por print**.
+  saiu da janela da API só entra por print**, e por isso o print desta casa segue aceito
+  (`captura.PRINT_LIBERADO`, decisão do Feca de 16/11/2026), ao contrário das outras casas da Ficha.
 - ⚠️ **`POST` na mesma URL FAZ APOSTA.** O inject só manda `GET` e só lê resposta em array.
 - `GET /api/esportes/bets/<uuid>` (detalhe) e `POST /api/esportes/bets/cashout/quotes`
   (cotação de cashout) existem e não são usados: a lista já traz as pernas.

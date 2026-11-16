@@ -94,11 +94,22 @@ def test_casa_com_ficha_aceita_texto_colado(ia):
     assert ia == [None]
 
 
-@pytest.mark.parametrize("casa", ["KingPanda", "Vaidebet", "Bet365"])
+@pytest.mark.parametrize("casa", ["KingPanda", "Vaidebet", "Bet365", "GiroCerto"])
 def test_casa_sem_ficha_e_bet_br_aceitam_print(ia, casa):
     """KingPanda não tem captura (a GiroCerto tinha este papel até ganhar captura, s455); VaideBet tem adaptador (família vb), mas é `.bet.br`."""
     _extrair(casa, imagens=[_img()])
     assert ia == ["print"]
+
+
+def test_print_liberado_e_excecao_de_casa_com_ficha(ia):
+    """s455 (Feca, 16/11/2026): a GiroCerto tem Ficha, mas a API só entrega as 50 mais recentes
+    e o print continua aceito. A exceção só faz sentido para casa que ESTÁ na lista da Ficha, e
+    não pode vazar para as outras."""
+    assert captura.PRINT_LIBERADO <= captura.CASAS_COM_FICHA
+    assert "GIROCERTO" in captura.CASAS_COM_FICHA and not captura.casa_com_ficha("GIROCERTO")
+    assert captura.casa_com_ficha("COPAWIN") and captura.casa_com_ficha("THUNDERPICK")
+    _extrair("GiroCerto", pdfs=[_pdf()])
+    assert ia == ["pdf"]
 
 
 def _derivar_casas_com_ficha() -> set:
@@ -127,7 +138,7 @@ def test_a_lista_e_a_do_manifesto():
 
 def test_rota_casas_manda_a_lista_ficha(monkeypatch):
     async def _com_dados(dono):
-        return ["Thunderpick", "KingPanda", "Vaidebet"]
+        return ["Thunderpick", "KingPanda", "Vaidebet", "GiroCerto"]
 
     async def _dominios(dono):
         return {}
@@ -135,5 +146,5 @@ def test_rota_casas_manda_a_lista_ficha(monkeypatch):
     monkeypatch.setattr(main, "get_casas_dominios", _dominios)
     r = asyncio.run(main.listar_casas(dono="TDonoBloq"))
     assert "Thunderpick" in r["ficha"]
-    assert "KingPanda" not in r["ficha"] and "Vaidebet" not in r["ficha"]
+    assert "KingPanda" not in r["ficha"] and "GiroCerto" not in r["ficha"] and "Vaidebet" not in r["ficha"]
     assert set(r["ficha"]) <= set(r["casas"])
