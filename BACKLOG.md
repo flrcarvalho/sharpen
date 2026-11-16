@@ -1901,6 +1901,23 @@ Entrou na 0.7.69, 11ª Altenar, espelho da Vavada, recon LOGADO na conta do Feca
 - Espelho numerado (`sportaza-5178.com`): domínio novo entra no manifest, `popup.js` e
   `_HOSTS_POR_CASA`, com versão nova.
 
+### 4.0z GiroCerto: virar a Ficha, validar a 1ª captura e a janela de 50 (s455). **VIVA, harness com fixture real**
+
+Entrou na 0.7.84, plataforma própria, família `gc`, recon LOGADO no Chrome do Feca
+(`CASA_GIROCERTO.md`). Harness e adaptador com 50 bilhetes reais, inject provado ao vivo na aba.
+- **Virada:** `GIROCERTO` em `FICHA_SOMBRA_CASAS`, `FICHA_CASAS_VIRADAS` e
+  `EXTRACAO_SEM_PENSAMENTO` (Railway, serviço `extrator`; comando com o Feca), depois
+  `python scripts/semear_dicionario.py --aplicar`.
+- **Botão Conectar em produção:** `_casaConectavel('GiroCerto')` × controle negativo, e
+  `GIROCERTO` em `captura` no `/casas`.
+- **1ª captura pela extensão instalada**, conferida no `virada_log` (pela_ficha × para_ia).
+- **A API só entrega os 50 mais recentes, e print/PDF agora são recusados** (`CASAS_COM_FICHA`).
+  O Jaao26 fez 107 por print em 5 dias (~20/dia): sem captura a cada ~2 dias, o que sai da
+  janela não entra por caminho nenhum. **Decisão do Feca:** manter o bloqueio ou abrir exceção
+  de print para a GiroCerto.
+- **Sem amostra, o adaptador recusa:** aberta, múltipla/builder, cashout, freebet, turbinada.
+  Medir cada uma quando aparecer numa conta viva.
+
 ### 4.0y CopaWin: virar a Ficha e validar a 1ª captura (s451). **VIVA, harness com fixture real**
 
 Entrou na 0.7.77 (aviso ao grupo na 0.7.78), plataforma própria, família `cw`, recon LOGADO

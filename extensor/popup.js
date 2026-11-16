@@ -111,6 +111,8 @@ const CASA_HOSTS = {
   "Cloudbet":    ["cloudbet.com"],
   // CopaWin (s451): plataforma própria, API `/api/bet/my-bets` no MESMO domínio da aba.
   "CopaWin":     ["wncopa.com"],
+  // GiroCerto (s455): plataforma própria, API `/api/esportes/bets` no MESMO domínio da aba.
+  "GiroCerto":   ["girocerto.fun"],
   // Antiga "Rei do Pitaco" (grafia unificada no banco na s270). Plataforma própria,
   // gRPC-Web/protobuf — inject próprio.
   "Pitaco":     ["pitaco.bet.br"],
@@ -417,6 +419,8 @@ async function capturar() {
                 : casa === "Cloudbet" ? "cb_inject.js"
                 // CopaWin: plataforma própria (s451). `cw_`, das letras da marca.
                 : casa === "CopaWin" ? "cw_inject.js"
+                // GiroCerto: plataforma própria (s455). `gc_`, das letras da marca.
+                : casa === "GiroCerto" ? "gc_inject.js"
                 : casa === "Pitaco" ? "pt_inject.js"
                 : casa === "Novibet" ? "nv_inject.js"
                 // Motor Rogue: TRES casas espelho, MESMO inject — como Tivo/Betfast/Faz1bet.

@@ -299,6 +299,10 @@ _CASA_DISPLAY: dict[str, str] = {
     # por print e pelo bot, como `CopaWin` (medido em 12/11/2026: 303 bilhetes, 1 conta, 1
     # casas_meta, 199 correcoes, 13 uso_tokens, uma grafia só), então vale a da base.
     "COPAWIN":        "CopaWin",
+    # Plataforma PRÓPRIA (s455, `girocerto.fun`, API `/api/esportes/bets`). A base JÁ tinha a
+    # casa, por print, como `GiroCerto` (medido em 15/11/2026: 107 bilhetes, 1 conta, 1
+    # casas_meta, 241 correcoes, 11 uso_tokens, uma grafia só), então vale a da base.
+    "GIROCERTO":      "GiroCerto",
     "BETESPORTE":     "BETesporte",
     "BETFAIR":        "Betfair",
     "BETFAST":        "Betfast",
@@ -1256,6 +1260,9 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # CopaWin (s451) — plataforma própria. ID = `id` do bilhete, numérico de 6 dígitos
     # (`660753`), o mesmo do `data-bet-id` do card. O `id` de cada item (7 dígitos) é da perna.
     "COPAWIN",
+    # GiroCerto (s455) — plataforma própria. ID = `code` do bilhete, 10 caracteres [A-Z0-9]
+    # (`ZHUUMZ423Z`), o mesmo do rodapé do card e do print. O `id` (UUID) é interno.
+    "GIROCERTO",
     "BETPIX365",
     # Estrela Bet (s303) — 5ª casa Altenar. Mesmo espaço de IDs do motor: numérico de 10
     # dígitos, o mesmo número que o rodapé do card estampa como `ID:`.

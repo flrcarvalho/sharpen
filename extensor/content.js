@@ -478,6 +478,31 @@
     }
   });
 
+  // Bilhetes da GIROCERTO capturados pelo gc_inject.js (mundo MAIN) — `GET /api/esportes/bets`,
+  // plataforma PRÓPRIA (s455). A tela vem no HTML (Next.js), então o inject BUSCA a lista só com
+  // o cookie; a casa devolve os 50 mais recentes, sem paginação. `gcById` guarda 1 bilhete por
+  // `code`; a versão LIQUIDADA vence a aberta.
+  const gcById = new Map();          // code → bilhete
+  let gcFimReal = false;
+  let gcHookVivo = false, gcRespostas = 0;
+  const _ABERTA_GC = new Set(["accepted", "pending", "placing", "cashing", "voiding"]);
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupGCData) {
+      if (d.hook) gcHookVivo = true;
+      if (typeof d.respostas === "number") gcRespostas = d.respostas;
+      if (Array.isArray(d.bilhetes)) {
+        const aberta = (b) => _ABERTA_GC.has(b.status);
+        for (const b of d.bilhetes) {
+          if (!b || !b.id) continue;
+          const ex = gcById.get(b.id);
+          if (!ex || aberta(ex) || !aberta(b)) gcById.set(b.id, b);
+        }
+      }
+      if (d.fim) gcFimReal = true;
+    }
+  });
+
   // Bilhetes da SHUFFLE capturados pelo shf_inject.js (mundo MAIN) — o GraphQL `GetSportsBets`
   // (`sportsBetsV3`), já normalizado. Plataforma PRÓPRIA (s401), a 1ª casa GraphQL. O inject
   // aprende o `authorization` de qualquer chamada GraphQL autenticada da página e pede a lista
@@ -1679,6 +1704,12 @@
       // `pagination.total_pages`. SEM fallback de texto: o card mostra o retorno POTENCIAL até
       // na perdida, e a IA leria derrota como ganho.
       blocos = await roboCWPassive(ctx);
+    } else if (casa === "girocerto") {
+      // Busca ativa (gc_inject, plataforma PRÓPRIA — s455). "Minhas apostas" vem no HTML
+      // (Next.js), sem chamada de API: o inject pede `/api/esportes/bets` só com o cookie, e a
+      // casa devolve os 50 mais recentes de uma vez. SEM fallback de texto: o card da perdida
+      // estampa o "Ganho potencial" e o da meia derrota diz só "PERDEU".
+      blocos = await roboGCPassive(ctx);
     } else if (casa === "shuffle") {
       // Passivo + replay (shf_inject, plataforma PRÓPRIA — s401), a 1ª casa GraphQL. A TELA É
       // ESTREITA: pede `first: 9` com o filtro de uma aba. O replay pede a lista SEM filtro e
@@ -1946,6 +1977,9 @@
         // CopaWin (s451): só o cookie. Zero respostas = sessão caída (a API devolve erro).
         copawin:    { nome: "CopaWin",    hook: cwHookVivo, resp: cwRespostas, vistos: cwById.size,
                       extra: cwRespostas === 0 ? " · faça login em wncopa.com, abra Minhas Apostas e rode de novo" : "" },
+        // GiroCerto (s455): só o cookie. Zero respostas = sessão caída (a API não devolve lista).
+        girocerto:  { nome: "GiroCerto",  hook: gcHookVivo, resp: gcRespostas, vistos: gcById.size,
+                      extra: gcRespostas === 0 ? " · faça login em girocerto.fun, abra Minhas apostas e rode de novo" : "" },
         // Shuffle (s401): o token sai de qualquer chamada GraphQL autenticada da página. Sem
         // ele (`semToken`) a sessão não está logada ou a página não carregou os esportes.
         shuffle:    { nome: "Shuffle",    hook: shfHookVivo, resp: shfRespostas, vistos: shfById.size,
@@ -5271,6 +5305,165 @@
     processar();
     console.log("[SharpenUp] CopaWin: " + blocos.length + " bilhete(s) · cwById=" + cwById.size +
                 " · hook=" + cwHookVivo + " · respostas=" + cwRespostas + " · fimReal=" + cwFimReal);
+    return blocos;
+  }
+
+  // ── GiroCerto (plataforma própria, `girocerto.fun` — s455) ──────────────────────
+  // Formata 1 bilhete de `GET /api/esportes/bets` (normalizado pelo gc_inject) no bloco que a
+  // IA lê. Leituras VALIDADAS contra o card (recon de 15/11/2026, 50 simples liquidadas):
+  //   • dinheiro em REAL, vindo em centavos (o inject já dividiu). `retorno` (creditedCents) é
+  //     o dinheiro que voltou; `potencial` (payoutCents) é o que o card da PERDIDA estampa
+  //     como "Ganho potencial". Nunca decidir pelo potencial.
+  //   • a odd da aposta é `originalOdds` (o inject a põe em `odd`): a `odds` é REESCRITA ao
+  //     liquidar (anulada e meia derrota viram 1; meia vitória vira a efetiva).
+  //   • o pagamento ARREDONDA PARA BAIXO no centavo (336,08 × 3,45 → 1.159,47): a odd da casa
+  //     fecha o retorno dentro de 1 centavo, e o `_conciliaJB` a escolhe.
+  //   • meia vitória e meia derrota não têm status próprio no bilhete (`won`/`lost`); a PERNA
+  //     diz `half_won`/`half_lost`, e o card da meia derrota diz só "PERDEU".
+  //   • datas em ISO UTC; aqui saem em São Paulo pelo `_dhJB`.
+  // O que NÃO se decide aqui: status desconhecido sobe cru, "a conferir". O de-para vive na
+  // CASA_GIROCERTO.md. Sem amostra (a conferir): cashout, freebet, múltipla que não fecha.
+  const _abertaGC = (b) => _ABERTA_GC.has(b.status);
+  const _rejeitadaGC = (b) => !!b && b.status === "rejected";
+  const _PERNA_GC = { open: "em aberto", won: "ganha", lost: "perdida", void: "anulada",
+                      half_won: "meia vitória", half_lost: "meia derrota" };
+
+  function _dataEventoGC(b) {
+    let max = null;
+    for (const s of (b.sels || [])) {
+      if (s.inicio != null && isFinite(s.inicio) && (max == null || s.inicio > max)) max = s.inicio;
+    }
+    return max;
+  }
+
+  // Meia vitória/derrota: só com as DUAS provas — a perna que a casa marcou (`half_won` /
+  // `half_lost`, numa simples) E o retorno que fecha a fórmula do `calcular_pl` ao contrário
+  // (CLAUDE.md): HW = stake ÷ 2 × odd + stake ÷ 2 (com `won`); HL = stake ÷ 2 (com `lost`).
+  // Tolerância de 1 centavo pelo arredondamento para baixo da casa.
+  function _meiaGC(b) {
+    const sels = b.sels || [];
+    if (sels.length !== 1 || !(b.stake > 0) || b.retorno == null || !(b.odd > 1)) return null;
+    const st = b.stake, pay = b.retorno, perna = sels[0].status;
+    if (perna === "half_won" && b.status === "won" && Math.abs(pay - (st / 2 * b.odd + st / 2)) <= 0.01) return "HW";
+    if (perna === "half_lost" && b.status === "lost" && Math.abs(pay - st / 2) <= 0.01) return "HL";
+    return null;
+  }
+
+  // Odd: W → retorno ÷ stake conciliado com a da casa (a da casa vence se fecha no centavo);
+  // o resto (L, V, HW, HL, aberta) → a da casa na COLOCAÇÃO.
+  function _oddGC(b) {
+    const st = b.stake, pay = b.retorno;
+    if (!_meiaGC(b) && b.status === "won" && st > 0 && pay > st) return _conciliaJB(pay, st, b.odd);
+    return b.odd > 0 ? b.odd : null;
+  }
+
+  function _resultadoGC(b) {
+    const cru = "status \"" + b.status + "\"";
+    if (_abertaGC(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (_rejeitadaGC(b)) return "Recusada pela casa (rejected: a aposta não foi aceita e o dinheiro não saiu) — NÃO lançar; a conferir — não liquidar automaticamente";
+    const st = b.stake, pay = b.retorno;
+    if (b.status === "cashed_out" || b.cashout > 0) {
+      return "Cash Out com retorno " + (pay == null ? "ausente" : "R$ " + _brl(pay)) + " sem amostra medida desta casa; a conferir — não liquidar automaticamente";
+    }
+    if (b.freebet) return cru + " com freebet, sem amostra medida desta casa (a conferir — não liquidar automaticamente)";
+    if (pay == null || !(st > 0)) return cru + " sem stake ou retorno (a conferir — não liquidar automaticamente)";
+    const meia = _meiaGC(b);
+    if (meia === "HW") return "Meia vitória → HW (retorno R$ " + _brl(pay) + " = stake ÷ 2 × odd + stake ÷ 2; perna half_won)";
+    if (meia === "HL") return "Meia derrota → HL (retorno R$ " + _brl(pay) + " = stake ÷ 2; perna half_lost)";
+    if (pay === 0) return b.status === "lost" ? "Perdeu → L" : "retorno zero com " + cru + " (a conferir — não liquidar automaticamente)";
+    if (Math.abs(pay - st) < 0.005) {
+      return b.status === "void" ? "Devolvida/void (retorno = stake) → V"
+        : "retorno = stake com " + cru + " (a conferir — não liquidar automaticamente)";
+    }
+    if (b.status === "won" && b.odd > 0 && Math.abs(pay - st * b.odd) <= 0.01) return "Ganhou → W (retorno R$ " + _brl(pay) + ")";
+    return "Retorno R$ " + _brl(pay) + " com " + cru + " (não fecha stake × odd: meia sem a perna, boost, perna anulada ou cashout; a conferir — não liquidar automaticamente)";
+  }
+
+  function _tipoGC(b) {
+    const n = (b.sels || []).length;
+    if (b.tipo === "single" && n === 1) return "Simples";
+    if (n >= 2) return "Múltipla (" + n + " seleções)";
+    return b.tipo ? "tipo \"" + b.tipo + "\"" : "";
+  }
+
+  function formatTicketGC(b) {
+    const L = [];
+    L.push("[Código: " + b.id + "]");
+    const dev = _dhJB(_dataEventoGC(b));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    const dh = _dhJB(b.ts);
+    if (dh) L.push("Data (colocação): " + dh);
+    L.push("Stake: " + _brl(b.stake));
+    L.push("Status: " + _resultadoGC(b));
+    L.push("Status (API): status " + b.status + " · kind " + (b.tipo || "?") + (b.freebet ? " · freebet" : ""));
+    const odd = _oddGC(b);
+    if (odd != null) L.push("Odd: " + _odd(odd));
+    const tipo = _tipoGC(b);
+    if (tipo) L.push("Tipo: " + tipo);
+    if (_abertaGC(b) && b.potencial > 0) L.push("Retorno potencial: R$ " + _brl(b.potencial));
+    L.push("Seleções:");
+    const sels = b.sels || [];
+    for (const s of sels) {
+      const bits = [];
+      if (s.mercado) bits.push(s.mercado + ":");
+      bits.push(s.label || "");
+      bits.push("[perna " + (_PERNA_GC[s.status] || "status " + s.status) + "]");
+      L.push("- " + bits.join(" ").trim());
+      const ctx2 = [];
+      if (s.jogo) ctx2.push("Jogo: " + s.jogo);
+      if (s.esporte) ctx2.push("Esporte: " + s.esporte);
+      if (s.inicio) ctx2.push("Início: " + _dhJB(s.inicio));
+      if (s.aoVivo) ctx2.push("ao vivo");
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (s.odd != null && sels.length > 1) L.push("    Odd da seleção: " + _odd(s.odd));
+    }
+    return L.join("\n");
+  }
+
+  async function roboGCPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false, recusadas = 0;
+
+    const processar = () => {
+      const todos = Array.from(gcById.values()).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      for (const b of todos) {
+        const cod = String(b.id || "").toUpperCase();
+        if (!cod || usados.has(cod)) continue;
+        if (ctx.stopId && cod === ctx.stopId) { travado = true; return; }
+        usados.add(cod);
+        // `rejected` não é aposta: a casa recusou e o dinheiro não saiu. Não sobe para a IA.
+        if (_rejeitadaGC(b)) { recusadas++; continue; }
+        // Janela de dias corta só as LIQUIDADAS (pela colocação, a data do card); aberta nunca.
+        const dt = (b.ts != null && isFinite(b.ts)) ? b.ts * 1000 : NaN;
+        const passou = !_abertaGC(b) && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketGC(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+
+    // Rodada nova começa do zero (lição da s393, DEX Sport): o inject zera o lado dele no
+    // mesmo pedido e busca a lista de novo.
+    gcById.clear();
+    gcFimReal = false;
+    try { window.postMessage({ __sharpenupGCReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+    processar();
+
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !travado && !gcFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      processar();
+      if (travado) break;
+      if (gcById.size > ultTotal) { ultTotal = gcById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 15000) break;
+    }
+    await sleep(400);
+    processar();
+    console.log("[SharpenUp] GiroCerto: " + blocos.length + " bilhete(s) · gcById=" + gcById.size +
+                " · recusadas=" + recusadas + " · hook=" + gcHookVivo + " · respostas=" + gcRespostas +
+                " · fimReal=" + gcFimReal);
     return blocos;
   }
 

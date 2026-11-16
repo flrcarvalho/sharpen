@@ -52,7 +52,7 @@ def geradores(monkeypatch):
 
 
 def _extrair(**kw):
-    args = dict(casa="GiroCerto", parceiro="conta [Op]", modelo=main.DEFAULT_MODEL, texto=None,
+    args = dict(casa="KingPanda", parceiro="conta [Op]", modelo=main.DEFAULT_MODEL, texto=None,
                 csv_content=None, imagens=[], pdfs=[], xls_file=None, data_referencia=None,
                 dono="TDonoUso")
     args.update(kw)

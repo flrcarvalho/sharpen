@@ -288,6 +288,16 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0784",
+      "v": "v0.7.84",
+      "data": "2026-11-16",
+      "texto": "Nova casa no SharpenUp: **GiroCerto**.",
+      "itens": [
+        "Atualize a extensão e dê Ctrl+Shift+R na aba da GiroCerto **e** na aba do painel.",
+        "Capture logado em girocerto.fun. A casa só entrega as 50 apostas mais recentes: capture com frequência. Print e PDF da GiroCerto passam a ser recusados: a aposta entra pela extensão."
+      ]
+    },
+    {
       "id": "su-0778",
       "v": "v0.7.78",
       "data": "2026-11-12",

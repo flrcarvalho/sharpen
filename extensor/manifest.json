@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SharpenUp",
-  "version": "0.7.83",
+  "version": "0.7.84",
   "description": "A perninha do Sharpen: captura seus bilhetes na casa e sobe pro painel do sharpen.bet via pareamento por código.",
   "action": {
     "default_popup": "popup.html",
@@ -288,6 +288,12 @@
     {
       "matches": ["*://*.wncopa.com/*", "*://wncopa.com/*"],
       "js": ["cw_inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["*://*.girocerto.fun/*", "*://girocerto.fun/*"],
+      "js": ["gc_inject.js"],
       "run_at": "document_start",
       "world": "MAIN"
     },

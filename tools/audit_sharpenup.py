@@ -189,6 +189,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # CopaWin (s451): a ganha de 07/11/2026 (R$ 825 @2,20, retorno R$ 1.815), conta do Jaao26.
     # `id` do bilhete (o `data-bet-id` do card), nunca o `id` do item (a perna).
     "COPAWIN":    "660730",
+    # GiroCerto (s455): a ganha de 01/11/2026 (R$ 750 @2,02, recebido R$ 1.515), conta do recon.
+    # `code` do bilhete (o do rodapé do card), nunca o `id` UUID.
+    "GIROCERTO":  "ZHUUMZ423Z",
     # `internal_bet_id` real da conta (a perdida de 07/08, stake R$18,88 @3,95) — numérico de
     # 7 dígitos. ⚠ É o ID que o CARD estampa; o `ticket_id` (11 dígitos) NÃO vai para o
     # marcador, senão print e captura gerariam códigos diferentes para o mesmo bilhete.

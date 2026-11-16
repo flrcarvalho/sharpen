@@ -94,9 +94,9 @@ def test_casa_com_ficha_aceita_texto_colado(ia):
     assert ia == [None]
 
 
-@pytest.mark.parametrize("casa", ["GiroCerto", "Vaidebet", "Bet365"])
+@pytest.mark.parametrize("casa", ["KingPanda", "Vaidebet", "Bet365"])
 def test_casa_sem_ficha_e_bet_br_aceitam_print(ia, casa):
-    """GiroCerto não tem captura; VaideBet tem adaptador (família vb), mas é `.bet.br`."""
+    """KingPanda não tem captura (a GiroCerto tinha este papel até ganhar captura, s455); VaideBet tem adaptador (família vb), mas é `.bet.br`."""
     _extrair(casa, imagens=[_img()])
     assert ia == ["print"]
 
@@ -127,7 +127,7 @@ def test_a_lista_e_a_do_manifesto():
 
 def test_rota_casas_manda_a_lista_ficha(monkeypatch):
     async def _com_dados(dono):
-        return ["Thunderpick", "GiroCerto", "Vaidebet"]
+        return ["Thunderpick", "KingPanda", "Vaidebet"]
 
     async def _dominios(dono):
         return {}
@@ -135,5 +135,5 @@ def test_rota_casas_manda_a_lista_ficha(monkeypatch):
     monkeypatch.setattr(main, "get_casas_dominios", _dominios)
     r = asyncio.run(main.listar_casas(dono="TDonoBloq"))
     assert "Thunderpick" in r["ficha"]
-    assert "GiroCerto" not in r["ficha"] and "Vaidebet" not in r["ficha"]
+    assert "KingPanda" not in r["ficha"] and "Vaidebet" not in r["ficha"]
     assert set(r["ficha"]) <= set(r["casas"])
