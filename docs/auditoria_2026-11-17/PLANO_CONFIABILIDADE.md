@@ -56,57 +56,57 @@ por mutação e o gate do projeto. **Status:** `[ ]` aberto · `[x]` feito (com 
 
 ### Fase 1 — Vazamento entre usuários (gravidade máxima, mudança pequena)
 
-- [ ] **1.1** IndexedDB do feed com chave por dono (`dados_v1` → por dono resolvido antes de
+- [x] **1.1** (`ff6af74`) IndexedDB do feed com chave por dono (`dados_v1` → por dono resolvido antes de
   pintar), registro com `{dono, schema}`, descarte se divergir. (NAV C3, M3, B2)
-- [ ] **1.2** Custo de tipster/geral: nunca ler nem semear a partir das chaves globais
+- [x] **1.2** (`ff6af74`) Custo de tipster/geral: nunca ler nem semear a partir das chaves globais
   `custoTipsterData`/`custoGeralData`; o servidor é a fonte. (NAV C4)
-- [ ] **1.3** Logout e "ver como" limpam o estado do navegador que é dado de usuário. (NAV C3)
-- [ ] **1.4** Tirar `DEFAULT 'Feca'` de `bilhetes.dono`, `parceiros.dono` e da 3ª tabela,
+- [x] **1.3** (`ff6af74`; o /login apaga o IndexedDB) Logout e "ver como" limpam o estado do navegador que é dado de usuário. (NAV C3)
+- [x] **1.4** (`03b30d4`) Tirar `DEFAULT 'Feca'` de `bilhetes.dono`, `parceiros.dono` e da 3ª tabela,
   depois de conferir que todo INSERT passa `dono`. (ESC A12)
-- [ ] **1.5** `no-store` das rotas HTML deixa de ser apagado pelo middleware; `pageshow`
+- [x] **1.5** (`ff6af74`) `no-store` das rotas HTML deixa de ser apagado pelo middleware; `pageshow`
   persistido revalida sessão. (NAV M2)
 
 ### Fase 2 — Parar de derrubar todo mundo
 
-- [ ] **2.1** `watchPatterns` no `railway.toml`: commit só de docs/STATUS/BACKLOG/tests/tools
+- [x] **2.1** (`32ca46b`) `watchPatterns` no `railway.toml`: commit só de docs/STATUS/BACKLOG/tests/tools
   não faz deploy. (TRAV A6)
-- [ ] **2.2** Pool com `timeout` de aquisição, `command_timeout`, `statement_timeout` e
+- [x] **2.2** (`dd51d08`; o invólucro do pool entrou no commit do 1.4, mesmo arquivo) Pool com `timeout` de aquisição, `command_timeout`, `statement_timeout` e
   `lock_timeout` por sessão. (ESC A3)
-- [ ] **2.3** Login com bcrypt fora do event loop (`to_thread`). (ESC A5)
-- [ ] **2.4** Sessão de pareamento e fila de captura no Postgres, com confirmação de entrega
+- [x] **2.3** (`dd51d08`) Login com bcrypt fora do event loop (`to_thread`). (ESC A5)
+- [x] **2.4** (`ee29d2e`; falta: dashboard recarregado perde o id da sessão, a fila daquela sessão expira em 6 h) Sessão de pareamento e fila de captura no Postgres, com confirmação de entrega
   (a captura só sai da fila depois do ack do dashboard); o deploy deixa de derrubar o
   pareamento. (SRV P3, EXT A1, ESC A6, TRAV A6)
-- [ ] **2.5** Tarefas de fundo com referência guardada e log de morte. (SRV P12)
+- [x] **2.5** (`a04747b`) Tarefas de fundo com referência guardada e log de morte. (SRV P12)
 
 ### Fase 3 — Identidade de versão
 
-- [ ] **3.1** `BUILD_ID` em header e no `/eventos`; a casca recarrega quando muda, em momento
+- [x] **3.1** (`b2a4d8b`) `BUILD_ID` em header e no `/eventos`; a casca recarrega quando muda, em momento
   seguro. (NAV C1, M5)
-- [ ] **3.2** Assets com versão pelo hash do conteúdo, calculada pelo servidor; fim do `?v=`
+- [x] **3.2** (`b2a4d8b`) Assets com versão pelo hash do conteúdo, calculada pelo servidor; fim do `?v=`
   manual; gate que barra `?v=` literal; `Cache-Control` explícito; APIs com `private, no-store`.
   (NAV C2, M1, M4; SRV P8)
-- [ ] **3.3** Versão mínima da extensão, global e por casa, cobrada em conectar/validar/enviar
+- [x] **3.3** (`74def2e`; mínima por casa onde a antiga comprovadamente captura errado; aviso com gravidade segue aberto) Versão mínima da extensão, global e por casa, cobrada em conectar/validar/enviar
   com mensagem acionável; aviso de versão com gravidade. (EXT A3)
-- [ ] **3.4** Inject carimba a versão; reinjeção idempotente; versão divergente pede F5 em vez
+- [x] **3.4** (`42bafee`; detecção pela hora da atualização × hora da aba, sem mudar os 31 injects; o FAB do content ainda não passa por ela) Inject carimba a versão; reinjeção idempotente; versão divergente pede F5 em vez
   de rodar o código velho. (EXT A2, A9)
 
 ### Fase 4 — Escrita consistente
 
 - [ ] **4.1** `upsert_bilhetes` numa transação por lote + advisory lock por conta. (ESC A2, A7)
-- [ ] **4.2** `abertas_corte` atualizado de forma atômica em todos os escritores. (ESC A8)
-- [ ] **4.3** Custos com controle de versão (409 em conflito) ou escrita por item. (NAV A1, ESC A11)
-- [ ] **4.4** Invalidação de cache pelo banco (matcher, categorias); LISTEN que reconecta avisa
+- [x] **4.2** (`19d24e4`) `abertas_corte` atualizado de forma atômica em todos os escritores. (ESC A8)
+- [x] **4.3** (`19d24e4`) Custos com controle de versão (409 em conflito) ou escrita por item. (NAV A1, ESC A11)
+- [x] **4.4** (`a04747b`) Invalidação de cache pelo banco (matcher, categorias); LISTEN que reconecta avisa
   todos; ping com timeout. (SRV P6, P7)
-- [ ] **4.5** Identidade: o refresher não grava snapshot mais velho que o atual. (SRV P1)
-- [ ] **4.6** Nunca cachear ramo de erro (categorias) nem dia ainda não fechado (PTAX); planilha
+- [x] **4.5** (`1a66739`) Identidade: o refresher não grava snapshot mais velho que o atual. (SRV P1)
+- [x] **4.6** (`1a66739`) Nunca cachear ramo de erro (categorias) nem dia ainda não fechado (PTAX); planilha
   viva com idade máxima e `builtAt` verdadeiro. (SRV P4, P5, P9) — **PTAX coordenar com a
   sessão s458**, que está mexendo em `cambio.py`/`polymarket.py`.
 
 ### Fase 5 — Uma régua de "leitura gravada" (R2)
 
-- [ ] **5.1** Prova atômica: o hash do bloco é gravado na linha do bilhete no mesmo UPSERT, e a
-  barreira só pula quando o hash atual é o gravado. (SRV P10)
-- [ ] **5.2** D39: "já foi à IA" só vale com a leitura provada no banco; o teste que afirma o
+- [x] **5.1** (`1a379cb`) Prova atômica: `bilhetes.lido_em`, que só o UPSERT de uma leitura move (em vez do
+  hash na linha, que exigiria levar o hash do `/extrair` ao `/salvar`). (SRV P10)
+- [x] **5.2** (`1a379cb`) D39: "já foi à IA" só vale com a leitura provada no banco; o teste que afirma o
   contrário é corrigido. (TRAV A3)
 - [ ] **5.3** Ficha: cru marcado como processado só no fim; reenvio reprocessa o que não
   terminou. (ESC A9)
@@ -115,22 +115,22 @@ por mutação e o gate do projeto. **Status:** `[ ]` aberto · `[x]` feito (com 
 
 ### Fase 6 — O usuário vê o que aconteceu
 
-- [ ] **6.1** A extensão mostra o `detail` de qualquer não-2xx. (TRAV A2)
-- [ ] **6.2** A Extração mostra os alertas e as linhas recusadas pelo `/salvar`. (TRAV A5)
-- [ ] **6.3** Um wrapper de fetch: 401 vai ao login, falha mostra "sem conexão, dados de HH:MM",
+- [x] **6.1** (`42bafee`, SharpenUp 0.7.87) A extensão mostra o `detail` de qualquer não-2xx. (TRAV A2)
+- [x] **6.2** (`42bafee`) A Extração mostra os alertas e as linhas recusadas pelo `/salvar`. (TRAV A5)
+- [x] **6.3** (`718e8cf`, parcial: Início e Dashboard; o wrapper único de fetch para as outras telas segue aberto) Um wrapper de fetch: 401 vai ao login, falha mostra "sem conexão, dados de HH:MM",
   só sucesso mexe no carimbo de sincronização. (NAV A2, A3, B3)
-- [ ] **6.4** Conta errada × conta arquivada deixa de ser beco sem saída. (TRAV A1)
+- [x] **6.4** (`74def2e`, parcial: a recusa explica e dá a saída; mover histórico entre contas pela tela segue aberto) Conta errada × conta arquivada deixa de ser beco sem saída. (TRAV A1)
 - [ ] **6.5** Captura parcial declarada (completo/parcial:motivo) e mostrada. (EXT A5)
 
 ### Fase 7 — Volume
 
-- [ ] **7.1** Envio da extensão fatiado e limite de parte explícito no servidor com 413
+- [x] **7.1** (`9c72bf6`, lado servidor: campo até 16 MB; fatiar na extensão continua aberto) Envio da extensão fatiado e limite de parte explícito no servidor com 413
   acionável. (EXT A4)
 - [ ] **7.2** `envioPendente` vira fila com destino conferido no Reenviar; sem poda muda. (EXT A7)
-- [ ] **7.3** Feed do dashboard montado fora do event loop, com cache por dono invalidado pelo
+- [x] **7.3** (`ec23947`, parcial: transformação + JSON/gzip em thread; falta decode do asyncpg, cache por dono e feed incremental) Feed do dashboard montado fora do event loop, com cache por dono invalidado pelo
   `base_mudou`. (ESC A1)
 - [ ] **7.4** Trigger `base_mudou` por comando, não por linha. (ESC A2)
-- [ ] **7.5** Limitador global e por dono de chamadas à IA. (ESC A4)
+- [x] **7.5** (`3d96fae`, parcial: teto global 16; falta cota por dono) Limitador global e por dono de chamadas à IA. (ESC A4)
 - [ ] **7.6** Horizonte da captura decidido pelo servidor por conta. (EXT A6)
 
 ### Fase 8 — Liquidação com contrato único (R3)
