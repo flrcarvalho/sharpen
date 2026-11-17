@@ -261,7 +261,8 @@ _HOSTS_POR_CASA = {
     # `sports.betfury.ai`, API em `api-g-c7818b61-607.sptpub.com`. Duel: renderer em
     # `duel.sptpub.com`, API em `api-a-c7818b61-600.sptpub.com` (o host da Betpanda). Nas duas
     # o renderer monta na própria página (sem iframe) e a ABA é o site da casa.
-    "BETFURY":    ("betfury.com",),
+    # `betfury.io` (s456): domínio de origem da casa, o que o arrudex usa.
+    "BETFURY":    ("betfury.com", "betfury.io"),
     "DUEL":       ("duel.com",),
     # 7ª casa BetBy (s395), espelho sem linha nova. Renderer em `betcoin.sptpub.com`, API em
     # `api-i-c7818b61-624.sptpub.com`, sportsbook em `/sportbook/`; a ABA é o site da casa.

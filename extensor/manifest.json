@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SharpenUp",
-  "version": "0.7.84",
+  "version": "0.7.85",
   "description": "A perninha do Sharpen: captura seus bilhetes na casa e sobe pro painel do sharpen.bet via pareamento por código.",
   "action": {
     "default_popup": "popup.html",
@@ -225,6 +225,7 @@
                   "*://*.blaze.bet.br/*", "*://blaze.bet.br/*",
                   "*://*.betpandacasino.io/*", "*://betpandacasino.io/*",
                   "*://*.betfury.com/*", "*://betfury.com/*",
+                  "*://*.betfury.io/*", "*://betfury.io/*",
                   "*://*.duel.com/*", "*://duel.com/*",
                   "*://*.betcoin.ag/*", "*://betcoin.ag/*"],
       "js": ["jb_inject.js"],

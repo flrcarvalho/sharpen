@@ -21,7 +21,9 @@ const DOMINIOS = {
 // Amarração casa↔site (Fix cliente): domínios operacionais (BR) das casas de robô. Ao
 // capturar, o popup exige que a aba ativa seja da casa CONECTADA — impede (ex.) capturar
 // na Superbet com um código de Betfair. Casa fora deste mapa (print, domínio desconhecido)
-// → não checa (não bloqueia captura legítima que não temos como verificar). Espelha o
+// → não checa (não bloqueia captura legítima que não temos como verificar). Desde a s456 a
+// captura só barra aba de OUTRA casa deste mapa (`abaDeOutraCasa`): domínio novo da própria
+// casa passa sem entrar aqui. Listar continua valendo para o servidor e o manifest. Espelha o
 // _HOSTS_POR_CASA do backend (captura.py), que é o backstop que não dá pra burlar.
 const CASA_HOSTS = {
   "Superbet":   ["superbet.bet.br", "superbet.com"],
@@ -78,8 +80,9 @@ const CASA_HOSTS = {
   "Betpanda":   ["betpandacasino.io"],
   // 5ª e 6ª casas BetBy (s393) · MESMO hash de operador (`c7818b61`). BetFury: API em
   // `api-g-c7818b61-607`, sportsbook em `/sports`. Duel: API em `api-a-c7818b61-600` (o host
-  // da Betpanda), sportsbook em `/sports`.
-  "Betfury":    ["betfury.com"],
+  // da Betpanda), sportsbook em `/sports`. `betfury.io` (s456, 17/11/2026) é o domínio de
+  // origem da casa, usado pelo arrudex: fora daqui o popup barrava a aba.
+  "Betfury":    ["betfury.com", "betfury.io"],
   "Duel":       ["duel.com"],
   // 7ª casa BetBy (s395) · MESMO hash de operador (`c7818b61`). API em `api-i-c7818b61-624`,
   // sportsbook em `/sportbook/` (sem o "s": `/sports` dá 404).
@@ -156,6 +159,23 @@ function hostBate(host, casa) {
   if (!hosts) return true;                 // casa sem domínio conhecido → não checa
   const h = (host || "").toLowerCase();
   return hosts.some((x) => h === x || h.endsWith("." + x));
+}
+
+// A aba é de OUTRA casa conhecida? Devolve o nome dela, ou null. É a régua da CAPTURA (s456):
+// barra só a aba que o mapa prova ser de outra casa (código da Betfair na Superbet) e deixa
+// passar domínio desconhecido. Casa troca de endereço sem avisar: o `betfury.io` do arrudex
+// (17/11/2026) foi barrado como "outra casa" por não estar na lista, e todo espelho novo
+// repetiria isso. É a mesma régua do servidor (`captura.casa_de_host`, que "só barra domínio
+// de OUTRA casa conhecida"). O `hostBate` segue estrito para quem pergunta "esta aba É a
+// casa?" (`_abaResolver` da Bet365), onde domínio desconhecido não pode valer como sim.
+function abaDeOutraCasa(host, casa) {
+  const h = (host || "").toLowerCase();
+  const bate = (hosts) => hosts.some((x) => h === x || h.endsWith("." + x));
+  if (CASA_HOSTS[casa] && bate(CASA_HOSTS[casa])) return null;
+  for (const [outra, hosts] of Object.entries(CASA_HOSTS)) {
+    if (outra !== casa && bate(hosts)) return outra;
+  }
+  return null;
 }
 
 // ── Espelho da 1xBet em domínio NOVO (s410) ─────────────────────────────────────────────
@@ -336,8 +356,9 @@ async function capturar() {
     // código de Betfair rodando na Superbet). O backend tem o mesmo check como backstop.
     let host = "";
     try { host = new URL(tab.url).hostname; } catch (_) {}
-    if (!hostBate(host, casa)) {
-      setMsg("Conectado como " + casa + ", mas esta aba é " + (host || "outro site") +
+    const outra = abaDeOutraCasa(host, casa);
+    if (outra) {
+      setMsg("Conectado como " + casa + ", mas esta aba é da " + outra +
              ". Abra o site da " + casa + " ou gere um código para a casa certa.", "erro");
       return;
     }
