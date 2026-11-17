@@ -2875,6 +2875,28 @@ def test_s438_init_db_tenta_de_novo_quando_o_lock_sai(monkeypatch):
     _run(body())
 
 
+def test_s459_insert_sem_dono_falha_em_vez_de_cair_na_base_do_admin():
+    """Auditoria de 17/11 (ESCALA A12): `dono DEFAULT 'Feca'` mandava todo INSERT que
+    esquecesse o dono para a base do administrador. Sem o default, é erro NOT NULL."""
+    import asyncpg
+
+    async def body():
+        await init_db()
+        pool = await get_pool()
+        async with pool.acquire() as c:
+            for tabela, sql in (
+                ("bilhetes", "INSERT INTO bilhetes (casa, parceiro, assinatura) VALUES ('X','Y','s459')"),
+                ("parceiros", "INSERT INTO parceiros (casa, nome) VALUES ('X','s459')"),
+                ("tipsters", "INSERT INTO tipsters (nome) VALUES ('s459')"),
+            ):
+                with pytest.raises(asyncpg.exceptions.NotNullViolationError):
+                    await c.execute(sql)
+                assert await c.fetchval(
+                    "SELECT column_default FROM information_schema.columns "
+                    "WHERE table_name=$1 AND column_name='dono'", tabela) is None
+    _run(body())
+
+
 def test_s438_o_lock_timeout_nao_vaza_para_a_conexao_do_pool():
     """`SET LOCAL`: depois do `init_db`, as conexões do pool estão com o lock_timeout padrão
     (0 = sem limite). Um `SET` de sessão faria as consultas do app desistirem em 5 s.
@@ -2886,8 +2908,10 @@ def test_s438_o_lock_timeout_nao_vaza_para_a_conexao_do_pool():
         pool = await get_pool()
         conns = [await pool.acquire() for _ in range(pool.get_size())]
         try:
+            # s459: o pool tem lock_timeout próprio (`POOL_SERVER_SETTINGS`); o que não pode
+            # é o 5 s do DDL vazar para ele.
             for conn in conns:
-                assert await conn.fetchval("SHOW lock_timeout") == "0"
+                assert await conn.fetchval("SHOW lock_timeout") == "1min"
         finally:
             for conn in conns:
                 await pool.release(conn)

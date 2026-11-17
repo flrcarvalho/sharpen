@@ -130,6 +130,13 @@ CREATE TABLE IF NOT EXISTS parceiros (
 -- Multiusuário: dono dos parceiros (mesma lógica de bilhetes).
 ALTER TABLE parceiros ADD COLUMN IF NOT EXISTS dono TEXT NOT NULL DEFAULT 'Feca';
 
+-- s459 (auditoria de 17/11, ESCALA A12): o DEFAULT acima só existia para dar dono às linhas
+-- anteriores ao multiusuário, e isso já aconteceu. Mantido, ele faz todo INSERT que esqueça
+-- o `dono` gravar na base do administrador em vez de falhar: o pior jeito de errar num
+-- sistema com vários donos. Sem default, o esquecimento vira erro NOT NULL na hora.
+ALTER TABLE bilhetes ALTER COLUMN dono DROP DEFAULT;
+ALTER TABLE parceiros ALTER COLUMN dono DROP DEFAULT;
+
 DO $$
 BEGIN
     ALTER TABLE parceiros DROP CONSTRAINT IF EXISTS parceiros_casa_nome_key;
@@ -356,6 +363,8 @@ ALTER TABLE tipsters ADD COLUMN IF NOT EXISTS dica_stake TEXT;
 -- Esportes principais (CSV): mais um sinal de identificação (um tipster só de tênis se
 -- destaca na hora). Alimenta o "Sharpen sugere" e a futura auto-atribuição.
 ALTER TABLE tipsters ADD COLUMN IF NOT EXISTS esportes TEXT;
+-- s459: mesmo motivo do `bilhetes.dono`: tipster sem dono é erro, nunca base do admin.
+ALTER TABLE tipsters ALTER COLUMN dono DROP DEFAULT;
 
 -- Backfill idempotente: todo tipster distinto já presente nos bilhetes vira registro
 -- (incompleto). Roda a cada boot; ON CONFLICT DO NOTHING → nunca duplica nem
@@ -1195,15 +1204,70 @@ def dsn() -> str:
     return os.environ["DATABASE_URL"].replace("postgres://", "postgresql://", 1)
 
 
+# ── Teto de espera (s459, auditoria de 17/11, ESCALA A3) ─────────────────────────
+# O pool tinha 5 conexões e nenhum prazo em lugar nenhum: `acquire()` esperava para sempre,
+# e uma consulta parada num lock (o caso "script de banco rodando à mão") segurava a
+# conexão para sempre. Medido: com um lock externo em `parceiros`, o feed de um usuário que
+# nem toca a tabela ficou preso > 20 s, e o `/healthz` seguia 200 — nada reiniciava.
+# Os tetos aqui não são de desempenho; são para o que TRAVOU virar erro com nome em vez de
+# tela girando sem fim. Por isso são largos.
+#   · POOL_ACQUIRE_TIMEOUT: quanto uma requisição espera por uma conexão livre.
+#   · statement_timeout / lock_timeout: no servidor, por conexão do app. Scripts de banco
+#     abrem conexão própria e não herdam nada disto. O `init_db` zera o statement_timeout
+#     na transação dele (`SET LOCAL`), porque o backfill do schema pode ser longo.
+POOL_ACQUIRE_TIMEOUT = 60.0
+POOL_SERVER_SETTINGS = {"statement_timeout": "300s", "lock_timeout": "60s"}
+
+
+class _PoolComTeto:
+    """Invólucro do `asyncpg.Pool` que dá prazo a todo `acquire()` sem prazo explícito.
+
+    O `Pool` tem `__slots__` e não deixa trocar o método na instância; subclassear exige
+    repetir o construtor, que muda entre versões do asyncpg. Os atalhos `fetch`/`execute`
+    do próprio pool passam por aqui para herdar o mesmo prazo."""
+
+    __slots__ = ("_p",)
+
+    def __init__(self, pool: asyncpg.Pool):
+        self._p = pool
+
+    def acquire(self, *, timeout: float | None = None):
+        return self._p.acquire(timeout=POOL_ACQUIRE_TIMEOUT if timeout is None else timeout)
+
+    async def execute(self, query, *args, timeout=None):
+        async with self.acquire() as c:
+            return await c.execute(query, *args, timeout=timeout)
+
+    async def executemany(self, command, args, *, timeout=None):
+        async with self.acquire() as c:
+            return await c.executemany(command, args, timeout=timeout)
+
+    async def fetch(self, query, *args, timeout=None, record_class=None):
+        async with self.acquire() as c:
+            return await c.fetch(query, *args, timeout=timeout, record_class=record_class)
+
+    async def fetchrow(self, query, *args, timeout=None, record_class=None):
+        async with self.acquire() as c:
+            return await c.fetchrow(query, *args, timeout=timeout, record_class=record_class)
+
+    async def fetchval(self, query, *args, column=0, timeout=None):
+        async with self.acquire() as c:
+            return await c.fetchval(query, *args, column=column, timeout=timeout)
+
+    def __getattr__(self, nome):
+        return getattr(self._p, nome)
+
+
 async def get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
-        _pool = await asyncpg.create_pool(
+        _pool = _PoolComTeto(await asyncpg.create_pool(
             dsn(),
             min_size=1,
             max_size=5,
             max_inactive_connection_lifetime=60,
-        )
+            server_settings=POOL_SERVER_SETTINGS,
+        ))
     return _pool
 
 
@@ -1234,6 +1298,9 @@ async def init_db() -> None:
             async with pool.acquire() as conn:
                 async with conn.transaction():
                     await conn.execute(f"SET LOCAL lock_timeout = '{DDL_LOCK_TIMEOUT}'")
+                    # O teto de 300 s das conexões do app (s459) não vale para o schema:
+                    # o backfill dele cresce com a base e não pode derrubar o boot.
+                    await conn.execute("SET LOCAL statement_timeout = 0")
                     await conn.execute(SCHEMA_SQL)
             return
         except asyncpg.exceptions.LockNotAvailableError:
