@@ -1195,6 +1195,38 @@ CREATE TABLE IF NOT EXISTS cotacao_ptax (
     gravada_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (moeda, data)
 );
+
+-- s459 (auditoria de 17/11, PLANO_CONFIABILIDADE 2.4): o pareamento da extensão e a fila de
+-- capturas viviam só na memória do processo, e todo deploy (até 12 por dia) desconectava
+-- todo mundo e apagava a fila já confirmada à extensão. A memória virou atalho; isto é a
+-- fonte. O token da extensão fica só como hash. A fila sai quando o dashboard confirma.
+CREATE TABLE IF NOT EXISTS captura_sessao (
+    sessao_id  TEXT PRIMARY KEY,
+    codigo     TEXT NOT NULL,
+    dono       TEXT NOT NULL,
+    casa       TEXT NOT NULL,
+    casa_key   TEXT NOT NULL,
+    parceiro   TEXT NOT NULL,
+    modo       TEXT NOT NULL,
+    criado     TIMESTAMPTZ NOT NULL,
+    atividade  TIMESTAMPTZ NOT NULL,
+    token_hash TEXT,
+    conectado  BOOLEAN NOT NULL DEFAULT FALSE,
+    versao_ext TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS ix_captura_sessao_token ON captura_sessao (token_hash);
+CREATE INDEX IF NOT EXISTS ix_captura_sessao_codigo ON captura_sessao (codigo);
+CREATE INDEX IF NOT EXISTS ix_captura_sessao_atividade ON captura_sessao (atividade);
+CREATE TABLE IF NOT EXISTS captura_fila (
+    id          TEXT PRIMARY KEY,
+    sessao_id   TEXT NOT NULL REFERENCES captura_sessao(sessao_id) ON DELETE CASCADE,
+    tipo        TEXT NOT NULL,
+    media_type  TEXT NOT NULL DEFAULT '',
+    data        TEXT NOT NULL,
+    recebido    TIMESTAMPTZ NOT NULL,
+    entregue_em TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS ix_captura_fila_sessao ON captura_fila (sessao_id, recebido);
 """
 
 

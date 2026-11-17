@@ -6979,12 +6979,21 @@ async function conectarExtensao() {
   }
 }
 
+// s459 (auditoria de 17/11, EXTENSÃO A1): a fila mora no banco e só perde a captura depois que
+// esta tela CONFIRMA que a recebeu (`?ack=`). Antes, a captura saía da fila no momento em que o
+// servidor respondia; se a resposta se perdesse (deploy, rede, aba fechando), ela sumia depois
+// de a extensão já ter dito "enviado ✓". O que não for confirmado volta a ser entregue, e
+// `extVistos` impede que uma reentrega entre duas vezes na tela.
+let extAck = [];
+const extVistos = new Set();
 async function pollExtensao() {
   if (!extSessao) { clearInterval(extPollTimer); return; }
   try {
-    const r = await fetch(`/captura/sessao/${extSessao.sessao_id}`);
+    const enviados = extAck.slice();
+    const r = await fetch(`/captura/sessao/${extSessao.sessao_id}?ack=${encodeURIComponent(enviados.join(','))}`);
     if (r.status === 404) { desconectarExtensao(false); extStatus('Sessão expirou. Conecte de novo.', 'warn'); return; }
     if (!r.ok) return;
+    extAck = extAck.filter(id => !enviados.includes(id));   // confirmados com sucesso
     const d = await r.json();
     if (d.conectado && !extConectadoAviso) {
       extConectadoAviso = true;
@@ -7003,27 +7012,40 @@ async function pollExtensao() {
         extStatus(`Extensão conectada ✓ ${d.casa} / ${d.parceiro || '—'}`, 'ok');
       }
     }
-    if (d.capturas && d.capturas.length) {
+    const novas = (d.capturas || []).filter(c => {
+      if (extVistos.has(c.id)) { extAck.push(c.id); return false; }   // reentrega: só confirma
+      return true;
+    });
+    if (novas.length) {
       const imgs = [];
-      for (const c of d.capturas) {
+      // Imagem além do limite da tela NÃO é confirmada: fica na fila e volta depois do
+      // "Limpar", em vez de ser descartada como antes.
+      let vagas = Math.max(0, IMG_MAX - arquivos.length);
+      for (const c of novas) {
         if (c.tipo === 'imagem') {
+          if (vagas <= 0) continue;
+          vagas--;
           imgs.push(b64ParaFile(c.data, c.media_type, `captura_${c.id}.png`));
         } else if (c.tipo === 'texto') {
           const ta = document.getElementById('texto');
           ta.value = (ta.value ? ta.value + '\n\n' : '') + c.data;
           ta.dispatchEvent(new Event('input'));
         }
+        extVistos.add(c.id); extAck.push(c.id);
       }
       if (imgs.length) adicionarArquivos(imgs);
+      const esperando = novas.length - novas.filter(c => extVistos.has(c.id)).length;
+      if (esperando) setStatus(`Limite de ${IMG_MAX} imagens: ${esperando} captura(s) esperando na fila. Processe ou use "Limpar" e elas chegam.`, 'warn');
       // Marca a procedência: este lote (texto E/OU imagem) veio da captura.
       if (parceiroSelecionado) extCapturaParceiro = parceiroSelecionado.id;
-      extStatus(`Extensão conectada ✓ — ${d.capturas.length} captura(s) recebida(s). Processe abaixo.`, 'ok');
+      extStatus(`Extensão conectada ✓ — ${novas.length - esperando} captura(s) recebida(s). Processe abaixo.`, 'ok');
     }
   } catch (_) {}
 }
 
 function desconectarExtensao(avisar = true) {
   clearInterval(extPollTimer); extPollTimer = null;
+  extAck = []; extVistos.clear();
   extConectadoAviso = false;
   extCapturaParceiro = null;
   if (extSessao) {

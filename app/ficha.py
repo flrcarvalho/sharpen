@@ -478,11 +478,12 @@ def _desligada() -> bool:
 @router.post("/captura/ficha")
 async def receber(payload: dict = Body(...)):
     """A extensão manda o cru de um lote de bilhetes. Responde contagens; ela não espera."""
-    sess = _captura.sessao_por_token(payload.get("token") or "")
+    # s459: `_dur` acha a sessão no banco depois de um deploy (antes: 401 e o cru parava).
+    sess = await _captura.sessao_por_token_dur(payload.get("token") or "")
     if not sess:
         raise HTTPException(401, "Token de captura inválido ou expirado.")
     versao = str(payload.get("versao") or "")
-    _captura.registrar_versao(sess, versao)
+    await _captura.registrar_versao_dur(sess, versao)
     if _desligada():
         # 503, nunca 200: com 200 a extensão marcaria o cru como enviado e não reenviaria.
         raise HTTPException(503, "Captura do cru desligada no servidor; reenvie depois.")

@@ -4154,18 +4154,30 @@ async def captura_parear(req: ParearRequest, dono: str = Depends(usuario_atual))
     quem está logado — mesma regra de /extrair)."""
     casa_key = _display_to_key(req.casa)
     await _trava_conta_arquivada(dono, casa_key, req.parceiro or "", req.confirmar_arquivada)
-    sess = _captura.criar_sessao(dono, _casa_display(casa_key), casa_key, (req.parceiro or "").strip())
+    sess = await _captura.criar_sessao_dur(dono, _casa_display(casa_key), casa_key, (req.parceiro or "").strip())
     return {"sessao_id": sess.sessao_id, "codigo": sess.codigo, "modo": sess.modo,
             "casa": sess.casa, "parceiro": sess.parceiro}
 
 
+def _ack_lista(ack: Optional[str]) -> list[str] | None:
+    """`?ack=` ausente = dashboard antigo (entrega única). Presente, mesmo vazio = o
+    dashboard confirma o que recebeu, e o que ele não confirmar volta a ser entregue."""
+    if ack is None:
+        return None
+    return [x for x in (ack or "").split(",") if x.strip()][:200]
+
+
 @app.get("/captura/sessao/{sessao_id}")
-async def captura_poll(sessao_id: str, dono: str = Depends(usuario_atual)):
-    """Poll do dashboard: estado da conexão + capturas pendentes (entrega única)."""
-    sess = _captura.sessao_por_id(sessao_id)
+async def captura_poll(sessao_id: str, dono: str = Depends(usuario_atual),
+                       ack: Optional[str] = None):
+    """Poll do dashboard: estado da conexão + capturas pendentes.
+
+    s459: com `?ack=<ids>` a captura só sai da fila quando o dashboard confirma que a
+    recebeu (a resposta perdida num deploy ou numa queda de rede não a apaga mais)."""
+    sess = await _captura.sessao_por_id_dur(sessao_id)
     if not sess or sess.dono != dono:
         raise HTTPException(404, "Sessão de captura não encontrada.")
-    pend = _captura.drenar_capturas(sess)
+    pend = await _captura.entregar_capturas(sess, _ack_lista(ack))
     return {
         "conectado": sess.conectado,
         "modo": sess.modo, "casa": sess.casa, "parceiro": sess.parceiro,
@@ -4184,9 +4196,9 @@ async def captura_poll(sessao_id: str, dono: str = Depends(usuario_atual)):
 
 @app.post("/captura/sessao/{sessao_id}/encerrar")
 async def captura_encerrar(sessao_id: str, dono: str = Depends(usuario_atual)):
-    sess = _captura.sessao_por_id(sessao_id)
+    sess = await _captura.sessao_por_id_dur(sessao_id)
     if sess and sess.dono == dono:
-        _captura.encerrar(sessao_id)
+        await _captura.encerrar_dur(sessao_id)
     return {"ok": True}
 
 
@@ -4199,10 +4211,10 @@ class ConectarRequest(BaseModel):
 async def captura_conectar(req: ConectarRequest):
     """Extensão troca o código curto pelo token de envio + metadados do slot.
     Isenta do guarda CSRF (Origin da casa/extensão); autentica pelo código."""
-    sess = _captura.conectar(req.codigo)
+    sess = await _captura.conectar_dur(req.codigo)
     if not sess:
         raise HTTPException(404, "Código inválido ou expirado.")
-    _captura.registrar_versao(sess, req.versao)
+    await _captura.registrar_versao_dur(sess, req.versao)
     return {"token": sess.token_ext, "casa": sess.casa, "parceiro": sess.parceiro,
             "modo": sess.modo, "dono": sess.dono,
             "versao_atual": _versao_extensao(), "desatualizada": versao_desatualizada(req.versao)}
@@ -4219,10 +4231,10 @@ async def captura_validar(req: ValidarRequest):
     restart do servidor), mas o token fica salvo na extensão → sem isto o popup mostrava
     'conectado' com a sessão já morta. 401 = sessão inexistente/expirada (o popup limpa o
     token órfão e volta a parear). Isenta do guarda CSRF; autentica pelo token."""
-    sess = _captura.sessao_por_token(req.token)
+    sess = await _captura.sessao_por_token_dur(req.token)
     if not sess:
         raise HTTPException(401, "Sessão de captura expirada.")
-    _captura.registrar_versao(sess, req.versao)
+    await _captura.registrar_versao_dur(sess, req.versao)
     return {"ok": True, "casa": sess.casa, "parceiro": sess.parceiro,
             "modo": sess.modo, "dono": sess.dono,
             "versao_atual": _versao_extensao(), "desatualizada": versao_desatualizada(req.versao)}
@@ -4291,10 +4303,10 @@ async def captura_enviar(
 ):
     """Extensão envia uma captura (print ou texto). Autentica pelo token de sessão.
     Isenta do guarda CSRF."""
-    sess = _captura.sessao_por_token(token)
+    sess = await _captura.sessao_por_token_dur(token)
     if not sess:
         raise HTTPException(401, "Token de captura inválido ou expirado.")
-    _captura.registrar_versao(sess, versao)
+    await _captura.registrar_versao_dur(sess, versao)
 
     # Amarração casa↔site (backstop do servidor): se a captura veio do site de uma casa
     # CONHECIDA diferente da casa da sessão, rejeita — impede gravar (ex.) Superbet no slot
@@ -4318,7 +4330,7 @@ async def captura_enviar(
         if not (texto and texto.strip()):
             raise HTTPException(400, "Texto vazio.")
         await _checar_conta_errada(sess, texto)
-        ok = _captura.adicionar_captura(sess, "texto", "", texto)
+        ok = await _captura.adicionar_captura_dur(sess, "texto", "", texto)
     else:
         if imagem is None:
             raise HTTPException(400, "Imagem ausente.")
@@ -4328,7 +4340,7 @@ async def captura_enviar(
         raw = await imagem.read()
         if len(raw) > _MAX_IMG_BYTES:
             raise HTTPException(413, "Imagem excede o limite de 12 MB.")
-        ok = _captura.adicionar_captura(
+        ok = await _captura.adicionar_captura_dur(
             sess, "imagem", ctype, base64.standard_b64encode(raw).decode())
 
     if not ok:
@@ -5785,7 +5797,7 @@ async def captura_abertas(token: str):
     Devolve só o que o casamento precisa. O `aposta_em` é o carimbo de colocação, e é por
     ele que a extensão monta o `to` da chamada à casa.
     """
-    sess = _captura.sessao_por_token(token)
+    sess = await _captura.sessao_por_token_dur(token)
     if not sess:
         raise HTTPException(401, "Token de captura inválido ou expirado.")
     abertas = await list_bilhetes(
@@ -5821,7 +5833,7 @@ async def captura_abertas(token: str):
 @app.post("/captura/resolver-abertas")
 async def captura_resolver_abertas(body: ResolverAbertasRequest, token: str):
     """Porta da EXTENSÃO para aplicar — mesmo miolo da porta do painel."""
-    sess = _captura.sessao_por_token(token)
+    sess = await _captura.sessao_por_token_dur(token)
     if not sess:
         raise HTTPException(401, "Token de captura inválido ou expirado.")
     return await _resolver_abertas(sess.dono, sess.casa, sess.parceiro,

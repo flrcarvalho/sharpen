@@ -2875,6 +2875,79 @@ def test_s438_init_db_tenta_de_novo_quando_o_lock_sai(monkeypatch):
     _run(body())
 
 
+def test_s459_pareamento_e_fila_sobrevivem_ao_deploy():
+    """Auditoria de 17/11 (SERVIDOR P3, EXTENSÃO A1): o pareamento e a fila viviam só na
+    memória, e todo deploy desconectava a extensão e apagava a fila. Aqui o "deploy" é apagar
+    `captura._SESSOES` (o que um processo novo tem) e ver a mesma sessão voltar do banco."""
+    import captura
+
+    async def body():
+        await init_db()
+        captura._SESSOES.clear()
+        s = await captura.criar_sessao_dur("TDonoCap", "Superbet", "SUPERBET", "conta [X]")
+        s2 = await captura.conectar_dur(s.codigo)
+        token = s2.token_ext
+        assert token
+        assert await captura.adicionar_captura_dur(s2, "texto", "", "bilhete 1")
+
+        captura._SESSOES.clear()                                   # ── deploy ──
+        volta = await captura.sessao_por_token_dur(token)
+        assert volta is not None and volta.sessao_id == s.sessao_id, "a extensão perdeu o pareamento"
+        assert (volta.dono, volta.casa_key, volta.parceiro) == ("TDonoCap", "SUPERBET", "conta [X]")
+        assert await captura.sessao_por_token_dur("token-falso") is None
+
+        captura._SESSOES.clear()                                   # ── outro deploy ──
+        dash = await captura.sessao_por_id_dur(s.sessao_id)
+        assert dash is not None, "o dashboard perdeu a sessão"
+        e1 = await captura.entregar_capturas(dash, [])
+        assert [c.data for c in e1] == ["bilhete 1"], "a fila se perdeu no deploy"
+        # Sem confirmação, não volta antes do prazo de reentrega...
+        assert await captura.entregar_capturas(dash, []) == []
+        # ...e volta depois dele (a resposta do 1º poll pode ter se perdido).
+        pool = await get_pool()
+        await pool.execute("UPDATE captura_fila SET entregue_em = NOW() - interval '1 hour'")
+        e2 = await captura.entregar_capturas(dash, [])
+        assert [c.id for c in e2] == [e1[0].id]
+        # Confirmou: sai da fila.
+        assert await captura.entregar_capturas(dash, [e1[0].id]) == []
+        assert await pool.fetchval("SELECT count(*) FROM captura_fila WHERE sessao_id=$1",
+                                   s.sessao_id) == 0
+
+        # Dashboard antigo (sem `ack`): entrega única, como antes — não recebe duas vezes.
+        assert await captura.adicionar_captura_dur(dash, "texto", "", "bilhete 2")
+        assert [c.data for c in await captura.entregar_capturas(dash, None)] == ["bilhete 2"]
+        await pool.execute("UPDATE captura_fila SET entregue_em = NOW() - interval '1 hour'")
+        assert await captura.entregar_capturas(dash, None) == []
+
+        # Teto da fila vale no banco.
+        for i in range(captura.MAX_CAPTURAS):
+            assert await captura.adicionar_captura_dur(dash, "texto", "", f"b{i}")
+        assert not await captura.adicionar_captura_dur(dash, "texto", "", "estoura")
+
+        await captura.encerrar_dur(s.sessao_id)
+        captura._SESSOES.clear()
+        assert await captura.sessao_por_token_dur(token) is None
+        assert await pool.fetchval("SELECT count(*) FROM captura_fila WHERE sessao_id=$1",
+                                   s.sessao_id) == 0
+    _run(body())
+
+
+def test_s459_codigo_gerado_antes_do_deploy_ainda_conecta():
+    import captura
+
+    async def body():
+        await init_db()
+        captura._SESSOES.clear()
+        s = await captura.criar_sessao_dur("TDonoCap", "Betano", "BETANO", "c [Y]")
+        captura._SESSOES.clear()                                   # ── deploy ──
+        conectada = await captura.conectar_dur(s.codigo)
+        assert conectada is not None and conectada.sessao_id == s.sessao_id
+        captura._SESSOES.clear()
+        assert (await captura.sessao_por_token_dur(conectada.token_ext)).conectado
+        await captura.encerrar_dur(s.sessao_id)
+    _run(body())
+
+
 def test_s459_insert_sem_dono_falha_em_vez_de_cair_na_base_do_admin():
     """Auditoria de 17/11 (ESCALA A12): `dono DEFAULT 'Feca'` mandava todo INSERT que
     esquecesse o dono para a base do administrador. Sem o default, é erro NOT NULL."""

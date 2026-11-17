@@ -11,14 +11,27 @@ Fluxo:
   3. Extensão manda prints/texto via `adicionar_captura` (autenticada pelo token).
   4. Dashboard faz poll e `drenar_capturas` injeta na área de colar.
 
-Registro EM MEMÓRIA — processo único, como o cache dos masters e o cache_warmer.
-Reinício do servidor derruba as pontes ativas (o usuário só reconecta: gera novo
-código). É efêmero por natureza, então isso é aceitável. Sem dependências novas.
+Persistência (s459, auditoria de 17/11 — SERVIDOR P3, EXTENSÃO A1, ESCALA A6, TRAVAS A6).
+Até a s458 o registro vivia SÓ em memória, e "reinício derruba as pontes, o usuário só
+reconecta" era aceito como efêmero. Medido: com até 12 deploys por dia, todo mundo era
+desconectado várias vezes por dia, e o que estava na fila sumia depois de a extensão já ter
+mostrado "Bilhetes enviados ✓" e apagado a própria cópia. Agora:
+  · a sessão é gravada em `captura_sessao` (token só como hash) e a memória é um atalho;
+    quem não está na memória (processo novo) é procurado no banco;
+  · a fila mora em `captura_fila`; o dashboard que CONFIRMA (`ack`) só perde a captura
+    depois de confirmar; o que não confirma (aba antiga, sem o código novo) mantém a
+    entrega única de antes, para não receber a mesma captura duas vezes;
+  · se o banco falhar, tudo cai no comportamento antigo, em memória, e o log diz.
 """
+import hashlib
+import logging
 import secrets
 import threading
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
+
+logger = logging.getLogger("scanner")
 
 # Alfabeto sem caracteres ambíguos (0/O, 1/I/L) — o código é digitado/colado à mão.
 _CODIGO_ALFABETO = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
@@ -521,3 +534,213 @@ def drenar_capturas(sess: Sessao) -> list[Captura]:
 def encerrar(sessao_id: str) -> None:
     with _LOCK:
         _SESSOES.pop(sessao_id, None)
+
+
+# ── Persistência no Postgres (s459) ──────────────────────────────────────────────────
+# As funções síncronas acima continuam sendo a regra (código, TTL, teto da fila); as
+# assíncronas abaixo gravam e recuperam. As rotas chamam SEMPRE as assíncronas.
+#
+# Quanto tempo uma captura entregue a um dashboard que confirma espera o `ack` antes de ser
+# entregue de novo. Cobre a resposta do poll que se perdeu (aba fechada, rede, deploy).
+REENTREGA_APOS = 45.0
+_ATIVIDADE_GRAVA_A_CADA = 60.0      # não grava `atividade` a cada envio
+
+_db_avisou = False
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+
+
+def _ts(t: float) -> datetime:
+    return datetime.fromtimestamp(t, tz=timezone.utc)
+
+
+async def _pool():
+    from database import get_pool  # import tardio: os testes de fórmula dublam o módulo
+    return await get_pool()
+
+
+def _falhou(onde: str) -> None:
+    """Banco indisponível: segue em memória, e avisa no log uma vez por processo (o log
+    de cada envio enterraria o resto)."""
+    global _db_avisou
+    if not _db_avisou:
+        _db_avisou = True
+        logger.exception("captura: persistência indisponível (%s); seguindo só em memória", onde)
+
+
+async def _gravar_sessao(sess: Sessao) -> None:
+    try:
+        pool = await _pool()
+        await pool.execute(
+            """INSERT INTO captura_sessao
+                 (sessao_id, codigo, dono, casa, casa_key, parceiro, modo, criado, atividade,
+                  token_hash, conectado, versao_ext)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+               ON CONFLICT (sessao_id) DO UPDATE SET
+                 atividade = EXCLUDED.atividade, token_hash = EXCLUDED.token_hash,
+                 conectado = EXCLUDED.conectado, versao_ext = EXCLUDED.versao_ext""",
+            sess.sessao_id, sess.codigo, sess.dono, sess.casa, sess.casa_key, sess.parceiro,
+            sess.modo, _ts(sess.criado), _ts(sess.atividade),
+            _hash_token(sess.token_ext) if sess.token_ext else None,
+            sess.conectado, sess.versao_ext or "",
+        )
+        sess._gravada_em = _agora()
+    except Exception:
+        _falhou("gravar sessão")
+
+
+def _de_linha(r) -> Sessao:
+    s = Sessao(
+        sessao_id=r["sessao_id"], codigo=r["codigo"], dono=r["dono"], casa=r["casa"],
+        casa_key=r["casa_key"], parceiro=r["parceiro"], modo=r["modo"],
+        criado=r["criado"].timestamp(), atividade=r["atividade"].timestamp(),
+        conectado=bool(r["conectado"]), versao_ext=r["versao_ext"] or "",
+    )
+    s._gravada_em = _agora()
+    return s
+
+
+async def _do_banco(campo: str, valor: str) -> Sessao | None:
+    """Sessão viva (dentro do TTL) achada no banco por `sessao_id`, `codigo` ou
+    `token_hash`, e posta na memória."""
+    assert campo in ("sessao_id", "codigo", "token_hash")
+    try:
+        pool = await _pool()
+        r = await pool.fetchrow(
+            f"SELECT * FROM captura_sessao WHERE {campo} = $1 AND atividade > $2 "
+            f"ORDER BY atividade DESC LIMIT 1",
+            valor, _ts(_agora() - SESSAO_TTL))
+    except Exception:
+        _falhou("ler sessão")
+        return None
+    if not r:
+        return None
+    with _LOCK:
+        viva = _SESSOES.get(r["sessao_id"])
+        if viva:
+            return viva
+        sess = _de_linha(r)
+        _SESSOES[sess.sessao_id] = sess
+        return sess
+
+
+async def criar_sessao_dur(dono: str, casa: str, casa_key: str, parceiro: str) -> Sessao:
+    sess = criar_sessao(dono, casa, casa_key, parceiro)
+    await _gravar_sessao(sess)
+    try:   # poda preguiçosa do que já venceu (a fila vai junto, ON DELETE CASCADE)
+        pool = await _pool()
+        await pool.execute("DELETE FROM captura_sessao WHERE atividade < $1",
+                           _ts(_agora() - SESSAO_TTL))
+    except Exception:
+        _falhou("podar sessões")
+    return sess
+
+
+async def sessao_por_id_dur(sessao_id: str) -> Sessao | None:
+    if not sessao_id:
+        return None
+    return sessao_por_id(sessao_id) or await _do_banco("sessao_id", sessao_id)
+
+
+async def conectar_dur(codigo: str) -> Sessao | None:
+    alvo = (codigo or "").strip().upper()
+    if alvo and not any(s.codigo == alvo for s in list(_SESSOES.values())):
+        await _do_banco("codigo", alvo)          # pareado antes de um deploy
+    sess = conectar(codigo)
+    if sess:
+        await _gravar_sessao(sess)
+    return sess
+
+
+async def sessao_por_token_dur(token: str) -> Sessao | None:
+    if not token:
+        return None
+    sess = sessao_por_token(token)
+    if not sess:
+        achada = await _do_banco("token_hash", _hash_token(token))
+        if achada:
+            with _LOCK:
+                achada.token_ext = token     # o banco só tem o hash; quem provou foi o token
+                achada.atividade = _agora()
+            sess = achada
+    if sess and _agora() - getattr(sess, "_gravada_em", 0.0) > _ATIVIDADE_GRAVA_A_CADA:
+        await _gravar_sessao(sess)
+    return sess
+
+
+async def registrar_versao_dur(sess: Sessao, versao: str) -> None:
+    antes = getattr(sess, "versao_ext", "")
+    registrar_versao(sess, versao)
+    if getattr(sess, "versao_ext", "") != antes:
+        await _gravar_sessao(sess)
+
+
+async def adicionar_captura_dur(sess: Sessao, tipo: str, media_type: str, data: str) -> bool:
+    """Enfileira no banco. False se a fila (não confirmada) está cheia. Sem banco, a fila
+    em memória de antes."""
+    try:
+        pool = await _pool()
+        async with pool.acquire() as c:
+            async with c.transaction():
+                # Serializa por sessão: dois envios simultâneos não estouram o teto juntos.
+                await c.execute("SELECT 1 FROM captura_sessao WHERE sessao_id=$1 FOR UPDATE",
+                                sess.sessao_id)
+                n = await c.fetchval("SELECT count(*) FROM captura_fila WHERE sessao_id=$1",
+                                     sess.sessao_id)
+                if n >= MAX_CAPTURAS:
+                    return False
+                await c.execute(
+                    "INSERT INTO captura_fila (id, sessao_id, tipo, media_type, data, recebido) "
+                    "VALUES ($1,$2,$3,$4,$5,$6)",
+                    secrets.token_hex(6), sess.sessao_id, tipo, media_type, data, _ts(_agora()))
+        with _LOCK:
+            sess.atividade = _agora()
+        return True
+    except Exception:
+        _falhou("enfileirar captura")
+        return adicionar_captura(sess, tipo, media_type, data)
+
+
+async def entregar_capturas(sess: Sessao, ack: list[str] | None) -> list[Captura]:
+    """O que o dashboard deve receber agora.
+
+    `ack=None` (dashboard sem o código novo): entrega única, como antes — sai da fila ao ser
+    entregue. `ack=[...]` (pode ser lista vazia): apaga as confirmadas e entrega o que nunca
+    foi entregue mais o que foi entregue há mais de REENTREGA_APOS sem confirmação."""
+    memoria = drenar_capturas(sess)          # o que caiu na memória com o banco fora
+    try:
+        pool = await _pool()
+        async with pool.acquire() as c:
+            async with c.transaction():
+                if ack:
+                    await c.execute(
+                        "DELETE FROM captura_fila WHERE sessao_id=$1 AND id = ANY($2::text[])",
+                        sess.sessao_id, list(ack))
+                if ack is None:
+                    rows = await c.fetch(
+                        "DELETE FROM captura_fila WHERE sessao_id=$1 "
+                        "RETURNING id, tipo, media_type, data, recebido", sess.sessao_id)
+                else:
+                    rows = await c.fetch(
+                        "UPDATE captura_fila SET entregue_em = NOW() WHERE sessao_id=$1 AND "
+                        "(entregue_em IS NULL OR entregue_em < NOW() - make_interval(secs => $2)) "
+                        "RETURNING id, tipo, media_type, data, recebido",
+                        sess.sessao_id, REENTREGA_APOS)
+    except Exception:
+        _falhou("entregar capturas")
+        return memoria
+    do_banco = [Captura(id=r["id"], tipo=r["tipo"], media_type=r["media_type"] or "",
+                        data=r["data"], recebido=r["recebido"].timestamp())
+                for r in sorted(rows, key=lambda r: r["recebido"])]
+    return memoria + do_banco
+
+
+async def encerrar_dur(sessao_id: str) -> None:
+    encerrar(sessao_id)
+    try:
+        pool = await _pool()
+        await pool.execute("DELETE FROM captura_sessao WHERE sessao_id=$1", sessao_id)
+    except Exception:
+        _falhou("encerrar sessão")
