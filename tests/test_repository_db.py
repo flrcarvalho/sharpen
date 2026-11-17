@@ -76,7 +76,9 @@ async def _reset():
     await init_db()
     pool = await get_pool()
     async with pool.acquire() as conn:
-        await conn.execute("TRUNCATE bilhetes RESTART IDENTITY CASCADE")
+        # `correcoes` junto (s460): sem FK para `bilhetes`, ela sobrevivia ao TRUNCATE, e com o
+        # `RESTART IDENTITY` a correção de um teste caía no `bilhete_id` do teste seguinte.
+        await conn.execute("TRUNCATE bilhetes, correcoes RESTART IDENTITY CASCADE")
 
 
 async def _count(dono):
@@ -1862,14 +1864,20 @@ def test_virada_aberta_da_ia_passa_para_a_ficha(monkeypatch):
 
 def test_virada_d10_liquidada_nao_e_reescrita(monkeypatch):
     """D10 (Feca, 12/10): "não mexer no passado é não ir futricar as apostas de mês passado".
-    A LIQUIDADA no banco fica como está (aqui L, que a Ficha diria W), e a IA não a lê."""
+    A LIQUIDADA no banco fica como está, e a IA não a lê.
+
+    s460: o banco diz W (com outra odd) e a Ficha diz W: mesma CLASSE. Até aqui o cenário era
+    banco L × Ficha W, que desde a s448 é RELIQUIDAÇÃO (a casa trocou a classe) e é regravado
+    de propósito. O teste só passava com sobra de outro teste: o `_reset` não limpava
+    `correcoes`, e com `RESTART IDENTITY` a correção HUMANA do teste da s448 caía no mesmo
+    `bilhete_id` e segurava a regravação. Em banco novo (o CI) falhava sempre."""
     aceita, recusada, sem_cru = _VIRADA
     resp, lidos, cortados, banco = _run(_virada_ponta_a_ponta(
-        *_virada_cenario(monkeypatch, "VAVADA"), antes=(aceita, "L")))
+        *_virada_cenario(monkeypatch, "VAVADA"), antes=(aceita, "W")))
     assert resp["na_planilha"] == 0
     # D39 (s438): o código SEM cru não vai mais à IA; fica pendente ("captura incompleta").
     assert (lidos, cortados) == ([recusada], 2)
-    assert banco[aceita] == ("extracao", "L")
+    assert banco[aceita] == ("extracao", "W")
 
 
 async def _virada_segunda_captura(sess, texto, envelhecer=True):
