@@ -912,6 +912,28 @@ async def _usuarios_refresher():
             logger.exception("refresh do cache de usuarios falhou — mantendo o último estado bom")
 
 
+_tarefas_vida: set = set()
+
+
+def _tarefa_de_fundo(coro, nome: str) -> None:
+    """s459 (auditoria de 17/11, SERVIDOR P12): tarefa de vida inteira do app com referência
+    guardada (o loop só guarda referência fraca, e a tarefa podia ser coletada) e com log
+    quando ela MORRE. Antes uma exceção fora do `try` delas parava o aquecedor, o refresher ou
+    o LISTEN em silêncio, e ninguém sabia que o tempo real tinha parado."""
+    t = asyncio.create_task(coro)
+    _tarefas_vida.add(t)
+
+    def _fim(tt):
+        _tarefas_vida.discard(tt)
+        if tt.cancelled():
+            return
+        exc = tt.exception()
+        if exc is not None:
+            logger.error("tarefa de fundo '%s' MORREU: %s: %s", nome, type(exc).__name__, exc,
+                         exc_info=exc)
+    t.add_done_callback(_fim)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     await init_db()
@@ -925,16 +947,16 @@ async def lifespan(_app: FastAPI):
         atualizar_cache_usuarios(await carregar_usuarios())
     except Exception:
         logger.exception("seed/carga inicial de usuarios falhou — cache segue na semente; refresher reitera")
-    asyncio.create_task(_cache_warmer())
-    asyncio.create_task(_usuarios_refresher())
+    _tarefa_de_fundo(_cache_warmer(), "aquecedor")
+    _tarefa_de_fundo(_usuarios_refresher(), "refresher de usuários")
     # Tempo real (s241): LISTEN base_mudou numa conexão dedicada; alimenta /eventos.
-    asyncio.create_task(_eventos.escutar_banco())
+    _tarefa_de_fundo(_eventos.escutar_banco(), "LISTEN base_mudou")
     # Ficha (s411): o dicionário de termos refaz a semente sozinho uma vez por dia.
     import dicionario as _dicionario
-    asyncio.create_task(_dicionario.diario())
+    _tarefa_de_fundo(_dicionario.diario(), "semente diária")
     # D42 (s438): a mensagem de teste do aviso diário, UMA vez na vida do banco (`aviso_admin`)
     import aviso_diario as _aviso_diario
-    asyncio.create_task(_aviso_diario.teste_uma_vez())
+    _tarefa_de_fundo(_aviso_diario.teste_uma_vez(), "aviso diário (teste)")
     yield
 
 

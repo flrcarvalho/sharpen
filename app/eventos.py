@@ -40,8 +40,39 @@ def cancelar(entrada: tuple[frozenset, asyncio.Queue]) -> None:
     _assinantes.discard(entrada)
 
 
+def _invalidar_caches(dono: str) -> None:
+    """s459 (auditoria de 17/11, SERVIDOR P6): a invalidação dos caches por dono sai das
+    rotas e vem do BANCO. Cada rota tinha de lembrar de derrubar o cache certo, e três que
+    gravam tipster (`/bilhetes/tipster`, `DELETE /bilhetes`, `/bilhetes/restaurar`) não
+    lembravam: a sugestão de tipster seguia velha por até 5 min. Todo escritor de `bilhetes`
+    (rota, bot, script) dispara o `base_mudou`, então este ponto cobre todos."""
+    try:
+        import matcher
+        matcher.invalidar(dono)
+    except Exception:  # noqa: BLE001 — cache que não cai só demora o TTL dele
+        pass
+    try:
+        import repository
+        repository._CATEGORIAS_DONO.pop(dono, None)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _avisar_todos() -> None:
+    """Depois de o LISTEN cair e voltar, o que mudou no vão não gerou aviso: toda tela
+    aberta recarrega uma vez, e os caches de quem tem tela aberta caem (s459, SERVIDOR P7)."""
+    for escopo, fila in list(_assinantes):
+        for dono in escopo:
+            _invalidar_caches(dono)
+        try:
+            fila.put_nowait(next(iter(escopo), ""))
+        except asyncio.QueueFull:
+            pass
+
+
 def _on_notify(_conn, _pid, _canal, payload) -> None:
     """Callback do add_listener (roda no loop). payload = dono cuja base mudou."""
+    _invalidar_caches(payload)
     for escopo, fila in list(_assinantes):
         if payload in escopo:
             try:
@@ -56,16 +87,22 @@ async def escutar_banco() -> None:
     existe porque conexão de LISTEN morta não levanta erro sozinha — sem ele o
     app ficaria surdo em silêncio, o mesmo modo de falha do polling do bot."""
     espera = 1.0
+    ja_conectou = False
     while True:
         conn = None
         try:
-            conn = await asyncpg.connect(dsn())
+            conn = await asyncpg.connect(dsn(), timeout=15)
             await conn.add_listener(_CANAL, _on_notify)
             logger.info("eventos: LISTEN %s ativo", _CANAL)
+            if ja_conectou:
+                _avisar_todos()           # o vão sem LISTEN não gerou aviso nenhum
+            ja_conectou = True
             espera = 1.0
             while True:
                 await asyncio.sleep(30)
-                await conn.execute("SELECT 1")
+                # s459 (SERVIDOR P7): com prazo. Sem ele, numa conexão TCP meio aberta o
+                # ping esperava o keepalive do sistema (horas) e o app ficava surdo.
+                await conn.execute("SELECT 1", timeout=10)
         except Exception:
             logger.exception("eventos: listener caiu — reconectando em %.0fs", espera)
             await asyncio.sleep(espera)
