@@ -934,6 +934,36 @@ async def lifespan(_app: FastAPI):
     yield
 
 
+# ── Teto de campo de formulário (s459, auditoria de 17/11, EXTENSÃO A4) ─────────────────
+# O Starlette recusa com 400 ("Part exceeded maximum size of 1024KB") todo campo de texto de
+# formulário acima de 1 MB. O `/captura/enviar` manda a captura INTEIRA num campo só, e o
+# `/extrair` recebe o texto colado do mesmo jeito: medido, o teto cabia entre ~920 e ~3.900
+# bilhetes conforme a casa. Quem voltava depois de meses tomava "Erro ao enviar (400)", o
+# Reenviar repetia o mesmo 400 e a pendência sumia em 24 h. Arquivo (imagem/PDF) não entra
+# nessa conta: o limite é de campo sem nome de arquivo.
+_MAX_CAMPO_FORM = 16 * 1024 * 1024
+
+
+def _ampliar_campo_de_formulario() -> None:
+    import inspect as _inspect
+    from starlette import formparsers as _fp
+    from starlette.requests import Request as _Req
+    if "max_part_size" in _inspect.signature(_Req.form).parameters:   # starlette >= 0.46
+        if getattr(_Req.form, "_s459", False):
+            return
+        _original = _Req.form
+
+        def form(self, *, max_files=1000, max_fields=1000, max_part_size=_MAX_CAMPO_FORM):
+            return _original(self, max_files=max_files, max_fields=max_fields,
+                             max_part_size=max_part_size)
+        form._s459 = True
+        _Req.form = form
+    else:                                                              # starlette 0.40–0.45
+        _fp.MultiPartParser.max_part_size = _MAX_CAMPO_FORM
+
+
+_ampliar_campo_de_formulario()
+
 app = FastAPI(title="Sharpen — Scanner de Bets", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
