@@ -488,6 +488,10 @@ async def categorias_do_dono(dono: str) -> frozenset:
                     cats.add(r["aposta"])
     except Exception:  # noqa: BLE001 — sem a base, só o Master (mais recusa, nunca grava errado)
         logger.warning("leitor: categorias da base de %s indisponíveis", dono, exc_info=True)
+        # s459 (auditoria de 17/11, SERVIDOR P5): o ramo de ERRO não vai para o cache. Antes
+        # ele ficava 10 min como se fosse a resposta, e o leitor recusava as categorias da
+        # base (Especiais, Aumentadas) muito depois de o banco ter voltado.
+        return frozenset(cats)
     _CATEGORIAS_DONO[dono] = (agora, frozenset(cats))
     return _CATEGORIAS_DONO[dono][1]
 

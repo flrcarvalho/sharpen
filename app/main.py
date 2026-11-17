@@ -903,7 +903,11 @@ async def _usuarios_refresher():
     while True:
         await asyncio.sleep(60)
         try:
-            atualizar_cache_usuarios(await carregar_usuarios())
+            # s459 (SERVIDOR P1): a geração vista ANTES da leitura; recarga feita por uma rota
+            # enquanto o SELECT corria vence este retrato.
+            import auth as _auth
+            vista = _auth.geracao_cache_usuarios()
+            atualizar_cache_usuarios(await carregar_usuarios(), geracao_lida=vista)
         except Exception:
             logger.exception("refresh do cache de usuarios falhou — mantendo o último estado bom")
 

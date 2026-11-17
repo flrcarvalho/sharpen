@@ -124,7 +124,7 @@ async def _carregar_ptax_moeda(client: httpx.AsyncClient, moeda: str, de_iso: st
     hoje = _poly._hoje_iso()
     de = _poly._iso_mais(de_iso, -_poly._RECUO_MAX_DIAS)
     faixa = _PTAX_MOEDA_FAIXA.get(moeda)
-    if faixa and de >= faixa[0] and hoje <= faixa[1]:
+    if faixa and de >= faixa[0] and (hoje <= faixa[1] or _poly._pode_esperar_hoje(faixa[1], moeda)):
         return
     if faixa:
         de = min(de, faixa[0])
@@ -146,7 +146,9 @@ async def _carregar_ptax_moeda(client: httpx.AsyncClient, moeda: str, de_iso: st
         if len(iso) == 10 and cot:
             mapa.setdefault(iso, float(cot))   # 1º do dia, como o `$top=1` do dólar
             lidos.setdefault(iso, mapa[iso])
-    _PTAX_MOEDA_FAIXA[moeda] = (de, hoje)
+    # s459 (SERVIDOR P4): cobre só até o último dia publicado; hoje sem fechamento é tentado de
+    # novo depois (`polymarket._ate_coberto`).
+    _PTAX_MOEDA_FAIXA[moeda] = (de, _poly._ate_coberto(hoje, lidos, moeda))
     await _poly._ptax_banco_gravar(moeda, lidos)   # s458: o próximo bloqueio do BCB lê daqui
 
 

@@ -197,13 +197,30 @@ def _cache_da_semente() -> dict[str, dict]:
 _usuarios_cache: dict[str, dict] = _cache_da_semente()
 
 
-def atualizar_cache_usuarios(linhas: list[dict]) -> None:
+# s459 (auditoria de 17/11, SERVIDOR P1): geração do cache. O refresher de 60 s lia o banco e
+# trocava o cache inteiro; se uma rota (troca de senha, aprovação, trial) recarregasse no meio
+# da leitura dele, o refresher terminava depois e gravava o retrato VELHO por cima: a senha nova
+# dava "inválida" e a velha funcionava, e o trial nascia morto, por até 60 s. Quem lê para
+# atualizar diz qual geração viu; se o cache mudou nesse meio-tempo, o retrato é descartado.
+_cache_geracao = 0
+
+
+def geracao_cache_usuarios() -> int:
+    return _cache_geracao
+
+
+def atualizar_cache_usuarios(linhas: list[dict], geracao_lida: int | None = None) -> None:
     """Substitui o cache inteiro pelo estado do banco (startup + refresher de 60s
     do main; a Fase 2 chama após aprovar/suspender). Lista vazia é IGNORADA —
-    fail-safe: uma leitura quebrada nunca troca um cache bom por "ninguém loga"."""
-    global _usuarios_cache
+    fail-safe: uma leitura quebrada nunca troca um cache bom por "ninguém loga".
+    `geracao_lida` (s459): a geração vista ANTES de ler o banco; se mudou, o retrato
+    é mais velho que o cache e não entra."""
+    global _usuarios_cache, _cache_geracao
+    if geracao_lida is not None and geracao_lida != _cache_geracao:
+        return
     if linhas:
         _usuarios_cache = {l["username"]: dict(l) for l in linhas}
+        _cache_geracao += 1
 
 
 def _usuario_ativo(usuario: str) -> bool:
@@ -369,8 +386,9 @@ def registrar_usuario_no_cache(username: str, entrada: dict) -> None:
     Troca o dict INTEIRO em vez de mutar item a item, que é a invariante
     declarada no topo deste módulo (leitura sem lock).
     """
-    global _usuarios_cache
+    global _usuarios_cache, _cache_geracao
     _usuarios_cache = {**_usuarios_cache, username: dict(entrada)}
+    _cache_geracao += 1      # s459: o refresher em voo não pode desfazer esta entrada
 
 
 def pode_ver_como(real: str, alvo: str) -> bool:

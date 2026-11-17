@@ -21,6 +21,7 @@ logger = logging.getLogger("planilha_viva")
 # TTL do cache local (s). O Apps Script reconstrói a cada 30 min; 2 min basta
 # para absorver recargas de página sem atrasar demais a atualização.
 _TTL_SEGUNDOS = 120
+_STALE_MAX_SEGUNDOS = 3600     # s459: até onde o cache velho cobre a planilha fora do ar
 
 # dono → (instante_monotonico, linhas)
 _cache: dict[str, tuple[float, list[dict]]] = {}
@@ -78,7 +79,10 @@ async def dashboard_rows_ao_vivo(dono: str, url: str, refresh: bool = False) -> 
         _cache[dono] = (agora, linhas)
         return linhas
     except Exception as e:
-        if em_cache:
+        # s459 (auditoria de 17/11, SERVIDOR P9): o cache velho segura uma queda CURTA da
+        # planilha, não uma longa. Sem teto, a tela mostrava números de dias atrás com o
+        # "último sync" de agora. Passou de `_STALE_MAX_SEGUNDOS`, a falha aparece.
+        if em_cache and (agora - em_cache[0]) < _STALE_MAX_SEGUNDOS:
             logger.warning(
                 "planilha ao vivo de %s falhou (%s) — servindo feed em cache (stale)",
                 dono, e,

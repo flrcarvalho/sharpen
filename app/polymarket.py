@@ -34,6 +34,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import time
 from datetime import datetime, timezone, timedelta
 
 import httpx
@@ -298,6 +299,30 @@ def _hoje_iso() -> str:
     return f"{d.year:04d}-{d.month:02d}-{d.day:02d}"
 
 
+# ── O dia que ainda não fechou não é "coberto" (s459, auditoria de 17/11, SERVIDOR P4) ──────
+# A faixa carregada era marcada como `[de, hoje]` mesmo quando o BCB ainda não tinha publicado
+# o fechamento de hoje (~13h). Daí em diante, todo pedido do dia achava "coberto" e caía no
+# recuo (ontem), até o próximo deploy: a mesma aposta em USD/EUR virava R$ diferente conforme a
+# hora do deploy, e a Caixa ganhava divergência que "sumia". Agora a cobertura só vai até o
+# último dia que veio de fato; o de hoje é tentado de novo a cada `_REFAZ_HOJE_SEG`.
+_REFAZ_HOJE_SEG = 20 * 60
+_PTAX_TENTATIVA: dict[str, float] = {}     # moeda → instante da carga que não trouxe hoje
+
+
+def _ate_coberto(ate_iso: str, lidos: dict, moeda: str) -> str:
+    hoje = _hoje_iso()
+    if ate_iso >= hoje and hoje not in lidos:
+        _PTAX_TENTATIVA[moeda] = time.monotonic()
+        return _iso_mais(hoje, -1)
+    return ate_iso
+
+
+def _pode_esperar_hoje(ate_coberto: str, moeda: str) -> bool:
+    """Cobertura até ontem e a tentativa de hoje foi há pouco: usa o recuo sem nova chamada."""
+    return (ate_coberto == _iso_mais(_hoje_iso(), -1)
+            and time.monotonic() - _PTAX_TENTATIVA.get(moeda, -1e12) < _REFAZ_HOJE_SEG)
+
+
 def _mdy(iso: str) -> str:
     """ISO 'YYYY-MM-DD' → 'MM-DD-YYYY' (o formato que a API do BCB exige)."""
     y, m, d = iso.split("-")
@@ -339,7 +364,8 @@ async def _carregar_periodo(client: httpx.AsyncClient, de_iso: str, ate_iso: str
             lidos.setdefault(iso, _PTAX_MAPA[iso])
     await _ptax_banco_gravar("USD", lidos)
     _PTAX_DE = min(_PTAX_DE, de_iso) if _PTAX_DE else de_iso
-    _PTAX_ATE = max(_PTAX_ATE, ate_iso) if _PTAX_ATE else ate_iso
+    ate = _ate_coberto(ate_iso, lidos, "USD")
+    _PTAX_ATE = max(_PTAX_ATE, ate) if _PTAX_ATE else ate
 
 
 async def _garantir_cobertura(client: httpx.AsyncClient, iso: str) -> None:
@@ -351,7 +377,8 @@ async def _garantir_cobertura(client: httpx.AsyncClient, iso: str) -> None:
     moer chamada por chamada até falhar no fim."""
     hoje = _hoje_iso()
     de = _iso_mais(iso, -_RECUO_MAX_DIAS)
-    if _PTAX_DE and _PTAX_ATE and de >= _PTAX_DE and hoje <= _PTAX_ATE:
+    if _PTAX_DE and _PTAX_ATE and de >= _PTAX_DE and (
+            hoje <= _PTAX_ATE or _pode_esperar_hoje(_PTAX_ATE, "USD")):
         return
     try:
         await _carregar_periodo(client, min(de, _PTAX_DE) if _PTAX_DE else de, hoje)
