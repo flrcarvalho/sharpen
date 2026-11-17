@@ -288,6 +288,12 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0788",
+      "v": "v0.7.88",
+      "data": "2026-11-17",
+      "texto": "Correções na captura: dados de uma conta deixam de bloquear o reenvio para outra."
+    },
+    {
       "id": "su-0787",
       "v": "v0.7.87",
       "data": "2026-11-17",

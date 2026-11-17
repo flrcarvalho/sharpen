@@ -529,6 +529,9 @@ async def _processar(sess, payload: dict, versao: str) -> dict:
         raise HTTPException(400, f"`familia` e `itens` (lista de até {MAX_ITENS}) são obrigatórios.")
 
     aceitos, descartados = [], 0
+    # s459 (auditoria TRAVAS T19/A4): o código descartado volta NOMEADO; a extensão marcava o
+    # lote inteiro como enviado e nunca reenviava o cru que o servidor jogou fora.
+    desc_cods: list[str] = []
     for it in itens:
         cod = it.get("codigo") if isinstance(it, dict) else None
         if not (isinstance(cod, str) and cod.strip()) or not isinstance(it.get("cru"), dict):
@@ -539,6 +542,7 @@ async def _processar(sess, payload: dict, versao: str) -> dict:
         filtrado, removidos = _cru.filtrar(it["cru"])
         if len(_cru.canonico(filtrado).encode("utf-8")) > _cru.MAX_BYTES:
             descartados += 1
+            desc_cods.append(cod.strip())
             logger.warning("ficha: cru de %s %s acima de %d bytes — descartado",
                            sess.casa_key, cod, _cru.MAX_BYTES)
             continue
@@ -560,7 +564,7 @@ async def _processar(sess, payload: dict, versao: str) -> dict:
         return {"guardado": True, "recebidos": len(itens), "descartados": descartados,
                 "novos": sum(1 for i in ids if i is not None),
                 "fichas": {"aceitas": 0, "recusadas": 0}, "na_planilha": 0,
-                "conta_errada": conta}
+                "conta_errada": conta, "descartados_codigos": desc_cods}
     # Bilhete juntado (s445): as linhas que ele substitui saem quando ELE já está na base. O cru
     # sobe em paralelo ao texto, então quem chegar por último faz: aqui, ou o `/salvar`.
     juntados = {it["codigo"]: v for it in aceitos if (v := absorvidos(familia, it["cru"]))}
@@ -597,4 +601,4 @@ async def _processar(sess, payload: dict, versao: str) -> dict:
     return {"guardado": True, "recebidos": len(itens), "descartados": descartados,
             "novos": sum(1 for i in ids if i is not None),
             "fichas": {"aceitas": fichas_aceitas, "recusadas": fichas_recusadas},
-            "na_planilha": na_planilha}
+            "na_planilha": na_planilha, "descartados_codigos": desc_cods}

@@ -26,7 +26,14 @@ function carregarCru({ respostas = [], token = "tok", storage = {} } = {}) {
     TextEncoder, Uint8Array, crypto: webcrypto,
     chrome: {
       storage: { local: {
-        get: async (k) => (k === "token" ? (token ? { token } : {}) : (k in storage ? { [k]: storage[k] } : {})),
+        get: async (k) => {
+          const o = {};
+          for (const x of (Array.isArray(k) ? k : [k])) {
+            if (x === "token") { if (token) o.token = token; }
+            else if (x in storage) o[x] = storage[x];
+          }
+          return o;
+        },
         set: async (o) => { Object.assign(storage, o); },
       } },
       runtime: { getManifest: () => ({ version: "9.9.9" }) },
@@ -76,6 +83,17 @@ export async function rodar() {
     ok(r.iguais === 2 && e.chamadas.length === 1, "cru IGUAL ao já enviado não pode sair de novo");
     r = await e.enviarCru("dx", [ITEM("A", { payout: 50 })], {});
     ok(r.enviados === 1 && e.chamadas.length === 2, "cru MUDADO (aberta que liquidou) tem de sair");
+  }
+
+  // ── s459: a marca de "já enviado" é por dono e CONTA ──────────────────────────────
+  {
+    const storage = { dono: "Ana", parceiro: "conta1 [Eu]" };
+    const e = carregarCru({ storage });
+    await e.enviarCru("dx", [ITEM("A")], {});
+    storage.parceiro = "conta2 [Eu]";                         // pareou outra conta
+    const r = await e.enviarCru("dx", [ITEM("A")], {});
+    ok(r.enviados === 1 && e.chamadas.length === 2,
+       "o mesmo cru para OUTRA conta tem de sair (antes a marca não tinha conta e nunca saía)");
   }
 
   // ── só marca no 200: 401, 500 e rede ficam para a próxima ───────────────────────

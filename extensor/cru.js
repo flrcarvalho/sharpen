@@ -71,7 +71,7 @@ async function enviarCru(familia, itens, tab) {
   const resumo = { enviados: 0, iguais: 0, falhas: 0, tratados409: 0,
                    familia: familia, itens: Array.isArray(itens) ? itens.length : -1, http: [], erro: "" };
   try {
-    const { token } = await chrome.storage.local.get("token");
+    const { token, dono, parceiro } = await chrome.storage.local.get(["token", "dono", "parceiro"]);
     if (!token || !familia || !Array.isArray(itens) || !itens.length) {
       resumo.erro = !token ? "sem token" : "lote vazio ou sem família";
       await cruDiagnostico(resumo);
@@ -87,7 +87,10 @@ async function enviarCru(familia, itens, tab) {
       if (!it || it.codigo == null || it.codigo === "" || !it.cru || typeof it.cru !== "object") continue;
       const cru = cruFiltrar(it.cru);
       const hash = await cruHash(cru);
-      const chave = origem + "|" + familia + "|" + it.codigo;
+      // s459 (auditoria TRAVAS A4): a chave leva o DONO e a CONTA pareados. Sem eles, o cru
+      // mandado sob uma conta (ou outro usuário no mesmo navegador) nunca era reenviado para
+      // a outra, e o F5 que a tela sugeria não resolvia nada.
+      const chave = (dono || "") + "|" + (parceiro || "") + "|" + origem + "|" + familia + "|" + it.codigo;
       if (reg[chave] && reg[chave].h === hash) { resumo.iguais++; continue; }
       pendentes.push({ chave, item: { codigo: String(it.codigo), hash, cru } });
     }
@@ -106,7 +109,11 @@ async function enviarCru(familia, itens, tab) {
       } catch (e) { resumo.falhas += lote.length; resumo.erro = "rede: " + String(e && e.message || e); continue; }
       resumo.http.push(r.status);
       if (r.ok || r.status === 409) {
-        for (const p of lote) reg[p.chave] = { h: p.item.hash, t: agora };
+        // O servidor nomeia o que DESCARTOU (cru grande demais, s459): esse não é marcado,
+        // senão nunca mais seria mandado.
+        let fora = [];
+        try { if (r.ok) fora = ((await r.clone().json()) || {}).descartados_codigos || []; } catch (_) {}
+        for (const p of lote) { if (!fora.includes(p.item.codigo)) reg[p.chave] = { h: p.item.hash, t: agora }; }
         if (r.ok) resumo.enviados += lote.length; else resumo.tratados409 += lote.length;
       } else {
         resumo.falhas += lote.length;      // 401, 400, 5xx: fica para a próxima varredura
