@@ -3331,7 +3331,10 @@ async def login(body: LoginRequest, request: Request):
         raise HTTPException(429, "Muitas tentativas. Aguarde alguns minutos e tente novamente.")
 
     usuario = body.usuario.strip()
-    veredito = resultado_login(usuario, body.senha)
+    # bcrypt custa ~0,4 s de CPU: no event loop ele travava TODO mundo durante cada login
+    # (medido: 10 logins simultâneos levaram o /healthz de 4 ms a 5,3 s). O cadastro e a
+    # troca de senha já rodavam em thread (s459, auditoria de 17/11, ESCALA A5).
+    veredito = await asyncio.to_thread(resultado_login, usuario, body.senha)
     if veredito != "ok":
         # Mensagem específica SÓ com a senha certa (resultado_login devolve
         # 'invalido' para senha errada — sem enumeração de contas/status).
