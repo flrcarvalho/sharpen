@@ -70,11 +70,27 @@ de múltipla, sem prova do esporte: ficam fora do mapa e vão à IA.
 **Captura por API + replay** (SharpenUp · `extensor/thp_inject.js`).
 
 ```
-GET https://thunderpick.io/api/wagers/v2/resolved?take=100&skip=N&sortColumn=finishTime
+GET https://thunderpick.io/api/users/wagers/settled?take=100&skip=N&sortColumn=finishTime   (s457)
+GET https://thunderpick.io/api/wagers/v2/resolved?take=100&skip=N&sortColumn=finishTime     (antiga: 404)
 GET https://thunderpick.io/api/wagers/v2/pending
     thunderpick-token: <sessão>
 → { "statusCode":200, "ok":true, "data": { "wagers":[…], "totalWagersCount": N } }
+GET https://thunderpick.io/api/wagers/events?eventIds=1&eventIds=2…                         (s457)
+→ { "statusCode":200, "ok":true, "data": [ { id, name, startTime, competition, homeCompetitor, awayCompetitor } ] }
 ```
+
+> ⚠️ **Mudança de 17/11/2026 (s457, medida na conta do Feca, 132 liquidadas).** A rota
+> `/api/wagers/v2/resolved` saiu do ar (**HTTP 404**; o tester Arrudex viu `replay parou ·
+> HTTP 404`) e a tela "Settled" passou a pedir **`/api/users/wagers/settled`**, mesmo envelope
+> e mesma paginação (`take=10` na página). O bilhete chega **sem o jogo**: `eventName`,
+> `eventStartTime`, `competition`, `homeCompetitor` e `awayCompetitor` saíram do topo e das
+> pernas. A página busca o jogo em **`/api/wagers/events`** (124 ids aceitos numa chamada).
+> O inject pede a rota nova (a antiga só se a nova der 404), busca os eventos que faltam em
+> lotes de 100 e **encaixa os campos de volta no objeto da casa, só onde faltam**: o
+> formatador e o adaptador `thp` seguem lendo a forma antiga. Evento que não chega sobe sem o
+> jogo, e o erro vai ao autodiagnóstico com o caminho. `/pending` segue na rota v2 (a conta
+> medida tinha 0 abertas: **não se sabe se as abertas também perderam o jogo**; o encaixe
+> cobre os dois casos).
 
 Medido com a sessão do Feca (22/10/2026):
 
@@ -107,8 +123,8 @@ paginação é por botões e não há prova de linha em branco entre os cards no
 | `wagerId` | numérico, em **DUAS séries**: múltipla ~2,2M (`2225866`), simples 4,9M–10,3M (`10277912`). O código leva o prefixo de tipo: `C2225866` / `S10277912` |
 | `uuid` | id único do bilhete (zerado na fixture). Não vai para o marcador |
 | `wagerType` | `PreMatch` · `InPlays` (ao vivo) · `Combo` (múltipla). Simples e ao vivo usam `S` |
-| `wagerUIState` | `won` · `lost` · `open` (o estado que o card mostra) |
-| `state` | `resolved` nas liquidadas; **ausente** nas abertas |
+| `wagerUIState` | `won` · `lost` · `open` · `cashed-out` (o estado que o card mostra; `cashed-out` medido em 17/11) |
+| `state` | `resolved` nas liquidadas; `canceled` na "Cancelled by player" (`cashed-out|canceled`, `outcome` 0); **ausente** nas abertas |
 | `amount` | stake em **centavos de euro** (4383 = 43,83 EUR) |
 | `odds` | odd do bilhete, a do card; na múltipla, **já o produto das pernas** |
 | `outcome` | retorno pago, em centavos de euro; `0` na perdida; **ausente** na aberta |
@@ -262,7 +278,7 @@ Campo `amount`, em centavos de euro (÷ 100 no inject); a conversão para R$ é 
       clone do harness.
 - [ ] **`gameId` novo** (aparece `gameId N, sem nome` no bloco): medir pela liga e somar ao mapa
       do `formatTicketTHP` e da §1.2.
-- [ ] **Teto do `take`**: com mais de 100 liquidadas, conferir que todas chegaram.
+- [x] **Teto do `take`**: com 132 liquidadas (17/11/2026), `take=100` devolveu 100 + 32 e `take=500` as 132.
 
 ---
 
@@ -270,7 +286,9 @@ Campo `amount`, em centavos de euro (÷ 100 no inject); a conversão para R$ é 
 
 Recon de 22/10/2026 — conta inteira (**42 bilhetes**: 29 liquidadas, 13 abertas):
 `extensor/harness/fixtures/thunderpick.resolved.json` e `thunderpick.pending.json` (a resposta
-da casa, `uuid` zerado).
+da casa, `uuid` zerado). Rota nova (17/11/2026, s457): `thunderpick.settled.json` (5 liquidadas
+reais, sem o jogo: simples ganha e perdida, múltipla de 3 ganha, cashout, "Cancelled by
+player") e `thunderpick.events.json` (os 6 eventos delas).
 
 | Código | Tipo | Estado | Stake (EUR) | Odd | Retorno (EUR) | Colocação (SP) | Evento (SP) | Fonte |
 |---|---|---|---|---|---|---|---|---|

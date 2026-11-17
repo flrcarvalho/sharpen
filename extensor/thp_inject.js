@@ -1,13 +1,26 @@
 // Mundo MAIN (Thunderpick — plataforma própria): lê as apostas que a página pede e BUSCA a
 // lista inteira ele mesmo, repassando ao content script.
 //
-//   GET /api/wagers/v2/resolved?take=&skip=&sortColumn=finishTime   (liquidadas, paginadas)
+//   GET /api/users/wagers/settled?take=&skip=&sortColumn=finishTime  (liquidadas, paginadas; s457)
+//   GET /api/wagers/v2/resolved?take=&skip=&sortColumn=finishTime    (rota ANTIGA; 404 desde nov/2026)
 //   GET /api/wagers/v2/pending                                        (abertas, tudo de uma vez)
 //   → { statusCode:200, ok:true, data: { wagers:[…], totalWagersCount } }
+//   GET /api/wagers/events?eventIds=1&eventIds=2…                     (nome/início/liga do jogo; s457)
+//   → { statusCode:200, ok:true, data: [ {id, name, startTime, competition, homeCompetitor, awayCompetitor} ] }
 //
 // PLATAFORMA PRÓPRIA (recon 22/10/2026, conta do Feca, EUR). Front React Router v7, API
 // `/api/*` no MESMO domínio, atrás da Cloudflare; os feeds são Oddin.gg e DATA.BET. Não é
 // Altenar, BetBy, Kambi, BetConstruct nem softlabs.
+//
+// A MUDANÇA DE 17/11/2026 (s457, medida na conta do Feca, 132 liquidadas): a casa tirou a rota
+// `/api/wagers/v2/resolved` do ar (404) e a tela "Settled" passou a pedir
+// `/api/users/wagers/settled`, com o MESMO envelope e a mesma paginação. Só que o bilhete
+// chega SEM o jogo: saíram `eventName`, `eventStartTime`, `competition`, `homeCompetitor` e
+// `awayCompetitor`, do topo e das pernas. A página os busca à parte em `/api/wagers/events`
+// (aceitou os 124 eventos da conta numa chamada). Este inject ENCAIXA esses campos de volta
+// no objeto da casa, só onde faltam, e o bilhete volta à forma de antes: nem o
+// `formatTicketTHP` nem o adaptador `thp` do servidor precisam saber da mudança.
+// Bilhete cujo evento não chegou sobe sem o jogo; nada é inventado.
 //
 // AUTH é o header `thunderpick-token` (64 caracteres, opaco, não é JWT), mandado pela página
 // em toda chamada de `/api/`. Sem ele: HTTP 403 com `errorCode 2013`. O mesmo valor fica em
@@ -20,9 +33,10 @@
 //     moeda daqui é sempre `EUR` (a API não manda campo de moeda).
 //   • `wagerId` tem DUAS séries (Combo ~2,2M; PreMatch/InPlays 4,9M–10,3M). O código leva o
 //     prefixo do tipo, `C` ou `S`, para as séries nunca colidirem na dedup.
-//   • A página pede `take=20`; `take=100/500/1000` foram aceitos (teto real NÃO medido: a conta
-//     tinha 29 liquidadas). Fim AUTORITATIVO = `totalWagersCount` da 1ª PÁGINA: `skip` além do
-//     fim devolve `{wagers:[], totalWagersCount:0}`, então o total de uma página tardia mente.
+//   • A página pede `take=10` (antes 20); `take=100/500/1000` foram aceitos (com 132
+//     liquidadas, `take=500` devolveu as 132). Fim AUTORITATIVO = `totalWagersCount` da 1ª
+//     PÁGINA: `skip` além do fim devolve `{wagers:[], totalWagersCount:0}`, então o total de
+//     uma página tardia mente. Vale nas duas rotas (medido de novo em 17/11).
 //   • `/pending` não pagina e não tem parâmetro.
 //
 // NÃO DECIDE NADA: normaliza o bilhete e sobe o cru. `wagerUIState` sobe como veio; quem traduz
@@ -31,7 +45,8 @@
   // ── CRU para o servidor (s409, Projeto Ficha Sharpen) ───────────────────────────────
   // O objeto da CASA de onde cada bilhete saiu, num campo NOVO (`cru`) da mesma mensagem. A
   // lista de sempre segue intacta, e é ela que vira o texto. Erro aqui nunca sobe. O wager não
-  // tem campo de identidade do cliente (o `uuid` é do BILHETE).
+  // tem campo de identidade do cliente (o `uuid` é do BILHETE). Desde a s457 o cru leva os
+  // campos de evento ENCAIXADOS (ver cabeçalho), na mesma forma da rota antiga.
   const _cruDe = new WeakMap();
   function _crus(lista) {
     const out = [];
@@ -45,12 +60,19 @@
   }
 
   const RX_API = /^\/api\//i;                                        // onde o token se aprende (caminho)
-  const RX_LISTA = /^\/api\/wagers\/v2\/(resolved|pending)$/i;       // as duas listas
+  // As listas: a rota nova das liquidadas, a antiga (fallback) e as abertas.
+  const RX_LISTA = /^\/api\/(wagers\/v2\/(resolved|pending)|users\/wagers\/settled)$/i;
+  const RX_EVENTOS = /^\/api\/wagers\/events$/i;                     // o jogo de cada eventId
+  // Liquidadas: a nova primeiro; a antiga só se a nova der 404 (conta/região que ainda a use).
+  const ROTAS_LIQ = ["/api/users/wagers/settled", "/api/wagers/v2/resolved"];
   const TAKE = 100;                            // aceito (medido até 1000); 100 é o passo seguro
   const TETO_PAGINAS = 300;                    // 300 × 100 = 30 mil bilhetes
+  const LOTE_EVENTOS = 100;                    // ids por chamada de eventos (124 medidos numa só)
   const MOEDA = "EUR";                         // a conta é em euro, sempre (ver cabeçalho)
 
   const byId = new Map();                      // id(string) → bilhete normalizado
+  const cruById = new Map();                   // id(string) → objeto da casa (para reencaixar)
+  const eventos = new Map();                   // eventId(string) → evento de `/api/wagers/events`
   let respostas = 0;                           // respostas VÁLIDAS da lista (autodiagnóstico)
   let token = "";                              // `thunderpick-token` visto numa chamada real (nunca sai daqui)
   let pedido = false;                          // o robô já pediu → pode arrancar o replay
@@ -91,6 +113,41 @@
     return { valor: v, cru: cru };
   }
 
+  // ── encaixe do evento (s457) ─────────────────────────────────────────────────
+  // Os objetos que levam o jogo: o próprio bilhete na simples, cada perna na múltipla. O topo
+  // da múltipla tem `eventId` null e nunca levou jogo.
+  function _alvos(w) {
+    if (!w) return [];
+    if (w.wagerType === "Combo") return Array.isArray(w.subWagers) ? w.subWagers.filter(Boolean) : [];
+    return [w];
+  }
+  const _semJogo = (o) => !_s(o.eventName) && o.eventId != null;
+
+  // Preenche SÓ o que falta, com o evento da casa. true = mexeu em algo.
+  function _encaixar(w) {
+    let mexeu = false;
+    for (const o of _alvos(w)) {
+      if (!_semJogo(o)) continue;
+      const ev = eventos.get(_s(o.eventId));
+      if (!ev) continue;
+      if (ev.name) { o.eventName = ev.name; mexeu = true; }
+      if (o.eventStartTime == null && ev.startTime) o.eventStartTime = ev.startTime;
+      if (o.competition == null && ev.competition) o.competition = ev.competition;
+      if (o.homeCompetitor == null && ev.homeCompetitor) o.homeCompetitor = ev.homeCompetitor;
+      if (o.awayCompetitor == null && ev.awayCompetitor) o.awayCompetitor = ev.awayCompetitor;
+    }
+    return mexeu;
+  }
+
+  // eventIds que ainda estão sem jogo e cujo evento não chegou.
+  function _faltando() {
+    const ids = new Set();
+    for (const w of cruById.values()) {
+      for (const o of _alvos(w)) if (_semJogo(o) && !eventos.has(_s(o.eventId))) ids.add(_s(o.eventId));
+    }
+    return Array.from(ids);
+  }
+
   function parsePerna(p, estado) {
     if (!p) return null;
     return {
@@ -115,23 +172,25 @@
     const pernas = combo
       ? (Array.isArray(w.subWagers) ? w.subWagers : []).map((p) => parsePerna(p, p && p.subWagerUIState))
       : [parsePerna(w, w.wagerUIState)];
+    // Data do evento da múltipla: a rota antiga trazia no topo a da perna mais tardia; a nova
+    // não traz no topo, e o formatador já usa a perna mais tardia primeiro.
     return {
       id: (combo ? "C" : "S") + _s(w.wagerId),  // prefixo de tipo: as duas séries de id colidem
       wagerId: _s(w.wagerId),
       tipoApi: _s(w.wagerType),                 // PreMatch · InPlays · Combo (CRU)
-      estado: _s(w.wagerUIState),               // open · won · lost (CRU)
-      estadoApi: _s(w.state),                   // "resolved" nas liquidadas; ausente nas abertas
+      estado: _s(w.wagerUIState),               // open · won · lost · cashed-out (CRU)
+      estadoApi: _s(w.state),                   // resolved · canceled nas liquidadas; ausente nas abertas
       moeda: MOEDA,
       stake: _cent(w.amount),
       odd: _n(w.odds),                          // a odd do card (8,41), já o produto das pernas
       retorno: _cent(w.outcome),                // null nas abertas
       retornoTeorico: _cent(w.theoreticalOutcome),
       cancelamento: _s(w.cancelReason),
-      cashoutOdd: _n(w.cashOutOdds),            // ⚠ NÃO MEDIDO (sempre null)
+      cashoutOdd: _n(w.cashOutOdds),            // preenchido no cashout (medido 17/11: 1,97)
       freebet: fb.valor,                        // ⚠ NÃO MEDIDO (sempre null)
       freebetCru: fb.cru,
       colocada: _iso(w.createTime),             // unix em SEGUNDOS — o dia da cotação
-      inicio: _iso(w.eventStartTime),           // na múltipla, a perna mais tardia (medido)
+      inicio: _iso(w.eventStartTime),           // na múltipla da rota antiga, a perna mais tardia
       liquidada: _iso(w.finishTime),
       pernas: pernas.filter(Boolean),
     };
@@ -150,9 +209,12 @@
   }
 
   // A versão LIQUIDADA vence a ABERTA.
-  function guardar(b) {
+  function guardar(b, raw) {
     const ex = byId.get(b.id);
-    if (!ex || ex.estado === "open" || b.estado !== "open") byId.set(b.id, b);
+    if (!ex || ex.estado === "open" || b.estado !== "open") {
+      byId.set(b.id, b);
+      cruById.set(b.id, raw);
+    }
   }
 
   // Lê uma resposta de lista. Devolve `{n, total}`, `{erro}` ou null.
@@ -167,14 +229,44 @@
     }
     respostas++;
     for (const raw of d.wagers) {
+      if (!raw) continue;
+      _encaixar(raw);
       const b = parseWager(raw);
       if (!b) continue;
       try { _cruDe.set(b, raw); } catch (e) {}
-      guardar(b);
+      guardar(b, raw);
     }
     LOG("bilhetes na resposta:", d.wagers.length, "· total:", byId.size, "· totalWagersCount:", d.totalWagersCount);
     enviar();
     return { n: d.wagers.length, total: _n(d.totalWagersCount) };
+  }
+
+  // Lê uma resposta de `/api/wagers/events` e reencaixa quem estava sem jogo. Devolve quantos
+  // eventos vieram, ou null se o formato não for o medido.
+  function consumirEventos(text) {
+    if (typeof text !== "string") return null;
+    let j;
+    try { j = JSON.parse(text); } catch (e) { return null; }
+    const lista = j && j.data;
+    if (!Array.isArray(lista)) return null;
+    let n = 0;
+    for (const ev of lista) {
+      if (!ev || ev.id == null) continue;
+      eventos.set(_s(ev.id), ev);
+      n++;
+    }
+    let refeitos = 0;
+    for (const [id, raw] of cruById) {
+      if (!_encaixar(raw)) continue;
+      const b = parseWager(raw);
+      if (!b) continue;
+      try { _cruDe.set(b, raw); } catch (e) {}
+      byId.set(id, b);
+      refeitos++;
+    }
+    LOG("eventos na resposta:", n, "· bilhetes reencaixados:", refeitos);
+    if (refeitos) enviar();
+    return n;
   }
 
   // ── aprendizado ────────────────────────────────────────────────────────────────
@@ -212,32 +304,77 @@
     return { ok: !!(r && r.ok), status: r && r.status, text: r ? await r.text() : "" };
   }
 
-  // Uma lista inteira. true = chegou ao fim autoritativo.
+  const _rota = (caminho) => _s(caminho).split("?")[0];
+
+  // Uma página de lista. `{n,total}` = leu; `{status}` = HTTP não-ok (quem chama decide);
+  // null = falhou (o erro já está em `erro`).
   async function lerLista(caminho) {
     let r;
     try { r = await pedir(caminho); }
-    catch (e) { erro = "replay falhou: " + (e && e.message); LOG(erro); return null; }
-    if (!r.ok) { erro = "replay parou · HTTP " + r.status; LOG(erro); return null; }
+    catch (e) { erro = "replay falhou em " + _rota(caminho) + ": " + (e && e.message); LOG(erro); return null; }
+    if (!r.ok) return { status: r.status };
     const res = consumir(r.text);
-    if (!res) { erro = "resposta da lista em formato desconhecido"; LOG(erro); return null; }
-    if (res.erro) { erro = "a casa respondeu erro: " + res.erro; LOG(erro); return null; }
+    if (!res) { erro = "resposta da lista em formato desconhecido em " + _rota(caminho); LOG(erro); return null; }
+    if (res.erro) { erro = "a casa respondeu erro em " + _rota(caminho) + ": " + res.erro; LOG(erro); return null; }
     return res;
   }
 
-  async function varrer() {
-    // Liquidadas: o total vem da 1ª página e só dela; o avanço é pelo tamanho que VOLTOU.
+  const _parouHttp = (caminho, status) => { erro = "replay parou · HTTP " + status + " em " + _rota(caminho); LOG(erro); };
+
+  // Liquidadas por UMA rota. true = fim; false = falhou; "404" = a rota não existe nesta casa.
+  async function varrerLiquidadas(rota) {
+    // O total vem da 1ª página e só dela; o avanço é pelo tamanho que VOLTOU.
     let skip = 0, total = null;
     for (let pagina = 0; pagina < TETO_PAGINAS; pagina++) {
-      const res = await lerLista("/api/wagers/v2/resolved?take=" + TAKE + "&skip=" + skip + "&sortColumn=finishTime");
+      const caminho = rota + "?take=" + TAKE + "&skip=" + skip + "&sortColumn=finishTime";
+      const res = await lerLista(caminho);
       if (!res) return false;
+      if (res.status != null) {
+        if (pagina === 0 && res.status === 404) return "404";
+        _parouHttp(caminho, res.status);
+        return false;
+      }
       if (total == null) total = res.total;
       if (res.n <= 0) break;                                       // lista vazia: acabou
       skip += res.n;
       if (total != null && skip >= total) break;                   // fim AUTORITATIVO
       if (pagina === TETO_PAGINAS - 1) LOG("teto de páginas atingido");
     }
+    return true;
+  }
+
+  // Busca o jogo dos eventIds que faltam, em lotes. Falha aqui não derruba a captura: o
+  // bilhete sobe sem o jogo e o erro vai para o autodiagnóstico.
+  async function buscarEventos() {
+    const ids = _faltando();
+    for (let i = 0; i < ids.length; i += LOTE_EVENTOS) {
+      const caminho = "/api/wagers/events?" + ids.slice(i, i + LOTE_EVENTOS).map((x) => "eventIds=" + encodeURIComponent(x)).join("&");
+      let r;
+      try { r = await pedir(caminho); }
+      catch (e) { erro = "jogos não chegaram: " + (e && e.message); LOG(erro); return; }
+      if (!r.ok) { erro = "jogos não chegaram · HTTP " + r.status + " em /api/wagers/events"; LOG(erro); return; }
+      if (consumirEventos(r.text) == null) { erro = "jogos em formato desconhecido em /api/wagers/events"; LOG(erro); return; }
+    }
+    const resto = _faltando().length;
+    if (resto) LOG("eventos sem resposta da casa:", resto);
+  }
+
+  async function varrer() {
+    let ok = false;
+    for (const rota of ROTAS_LIQ) {
+      const r = await varrerLiquidadas(rota);
+      if (r === "404") { LOG("rota de liquidadas 404, tentando a seguinte:", rota); continue; }
+      ok = r;
+      break;
+    }
+    if (ok === false && !erro) _parouHttp(ROTAS_LIQ[ROTAS_LIQ.length - 1], 404);
+    if (!ok) return false;
     // Abertas: uma chamada só.
-    return !!(await lerLista("/api/wagers/v2/pending"));
+    const ab = await lerLista("/api/wagers/v2/pending");
+    if (!ab) return false;
+    if (ab.status != null) { _parouHttp("/api/wagers/v2/pending", ab.status); return false; }
+    await buscarEventos();
+    return true;
   }
 
   async function arrancarReplay() {
@@ -250,19 +387,19 @@
       loopAtivo = false;
       fimReplay = true;
       enviar();
-      if (repetir) { repetir = false; fimReplay = false; byId.clear(); arrancarReplay(); }
+      if (repetir) { repetir = false; fimReplay = false; byId.clear(); cruById.clear(); arrancarReplay(); }
     }
   }
 
   // O content pede o acumulado ao iniciar o robô → zera, re-envia e arranca o replay. Zerar é
   // a lição da s393 (DEX Sport): sem isso a 2ª rodada na mesma aba devolvia o mapa velho, e
-  // aposta já liquidada subia como "em aberto".
+  // aposta já liquidada subia como "em aberto". O mapa de EVENTOS não zera: jogo não muda.
   window.addEventListener("message", (ev) => {
     const d = ev.data;
     if (!d || !d.__sharpenupTHPReq) return;
     pedido = true;
     if (loopAtivo) repetir = true;
-    else { fimReplay = false; if (_token()) byId.clear(); }
+    else { fimReplay = false; if (_token()) { byId.clear(); cruById.clear(); } }
     enviar();
     arrancarReplay();
   });
@@ -285,10 +422,10 @@
       try { aprender(url, _hdrsToObj(opts.headers || (req && req.headers))); } catch (e) {}
       return of.apply(this, a).then((r) => {
         try {
-          if (RX_LISTA.test(_caminho(url))) {
-            // 2º argumento SEMPRE: sem ele um clone abortado vira rejeição muda (s305).
-            r.clone().text().then((t) => consumir(t), () => {});
-          }
+          const cam = _caminho(url);
+          // 2º argumento SEMPRE: sem ele um clone abortado vira rejeição muda (s305).
+          if (RX_LISTA.test(cam)) r.clone().text().then((t) => consumir(t), () => {});
+          else if (RX_EVENTOS.test(cam)) r.clone().text().then((t) => consumirEventos(t), () => {});
         } catch (e) {}
         return r;
       });
@@ -306,12 +443,14 @@
     const s = function (body) {
       try {
         aprender(this.__suTHPU, this.__suTHPH);
-        if (RX_LISTA.test(_caminho(this.__suTHPU))) {
+        const cam = _caminho(this.__suTHPU);
+        const lista = RX_LISTA.test(cam), evs = RX_EVENTOS.test(cam);
+        if (lista || evs) {
           this.addEventListener("load", () => {
             try {
               const t = (this.responseType === "" || this.responseType === "text")
                 ? this.responseText : JSON.stringify(this.response);
-              consumir(t);
+              if (lista) consumir(t); else consumirEventos(t);
             } catch (e) {}
           });
         }

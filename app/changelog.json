@@ -1013,6 +1013,7 @@
     "0.7.81": "CopaWin: múltipla ganha com perna anulada e ganha com a odd arredondada pela casa deixam de ficar abertas; conserto, não vira aviso (s453, 14/11/2026)",
     "0.7.82": "CopaWin: meia vitória e meia derrota de linha asiática partida deixam de ficar abertas (HW/HL com a odd da casa); conserto, não vira aviso (s453, 14/11/2026)",
     "0.7.83": "Stake.com: múltipla comum (SportBet) com perna anulada deixa de ficar aberta (W pelo multiplicador pago da casa); conserto, não vira aviso (s453, 14/11/2026)",
-    "0.7.85": "Betfury também pelo domínio betfury.io; conserto, não vira aviso (s456, 17/11/2026)"
+    "0.7.85": "Betfury também pelo domínio betfury.io; conserto, não vira aviso (s456, 17/11/2026)",
+    "0.7.86": "Thunderpick: a casa mudou a rota das apostas liquidadas e a captura voltou a funcionar; conserto, não vira aviso (s457, 17/11/2026)"
   }
 }

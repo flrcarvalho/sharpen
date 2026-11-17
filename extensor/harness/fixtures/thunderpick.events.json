@@ -1,0 +1,138 @@
+{
+ "statusCode": 200,
+ "ok": true,
+ "data": [
+  {
+   "id": 2853219,
+   "eventType": 1,
+   "name": "Olimpia Milano vs Virtus Segafredo Bologna",
+   "startTime": "2026-10-25T15:00:00+00:00",
+   "homeCompetitor": {
+    "id": 35425,
+    "name": "Olimpia Milano",
+    "hasImage": true
+   },
+   "awayCompetitor": {
+    "id": 31068,
+    "name": "Virtus Segafredo Bologna",
+    "hasImage": true
+   },
+   "competition": {
+    "id": 1963,
+    "name": "Lega A",
+    "shortName": "LEGA A",
+    "countryCode": 380
+   }
+  },
+  {
+   "id": 2884829,
+   "eventType": 1,
+   "name": "Sacramento Kings vs Memphis Grizzlies",
+   "startTime": "2026-10-26T01:00:00+00:00",
+   "homeCompetitor": {
+    "id": 1827,
+    "name": "Sacramento Kings",
+    "hasImage": true
+   },
+   "awayCompetitor": {
+    "id": 1828,
+    "name": "Memphis Grizzlies",
+    "hasImage": true
+   },
+   "competition": {
+    "id": 263,
+    "name": "NBA",
+    "shortName": "NBA",
+    "countryCode": 840
+   }
+  },
+  {
+   "id": 2884830,
+   "eventType": 1,
+   "name": "New York Knicks vs Orlando Magic",
+   "startTime": "2026-10-25T23:00:00+00:00",
+   "homeCompetitor": {
+    "id": 1839,
+    "name": "New York Knicks",
+    "hasImage": true
+   },
+   "awayCompetitor": {
+    "id": 1843,
+    "name": "Orlando Magic",
+    "hasImage": true
+   },
+   "competition": {
+    "id": 263,
+    "name": "NBA",
+    "shortName": "NBA",
+    "countryCode": 840
+   }
+  },
+  {
+   "id": 2889880,
+   "eventType": 1,
+   "name": "Unsettled Resentment vs Victory No Limits",
+   "startTime": "2026-10-27T09:02:13+00:00",
+   "homeCompetitor": {
+    "id": 59837,
+    "name": "Unsettled Resentment",
+    "hasImage": true
+   },
+   "awayCompetitor": {
+    "id": 86668,
+    "name": "Victory No Limits",
+    "hasImage": true
+   },
+   "competition": {
+    "id": 11649,
+    "name": "VCT Threshold China 2026",
+    "shortName": "VCT THRESHOLD26",
+    "countryCode": null
+   }
+  },
+  {
+   "id": 2894882,
+   "eventType": 1,
+   "name": "Natus Vincere vs Vitality",
+   "startTime": "2026-10-27T17:55:00+00:00",
+   "homeCompetitor": {
+    "id": 4,
+    "name": "Natus Vincere",
+    "hasImage": true
+   },
+   "awayCompetitor": {
+    "id": 3432,
+    "name": "Vitality",
+    "hasImage": true
+   },
+   "competition": {
+    "id": 11492,
+    "name": "PGL Masters Bucharest 2026",
+    "shortName": "PGL Masters 26",
+    "countryCode": null
+   }
+  },
+  {
+   "id": 2895057,
+   "eventType": 1,
+   "name": "Nemiga vs DENDELE CS",
+   "startTime": "2026-10-27T11:02:00+00:00",
+   "homeCompetitor": {
+    "id": 788,
+    "name": "Nemiga",
+    "hasImage": true
+   },
+   "awayCompetitor": {
+    "id": 67671,
+    "name": "DENDELE CS",
+    "hasImage": true
+   },
+   "competition": {
+    "id": 11492,
+    "name": "PGL Masters Bucharest 2026",
+    "shortName": "PGL Masters 26",
+    "countryCode": null
+   }
+  }
+ ]
+}

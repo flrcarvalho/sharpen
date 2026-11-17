@@ -1,5 +1,17 @@
-// Thunderpick (thunderpick.io) — captura por API `GET /api/wagers/v2/resolved` + `/pending`.
-// Recon 22/10/2026, conta do Feca (EUR), pelo navegador dele.
+// Thunderpick (thunderpick.io) — captura por API `GET /api/users/wagers/settled` (s457; antes
+// `/api/wagers/v2/resolved`, hoje 404) + `/api/wagers/v2/pending` + `/api/wagers/events`.
+// Recon 22/10/2026, conta do Feca (EUR), pelo navegador dele. Rota nova medida em 17/11/2026,
+// na mesma conta (132 liquidadas), depois do "HTTP 404" do tester Arrudex.
+//
+// A ROTA NOVA (s457) traz o bilhete SEM o jogo (`eventName`, `eventStartTime`, `competition`,
+// `homeCompetitor`, `awayCompetitor` saíram do topo e das pernas); a página busca o jogo em
+// `/api/wagers/events?eventIds=…`. O inject encaixa de volta, só onde falta. Fixtures:
+//   • `thunderpick.settled.json` — 5 liquidadas REAIS da rota nova (simples ganha e perdida,
+//     múltipla de 3 ganha, cashout `cashed-out|resolved`, "Cancelled by player"
+//     `cashed-out|canceled`), `uuid` zerado;
+//   • `thunderpick.events.json` — os 6 eventos delas, como a casa devolveu.
+// O simulador abaixo serve a rota NOVA por padrão (a antiga dá 404, como hoje) e as fixtures
+// antigas passam por ela; `modo:"antiga"` prova o fallback.
 //
 // PLATAFORMA PRÓPRIA (front React Router v7, API `/api/*` no mesmo domínio, atrás da
 // Cloudflare; feeds Oddin.gg e DATA.BET). Não é Altenar, BetBy, Kambi, BetConstruct nem
@@ -63,16 +75,32 @@ const RES = () => JSON.parse(fixture("thunderpick.resolved.json")).data.wagers;
 const PEN = () => JSON.parse(fixture("thunderpick.pending.json")).data.wagers;
 const COD = (w) => (w.wagerType === "Combo" ? "C" : "S") + w.wagerId;
 
+const ROTA_NOVA = "/api/users/wagers/settled", ROTA_ANTIGA = "/api/wagers/v2/resolved";
+const ROTA_EVENTOS = "/api/wagers/events";
+
 // Simula a casa: `take`/`skip` nas liquidadas, abertas de uma vez só, 403 sem o token, e a
 // armadilha medida — `skip` além do fim devolve lista vazia com total ZERO.
-function casaTHP(resolvidas, abertas, registro, tetoTake = Infinity) {
+// `modo` "nova" (padrão, a casa de hoje): liquidadas em ROTA_NOVA, ROTA_ANTIGA dá 404.
+// `modo` "antiga": o contrário. `eventos` = o que ROTA_EVENTOS devolve (filtrado pelos ids
+// pedidos); `eventosStatus` ≠ 200 faz a rota de eventos falhar.
+function casaTHP(resolvidas, abertas, registro, tetoTake = Infinity, cfg = {}) {
+  const modo = cfg.modo || "nova";
+  const rotaLiq = modo === "nova" ? ROTA_NOVA : ROTA_ANTIGA;
   return (url, opts) => {
     if (!String(url).startsWith(HOST + "/api/")) return null;
     const u = new URL(String(url));
     const h = (opts && opts.headers) || {};
     const tok = h["thunderpick-token"] || h["Thunderpick-Token"] || "";
-    registro.push({ p: u.pathname, q: Object.fromEntries(u.searchParams), tok, cred: opts && opts.credentials });
-    if (!/^\/api\/wagers\/v2\/(resolved|pending)$/.test(u.pathname)) return JSON.stringify({ statusCode: 200, ok: true, data: {} });
+    registro.push({ p: u.pathname, q: Object.fromEntries(u.searchParams), ids: u.searchParams.getAll("eventIds"), tok, cred: opts && opts.credentials });
+    if (u.pathname === ROTA_EVENTOS) {
+      if (tok !== TOKEN) return respostaHttp(403, JSON.stringify({ errorCode: 2013, message: "Forbidden" }));
+      if (cfg.eventosStatus && cfg.eventosStatus !== 200) return respostaHttp(cfg.eventosStatus, "");
+      const pedidos = new Set(u.searchParams.getAll("eventIds"));
+      return JSON.stringify({ statusCode: 200, ok: true, data: (cfg.eventos || []).filter((e) => pedidos.has(String(e.id))) });
+    }
+    if (u.pathname === ROTA_NOVA || u.pathname === ROTA_ANTIGA) {
+      if (u.pathname !== rotaLiq) return respostaHttp(404, "");
+    } else if (u.pathname !== "/api/wagers/v2/pending") return JSON.stringify({ statusCode: 200, ok: true, data: {} });
     if (tok !== TOKEN) return respostaHttp(403, JSON.stringify({ errorCode: 2013, message: "Forbidden" }));
     if (u.pathname.endsWith("/pending")) {
       return JSON.stringify({ statusCode: 200, ok: true, data: { wagers: abertas, totalWagersCount: abertas.length } });
@@ -86,16 +114,19 @@ function casaTHP(resolvidas, abertas, registro, tetoTake = Infinity) {
 }
 
 const LS = (tok) => ({ localStorage: { getItem: (k) => (k === "thp.sessionData" && tok ? JSON.stringify({ sessionId: tok, userId: 0 }) : null) } });
-const _resolvidas = (r) => r.filter((x) => x.p === "/api/wagers/v2/resolved");
+// Liquidadas pedidas pela rota que RESPONDE no modo do simulador (a outra dá 404).
+const _resolvidas = (r, rota = ROTA_NOVA) => r.filter((x) => x.p === rota);
 
-async function rodarPadrao(resolvidas, abertas, registro, extra = {}, tetoTake = Infinity) {
+async function rodarPadrao(resolvidas, abertas, registro, extra = {}, tetoTake = Infinity, cfg = {}) {
+  const rota = (cfg.modo || "nova") === "nova" ? ROTA_NOVA : ROTA_ANTIGA;
   return rodarInject(Object.assign({
     inject: "thp_inject.js",
     href: HOST + "/en/my-bets/settled",
-    urlInicial: HOST + "/api/wagers/v2/resolved?take=20&skip=0&sortColumn=finishTime",
+    // A página de hoje pede `take=10` na rota nova (medido 17/11); a antiga pedia 20.
+    urlInicial: HOST + rota + (rota === ROTA_NOVA ? "?take=10" : "?take=20") + "&skip=0&sortColumn=finishTime",
     optsInicial: { method: "GET", headers: HDRS, credentials: "same-origin" },
     pedido: "__sharpenupTHPReq",
-    responder: casaTHP(resolvidas, abertas, registro, tetoTake),
+    responder: casaTHP(resolvidas, abertas, registro, tetoTake, cfg),
     ms: 600,
   }, extra));
 }
@@ -120,7 +151,10 @@ export async function rodar() {
   const replay = _resolvidas(registro).slice(1);
   if (!replay.length) falhas.push("o replay não rodou");
   if (registro.slice(1).some((r) => r.tok !== TOKEN)) falhas.push("o replay não levou o `thunderpick-token` aprendido");
-  if (replay.some((r) => Number(r.q.take) !== 100)) falhas.push(`o replay pediu take ${replay.map((r) => r.q.take).join(",")} — esperava 100 (a página pede 20)`);
+  if (replay.some((r) => Number(r.q.take) !== 100)) falhas.push(`o replay pediu take ${replay.map((r) => r.q.take).join(",")} — esperava 100 (a página pede 10)`);
+  if (registro.some((r) => r.p === ROTA_ANTIGA)) falhas.push("com a rota nova respondendo, o replay ainda pediu a antiga");
+  if (registro.some((r) => r.p === ROTA_EVENTOS)) falhas.push("bilhetes que já trazem o jogo dispararam a busca de eventos");
+  if (ultima.erro) falhas.push(`erro no autodiagnóstico numa captura limpa: "${ultima.erro}"`);
   if (replay.length !== 1) falhas.push(`replay pediu ${replay.length} página(s) de liquidadas para 29 bilhetes em páginas de 100 — não parou no total`);
   if (registro.filter((r) => r.p === "/api/wagers/v2/pending").length !== 1) falhas.push("o replay não buscou as abertas (`/pending`) exatamente uma vez");
 
@@ -258,7 +292,119 @@ export async function rodar() {
   testes += await paginacao(falhas, 230, "0,50,100,150,200", 50);
   testes += await partidaAFrio(falhas);
   testes += await semToken(falhas);
+  testes += await rotaAntiga(falhas);
+  testes += await rotaNovaSemJogo(falhas);
+  testes += await eventosFalham(falhas);
+  testes += await tudo404(falhas);
   return { falhas, testes };
+}
+
+// Conta/região onde a rota nova ainda não existe: 404 nela, e a antiga entrega tudo.
+async function rotaAntiga(falhas) {
+  const registro = [];
+  const { ultima } = await rodarPadrao(RES(), PEN(), registro, {}, Infinity, { modo: "antiga" });
+  const n = ((ultima && ultima.bilhetes) || []).length;
+  if (n !== 42) falhas.push(`rota antiga: esperava 42 bilhetes pelo fallback, vieram ${n}`);
+  const replay = registro.slice(1).map((r) => r.p);
+  if (replay[0] !== ROTA_NOVA || replay[1] !== ROTA_ANTIGA) falhas.push(`rota antiga: o replay pediu ${replay.slice(0, 2).join(" → ")}; esperava a nova (404) e depois a antiga`);
+  if (ultima && ultima.erro) falhas.push(`rota antiga: o 404 da rota nova virou erro no autodiagnóstico ("${ultima.erro}")`);
+  return 1;
+}
+
+// A casa de 17/11/2026: liquidadas SEM o jogo, e o jogo em `/api/wagers/events`.
+async function rotaNovaSemJogo(falhas) {
+  const settled = JSON.parse(fixture("thunderpick.settled.json")).data.wagers;
+  const eventos = JSON.parse(fixture("thunderpick.events.json")).data;
+  if (settled.some((w) => "eventName" in w || (w.subWagers || []).some((p) => "eventName" in p))) {
+    falhas.push("fixture da rota nova com `eventName`: ela não exerce o encaixe");
+  }
+  const registro = [];
+  const { ultima } = await rodarPadrao(settled, [], registro, {}, Infinity, { eventos });
+  const bilhetes = (ultima && ultima.bilhetes) || [];
+  const porId = new Map(bilhetes.map((b) => [b.id, b]));
+  const fmt = carregarContent().pegar("formatTicketTHP");
+  const R = "rota nova: ";
+  if (bilhetes.length !== 5) falhas.push(R + `esperava 5 bilhetes, vieram ${bilhetes.length}`);
+  if (ultima && ultima.erro) falhas.push(R + `erro no autodiagnóstico: "${ultima.erro}"`);
+  const evs = registro.filter((r) => r.p === ROTA_EVENTOS);
+  if (evs.length !== 1) falhas.push(R + `esperava 1 chamada de eventos, vieram ${evs.length}`);
+  else if (new Set(evs[0].ids).size !== 6 || evs[0].ids.length !== 6) falhas.push(R + `a chamada de eventos pediu ${evs[0].ids.join(",")}; esperava os 6 eventIds, sem repetir (o topo da múltipla tem eventId null)`);
+
+  // O que o card mostra (EUR), cruzado na conta do Feca em 17/11/2026.
+  const ESP = {
+    "S10332818": { st: W("68,75"), odd: "2,75", stake: "25,00", ev: "25/10/2026 22:00:00", jogo: "Jogo: Sacramento Kings vs Memphis Grizzlies · Liga: NBA · Esporte: Basquete" },
+    "S10332881": { st: L, odd: "2,58", stake: "25,00", ev: "25/10/2026 22:00:00", jogo: "Jogo: Sacramento Kings vs Memphis Grizzlies · Liga: NBA" },
+    // Múltipla: o topo não traz data; a do evento é a da perna mais tardia (NAVI × Vitality, 17:55 UTC).
+    "C2243062": { st: W("221,70"), odd: "7,39", stake: "30,00", ev: "27/10/2026 14:55:00", jogo: "Jogo: Natus Vincere vs Vitality · Liga: PGL Masters Bucharest 2026" },
+  };
+  for (const [idb, e] of Object.entries(ESP)) {
+    const b = porId.get(idb);
+    if (!b) { falhas.push(R + `${idb} não chegou`); continue; }
+    const txt = fmt(b);
+    if (!e.st.test(linha(txt, "Status:"))) falhas.push(R + `${idb}: status "${linha(txt, "Status:")}"`);
+    if (linha(txt, "Odd:") !== e.odd) falhas.push(R + `${idb}: odd "${linha(txt, "Odd:")}", esperava ${e.odd}`);
+    if (linha(txt, "Stake:") !== e.stake) falhas.push(R + `${idb}: stake "${linha(txt, "Stake:")}", esperava ${e.stake}`);
+    if (linha(txt, "Data (evento mais recente):") !== e.ev) falhas.push(R + `${idb}: evento "${linha(txt, "Data (evento mais recente):")}", esperava ${e.ev} (startTime do evento → São Paulo)`);
+    if (!txt.includes(e.jogo)) falhas.push(R + `${idb}: o jogo não foi encaixado (esperava "${e.jogo}")`);
+  }
+  {
+    const txt = fmt(porId.get("C2243062") || {});
+    for (const j of ["Unsettled Resentment vs Victory No Limits", "Nemiga vs DENDELE CS", "Natus Vincere vs Vitality"]) {
+      if (!txt.includes("Jogo: " + j)) falhas.push(R + `C2243062: perna sem o jogo "${j}"`);
+    }
+  }
+  // Cashout e cancelada pelo jogador: o dinheiro não prova resultado, sobe "a conferir".
+  for (const idb of ["S10332847", "S10332907"]) {
+    const st = linha(fmt(porId.get(idb) || {}), "Status:");
+    if (!/a conferir — não liquidar automaticamente/.test(st)) falhas.push(R + `${idb}: virou "${st}" (cashout/cancelada sobe a conferir)`);
+  }
+  for (const b of bilhetes) {
+    const txt = fmt(b);
+    if (/undefined|null|NaN/.test(txt)) falhas.push(R + `${b.id}: "undefined"/"null"/"NaN" no bloco`);
+    if (!/^Data \(evento mais recente\): \d\d\/\d\d\/\d{4} /m.test(txt)) falhas.push(R + `${b.id}: sem data de evento`);
+  }
+  // O cru vai ao servidor na forma da rota antiga: o adaptador `thp` lê os competidores dele.
+  for (const c of (ultima && ultima.cru) || []) {
+    for (const o of c.cru.wagerType === "Combo" ? c.cru.subWagers : [c.cru]) {
+      if (!o.eventName || !o.homeCompetitor || !o.awayCompetitor || !o.eventStartTime || !o.competition) {
+        falhas.push(R + `cru ${c.codigo}: sem os campos de evento encaixados`);
+        break;
+      }
+    }
+  }
+  return 1;
+}
+
+// A rota de eventos cai: os bilhetes sobem mesmo assim, sem o jogo, e o erro diz onde foi.
+async function eventosFalham(falhas) {
+  const settled = JSON.parse(fixture("thunderpick.settled.json")).data.wagers;
+  const { ultima } = await rodarPadrao(settled, [], [], {}, Infinity, { eventos: [], eventosStatus: 500 });
+  const bilhetes = (ultima && ultima.bilhetes) || [];
+  if (bilhetes.length !== 5) falhas.push(`eventos fora do ar: esperava os 5 bilhetes mesmo sem o jogo, vieram ${bilhetes.length}`);
+  if (!ultima || !ultima.fim) falhas.push("eventos fora do ar: o inject não sinalizou `fim`");
+  if (!ultima || !/HTTP 500 em \/api\/wagers\/events/.test(ultima.erro || "")) falhas.push(`eventos fora do ar: o autodiagnóstico não disse onde falhou ("${ultima && ultima.erro}")`);
+  const fmt = carregarContent().pegar("formatTicketTHP");
+  for (const b of bilhetes) {
+    const txt = fmt(b);
+    if (/undefined|null|NaN/.test(txt)) falhas.push(`eventos fora do ar: ${b.id} com "undefined"/"null"/"NaN" no bloco`);
+    if (/Jogo: /.test(txt)) falhas.push(`eventos fora do ar: ${b.id} com jogo inventado`);
+  }
+  return 1;
+}
+
+// As duas rotas de liquidadas fora: o autodiagnóstico diz o status E o caminho.
+async function tudo404(falhas) {
+  const registro = [];
+  const responder = (url, opts) => {
+    const u = new URL(String(url));
+    registro.push(u.pathname);
+    if (u.pathname === ROTA_NOVA || u.pathname === ROTA_ANTIGA) return respostaHttp(404, "");
+    return casaTHP([], [], [], Infinity)(url, opts);
+  };
+  const { ultima } = await rodarPadrao([], [], [], { responder }, Infinity);
+  if (!ultima || !/HTTP 404 em \/api\/wagers\/v2\/resolved/.test(ultima.erro || "")) falhas.push(`404 nas duas rotas: o erro não diz status e caminho ("${ultima && ultima.erro}")`);
+  if (registro.includes("/api/wagers/v2/pending")) falhas.push("404 nas duas rotas: o replay seguiu para as abertas como se as liquidadas tivessem vindo");
+  return 1;
 }
 
 // O mesmo bilhete nas duas listas (liquidou entre as duas chamadas): a liquidada vence.
@@ -305,6 +451,6 @@ async function semToken(falhas) {
   const registro = [];
   const { ultima } = await rodarPadrao(RES(), PEN(), registro, { href: HOST + "/en", semRequisicaoInicial: true, janelaExtra: LS(null), ms: 300 });
   if (!ultima || !ultima.semToken) falhas.push("sem sessão: o inject não disse `semToken`");
-  if (registro.some((r) => /\/api\/wagers\//.test(r.p))) falhas.push("sem sessão: o inject pediu as apostas sem o token");
+  if (registro.some((r) => /\/wagers\//.test(r.p))) falhas.push("sem sessão: o inject pediu as apostas sem o token");
   return 1;
 }
