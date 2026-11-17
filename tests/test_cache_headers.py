@@ -59,16 +59,64 @@ def test_json_de_api_nunca_e_guardado():
     assert "no-store" in r.headers.get("cache-control", ""), r.headers.get("cache-control")
 
 
-@pytest.mark.parametrize("rota", [
-    "/static/dash/assets/js/app.js",
-    "/static/dash/assets/js/charts/abertas.js",
-    "/static/dash/assets/css/components.css",
-])
-def test_asset_continua_cacheavel(rota):
-    """O contrário do teste acima: asset com `no-cache` seria re-baixado a cada
-    navegação e o `?v=` (que é o mecanismo de renovação) viraria enfeite."""
-    r = cliente.get(rota)
-    assert r.status_code == 200, f"{rota} não respondeu 200"
-    assert "no-cache" not in r.headers.get("cache-control", ""), (
-        f"{rota} ganhou no-cache — o cache-busting por ?v= deixa de fazer sentido"
-    )
+# ── s459 (auditoria de 17/11, NAVEGADOR C2): versão do asset pelo CONTEÚDO ─────────────
+# Até a s458 o lado "asset" desta regra era "sem no-cache, porque o ?v= manual renova". O
+# ?v= manual foi esquecido em 20 % das mudanças, e sem `Cache-Control` o navegador nem
+# pedia o arquivo de novo (F5 não resolvia). Agora o servidor escreve o ?v= (hash do
+# conteúdo) em todo HTML; com o hash certo o asset é `immutable`, com qualquer outro ele
+# revalida. Ver `app/ativos.py`.
+import re  # noqa: E402
+
+import ativos  # noqa: E402
+
+ASSET = "/dashboard/assets/js/app.js"
+
+
+def test_html_servido_aponta_para_o_hash_do_conteudo():
+    html = cliente.get("/dashboard/").text
+    h = ativos.hash_da_url(ASSET)
+    assert h and f'assets/js/app.js?v={h}"' in html
+
+
+def test_nenhum_asset_local_sai_com_versao_que_nao_e_o_hash():
+    for rota in ("/dashboard/", "/static/app.html", "/login", "/static/index.html"):
+        html = cliente.get(rota).text
+        for ref, v in re.findall(r'(?:src|href)="([^"]+\.(?:js|css))\?v=([^"]+)"', html):
+            if ref.startswith(("http", "//")):
+                continue
+            url = ref if ref.startswith("/") else "/dashboard/" + ref
+            assert v == ativos.hash_da_url(url), f"{rota}: {ref}?v={v} não é o hash do conteúdo"
+
+
+def test_asset_com_hash_certo_e_imutavel_e_o_resto_revalida():
+    h = ativos.hash_da_url(ASSET)
+    certo = cliente.get(f"{ASSET}?v={h}").headers.get("cache-control", "")
+    assert "immutable" in certo and "max-age=31536000" in certo
+    for q in ("", "?v=70", "?v=velho"):
+        cc = cliente.get(ASSET + q).headers.get("cache-control", "")
+        assert cc == "no-cache", f"{ASSET}{q} -> {cc!r}: sem o hash certo, tem de revalidar"
+
+
+def test_etag_da_pagina_muda_quando_um_asset_muda(monkeypatch):
+    r1 = cliente.get("/dashboard/")
+    etag = r1.headers.get("etag")
+    assert etag
+    assert cliente.get("/dashboard/", headers={"If-None-Match": etag}).status_code == 304
+    real = ativos.hash_da_url
+    monkeypatch.setattr(ativos, "hash_da_url", lambda u: "outro" + (real(u) or ""))
+    r3 = cliente.get("/dashboard/", headers={"If-None-Match": etag})
+    assert r3.status_code == 200, "asset novo com a página igual tem de devolver a página nova"
+    assert r3.headers.get("etag") != etag
+
+
+def test_casca_nasce_carimbada_com_a_identidade_do_codigo():
+    """3.1: a casca compara o carimbo com `/versao` para saber que saiu código novo."""
+    html = cliente.get("/static/app.html").text
+    assert "__SHARPEN_BUILD__" not in html
+    assert f"var buildCarregado = '{ativos.build_id()}'" in html
+
+
+def test_versao_do_codigo_e_header_de_build():
+    r = cliente.get("/versao")
+    assert r.json()["build"] == ativos.build_id()
+    assert cliente.get("/healthz").headers.get("x-sharpen-build") == ativos.build_id()

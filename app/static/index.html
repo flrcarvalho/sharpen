@@ -3999,6 +3999,18 @@ let ultimaAnaliseIds = [];
 let ultimaDuplicatas = {};    // {str(db_id): [occurrence, total]}
 let ultimaScrollOverlaps = new Set(); // db_ids com suspeita de sobreposição de scroll
 const _activeStreams = new Map(); // cardId → AbortController
+// s459 (3.1): a casca pergunta antes de recarregar sozinha quando sai código novo. Ociosa =
+// nada digitado, nada anexado, nenhuma extração rodando. Recarregar com qualquer um desses
+// apagaria trabalho do usuário.
+window.__sharpenOcioso = function () {
+  try {
+    const ta = document.getElementById('texto');
+    if (ta && ta.value.trim()) return false;
+    if (arquivos.length || csvFiles.length || xlsFiles.length || pdfFiles.length) return false;
+    if (_activeStreams.size) return false;
+    return true;
+  } catch (e) { return false; }
+};
 let _cardCounter = 0;
 const estadoExtrator = {}; // parceiroId → { arquivos, csvFiles, xlsFiles, texto, dataRef }
 

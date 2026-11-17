@@ -505,8 +505,57 @@ body::before {
     // separa reconexão de 1ª conexão (senão toda carga da casca recarregaria à toa).
     var esCaiu = false;
     esBase.onerror = function(){ esCaiu = true; };
-    esBase.onopen = function(){ if (esCaiu){ esCaiu = false; agendarAutoRefresh(); } };
+    esBase.onopen = function(){ if (esCaiu){ esCaiu = false; agendarAutoRefresh(); conferirBuild(); } };
   }
+
+  // ── Código novo no ar (s459, auditoria de 17/11, NAVEGADOR C1) ─────────────────
+  // A casca é desenhada para nunca recarregar, e o deploy só recarregava DADO: quem deixava
+  // a aba aberta rodava por dias o código de quando abriu, e o conserto publicado "não pegava"
+  // para ele. O servidor carimba aqui a identidade do código de tela (`ativos.build_id`), e
+  // a casca compara com `/versao` quando o SSE volta de uma queda, quando a aba volta a ficar
+  // visível e a cada 5 min. Mudou: com a aba OCULTA e nada em andamento, recarrega sozinha;
+  // com a aba à vista, oferece a recarga (recarregar debaixo dos olhos de quem lê é pior).
+  var buildCarregado = '__SHARPEN_BUILD__';
+  if (buildCarregado.indexOf('__') === 0) buildCarregado = null;   // servido sem carimbo
+  var avisoBuild = null;
+  function tudoOcioso(){
+    var ifs = document.querySelectorAll('iframe');
+    for (var i = 0; i < ifs.length; i++){
+      try {
+        var w = ifs[i].contentWindow;
+        if (!w || !w.location || w.location.href === 'about:blank') continue;
+        if (typeof w.__sharpenOcioso === 'function'){ if (!w.__sharpenOcioso()) return false; }
+        else if (w.location.pathname === '/') return false;   // Extração sem o sinal: não arrisca
+      } catch(e){ return false; }
+    }
+    return true;
+  }
+  function mostrarAvisoBuild(){
+    if (avisoBuild) return;
+    avisoBuild = document.createElement('div');
+    avisoBuild.setAttribute('role', 'status');
+    avisoBuild.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:9999;display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surface-2);border:1px solid var(--warn);border-radius:8px;color:var(--ink);font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.35)';
+    avisoBuild.innerHTML = '<span>Há uma versão nova do Sharpen.</span>';
+    var b = document.createElement('button');
+    b.type = 'button'; b.textContent = 'Recarregar';
+    b.style.cssText = 'padding:5px 12px;border-radius:6px;border:0;background:var(--warn);color:var(--bg);font-weight:600;cursor:pointer;font-size:12px';
+    b.addEventListener('click', function(){ window.location.reload(); });
+    avisoBuild.appendChild(b);
+    document.body.appendChild(avisoBuild);
+  }
+  function conferirBuild(){
+    fetch('/versao', { cache: 'no-store' }).then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        if (!d || !d.build) return;
+        if (!buildCarregado){ buildCarregado = d.build; return; }
+        if (d.build === buildCarregado) return;
+        if (document.visibilityState === 'hidden' && tudoOcioso()){ window.location.reload(); return; }
+        mostrarAvisoBuild();
+      }).catch(function(){});
+  }
+  conferirBuild();
+  setInterval(conferirBuild, 5 * 60000);
+  document.addEventListener('visibilitychange', conferirBuild);
 
   // Etapa 2 do tempo real (s241): rede de segurança para SSE caído/congelado.
   // Navegador desacelera ou congela aba oculta (timer e SSE inclusos); ao VOLTAR

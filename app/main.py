@@ -47,6 +47,7 @@ from auth import (
 # so alongaria a lista sem ganhar nada.
 import auth as auth_mod
 import captura as _captura
+import ativos as _ativos
 import eventos as _eventos
 import matcher
 from planilha_viva import dashboard_rows_ao_vivo
@@ -972,7 +973,43 @@ _CSP = (
 
 @app.middleware("http")
 async def _security_headers(request: Request, call_next):
+    # s459 (3.2): a revalidação de HTML é decidida AQUI, pelo ETag do conteúdo reescrito
+    # (ver `ativos.py`). O StaticFiles responderia 304 pelo ETag de `mtime` dele, e o
+    # navegador ficaria com a página que aponta para os assets velhos. Por isso a
+    # condicional do pedido de página não chega a ele.
+    rota = request.url.path
+    pedido_pagina = request.method == "GET" and not _ativos.e_asset(rota)
+    se_nao_mudou = None
+    if pedido_pagina:
+        for k, v in request.scope["headers"]:
+            if k == b"if-none-match":
+                se_nao_mudou = v.decode("latin-1")
+        # Só o StaticFiles responde 304 sozinho, e só para o que ele serve como página.
+        if rota.endswith(("/", ".html")):
+            request.scope["headers"] = [(k, v) for k, v in request.scope["headers"]
+                                        if k not in (b"if-none-match", b"if-modified-since")]
     resp = await call_next(request)
+    resp.headers["X-Sharpen-Build"] = _ativos.build_id()
+    if (pedido_pagina and resp.status_code == 200
+            and resp.headers.get("content-type", "").startswith("text/html")):
+        corpo = b"".join([parte async for parte in resp.body_iterator])
+        try:
+            corpo, etag = _ativos.html_versionado(corpo, rota)
+        except Exception:
+            logger.exception("ativos: falha ao versionar %s; vai sem reescrever", rota)
+            etag = None
+        cabecalhos = {k: v for k, v in resp.headers.items()
+                      if k.lower() not in ("content-length", "etag", "last-modified")}
+        if etag:
+            cabecalhos["ETag"] = etag
+        if etag and se_nao_mudou and etag in [x.strip() for x in se_nao_mudou.split(",")]:
+            resp = Response(status_code=304, headers={k: v for k, v in cabecalhos.items()
+                                                      if k.lower() != "content-type"})
+        else:
+            resp = Response(content=corpo, status_code=200, headers=cabecalhos)
+    elif _ativos.e_asset(rota) and resp.status_code in (200, 304):
+        resp.headers["Cache-Control"] = _ativos.cache_control_do_asset(
+            rota, request.query_params.get("v"))
     resp.headers.setdefault("Content-Security-Policy", _CSP)
     resp.headers.setdefault("X-Content-Type-Options", "nosniff")
     resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
@@ -1068,6 +1105,13 @@ async def _csrf_origin_guard(request: Request, call_next):
 async def healthz():
     """Liveness para o HEALTHCHECK do container — sem auth, sem tocar o banco."""
     return {"ok": True}
+
+
+@app.get("/versao")
+async def versao_do_codigo():
+    """Identidade do código de TELA no ar (s459, 3.1). A casca compara com a que carregou e,
+    quando muda, recarrega num momento seguro. Sem auth: não diz nada além de um hash."""
+    return {"build": _ativos.build_id()}
 
 
 @app.exception_handler(Exception)
