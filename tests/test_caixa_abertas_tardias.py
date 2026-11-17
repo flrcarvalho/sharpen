@@ -37,12 +37,14 @@ class ConnDuble:
     def __init__(self, inicial):
         self.inicial = inicial
         self.updates = []
+        self.sqls = []
 
     async def fetchrow(self, _sql, *_args):
         return self.inicial
 
-    async def execute(self, _sql, *args):
+    async def execute(self, sql, *args):
         self.updates.append(args)
+        self.sqls.append(sql)
 
 
 def _inicial(abertas_corte=(), criado_em=ATIVACAO, corte=CORTE):
@@ -90,7 +92,13 @@ def test_a_lista_so_cresce(monkeypatch):
     conn = ConnDuble(_inicial(abertas_corte=[99]))
     n = _rodar(conn, [_aposta(243667, ATIVACAO - timedelta(seconds=5))], monkeypatch)
     assert n == 1
-    assert conn.updates[0][0] == [99, 243667], "a lista perdeu um id que já estava lá"
+    # s459 (ESCALA A8): a união é feita NO UPDATE, sobre o valor que está na linha naquele
+    # instante (a lista lida antes podia estar velha). O parâmetro leva só o que entra; o
+    # SQL tem de somar ao que já está lá. A prova contra o Postgres, com duas conexões
+    # simultâneas, é `test_s459_caixa_duas_adocoes_simultaneas_nao_se_apagam`.
+    assert conn.updates[0][0] == [243667]
+    sql = conn.sqls[0]
+    assert "COALESCE(abertas_corte" in sql and "||" in sql, "a lista perdeu um id que já estava lá"
 
 
 def test_id_ja_presente_nao_duplica_nem_regrava(monkeypatch):

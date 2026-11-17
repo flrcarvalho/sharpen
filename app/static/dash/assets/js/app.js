@@ -1411,7 +1411,12 @@ let _ctHadLegacy=false;    // true quando havia custo legado no localStorage no 
 function _ctHasVal(k,empty){const v=localStorage.getItem(k);return !!v&&v!==empty&&v!=='null';}
 // `semear` = 1º envio para um servidor sem custo deste dono; ali o servidor UNE em vez
 // de substituir. Ver salvar_custo_store (repository.py).
-function _ctPush(semear){try{fetch('/custos/store',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custo_tipster:ctData,custo_geral:cgData,semear:!!semear})});}catch(e){}}
+// `_ctBase` (s459, auditoria NAVEGADOR A1): o que esta aba sabe que o servidor tem. Vai junto
+// e o servidor aplica só a diferença; sem isso a aba aberta antes apagava o lançamento feito
+// na outra. Só avança quando o servidor confirma.
+let _ctBase=null;
+function _ctSnap(){return JSON.parse(JSON.stringify({custo_tipster:ctData,custo_geral:cgData}));}
+function _ctPush(semear){try{const corpo={custo_tipster:ctData,custo_geral:cgData,semear:!!semear};if(!semear&&_ctBase)corpo.base=_ctBase;const enviado=_ctSnap();fetch('/custos/store',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo)}).then(r=>{if(r&&r.ok)_ctBase=enviado;}).catch(()=>{});}catch(e){}}
 
 // Carga: só o servidor. Chamar UMA vez ao entrar na aba.
 async function ctLoad(){
@@ -1424,6 +1429,7 @@ async function ctLoad(){
       if(d.existe){
         ctMeta=d.custo_tipster_meta||{};
         ctData=d.custo_tipster||{};cgData=d.custo_geral||[];
+        _ctBase=_ctSnap();
         // `existe` aqui é "a LINHA do dono existe", e a linha nasce também pelo custo por
         // CONTA (`salvar_custo_conta` faz upsert na mesma linha). Então dá para o servidor
         // dizer existe=true com o blob tipster/geral vazio enquanto este navegador tem
@@ -1500,6 +1506,7 @@ async function ctSubir(){
   for(const g of cg){if(g&&!ids.has(g.id))cgData.push(g);}
   try{localStorage.removeItem(CT_KEY);localStorage.removeItem(CG_KEY);}catch(e){}
   _ctHadLegacy=false;
+  _ctBase=_ctSnap();
   return true;
 }
 

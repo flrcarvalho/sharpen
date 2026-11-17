@@ -2875,6 +2875,86 @@ def test_s438_init_db_tenta_de_novo_quando_o_lock_sai(monkeypatch):
     _run(body())
 
 
+def test_s459_caixa_duas_adocoes_simultaneas_nao_se_apagam():
+    """Auditoria de 17/11 (ESCALA A8), roteiro do auditor: duas chamadas REAIS de
+    `_caixa_adotar_abertas_tardias`, cada uma na sua conexão, as duas lendo antes de qualquer
+    uma gravar (Ficha pela extensão + /salvar do extrator na mesma conta). Antes o resultado
+    era `[111]` em vez de `[111, 222]`: o stake de R$ 70 sumia da projeção da Caixa."""
+    import asyncpg
+    from datetime import datetime, timedelta, timezone
+
+    class _Lenta:
+        """Segura o UPDATE até as duas leituras terem acontecido."""
+        def __init__(s, c, barreira):
+            s.c, s.b = c, barreira
+
+        async def fetchrow(s, *a, **k):
+            return await s.c.fetchrow(*a, **k)
+
+        async def execute(s, q, *a):
+            if q.startswith("UPDATE caixa_mov"):
+                await s.b.wait()
+            return await s.c.execute(q, *a)
+
+    async def body():
+        await init_db()
+        pool = await get_pool()
+        await pool.execute("DELETE FROM caixa_mov WHERE dono='TRace'")
+        await pool.execute("DELETE FROM parceiros WHERE dono='TRace'")
+        pid = await pool.fetchval(
+            "INSERT INTO parceiros(dono,casa,nome) VALUES('TRace','CasaR','ContaR') RETURNING id")
+        ativ = datetime.now(timezone.utc)
+        mid = await pool.fetchval(
+            "INSERT INTO caixa_mov(dono,parceiro_id,tipo,data,valor,abertas_corte,criado_em) "
+            "VALUES('TRace',$1,'inicial',CURRENT_DATE,1000,'{}',$2) RETURNING id", pid, ativ)
+        antes = ativ - timedelta(seconds=30)
+        hoje = datetime.now().date().strftime("%d/%m/%Y")
+        a1 = {"id": 111, "stake": "50", "resultado": None, "data": hoje, "criado_em": antes}
+        a2 = {"id": 222, "stake": "70", "resultado": None, "data": hoje, "criado_em": antes}
+        bar = asyncio.Event()
+        c1 = await asyncpg.connect(TEST_DB)
+        c2 = await asyncpg.connect(TEST_DB)
+        try:
+            t1 = asyncio.ensure_future(repository._caixa_adotar_abertas_tardias(
+                _Lenta(c1, bar), "TRace", [("CasaR", "ContaR", a1)]))
+            t2 = asyncio.ensure_future(repository._caixa_adotar_abertas_tardias(
+                _Lenta(c2, bar), "TRace", [("CasaR", "ContaR", a2)]))
+            await asyncio.sleep(0.3)
+            bar.set()
+            await asyncio.gather(t1, t2)
+        finally:
+            await c1.close()
+            await c2.close()
+        final = await pool.fetchval("SELECT abertas_corte FROM caixa_mov WHERE id=$1", mid)
+        assert sorted(final) == [111, 222], f"uma adoção apagou a outra: {final}"
+    _run(body())
+
+
+def test_s459_custos_duas_abas():
+    """O mesmo cenário do auditor (NAVEGADOR A1) contra o Postgres: as duas abas leram o
+    mesmo estado; cada uma grava a sua mudança com a base que leu."""
+    async def body():
+        await init_db()
+        pool = await get_pool()
+        await pool.execute("DELETE FROM custo_store WHERE dono='TAbas'")
+        await repository.salvar_custo_store("TAbas", {"Tip Um": {"2026-11": "100"}}, [])
+        lido = await repository.get_custo_store("TAbas")
+        base = {"custo_tipster": lido["custo_tipster"], "custo_geral": lido["custo_geral"]}
+        await repository.salvar_custo_store(
+            "TAbas", {"Tip Um": {"2026-11": "100"}, "Tip Dois": {"2026-11": "250"}}, [], base=base)
+        await repository.salvar_custo_store("TAbas", {"Tip Um": {"2026-11": "120"}}, [], base=base)
+        fim = await repository.get_custo_store("TAbas")
+        assert fim["custo_tipster"] == {"Tip Um": {"2026-11": "120"}, "Tip Dois": {"2026-11": "250"}}
+
+        await repository.salvar_custo_conta("TAbas", {"A||Bet365": 950})
+        b2 = {"A||Bet365": 950}
+        await repository.salvar_custo_conta("TAbas", {"A||Bet365": 950, "B||Betano": 600}, base=b2)
+        await repository.salvar_custo_conta("TAbas", {"A||Bet365": 900}, base=b2)
+        assert (await repository.get_custo_conta("TAbas"))["custo_conta"] == {
+            "A||Bet365": 900, "B||Betano": 600}
+    _run(body())
+
+
 def test_s459_pareamento_e_fila_sobrevivem_ao_deploy():
     """Auditoria de 17/11 (SERVIDOR P3, EXTENSÃO A1): o pareamento e a fila viviam só na
     memória, e todo deploy desconectava a extensão e apagava a fila. Aqui o "deploy" é apagar

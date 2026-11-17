@@ -29,7 +29,10 @@ function _custoMirror(){try{localStorage.setItem(costKey(),JSON.stringify(custoD
 // `semear` = 1º envio deste navegador para um servidor que ainda não tinha custo deste
 // dono; ali o servidor UNE em vez de substituir, porque o mesmo dono pode ter conjuntos
 // diferentes em máquinas diferentes e a primeira a escrever não pode encolher a outra.
-function _custoPush(semear){try{fetch('/custos/conta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custo_conta:custoData,semear:!!semear})});}catch(e){}}
+// `_custoBase` (s459): o que esta aba sabe que o servidor tem; o servidor aplica só a
+// diferença, e duas abas param de apagar o custo uma da outra. Ver `_ctBase` (app.js).
+let _custoBase=null;
+function _custoPush(semear){try{const corpo={custo_conta:custoData,semear:!!semear};if(!semear&&_custoBase)corpo.base=_custoBase;const enviado=JSON.parse(JSON.stringify(custoData));fetch('/custos/conta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo)}).then(r=>{if(r&&r.ok)_custoBase=enviado;}).catch(()=>{});}catch(e){}}
 
 // Carga do custo por-conta: fonte de verdade = Postgres (/custos/conta, por dono); o
 // localStorage dash_custos_v2::<dono> virou cache/paint. Chamado no feed (app.js) com o
@@ -50,14 +53,16 @@ async function loadCusto(){
     const r=await fetch('/custos/conta');
     if(r.ok){
       const d=await r.json();
-      if(d.existe){custoData=d.custo_conta||{};_custoServerBacked=true;_custoMirror();}
+      if(d.existe){custoData=d.custo_conta||{};_custoBase=JSON.parse(JSON.stringify(custoData));_custoServerBacked=true;_custoMirror();}
       else{_custoServerBacked=false;} // servidor ainda sem custo por-conta deste dono
     }
   }catch(e){/* offline: fica no cache já carregado */}
 }
 function saveCusto(forn,casa,val){
   const k=forn+'||'+casa;
-  const n=parseFloat(val.replace(/\./g,'').replace(',','.'));
+  // `parseNum`, nunca parser caseiro (regra do CLAUDE.md): o caseiro apagava todo ponto e
+  // lia "179.90" como 17.990 (s459, achado na auditoria de 17/11).
+  const n=parseNum(val);
   if(!isNaN(n)&&n>0)custoData[k]=n; else delete custoData[k];
   _custoMirror();
   // SOBE SEMPRE. A trava anti-semeadura-parcial que morava aqui não subia no caso

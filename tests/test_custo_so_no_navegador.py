@@ -124,6 +124,18 @@ MUTACOES = [
         "    body:JSON.stringify({custo_tipster:ctData,custo_geral:cgData,semear:true})});",
     ),
     (
+        "a aba para de mandar a base e duas abas voltam a se apagar (NAVEGADOR A1)",
+        "app",
+        "if(!semear&&_ctBase)corpo.base=_ctBase;",
+        "",
+    ),
+    (
+        "a base deixa de ser o que a aba leu do servidor",
+        "app",
+        "        _ctBase=_ctSnap();\n        // `existe`",
+        "        // `existe`",
+    ),
+    (
         "o legado continua no navegador depois de entregue",
         "app",
         "  try{localStorage.removeItem(CT_KEY);localStorage.removeItem(CG_KEY);}catch(e){}\n  _ctHadLegacy=false;",

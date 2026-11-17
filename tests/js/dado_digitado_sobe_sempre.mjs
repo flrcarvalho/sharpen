@@ -74,9 +74,12 @@ const API_DASH = new Function(`
   let custoData = {}, _custoServerBacked = false, _custoHadLegacy = false;
   let ctData = {}, cgData = [];
   let _ctServerBacked = false, _ctHadLegacy = false;
+  let _ctBase = null, _custoBase = null;
   let _costState = { allForns: [], allCasas: [], contaCount: {} };
   // Efeitos de tela do saveCusto: existem para ele rodar, e não medem nada.
   function recalcCustos(){} function renderCostPies(){} function renderCustoCards(){}
+  ${recorteFn(APP, 'parseNum', 'app.js')}
+  ${recorteFn(APP, '_ctSnap', 'app.js')}
   ${recorteFn(GESTAO, 'costKey', 'gestao.js')}
   ${recorteFn(GESTAO, '_custoMirror', 'gestao.js')}
   ${recorteFn(GESTAO, '_custoPush', 'gestao.js')}

@@ -2522,14 +2522,15 @@ async def absorver_consolidadas(dono: str, casa_key: str, parceiro: str,
                 if not alvo["tipster"] and len(tipsters) == 1 and next(iter(tipsters)):
                     await conn.execute("UPDATE bilhetes SET tipster = $1 WHERE id = $2",
                                        next(iter(tipsters)), alvo["id"])
-                for mov in await conn.fetch(
-                        "SELECT id, abertas_corte FROM caixa_mov WHERE dono = $1 "
-                        "AND abertas_corte && $2::int[]", dono, ids):
-                    novos = [i for i in mov["abertas_corte"] if i not in ids]
-                    if alvo["id"] not in novos:
-                        novos.append(alvo["id"])
-                    await conn.execute("UPDATE caixa_mov SET abertas_corte = $1::int[] WHERE id = $2",
-                                       novos, mov["id"])
+                # s459 (ESCALA A8): troca os ids velhos pelo novo NUM comando só, sobre o
+                # valor que está na linha no momento do UPDATE (ler e regravar em dois passos
+                # perdia a adoção que outro `/salvar` fizesse no meio).
+                await conn.execute(
+                    "UPDATE caixa_mov SET abertas_corte = (SELECT array_agg(DISTINCT x ORDER BY x) "
+                    "FROM unnest(ARRAY(SELECT y FROM unnest(abertas_corte) y "
+                    "WHERE y <> ALL($2::int[])) || ARRAY[$3::int]) x) "
+                    "WHERE dono = $1 AND abertas_corte && $2::int[]",
+                    dono, ids, alvo["id"])
                 sairam = await _mover_para_lixeira(
                     conn, "b.id = ANY($1) AND b.dono = $2", [ids, dono],
                     f"Juntadas no bilhete {novo} (mesma posição da casa, {len(ids)} aposta(s))",
@@ -3795,8 +3796,14 @@ async def _caixa_adotar_abertas_tardias(conn, dono: str, novas: list[tuple]) -> 
         add = [i for i in eleitas if i not in ja]
         if not add:
             continue
-        await conn.execute("UPDATE caixa_mov SET abertas_corte = $1 WHERE id = $2",
-                           sorted(ja | set(add)), ini["id"])
+        # s459 (auditoria de 17/11, ESCALA A8): UNIÃO no próprio UPDATE, nunca a lista lida
+        # acima. Dois `/salvar` da mesma conta (Ficha + extrator) liam a mesma lista e o
+        # segundo gravava por cima do primeiro: medido `[111]` em vez de `[111, 222]`, o
+        # stake de uma aposta aberta sumia da projeção.
+        await conn.execute(
+            "UPDATE caixa_mov SET abertas_corte = (SELECT array_agg(DISTINCT x ORDER BY x) "
+            "FROM unnest(COALESCE(abertas_corte, '{}'::int[]) || $1::int[]) x) WHERE id = $2",
+            sorted(set(add)), ini["id"])
         total += len(add)
         logger.info("caixa: %d aposta(s) aberta(s) chegaram depois da ativação e entraram "
                     "no abertas_corte de %s / %s", len(add), casa, parceiro)
@@ -5799,8 +5806,74 @@ def _unir_custo_geral(velho: list, novo: list) -> list:
     return out
 
 
+# ── Merge de três vias (s459, auditoria de 17/11 — NAVEGADOR A1, ESCALA A11) ────────────
+# O front manda o estado INTEIRO e o servidor substituía. Duas abas (ou celular + PC): a aba
+# aberta antes gravava o estado velho dela por cima e o lançamento da outra SUMIA, sem erro
+# (medido: "Tip Dois R$ 250" apagado). Agora o front manda também a `base` (o que ele leu do
+# servidor), e o servidor aplica só a DIFERENÇA base → novo sobre o que está gravado agora.
+# Quem não manda `base` (aba com o JS antigo) continua substituindo, como antes.
+
+def _diff_dict(atual: dict, base: dict, novo: dict) -> dict:
+    """Aplica em `atual` o que mudou de `base` para `novo`, chave a chave."""
+    out = dict(atual or {})
+    base, novo = base or {}, novo or {}
+    for k in set(base) | set(novo):
+        if base.get(k) == novo.get(k):
+            continue
+        if k in novo:
+            out[k] = novo[k]
+        else:
+            out.pop(k, None)
+    return out
+
+
+def _diff_custo_tipster(atual: dict, base: dict, novo: dict) -> dict:
+    out = {t: dict(m or {}) for t, m in (atual or {}).items()}
+    base, novo = base or {}, novo or {}
+    for t in set(base) | set(novo):
+        if t in base and t not in novo:
+            out.pop(t, None)                     # a aba apagou o tipster inteiro
+            continue
+        b, n = base.get(t) or {}, novo.get(t) or {}
+        if b == n and t in base:
+            continue
+        out[t] = _diff_dict(out.get(t) or {}, b, n)
+    return out
+
+
+def _diff_custo_geral(atual: list, base: list, novo: list) -> list:
+    def por_id(lista):
+        return {l.get("id"): l for l in (lista or []) if isinstance(l, dict) and l.get("id") is not None}
+    bmap, nmap = por_id(base), por_id(novo)
+    out = [dict(l, values=dict(l.get("values") or {}))
+           for l in (atual or []) if isinstance(l, dict)]
+    apagados = set(bmap) - set(nmap)
+    out = [l for l in out if l.get("id") not in apagados]
+    omap = por_id(out)
+    for i, n in nmap.items():
+        b, o = bmap.get(i), omap.get(i)
+        if o is None:
+            if b is None or n != b:              # linha nova (ou editada depois de apagada lá)
+                novo_l = dict(n, values=dict(n.get("values") or {}))
+                out.append(novo_l)
+                omap[i] = novo_l
+            continue
+        if b is None:                            # as duas abas criaram o mesmo id
+            o["values"] = {**o.get("values", {}), **(n.get("values") or {})}
+            o.update({k: v for k, v in n.items() if k != "values"})
+            continue
+        for k in (set(b) | set(n)) - {"values"}:
+            if b.get(k) != n.get(k):
+                o[k] = n.get(k)
+        o["values"] = _diff_dict(o.get("values") or {}, b.get("values") or {}, n.get("values") or {})
+    # Linha sem id não tem chave para fundir: a do `novo` entra se não estava na base.
+    out += [l for l in (novo or []) if isinstance(l, dict) and l.get("id") is None
+            and l not in (base or [])]
+    return out
+
+
 async def salvar_custo_store(dono: str, custo_tipster: dict, custo_geral: list,
-                             semear: bool = False) -> None:
+                             semear: bool = False, base: dict | None = None) -> None:
     """Upsert do blob de custos do dono. Substitui o registro inteiro — o front
     sempre manda o estado completo (como o localStorage fazia). Espelha
     salvar_casa_config. Passa JSON como texto + cast ::jsonb (sem codec global).
@@ -5814,6 +5887,27 @@ async def salvar_custo_store(dono: str, custo_tipster: dict, custo_geral: list,
     cg = custo_geral if isinstance(custo_geral, list) else []
     pool = await get_pool()
     async with pool.acquire() as conn:
+        if base is not None and not semear:
+            b_ct = base.get("custo_tipster") if isinstance(base.get("custo_tipster"), dict) else {}
+            b_cg = base.get("custo_geral") if isinstance(base.get("custo_geral"), list) else []
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    "SELECT custo_tipster, custo_geral FROM custo_store "
+                    "WHERE dono = $1 FOR UPDATE", dono)
+                a_ct, a_cg = ({}, []) if row is None else (row["custo_tipster"], row["custo_geral"])
+                if isinstance(a_ct, str):
+                    a_ct = json.loads(a_ct)
+                if isinstance(a_cg, str):
+                    a_cg = json.loads(a_cg)
+                ct = _diff_custo_tipster(a_ct or {}, b_ct, ct)
+                cg = _diff_custo_geral(a_cg or [], b_cg, cg)
+                await conn.execute(
+                    "INSERT INTO custo_store (dono, custo_tipster, custo_geral, atualizado_em) "
+                    "VALUES ($1, $2::jsonb, $3::jsonb, NOW()) "
+                    "ON CONFLICT (dono) DO UPDATE SET custo_tipster = EXCLUDED.custo_tipster, "
+                    "custo_geral = EXCLUDED.custo_geral, atualizado_em = NOW()",
+                    dono, json.dumps(ct), json.dumps(cg))
+            return
         if semear:
             # Lê e grava na MESMA conexão e transação: entre um e outro cabe a
             # escrita de outra aba do mesmo dono, e a união perderia o que ela pôs.
@@ -5903,7 +5997,8 @@ async def get_custo_conta(dono: str) -> dict | None:
     return {"custo_conta": v or {}}
 
 
-async def salvar_custo_conta(dono: str, custo_conta: dict, semear: bool = False) -> None:
+async def salvar_custo_conta(dono: str, custo_conta: dict, semear: bool = False,
+                             base: dict | None = None) -> None:
     """Upsert do custo por conta/fornecedor, tocando SÓ a coluna custo_conta (não
     mexe em custo_tipster/custo_geral). Front manda o estado completo. Linha nova
     nasce com os outros custos no default da coluna ('{}'/'[]').
@@ -5916,6 +6011,24 @@ async def salvar_custo_conta(dono: str, custo_conta: dict, semear: bool = False)
 
     A edição normal (`semear=False`) continua substituindo, e tem de continuar:
     apagar um custo é tirar a chave do dict, e união nenhuma apaga chave."""
+    if base is not None and not semear:
+        # s459: merge de três vias (ver `_diff_dict`), pelo mesmo motivo do blob de tipster.
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                atual = await conn.fetchval(
+                    "SELECT custo_conta FROM custo_store WHERE dono = $1 FOR UPDATE", dono)
+                if isinstance(atual, str):
+                    atual = json.loads(atual)
+                novo = _diff_dict(atual or {}, base if isinstance(base, dict) else {},
+                                  custo_conta if isinstance(custo_conta, dict) else {})
+                await conn.execute(
+                    "INSERT INTO custo_store (dono, custo_conta, atualizado_em) "
+                    "VALUES ($1, $2::jsonb, NOW()) "
+                    "ON CONFLICT (dono) DO UPDATE SET custo_conta = EXCLUDED.custo_conta, "
+                    "atualizado_em = NOW()",
+                    dono, json.dumps(novo))
+        return
     cc = json.dumps(custo_conta if isinstance(custo_conta, dict) else {})
     # `||` de jsonb é right-biased: mantém o que já estava e deixa o novo vencer
     # onde as chaves coincidem.

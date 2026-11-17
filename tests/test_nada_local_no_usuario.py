@@ -180,12 +180,8 @@ MUTACOES = [
     (
         "o semear e pedido SEMPRE, e apagar um custo deixa de funcionar",
         "gestao",
-        "function _custoPush(semear){try{fetch('/custos/conta',{method:'POST',"
-        "headers:{'Content-Type':'application/json'},"
-        "body:JSON.stringify({custo_conta:custoData,semear:!!semear})});}catch(e){}}",
-        "function _custoPush(semear){try{fetch('/custos/conta',{method:'POST',"
-        "headers:{'Content-Type':'application/json'},"
-        "body:JSON.stringify({custo_conta:custoData,semear:true})});}catch(e){}}",
+        "const corpo={custo_conta:custoData,semear:!!semear};",
+        "const corpo={custo_conta:custoData,semear:true};",
     ),
     # ── O QUE A TELA PROMETE ─────────────────────────────────────────────────
     (

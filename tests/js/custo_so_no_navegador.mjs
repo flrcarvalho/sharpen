@@ -59,7 +59,7 @@ const recorteWindowFn = (src, nome, arq) => {
 const FONTE = [
   ...['costKey', 'loadCusto', 'custoContaPendente', 'custoContaSubir']
     .map(n => recorteFn(GESTAO, n, 'gestao.js')),
-  ...['parseNum', '_ctHasVal', '_ctPush', 'ctLoad', 'ctSave', 'ctPendente', 'ctSubir']
+  ...['parseNum', '_ctHasVal', '_ctSnap', '_ctPush', 'ctLoad', 'ctSave', 'ctPendente', 'ctSubir']
     .map(n => recorteFn(APP, n, 'app.js')),
   recorteFn(CUSTOS2, '_c2guardarHTML', 'custos2.js'),
   recorteWindowFn(CUSTOS2, 'c2Guardar', 'custos2.js'),
@@ -72,6 +72,7 @@ const API = new Function(`
   let custoData = {}, _custoServerBacked = false, _custoHadLegacy = false;
   let ctData = {}, cgData = [], ctMeta = {};
   let _ctServerBacked = false, _ctHadLegacy = false, _ctRepintou = true;
+  let _ctBase = null, _custoBase = null;
   let _c2guardou = false;
   let LS = {}, RESP = {}, CHAMADAS = [], POSTS = [];
   const window = { __dono: 'Feca' };
@@ -326,6 +327,20 @@ console.log('G. legado global de outro dono nunca sobe sozinho');
   eq(p3.length && p3[0].body.semear, true, 'G3. com união no servidor');
   eq('custoTipsterData' in API.estado().LS, false, 'G4. e o legado sai do navegador depois de entregue');
   eq(API.tipsPendente(), null, 'G4. a faixa não oferece de novo');
+}
+
+// ── H. a aba manda a BASE que leu (s459, auditoria NAVEGADOR A1) ─────────────────
+console.log('H. a edição leva a base, e o servidor aplica só a diferença');
+{
+  await API.reset({ ls: {}, resp: { '/custos/conta': { existe: false },
+                    '/custos/store': { existe: true, custo_tipster: { 'Tip Um': { '2026-11': '100' } },
+                                       custo_geral: [] } } });
+  API.editaTipster('Tip Um', '2026-11', '120');
+  const p = API.posts().filter(x => x.url === '/custos/store');
+  eq(p.length, 1, 'H1. a edição sobe');
+  eq(p.length && JSON.stringify(p[0].body.base && p[0].body.base.custo_tipster),
+     JSON.stringify({ 'Tip Um': { '2026-11': '100' } }), 'H1. com a base que a aba leu do servidor');
+  eq(p.length && p[0].body.semear, false, 'H1. e sem semear (o dono já é servido)');
 }
 
 if (falhas) { console.error(`\n${falhas} falha(s)`); process.exit(1); }

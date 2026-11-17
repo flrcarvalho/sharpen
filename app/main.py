@@ -6507,6 +6507,9 @@ class CustoStoreRequest(BaseModel):
     # não tinha custo deste dono. Só ele une; a edição normal substitui, senão
     # apagar um lançamento deixaria de funcionar. Ver salvar_custo_store.
     semear: bool = False
+    # s459: o que o front LEU do servidor. Com ela o servidor aplica só a diferença (merge de
+    # três vias) e duas abas param de apagar o lançamento uma da outra. Sem ela, substitui.
+    base: Optional[dict] = None
 
 
 @app.get("/custos/store")
@@ -6522,7 +6525,7 @@ async def get_custo_store_route(dono: str = Depends(dono_leitura)):
 @app.post("/custos/store")
 async def salvar_custo_store_route(body: CustoStoreRequest, dono: str = Depends(dono_efetivo)):
     await salvar_custo_store(dono, body.custo_tipster or {}, body.custo_geral or [],
-                             semear=bool(body.semear))
+                             semear=bool(body.semear), base=body.base)
     return {"salvo": True}
 
 
@@ -6533,6 +6536,7 @@ class CustoContaRequest(BaseModel):
     custo_conta: dict = {}
     # Ver CustoStoreRequest.semear — mesma regra, mesmo motivo.
     semear: bool = False
+    base: Optional[dict] = None     # ver CustoStoreRequest.base (s459)
 
 
 class CobrancaTipsterRequest(BaseModel):
@@ -6566,7 +6570,7 @@ async def get_custo_conta_route(dono: str = Depends(dono_leitura)):
 
 @app.post("/custos/conta")
 async def salvar_custo_conta_route(body: CustoContaRequest, dono: str = Depends(dono_efetivo)):
-    await salvar_custo_conta(dono, body.custo_conta or {}, semear=bool(body.semear))
+    await salvar_custo_conta(dono, body.custo_conta or {}, semear=bool(body.semear), base=body.base)
     return {"salvo": True}
 
 
