@@ -7889,7 +7889,15 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
       if (ins > 0) parts.push(`${ins} novo(s)`);
       if (upd > 0) parts.push(`${upd} atualizado(s)`);
       if (!parts.length) parts.push('0 novos');
-      const alertMsg = ds.alertas && ds.alertas.length ? ` · ⚠️ ${ds.alertas.length} alerta(s)` : '';
+      // s459 (auditoria de 17/11, TRAVAS A5): o card dizia só "N alerta(s)", e o texto (qual
+      // linha foi recusada e por quê) ia para a página Logs, outra tela. A aposta recusada não
+      // aparecia em lugar nenhum da Extração. Agora o 1º motivo vem escrito aqui.
+      const _alerta1 = ds.alertas && ds.alertas.length ? String(ds.alertas[0]).slice(0, 220) : '';
+      const _naoSalvas = (ds.rejeitados || []).length;
+      const alertMsg = ds.alertas && ds.alertas.length
+        ? ` · ⚠️ ${_naoSalvas ? _naoSalvas + ' linha(s) NÃO salva(s) · ' : ''}${ds.alertas.length} alerta(s): ${_alerta1}`
+          + (ds.alertas.length > 1 ? ' (todos na página Logs)' : '')
+        : '';
       // Chunk que falhou no paralelo = bilhetes daquele pedaço NÃO extraídos (perda parcial
       // silenciosa antes deste aviso). Reprocessar é seguro — a dedup por código evita duplicar.
       const failMsg = data.chunks_falhos > 0 ? ` · ⚠️ ${data.chunks_falhos} parte(s) falharam — REPROCESSE` : '';
@@ -7918,7 +7926,8 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
       if (upd > 0) fimPartes.push(`${upd} atualizada${upd === 1 ? '' : 's'}`);
       if (fid.restantes > 0) fimPartes.push(`${fid.restantes} a conferir: descrição parece de outro bilhete`);
       if (perdidos > 0 || data.chunks_falhos > 0) fimPartes.push('parte não foi lida, processe de novo');
-      if (ds.alertas && ds.alertas.length) fimPartes.push(`${ds.alertas.length} alerta${ds.alertas.length === 1 ? '' : 's'}`);
+      if (_naoSalvas) fimPartes.push(`${_naoSalvas} linha${_naoSalvas === 1 ? '' : 's'} não salva${_naoSalvas === 1 ? '' : 's'}: ${_alerta1}`);
+      else if (ds.alertas && ds.alertas.length) fimPartes.push(`${ds.alertas.length} alerta${ds.alertas.length === 1 ? '' : 's'}: ${_alerta1}`);
       if (tipo === 'warn') _avisoPorConta.set(parceiro.id, fimPartes.slice(1 + (upd > 0 ? 1 : 0)).join(' · '));
       _procFim(parceiro, fimPartes.join(' · '), tipo);
 

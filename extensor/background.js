@@ -4,6 +4,17 @@
 // contador subir só em envio real.
 importScripts("config.js", "cru.js");   // cru.js: o cru da casa para o servidor (s409)
 
+// s459 (auditoria de 17/11, EXTENSÃO A2): atualizar a extensão NÃO descarrega o inject que já
+// está rodando nas abas abertas (ele vive no mundo da página). O inject velho continua com o
+// gancho no `fetch`, e o novo nem instala o dele: medido, o conserto da Thunderpick entregou
+// 0 de 18 bilhetes na aba aberta antes da atualização, e 18 de 18 depois do F5. Guardar o
+// instante da atualização deixa o popup saber se a aba é anterior a ela (`capturar`).
+chrome.runtime.onInstalled.addListener((d) => {
+  if (d && (d.reason === "install" || d.reason === "update")) {
+    try { chrome.storage.local.set({ atualizadaEm: Date.now() }); } catch (_) {}
+  }
+});
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg && msg.type === "CAPTURAR_REGIAO") {
     capturarRegiao(msg, sender.tab)
@@ -151,17 +162,8 @@ async function enviarCaptura(blob, tab) {
     await sinalizar(tab, false, "Sessão expirou — reconecte no popup.");
     return false;
   }
-  if (r.status === 429) {
-    await sinalizar(tab, false, "Fila cheia — processe no dashboard antes de enviar mais.");
-    return false;
-  }
-  if (r.status === 409) {
-    // Amarração casa↔site: o site não corresponde à casa conectada.
-    await sinalizar(tab, false, "Casa incompatível — o site não corresponde à conexão. Gere um código para a casa certa.");
-    return false;
-  }
   if (!r.ok) {
-    await sinalizar(tab, false, "Erro ao enviar (" + r.status + ").");
+    await sinalizar(tab, false, await motivoDoServidor(r, "Erro ao enviar (" + r.status + ")."));
     return false;
   }
   await sinalizar(tab, true, "Enviado ✓");
@@ -194,13 +196,27 @@ async function enviarTexto(texto, tab) {
     await sinalizar(tab, false, "Sessão expirou — reconecte no popup.");
     return false;
   }
-  if (r.status === 409) {
-    await sinalizar(tab, false, "Casa incompatível — o site não corresponde à conexão. Gere um código para a casa certa.");
+  if (!r.ok) {
+    const motivo = await motivoDoServidor(r, "Erro ao enviar (" + r.status + ").");
+    await chrome.storage.local.set({ lastError: motivo });
+    await sinalizar(tab, false, motivo);
     return false;
   }
-  if (!r.ok) { await sinalizar(tab, false, "Erro ao enviar (" + r.status + ")."); return false; }
   await sinalizar(tab, true, "Bilhetes enviados ✓");
   return true;
+}
+
+// s459 (auditoria de 17/11, TRAVAS A2): o servidor explica cada recusa ("Conta incompatível:
+// 9 de 10 bilhetes já são da conta X…", "Fila cheia…", "Captura grande demais…"), e a extensão
+// trocava tudo por texto fixo — todo 409 virava "Casa incompatível", inclusive o de conta
+// errada, e a trava com saída virava trava sem saída. Agora a mensagem do servidor chega.
+async function motivoDoServidor(r, padrao) {
+  try {
+    const j = await r.clone().json();
+    const d = j && j.detail;
+    if (typeof d === "string" && d.trim()) return d.trim().slice(0, 400);
+  } catch (_) {}
+  return padrao;
 }
 
 // Feedback na própria página (badge + toast), já que o popup costuma estar fechado.

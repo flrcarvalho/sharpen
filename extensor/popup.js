@@ -342,6 +342,29 @@ async function desconectar() {
   render();
 }
 
+// s459 (auditoria de 17/11, EXTENSÃO A2): a aba carregou ANTES da última atualização da
+// extensão e tem o gancho de um inject (`__su*` no `fetch`/XHR)? Então o código que vai
+// responder à captura é o da versão anterior: o inject novo encontra o gancho velho e não
+// instala o dele, e o content termina no primeiro `fim` que chega, o do velho. Rodar assim
+// entrega captura errada ou vazia com cara de certa; pedir F5 é a única saída honesta.
+async function abaComInjectAnterior(tab) {
+  try {
+    const { atualizadaEm } = await chrome.storage.local.get("atualizadaEm");
+    if (!atualizadaEm) return false;
+    const [res] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id }, world: "MAIN",
+      func: (t) => {
+        const temGancho = (o) => !!o && Object.keys(o).some((k) => k.indexOf("__su") === 0);
+        const gancho = temGancho(window.fetch) || temGancho(XMLHttpRequest.prototype.open) ||
+                       temGancho(XMLHttpRequest.prototype.send);
+        return gancho && performance.timeOrigin < t;
+      },
+      args: [atualizadaEm],
+    });
+    return !!(res && res.result);
+  } catch (_) { return false; }
+}
+
 async function capturar() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -478,6 +501,11 @@ async function capturar() {
       // Espelho da 1xBet em domínio novo (s410): recarrega com o hook cedo e o background
       // dispara o robô quando a página terminar de carregar.
       if (await x1RecarregarSeAtrasado(tab, host, casa)) { window.close(); return; }
+      if (await abaComInjectAnterior(tab)) {
+        setMsg("Esta aba foi aberta antes da atualização do SharpenUp e ainda roda a versão " +
+               "anterior. Recarregue a página da casa (F5) e capture de novo.", "erro");
+        return;
+      }
       if (inj) {
         const arquivos = Array.isArray(inj) ? inj : [inj];
         const emFrames = Array.isArray(inj);

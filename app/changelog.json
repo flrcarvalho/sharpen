@@ -288,6 +288,12 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0787",
+      "v": "v0.7.87",
+      "data": "2026-11-17",
+      "texto": "Mensagens de erro da captura mais claras, e um aviso para recarregar a aba da casa (F5) quando ela ainda roda a versão anterior da extensão."
+    },
+    {
       "id": "su-0784",
       "v": "v0.7.84",
       "data": "2026-11-16",
