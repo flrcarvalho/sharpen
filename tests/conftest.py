@@ -30,6 +30,13 @@ if not os.environ.get("TEST_DATABASE_URL"):
             pass
 
         _fake_pg.UniqueViolationError = _UniqueViolationError
+        # s460: nomes que aparecem em ANOTAÇÃO de módulo (`_pool: asyncpg.Pool | None`) e em
+        # `except`. No Python 3.12 do CI a anotação é avaliada ao importar, e o dublê sem
+        # `Pool` derrubou a coleta inteira do `test_teto_pool_e_login.py` (CI vermelho desde
+        # a s459, sem rodar nenhum gate depois deste passo). No 3.14 local a anotação é
+        # preguiçosa (PEP 649) e o defeito não aparece: reproduza com Python 3.12.
+        _fake_pg.Pool = type("Pool", (), {})
+        _fake_pg.UndefinedTableError = type("UndefinedTableError", (Exception,), {})
         sys.modules["asyncpg"] = _fake_pg
 
     # Stub de database: repository importa get_pool no topo; nenhum teste de fórmula o chama.

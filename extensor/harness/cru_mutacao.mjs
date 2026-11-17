@@ -8,8 +8,10 @@
 // Exit 1 se as fotografias diferirem, se o modo quebrado não achou algum dos seus alvos
 // (quebra que não casou não testa nada), ou se o harness normal não ficou verde.
 //
-// Única diferença tolerada entre duas rodadas: o cronômetro `"ms":N` das mensagens do
-// resolvedor da Bet365, que varia entre duas rodadas do MESMO código.
+// Diferenças toleradas entre duas rodadas, as duas RELÓGIO e não texto: o cronômetro `"ms":N`
+// das mensagens do resolvedor da Bet365, e o `"desde":N` do pedido da Cloudbet (s442: é
+// "agora menos a janela de dias", em milissegundos). Sem a segunda, este gate ficou vermelho
+// em TODO commit de 10/11 a 17/11 (s460), e o CI parou antes dos passos seguintes.
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -29,7 +31,9 @@ function rodar(nome, extra) {
 }
 
 const norm = (p) => JSON.parse(fs.readFileSync(p, "utf8"))
-  .map((x) => Object.assign({}, x, { v: x.v.replace(/"ms":\d+/g, '"ms":_') }));
+  .map((x) => Object.assign({}, x, {
+    v: x.v.replace(/"ms":\d+/g, '"ms":_').replace(/"desde":\d{12,}/g, '"desde":_'),
+  }));
 
 const normal = rodar("normal", {});
 const quebrado = rodar("quebrado", { SHARPENUP_CRU_QUEBRADO: "1" });
