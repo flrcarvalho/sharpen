@@ -477,8 +477,18 @@ async function boot(force){
   el('greet').textContent=saudacao(now.getHours())+', '+(dono||'operador')+'.';
   renderNovidades(dono);
 
+  // s459 (auditoria de 17/11, NAVEGADOR A2): o feed que FALHA não pode virar "R$ 0 e
+  // sincronizado agora". Sessão expirada vai ao login; outra falha mostra a faixa de aviso e o
+  // relógio de sincronização fica parado (0), em vez de carimbar a hora de agora.
+  let feedFalhou=false;
+  const feedReq=fetch('/dashboard/data'+(force?'?refresh=1':''),{credentials:'same-origin'})
+    .then(async r=>{
+      if(r.status===401){ try{ window.top.location.href='/login'; }catch(e){} return null; }
+      if(!r.ok){ feedFalhou=true; return null; }
+      return await r.json();
+    }).catch(()=>{ feedFalhou=true; return null; });
   const [feed,abertasResp,parcResp,incompletos]=await Promise.all([
-    jget('/dashboard/data'+(force?'?refresh=1':'')),
+    feedReq,
     jget('/bilhetes?extraction_state=aberta&archived=false&limit=1000&order=desc'),
     jget('/parceiros?arquivados=true'),
     jget('/incompletos'),
@@ -487,7 +497,17 @@ async function boot(force){
   const rows=(feed&&feed.data)||[];
   // Frescura do feed: a casca lê este número do iframe ativo p/ pintar o rótulo
   // "Dados sincronizados · dd/mm · hh:mm" ao lado do ↻ (mesmo contrato do dash).
-  window._dataBuiltMs=(feed&&feed.builtAt)?Date.parse(feed.builtAt):Date.now();
+  window._dataBuiltMs=(feed&&feed.builtAt)?Date.parse(feed.builtAt):(feedFalhou?0:Date.now());
+  let faixa=document.getElementById('feedFalhou');
+  if(feedFalhou){
+    if(!faixa){
+      faixa=document.createElement('div');
+      faixa.id='feedFalhou'; faixa.setAttribute('role','alert');
+      faixa.style.cssText='margin:12px 16px;padding:10px 14px;border:1px solid var(--warn);border-radius:8px;background:var(--surface-2);color:var(--ink);font-size:13px';
+      faixa.textContent='Não consegui carregar seus dados agora. Os números desta tela NÃO estão atualizados. Use o botão de atualizar em instantes.';
+      document.body.insertBefore(faixa,document.body.firstChild);
+    }
+  }else if(faixa){ faixa.remove(); }
   const todayISO=localISO(now), mesPref=todayISO.slice(0,7), mesNome=MESES[now.getMonth()];
   let plHoje=0,nHoje=0,wHoje=0,plMes=0,turnMes=0;
   const sportHoje={}, byCasaMes={}, byTipMes={};

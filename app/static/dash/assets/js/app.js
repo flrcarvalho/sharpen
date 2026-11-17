@@ -1713,6 +1713,9 @@ async function loadData(force){
     const base=PUBLICO?('/tipsters/'+encodeURIComponent(PUBLICO.slug)+'/data'):APPS_SCRIPT_URL;
     const url=force?base+(base.includes('?')?'&':'?')+'refresh=1':base;
     const res=await fetch(url);
+    // s459 (auditoria NAVEGADOR A3): sessão expirada vai ao login, em vez de deixar o dado
+    // do cache na tela como se fosse atual.
+    if(res.status===401&&!PUBLICO){try{window.top.location.href='/login';}catch(e){}throw new Error('sessão expirada');}
     const json=await res.json();
     if(!json.ok)throw new Error(json.error||'Erro desconhecido');
     // dono efetivo: o store de custos é escopado por ele (isolamento entre usuários).
@@ -1753,7 +1756,9 @@ async function loadData(force){
       if(_lastPage)renderPage(_lastPage); // redesenha a view ativa com o dado novo
     }else{
       _setLastUpdate(window._dataBuiltMs,false); // mantém o que já está na tela
-      if(!servedFromCache)_errBanner(_fetchErr); // refresh manual falhou e não há cache em tela
+      // s459 (auditoria NAVEGADOR A3): com o cache em tela a falha também avisa. Antes ela
+      // sumia em silêncio e o número velho era lido como atual.
+      _errBanner(servedFromCache?(_fetchErr+' · os números na tela são do último sync'):_fetchErr);
     }
     return;
   }
