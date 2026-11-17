@@ -108,7 +108,7 @@ por mutação e o gate do projeto. **Status:** `[ ]` aberto · `[x]` feito (com 
   hash na linha, que exigiria levar o hash do `/extrair` ao `/salvar`). (SRV P10)
 - [x] **5.2** (`1a379cb`) D39: "já foi à IA" só vale com a leitura provada no banco; o teste que afirma o
   contrário é corrigido. (TRAV A3)
-- [ ] **5.3** Ficha: cru marcado como processado só no fim; reenvio reprocessa o que não
+- [x] **5.3** (`ad6b76a`) Ficha: cru marcado como processado só no fim; reenvio reprocessa o que não
   terminou. (ESC A9)
 - [x] **5.4** (`4db68bc`, SharpenUp 0.7.88) `cruEnviado` da extensão com escopo de sessão/dono, e marcado só com o que o
   servidor guardou. (TRAV A4)
