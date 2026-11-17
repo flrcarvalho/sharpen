@@ -554,7 +554,14 @@ _RESULTADO = re.compile(r"→\s*(HW|HL|W|L|V)\b")
 
 def _resultado(status: str) -> str:
     """O inject já escreve a conclusão (`Ganho -> W`). Copiamos; não reinterpretamos.
-    Aberta não tem seta e sai vazio — que é o código de "não liquidada"."""
+    Aberta não tem seta e sai vazio — que é o código de "não liquidada".
+
+    s460 (contrato de liquidação, 8.1): Status "a conferir" também sai vazio, MESMO com seta
+    dentro. A Cloudbet com apostas juntadas que não concordam escreve os vereditos de cada
+    uma na mensagem (`… não fecham o mesmo resultado (Perdeu → L | Ganhou → W …) (a
+    conferir …)`), e a primeira seta virava o resultado do bilhete inteiro."""
+    if "a conferir" in (status or "").lower():
+        return ""
     m = _RESULTADO.search(status or "")
     return m.group(1) if m else ""
 

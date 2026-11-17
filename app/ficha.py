@@ -173,6 +173,13 @@ def _produto(pernas: list) -> Decimal | None:
         return +prod
 
 
+def _tol(stake: Decimal) -> Decimal:
+    """"Fecha no centavo", na escala da stake. s460 (contrato de liquidação, 8.1): meio
+    centavo é a régua do real; em BTC (stake 0,00123) qualquer cashout cabia nele e virava
+    V. No máximo 1% da stake: de 0,50 de stake para cima nada muda."""
+    return min(_CENTAVO, stake * Decimal("0.01")) if stake and stake > 0 else _CENTAVO
+
+
 def _paga(resultado: str, stake: Decimal, odd: Decimal) -> Decimal:
     return stake * odd if resultado == "W" else (stake / 2) * odd + stake / 2
 
@@ -202,7 +209,7 @@ def _odd(f: dict, resultado: str, stake: Decimal, retorno: Decimal | None) -> tu
     calc = None if f.get("odd_calculada") else _produto(f.get("pernas") or [])
 
     def fecha(o):
-        return o is not None and abs(_paga(resultado, stake, o) - retorno) <= _CENTAVO
+        return o is not None and abs(_paga(resultado, stake, o) - retorno) <= _tol(stake)
 
     if fecha(casa):
         return casa, "fecha o retorno: odd da casa"
@@ -239,7 +246,7 @@ def derivar(f: dict) -> dict:
     retorno = _dec(f.get("retorno"))
     resultado = _RESULTADO[f["status"]]
     if resultado is None:                      # cashout: o dinheiro decide
-        resultado = "V" if retorno is not None and abs(retorno - stake) <= _CENTAVO else "W"
+        resultado = "V" if retorno is not None and abs(retorno - stake) <= _tol(stake) else "W"
     odd, fonte_odd = _odd(f, resultado, stake, retorno)
     data, fonte_data = _data(f, resultado)
     return {"stake": _odd_br(stake), "odd": _odd_br(odd) if odd is not None else None,

@@ -708,7 +708,15 @@ def anexar_sistema_tsv(tsv: str, texto: str | None) -> tuple[str, dict]:
 #
 # Escopo: só o caminho de TEXTO (casas de API, onde o robô monta o bloco). Extração por
 # print não tem `[Código: …]` com `Stake:` e passa intacta.
-_STAKE_TXT_RE = re.compile(r"^[ \t]*Stake:[ \t]*R?\$?[ \t]*([\d.,]+)[ \t]*\r?$", re.MULTILINE)
+#
+# s460 (contrato de liquidação, 8.1): a moeda DEPOIS do número (`Stake: 30,00 USDT`, o
+# `_dinTV` da família MyStake/Jack/GoldenBet/LocasBet em conta fora do real) é aceita. A
+# âncora de fim de linha a recusava, e o gate de stake, odd e resultado deixou de rodar
+# nessa família inteira sem erro nenhum: a medição de agosto que o autorizou é anterior
+# ao sufixo. Só sigla em maiúsculas (USD, USDT, EUR): texto livre depois do número segue
+# recusado.
+_STAKE_TXT_RE = re.compile(r"^[ \t]*Stake:[ \t]*R?\$?[ \t]*([\d.,]+)(?:[ \t]+[A-Z]{3,5})?[ \t]*\r?$",
+                           re.MULTILINE)
 # `Odd total:` (casas que dão a odd combinada) OU `Odd:` (bet365 e cia., seleção única).
 # SEM âncora de fim de linha: a Betano imprime `Odd total: 2,596 (= Retorno ÷ Stake)`, e a
 # âncora que existia aqui fazia a odd do bloco ser ignorada justamente nela.
@@ -811,6 +819,36 @@ def _retorno_do_bloco(info: dict, stake: float) -> float | None:
     return None
 
 
+# ── A linha que a IA deixou ABERTA com o resultado declarado no bloco (8.2, s460) ─────────
+# O formatador escreveu `Ganhou → W (retorno 39,00)`, o bloco prova o retorno, e a IA deixou
+# a coluna do resultado vazia: a aposta ficava aberta, e o gate de odd/resultado não abria
+# porque linha sem resultado não tem P/L para comparar. Agora o servidor grava, e só quando
+# o DINHEIRO concorda com a declaração (W declarado e HW provado também vale: o `Ganho → W`
+# da Bet365, s356).
+#
+# O que NÃO se decide aqui, por evidência (s460): o "a conferir". O plano pedia decidir pelo
+# dinheiro quando o rótulo da casa é desconhecido. Medido: (1) o estoque de produção de
+# "liquidada na casa, aberta no Sharpen" em 17/11 não tinha NENHUMA aposta presa por rótulo
+# (as 9 vieram do câmbio e do cru marcado como processado); (2) nos blocos do harness, os
+# "a conferir" são ambíguos de propósito: odd derivada impressa como se fosse da casa,
+# `won` que paga menos que a stake, a palavra "cashout" dentro da EXPLICAÇÃO do formatador
+# ("não fecha stake × odd: HW/HL, boost ou cashout"); (3) o CLAUDE.md: "inferir W/L de um
+# rótulo que não se conhece é chute". Quando nenhuma fórmula fecha, "retorno − stake" pode
+# nem ser o P/L (cashout parcial pago à parte).
+_RESULTADO_SETA_RE = re.compile(r"→\s*(HW|HL|W|L|V)\b")
+
+
+def _bloco_declarou(status: str | None, retorno: float | None) -> str:
+    """O resultado que o FORMATADOR declarou, quando o bloco também prova o retorno. "" se o
+    Status é "a conferir" (mesmo com seta dentro: a Cloudbet de apostas juntadas escreve os
+    vereditos de cada uma na mensagem), se não há seta, ou se o retorno não é provado."""
+    stt = status or ""
+    if retorno is None or "a conferir" in stt.lower():
+        return ""
+    m = _RESULTADO_SETA_RE.search(stt)
+    return m.group(1) if m else ""
+
+
 def _odd_da_stake(info: dict, resultado: str, stake: float) -> str | None:
     """Odd que a stake correta produz em W. None = não há como provar, não mexe.
 
@@ -875,11 +913,18 @@ def _veredito_do_retorno(stake: float, odd: float, retorno: float, descricao: st
     cuja odd é a MÉDIA das apostas (`MASTER_RESULTADO §7.3`) enquanto o bloco imprime a do
     cupom. Ali a do bloco volta a valer só como grafia, no ramo de cashout.
     """
+    # R$ 0,10 ou 0,5%, o que for maior. Absoluta sozinha reprova odd de muitas casas
+    # decimais (a exibida vem arredondada, o retorno não); relativa sozinha é frouxa
+    # demais em valor baixo.
+    # s460 (contrato de liquidação, 8.1): o piso de 0,10 é da escala do REAL. Em moeda de
+    # valor alto (Shuffle em BTC: stake 0,00123) ele é 80 vezes a stake, e TODO retorno
+    # "batia" com a stake: W virava V. O piso passa a ser no máximo 1% da stake, o que não
+    # muda nada a partir de 10 unidades de stake (medido em 17/11: nenhuma aposta da base
+    # tem stake abaixo de 0,32, então nada gravado muda de veredito).
+    piso = min(0.10, stake * 0.01) if stake > 0 else 0.10
+
     def bate(a: float, b: float) -> bool:
-        # R$ 0,10 ou 0,5%, o que for maior. Absoluta sozinha reprova odd de muitas casas
-        # decimais (a exibida vem arredondada, o retorno não); relativa sozinha é frouxa
-        # demais em valor baixo.
-        return abs(a - b) <= max(0.10, abs(b) * 0.005)
+        return abs(a - b) <= max(piso, abs(b) * 0.005)
 
     def _codigo_para(o: float) -> str | None:
         """Qual código o retorno produz COM ESTA ODD. None = nenhuma fórmula fecha."""
@@ -1009,6 +1054,28 @@ def corrigir_stake_tsv(tsv: str, texto: str | None) -> tuple[str, dict]:
             # passavam. Aqui a ambiguidade tem juiz: uma das odds foi impressa pela casa e a
             # outra a IA derivou. Exige as DUAS coisas (rótulo muda E odd muda) para não
             # reabrir o caso do HL, onde o rótulo é o mesmo e não há fonte que desempate.
+            #
+            # Linha ABERTA (8.2, s460): sem resultado não há P/L para comparar, e a porta acima
+            # nunca abria. Ela se fecha aqui só quando o FORMATADOR declarou o resultado e o
+            # dinheiro concorda com ele: ver `_bloco_declarou`.
+            declarado = "" if res_ia else _bloco_declarou(info.get("status"), retorno)
+            if declarado and (res_novo == declarado or (declarado, res_novo) == ("W", "HW")):
+                odd_fim = odd_nova or parts[8].strip()
+                n_fim = _num_or_none(odd_fim)
+                pl_fim = calcular_pl(parts[7], odd_fim, res_novo) if n_fim else None
+                # Toda decisão aqui fecha o DINHEIRO no centavo: P/L = retorno − stake.
+                if n_fim and n_fim > 0 and pl_fim is not None and \
+                        abs(pl_fim - (retorno - stake_final)) < 0.01:
+                    if len(exemplos_fin) < 5:
+                        exemplos_fin.append({"codigo": codigo, "res_ia": "",
+                                             "res_bloco": res_novo, "odd_ia": parts[8].strip(),
+                                             "odd_bloco": odd_fim,
+                                             "retorno": info.get("retorno"),
+                                             "motivo": "aberta com o resultado declarado no bloco"})
+                    parts[9] = res_novo
+                    parts[8] = odd_fim
+                    mexeu = True
+                    n_fin += 1
             pl_ia = calcular_pl(parts[7], parts[8], res_ia)
             pl_novo = calcular_pl(parts[7], odd_nova or parts[8], res_novo)
             n_nova = _num_or_none(odd_nova) if odd_nova else None

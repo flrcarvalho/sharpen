@@ -74,8 +74,17 @@ jobs:
       # na base de um dono, em silêncio. Os dois já reprovam de verdade (`process.exit(1)`
       # no `run.mjs`, `return 1` no `audit_sharpenup`), então basta chamá-los — conferido
       # antes de ligar, porque gate que nunca reprova é enfeite.
+      # A fotografia (`SHARPENUP_FOTO`) grava a saída de todo formatador, de graça, na mesma
+      # rodada. O passo seguinte confere que o snapshot do CONTRATO DE LIQUIDAÇÃO (s460, plano
+      # 8.1) está em dia com ela: formatador ou fixture que mudou sem regravar o snapshot
+      # reprova aqui, e o pytest acima teria rodado o contrato contra blocos velhos.
       - name: Regressão da captura (harness do extensor)
+        env:
+          SHARPENUP_FOTO: ${{ runner.temp }}/foto_harness.json
         run: node extensor/harness/run.mjs
+
+      - name: Contrato de liquidação — snapshot em dia com o harness (s460)
+        run: python tools/contrato_liquidacao.py conferir "${{ runner.temp }}/foto_harness.json"
 
       - name: Cru quebrado não muda o texto (s409)
         run: node extensor/harness/cru_mutacao.mjs
