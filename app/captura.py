@@ -677,16 +677,34 @@ async def registrar_versao_dur(sess: Sessao, versao: str) -> None:
         await _gravar_sessao(sess)
 
 
+class SessaoEncerrada(Exception):
+    """A sessão saiu do banco entre o token ser validado e a captura chegar (2.6, s460)."""
+
+
 async def adicionar_captura_dur(sess: Sessao, tipo: str, media_type: str, data: str) -> bool:
     """Enfileira no banco. False se a fila (não confirmada) está cheia. Sem banco, a fila
-    em memória de antes."""
+    em memória de antes. Levanta `SessaoEncerrada` se o dashboard encerrou a sessão.
+
+    2.6 (s460, medido em produção às 17:55:41 UTC de 17/11): o dashboard do arrudex encerrou a
+    sessão no MESMO instante em que a extensão enviou para ela. O INSERT bateu na FK, o
+    `except` abaixo tratou como "banco fora" e guardou a captura na memória de uma sessão que
+    ninguém mais lê, respondendo 200: a extensão mostrou "enviado" e a captura sumiu. Sessão
+    que não existe mais não é falha do banco: é recusa, e o texto fica guardado na extensão."""
     try:
         pool = await _pool()
         async with pool.acquire() as c:
             async with c.transaction():
                 # Serializa por sessão: dois envios simultâneos não estouram o teto juntos.
-                await c.execute("SELECT 1 FROM captura_sessao WHERE sessao_id=$1 FOR UPDATE",
-                                sess.sessao_id)
+                viva = await c.fetchval(
+                    "SELECT 1 FROM captura_sessao WHERE sessao_id=$1 FOR UPDATE", sess.sessao_id)
+                if viva is None:
+                    with _LOCK:
+                        so_memoria = sess.sessao_id in _SESSOES
+                    if not so_memoria:
+                        raise SessaoEncerrada(sess.sessao_id)
+                    # Sessão criada com o banco fora: nunca teve linha. Fila em memória,
+                    # como antes (o `_gravar_sessao` periódico a leva ao banco depois).
+                    return adicionar_captura(sess, tipo, media_type, data)
                 n = await c.fetchval("SELECT count(*) FROM captura_fila WHERE sessao_id=$1",
                                      sess.sessao_id)
                 if n >= MAX_CAPTURAS:
@@ -698,6 +716,8 @@ async def adicionar_captura_dur(sess: Sessao, tipo: str, media_type: str, data: 
         with _LOCK:
             sess.atividade = _agora()
         return True
+    except SessaoEncerrada:
+        raise
     except Exception:
         _falhou("enfileirar captura")
         return adicionar_captura(sess, tipo, media_type, data)

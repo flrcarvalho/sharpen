@@ -4544,3 +4544,67 @@ def test_s460_colisao_no_lote_nao_aborta_o_resto():
         return await _count("TDono460")
     # COL1 colide no id 1 (cai no `except`, que não acha linha para atualizar); COL2 entra
     assert _run(body()) == 2
+
+
+# ── 2.6 e 7.6 (s460) ─────────────────────────────────────────────────────────────────────
+# Mutações provadas (aplicadas, teste vermelho, revertidas):
+#   1. `adicionar_captura_dur` sem a checagem da sessão viva → test_s460_captura_para_sessao…
+#   2. recusa também a sessão só em memória                  → test_s460_sessao_so_em_memoria…
+#   3. horizonte sem a folga / sem o teto                     → test_s460_horizonte_da_conta
+
+def test_s460_captura_para_sessao_encerrada_e_recusada():
+    """2.6, medido em produção (17/11 17:55:41 UTC): o dashboard encerrou a sessão no mesmo
+    instante em que a extensão enviou para ela; o INSERT bateu na FK, o servidor guardou a
+    captura na memória de uma sessão morta e respondeu 200. A captura sumiu com "enviado"."""
+    import captura
+
+    async def body():
+        await init_db()
+        captura._SESSOES.clear()
+        s = await captura.criar_sessao_dur("TDono460", "Superbet", "SUPERBET", "conta [X]")
+        ext = await captura.conectar_dur(s.codigo)
+        await captura.encerrar_dur(s.sessao_id)          # o dashboard encerra…
+        with pytest.raises(captura.SessaoEncerrada):     # …e a extensão envia em seguida
+            await captura.adicionar_captura_dur(ext, "texto", "", "bilhete perdido")
+        assert not captura.drenar_capturas(ext), "a captura foi para a memória de novo"
+    _run(body())
+
+
+def test_s460_sessao_so_em_memoria_segue_aceitando():
+    """Sessão criada com o banco fora nunca teve linha: não é encerrada, segue na memória."""
+    import captura
+
+    async def body():
+        await init_db()
+        captura._SESSOES.clear()
+        s = await captura.criar_sessao_dur("TDono460", "Superbet", "SUPERBET", "conta [Y]")
+        ext = await captura.conectar_dur(s.codigo)
+        pool = await get_pool()
+        await pool.execute("DELETE FROM captura_sessao WHERE sessao_id = $1", s.sessao_id)
+        assert await captura.adicionar_captura_dur(ext, "texto", "", "bilhete em memória")
+        assert [c.data for c in captura.drenar_capturas(ext)] == ["bilhete em memória"]
+    _run(body())
+
+
+def test_s460_horizonte_da_conta():
+    """7.6: a janela da captura alcança a última leitura gravada DESTA conta, com folga."""
+    from datetime import datetime, timedelta, timezone
+    agora = datetime(2026, 11, 17, 12, 0, tzinfo=timezone.utc)
+    assert repository._dias_do_horizonte(None, agora) is None
+    assert repository._dias_do_horizonte(agora - timedelta(days=92, hours=3), agora) == 93 + 2
+    assert repository._dias_do_horizonte(agora - timedelta(hours=1), agora) == 1 + 2
+    assert repository._dias_do_horizonte(agora - timedelta(days=900), agora) == 365
+
+    async def body():
+        await _reset()
+        assert await repository.horizonte_da_conta("TDono460", "Betano", "Feca [Eu]") is None
+        await repository.upsert_bilhetes([_row(codigo_bilhete="HZ1")], "TDono460")
+        pool = await get_pool()
+        await pool.execute("UPDATE bilhetes SET lido_em = NOW() - interval '40 days', "
+                           "criado_em = NOW() - interval '50 days' WHERE codigo_bilhete = 'HZ1'")
+        dias = await repository.horizonte_da_conta("TDono460", "Betano", "Feca [Eu]")
+        outra = await repository.horizonte_da_conta("TDono460", "Betano", "Outra [Eu]")
+        return dias, outra
+    dias, outra = _run(body())
+    # 40 dias e alguns milissegundos arredondam PARA CIMA (41), mais a folga de 2
+    assert dias == 43 and outra is None, (dias, outra)

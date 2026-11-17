@@ -3,6 +3,7 @@ import hashlib
 import json
 import logging
 import re
+import math
 import secrets
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
@@ -5461,6 +5462,39 @@ async def list_parceiros(dono: str, casa: str | None = None, incluir_arquivados:
     # `renovacoes` é JSONB e volta como str (sem codec), igual ao `custo_store`.
     return [dict(r, custo=(float(r["custo"]) if r["custo"] is not None else None),
                  renovacoes=_renovacoes_de(r["renovacoes"])) for r in rows]
+
+
+# 7.6 (s460): a janela da captura, decidida pelo servidor. Folga de 2 dias para cobrir o fuso e
+# a aposta liquidada na virada do dia; teto de um ano (a captura de quem volta depois de mais
+# que isso precisa de decisão humana sobre o histórico, `_CORTE_HISTORICO`).
+HORIZONTE_FOLGA_DIAS = 2
+HORIZONTE_TETO_DIAS = 365
+
+
+def _dias_do_horizonte(ultima: datetime | None, agora: datetime) -> int | None:
+    """Dias de janela para alcançar a última leitura gravada, com folga. None = sem leitura."""
+    if ultima is None:
+        return None
+    if ultima.tzinfo is None:
+        ultima = ultima.replace(tzinfo=timezone.utc)
+    dias = math.ceil(max(0.0, (agora - ultima).total_seconds()) / 86400) + HORIZONTE_FOLGA_DIAS
+    return min(dias, HORIZONTE_TETO_DIAS)
+
+
+async def horizonte_da_conta(dono: str, casa: str, parceiro: str) -> int | None:
+    """Quantos dias a captura desta conta precisa varrer para não deixar buraco desde a última
+    leitura que o servidor GRAVOU (`lido_em`; linha antiga, `criado_em`). A extensão usa o maior
+    entre isto e a janela do usuário. A casa é comparada pela chave, como em `conta_arquivada`."""
+    if not dono or not casa or not (parceiro or "").strip():
+        return None
+    import casa_chave as _cc
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        ultima = await conn.fetchval(
+            f"SELECT max(COALESCE(lido_em, criado_em)) FROM bilhetes WHERE dono = $1 "
+            f"AND {_cc.sql('casa')} = $2 AND parceiro = $3",
+            dono, _cc.chave(casa), parceiro.strip())
+    return _dias_do_horizonte(ultima, datetime.now(timezone.utc))
 
 
 async def conta_arquivada(dono: str, casa: str, parceiro: str) -> dict | None:

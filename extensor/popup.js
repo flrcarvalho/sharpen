@@ -528,22 +528,62 @@ async function capturar() {
 // que aqui é só backstop). Só limpa o banco quando o servidor confirma {ok}; falhou de novo →
 // mantém guardado. Se a sessão morreu de novo (401), o background limpa o token → reconectar.
 async function reenviar() {
-  const st = await chrome.storage.local.get(["token", "envioPendente"]);
-  const pend = st.envioPendente;
-  if (!pend || !pend.texto) { $("pendente").hidden = true; return; }
+  const st = await chrome.storage.local.get(["token", "casa", "parceiro"]);
+  const { minhas } = await _pendFila(st);
+  if (!minhas.length) { $("pendente").hidden = true; return; }
   if (!st.token) { setMsg("Reconecte primeiro (cole um novo código) e reenvie.", "erro"); return; }
   setMsg("Reenviando…", "info");
   $("btn-reenviar").disabled = true;
-  let resp = null;
-  try { resp = await chrome.runtime.sendMessage({ type: "ENVIAR_TEXTO", texto: pend.texto }); } catch (e) {}
-  $("btn-reenviar").disabled = false;
-  if (resp && resp.ok) {
-    await chrome.storage.local.remove("envioPendente");
-    $("pendente").hidden = true;
-    setMsg((pend.n || "") + " bilhete(s) reenviados ✓ — abra o dashboard para processar.", "ok");
-  } else {
-    setMsg("Reenvio falhou — os bilhetes seguem guardados. Confira a conexão e tente de novo.", "erro");
+  let enviados = 0, falhou = false;
+  for (const pend of minhas) {
+    let resp = null;
+    try { resp = await chrome.runtime.sendMessage({ type: "ENVIAR_TEXTO", texto: pend.texto, parcial: pend.parcial || "" }); } catch (e) {}
+    if (!(resp && resp.ok)) { falhou = true; break; }
+    await _pendTirar(pend.id);
+    enviados += pend.n || 0;
   }
+  $("btn-reenviar").disabled = false;
+  if (!falhou) {
+    $("pendente").hidden = true;
+    setMsg(enviados + " bilhete(s) reenviados ✓ — abra o dashboard para processar.", "ok");
+  } else {
+    setMsg((enviados ? enviados + " reenviados; " : "") +
+           "o resto segue guardado. Confira a conexão e tente de novo.", "erro");
+  }
+}
+
+// ── Fila de envios pendentes (7.2, s460) ──────────────────────────────────────────────────
+// `enviosPendentes` (lista que o content grava a cada rodada; o slot único `envioPendente` da
+// 0.7.88 e anteriores entra nela). Validade de 30 dias, com aviso: nada some calado. O destino
+// vale: o Reenviar só manda para a MESMA casa e conta da rodada (o slot antigo não guardava a
+// conta; nele vale a casa).
+const PEND_VALIDADE = 30 * 24 * 3600 * 1000;
+async function _pendFila(st) {
+  const raw = await chrome.storage.local.get(["enviosPendentes", "envioPendente", "pendDescartados"]);
+  let fila = Array.isArray(raw.enviosPendentes) ? raw.enviosPendentes.slice() : [];
+  if (raw.envioPendente && raw.envioPendente.texto) {
+    fila.push(Object.assign({ id: "legado", parceiro: "", dono: "" }, raw.envioPendente));
+  }
+  const agora = Date.now();
+  const vencidas = fila.filter((p) => p.ts && agora - p.ts > PEND_VALIDADE);
+  fila = fila.filter((p) => !(p.ts && agora - p.ts > PEND_VALIDADE));
+  const descartadas = (raw.pendDescartados || 0) + vencidas.length;
+  try {
+    await chrome.storage.local.set({ enviosPendentes: fila });
+    await chrome.storage.local.remove(["envioPendente", "pendDescartados"]);
+  } catch (e) {}
+  const minha = (p) => p.casa === (st.casa || "") && (!p.parceiro || p.parceiro === (st.parceiro || ""));
+  return { minhas: fila.filter(minha), outras: fila.filter((p) => !minha(p)), descartadas };
+}
+async function _pendTirar(id) {
+  try {
+    const raw = await chrome.storage.local.get("enviosPendentes");
+    await chrome.storage.local.set({ enviosPendentes: (raw.enviosPendentes || []).filter((p) => p.id !== id) });
+  } catch (e) {}
+}
+function _pendIdade(ts) {
+  const h = Math.floor((Date.now() - (ts || Date.now())) / 3600000);
+  return h < 1 ? "agora há pouco" : h < 48 ? "há " + h + " h" : "há " + Math.floor(h / 24) + " dias";
 }
 
 // Re-renderiza quando o estado de conexão muda no storage (ex.: o background
@@ -563,7 +603,13 @@ async function validarToken(token) {
       body: JSON.stringify({ token, versao: VERSAO }),
     });
     if (r.ok) {
-      try { const d = await r.json(); _versaoInfo = { desatualizada: !!d.desatualizada, versao_atual: d.versao_atual || "" }; } catch (_) {}
+      try {
+        const d = await r.json();
+        _versaoInfo = { desatualizada: !!d.desatualizada, versao_atual: d.versao_atual || "" };
+        // 7.6 (s460): o robô usa o MAIOR entre a janela do usuário e este número (ver content.js).
+        await chrome.storage.local.set({ horizonteServidor: {
+          casa: d.casa || "", parceiro: d.parceiro || "", dias: Number(d.horizonte_dias) || 0, ts: Date.now() } });
+      } catch (_) {}
       return "ok";
     }
     if (r.status === 401) return "expired";
@@ -667,21 +713,22 @@ async function resolverAbertas() {
 
 async function render() {
   renderAvisoVersao();
-  const st = await chrome.storage.local.get(["token", "casa", "parceiro", "modo", "lastError", "envioPendente"]);
-  // Envio bancado que ficou de uma queda no envio único. Poda > 24h (o backend dedupa por
-  // código, mas um aviso perpétuo de dado velho confunde) — some silenciosamente.
-  let pend = (st.envioPendente && st.envioPendente.texto) ? st.envioPendente : null;
-  if (pend && pend.ts && (Date.now() - pend.ts) > 24 * 3600 * 1000) {
-    try { await chrome.storage.local.remove("envioPendente"); } catch (e) {}
-    pend = null;
-  }
+  const st = await chrome.storage.local.get(["token", "casa", "parceiro", "modo", "lastError"]);
+  // Envios guardados de quedas no envio (7.2, s460): fila, validade de 30 dias com aviso.
+  const filaPend = await _pendFila(st);
+  const todas = filaPend.minhas.concat(filaPend.outras);
+  const pend = todas.length ? { n: todas.reduce((s, p) => s + (p.n || 0), 0) } : null;
+  const avisoDescartadas = filaPend.descartadas
+    ? filaPend.descartadas + " envio(s) guardado(s) foram descartados (mais de 30 dias, ou mais de 10 na fila). "
+    : "";
   if (!st.token) {
     telaConectar.hidden = false;
     telaConectado.hidden = true;
     setStatusPill(false);
     // Pendência guardada tem prioridade sobre o lastError: reassegura o usuário na hora ("nada
     // foi perdido") e diz o próximo passo (reconectar → o banner de Reenviar aparece).
-    if (pend) setMsg(pend.n + " bilhete(s) do último envio ficaram guardados. Reconecte para reenviar — nada foi perdido.", "info");
+    if (pend) setMsg(avisoDescartadas + pend.n + " bilhete(s) de envios que caíram ficaram guardados. Reconecte na MESMA conta para reenviar — nada foi perdido.", "info");
+    else if (avisoDescartadas) setMsg(avisoDescartadas, "erro");
     else if (st.lastError) setMsg(st.lastError, "erro");
     return;
   }
@@ -741,11 +788,21 @@ async function render() {
   // Banner de reenvio: aparece quando há texto bancado de um envio que caiu. O botão só
   // funciona de fato com sessão viva; se estiver "offline", reenviar falha e mantém guardado.
   const pendEl = $("pendente");
-  if (pend) {
-    $("pend-txt").textContent = pend.n + " bilhete(s) guardados do último envio (a conexão caiu). Reenvie sem raspar de novo:";
+  const minhas = filaPend.minhas;
+  const nMinhas = minhas.reduce((s, p) => s + (p.n || 0), 0);
+  if (minhas.length) {
+    $("pend-txt").textContent = nMinhas + " bilhete(s) guardados desta conta (" + minhas.length +
+      " envio(s), o mais antigo " + _pendIdade(minhas[0].ts) + "; a conexão caiu). Reenvie sem raspar de novo:";
     pendEl.hidden = false;
   } else {
     pendEl.hidden = true;
+  }
+  // Pendência de OUTRA casa ou conta: não reenvia para cá; diz qual conectar.
+  const outras = filaPend.outras;
+  if (outras.length || avisoDescartadas) {
+    const quais = Array.from(new Set(outras.map((p) => (p.casa || "?") + (p.parceiro ? " / " + p.parceiro : ""))));
+    setMsg(avisoDescartadas + (outras.length ? outras.reduce((s, p) => s + (p.n || 0), 0) +
+           " bilhete(s) guardados de " + quais.join(", ") + ": conecte essa conta para reenviar." : ""), "info");
   }
 }
 

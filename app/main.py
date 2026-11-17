@@ -66,7 +66,7 @@ import cambio as _cambio
 from prompts import build_system
 import contrato_texto as _contrato
 from repository import (
-    absorver_consolidadas, conta_arquivada,
+    absorver_consolidadas, conta_arquivada, horizonte_da_conta,
     registrar_extracao, fechar_extracao, listar_extracoes, painel_conta,
     alinhar_tsv, categorias_do_dono, codigos_odd_vazia, odd_vazia_ganha,
     analisar_extracao,
@@ -4381,8 +4381,18 @@ async def captura_validar(req: ValidarRequest):
         raise HTTPException(401, "Sessão de captura expirada.")
     await _captura.registrar_versao_dur(sess, req.versao)
     _cobrar_versao_minima(sess.casa_key, req.versao, sess.casa)
+    # 7.6 (s460, auditoria EXT A6): a janela da captura era 30 dias fixos no cliente, sem
+    # relação com a última leitura daquela conta. Quem volta depois de 3 meses capturava 30 e
+    # perdia os 60 do meio. O servidor sabe quando leu esta conta pela última vez; a extensão
+    # usa o MAIOR entre a janela do usuário e este número. None = conta sem nada gravado.
+    try:
+        horizonte = await horizonte_da_conta(sess.dono, sess.casa, sess.parceiro)
+    except Exception:  # noqa: BLE001 — sem o número, vale a janela do usuário, como antes
+        logger.warning("horizonte da conta indisponível: %s %s/%s", sess.dono, sess.casa,
+                       sess.parceiro, exc_info=True)
+        horizonte = None
     return {"ok": True, "casa": sess.casa, "parceiro": sess.parceiro,
-            "modo": sess.modo, "dono": sess.dono,
+            "modo": sess.modo, "dono": sess.dono, "horizonte_dias": horizonte,
             "versao_atual": _versao_extensao(), "desatualizada": versao_desatualizada(req.versao)}
 
 
@@ -4462,6 +4472,7 @@ async def captura_enviar(
     imagem: Optional[UploadFile] = File(default=None),
     origem: Optional[str] = Form(None),
     versao: str = Form(""),
+    parcial: str = Form(""),
 ):
     """Extensão envia uma captura (print ou texto). Autentica pelo token de sessão.
     Isenta do guarda CSRF."""
@@ -4489,22 +4500,35 @@ async def captura_enviar(
                 f"{sess.casa}. Gere um código de pareamento para a casa certa.",
             )
 
-    if tipo == "texto":
-        if not (texto and texto.strip()):
-            raise HTTPException(400, "Texto vazio.")
-        await _checar_conta_errada(sess, texto)
-        ok = await _captura.adicionar_captura_dur(sess, "texto", "", texto)
-    else:
-        if imagem is None:
-            raise HTTPException(400, "Imagem ausente.")
-        ctype = (imagem.content_type or "").lower()
-        if ctype not in _ALLOWED_IMG_TYPES:
-            raise HTTPException(400, f"Tipo de imagem não suportado: {ctype or 'desconhecido'}.")
-        raw = await imagem.read()
-        if len(raw) > _MAX_IMG_BYTES:
-            raise HTTPException(413, "Imagem excede o limite de 12 MB.")
-        ok = await _captura.adicionar_captura_dur(
-            sess, "imagem", ctype, base64.standard_b64encode(raw).decode())
+    # 6.5 (s460): a extensão declara a rodada PARCIAL (erro do inject com bilhetes já colhidos).
+    # Fica no log da captura: o texto não muda, e o servidor sabe que faltou parte.
+    if parcial:
+        logger.warning("captura PARCIAL: %s %s/%s · %s", sess.dono, sess.casa, sess.parceiro,
+                       parcial[:300])
+    try:
+        if tipo == "texto":
+            if not (texto and texto.strip()):
+                raise HTTPException(400, "Texto vazio.")
+            await _checar_conta_errada(sess, texto)
+            ok = await _captura.adicionar_captura_dur(sess, "texto", "", texto)
+        else:
+            if imagem is None:
+                raise HTTPException(400, "Imagem ausente.")
+            ctype = (imagem.content_type or "").lower()
+            if ctype not in _ALLOWED_IMG_TYPES:
+                raise HTTPException(400, f"Tipo de imagem não suportado: {ctype or 'desconhecido'}.")
+            raw = await imagem.read()
+            if len(raw) > _MAX_IMG_BYTES:
+                raise HTTPException(413, "Imagem excede o limite de 12 MB.")
+            ok = await _captura.adicionar_captura_dur(
+                sess, "imagem", ctype, base64.standard_b64encode(raw).decode())
+    except _captura.SessaoEncerrada:
+        # 2.6 (s460): 401, o mesmo de token expirado, porque é o que a extensão já trata:
+        # guarda o texto, limpa o token e pede para reconectar e reenviar.
+        logger.warning("captura para sessão encerrada no dashboard: %s %s/%s · recusada",
+                       sess.dono, sess.casa, sess.parceiro)
+        raise HTTPException(401, "A conexão foi encerrada no dashboard enquanto a captura "
+                                 "chegava. Nada foi perdido: reconecte e clique em Reenviar.")
 
     if not ok:
         raise HTTPException(429, "Fila de capturas cheia — processe no dashboard antes de enviar mais.")

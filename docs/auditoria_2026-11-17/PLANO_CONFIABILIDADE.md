@@ -81,9 +81,10 @@ por mutação e o gate do projeto. **Status:** `[ ]` aberto · `[x]` feito (com 
   (a captura só sai da fila depois do ack do dashboard); o deploy deixa de derrubar o
   pareamento. (SRV P3, EXT A1, ESC A6, TRAV A6)
 - [x] **2.5** (`a04747b`) Tarefas de fundo com referência guardada e log de morte. (SRV P12)
-- [ ] **2.6** (s460, medido) `enviar` para sessão encerrada no mesmo instante bate na FK de
+- [x] **2.6** (s460, pacote SharpenUp 0.7.89) `enviar` para sessão encerrada no mesmo instante bate na FK de
   `captura_fila` e responde 200 "em memória": a captura some com "enviado ✓". Responder
-  como sessão inexistente. (MEDICAO §3)
+  como sessão inexistente. (MEDICAO §3) — 401 com "reconecte e clique em Reenviar"; sessão
+  só em memória (criada com o banco fora) segue aceita.
 
 ### Fase 3 — Identidade de versão
 
@@ -133,7 +134,10 @@ por mutação e o gate do projeto. **Status:** `[ ]` aberto · `[x]` feito (com 
 - [x] **6.3** (`718e8cf`, parcial: Início e Dashboard; o wrapper único de fetch para as outras telas segue aberto) Um wrapper de fetch: 401 vai ao login, falha mostra "sem conexão, dados de HH:MM",
   só sucesso mexe no carimbo de sincronização. (NAV A2, A3, B3)
 - [x] **6.4** (`74def2e`, parcial: a recusa explica e dá a saída; mover histórico entre contas pela tela segue aberto) Conta errada × conta arquivada deixa de ser beco sem saída. (TRAV A1)
-- [ ] **6.5** Captura parcial declarada (completo/parcial:motivo) e mostrada. (EXT A5)
+- [x] **6.5** (s460, 0.7.89, **parcial**) Captura parcial declarada (completo/parcial:motivo) e mostrada. (EXT A5) —
+  rodada com bilhetes E erro do inject fica PARCIAL com o motivo: toast, `lastError` no popup e
+  `captura PARCIAL` no log do servidor. Falta: o corte por "30 s parado" e o teto de páginas
+  (Altenar, 600) ainda não sobem do inject; o dashboard não mostra o estado.
 - [ ] **6.6** (s460, medido: arrudex 21 capturas × 3 `/extrair`) A parte que a Ficha deixa
   para a IA espera um "Processar" que não vem, e a grade já mudou. **Decisão do Feca:**
   destacar o número na Extração ou disparar o `/extrair` sozinho. (MEDICAO §5, §6-D)
@@ -142,7 +146,10 @@ por mutação e o gate do projeto. **Status:** `[ ]` aberto · `[x]` feito (com 
 
 - [x] **7.1** (`9c72bf6`, lado servidor: campo até 16 MB; fatiar na extensão continua aberto) Envio da extensão fatiado e limite de parte explícito no servidor com 413
   acionável. (EXT A4)
-- [ ] **7.2** `envioPendente` vira fila com destino conferido no Reenviar; sem poda muda. (EXT A7)
+- [x] **7.2** (s460, 0.7.89) `envioPendente` vira fila com destino conferido no Reenviar; sem poda muda. (EXT A7) —
+  `enviosPendentes` com casa/conta/dono, teto 10 e validade 30 dias, descarte CONTADO e
+  avisado; o Reenviar só manda para a mesma casa e conta; o aviso "nada foi perdido" só
+  quando a gravação de fato aconteceu.
 - [x] **7.3** (`ec23947`, parcial: transformação + JSON/gzip em thread; falta decode do asyncpg, cache por dono e feed incremental) Feed do dashboard montado fora do event loop, com cache por dono invalidado pelo
   `base_mudou`. (ESC A1)
 - [x] **7.4** (s460, resolvida pela 4.1, **medida**) Trigger `base_mudou` por comando, não por linha. (ESC A2) — o
@@ -151,7 +158,9 @@ por mutação e o gate do projeto. **Status:** `[ ]` aberto · `[x]` feito (com 
   (`test_s460_um_aviso_base_mudou_por_lote`). Trocar o trigger por três de comando (tabelas
   de transição) não acrescenta nada medido; não feito.
 - [x] **7.5** (`3d96fae`, parcial: teto global 16; falta cota por dono) Limitador global e por dono de chamadas à IA. (ESC A4)
-- [ ] **7.6** Horizonte da captura decidido pelo servidor por conta. (EXT A6)
+- [x] **7.6** (s460, 0.7.89) Horizonte da captura decidido pelo servidor por conta. (EXT A6) — `/captura/validar`
+  devolve `horizonte_dias` (desde a última leitura gravada da conta, +2, teto 365); o robô usa
+  o maior entre ele e a janela do usuário. Só para quem atualizar a extensão.
 
 ### Fase 8 — Liquidação com contrato único (R3)
 

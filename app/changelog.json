@@ -288,6 +288,12 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0789",
+      "v": "v0.7.89",
+      "data": "2026-11-17",
+      "texto": "Correções na captura: envio que cai fica guardado por conta (o Reenviar só manda para a conta certa), a captura alcança o tempo desde a última leitura, e captura incompleta passa a ser avisada."
+    },
+    {
       "id": "su-0788",
       "v": "v0.7.88",
       "data": "2026-11-17",

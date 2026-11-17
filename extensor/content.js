@@ -1360,8 +1360,16 @@
     // Parada do robô: janela de N dias (look-back) OU até o ID do último bilhete
     // já extraído (copiar dele pra cima). Defensivo: sem data reconhecida, a janela
     // não corta → rola até o fim. Custo: o backend dedupa por ID antes da IA.
-    const cfg = await chrome.storage.local.get(["lookbackDias", "casa", "stopId", "bfQtd", "bfDias", "bfFull"]);
-    const N = Math.max(1, Number(cfg.lookbackDias) || 30);
+    const cfg = await chrome.storage.local.get(["lookbackDias", "casa", "stopId", "bfQtd", "bfDias", "bfFull",
+                                                "parceiro", "dono", "horizonteServidor"]);
+    // 7.6 (s460): a janela é a MAIOR entre a do usuário e a que o servidor calcula para esta
+    // conta (dias desde a última leitura gravada, `horizonte_dias` do /captura/validar). Quem
+    // volta depois de 3 meses capturava 30 dias e perdia os do meio. Só vale o número da MESMA
+    // casa e conta pareadas, e lido há menos de 12 h (o popup o grava ao validar a sessão).
+    const hz = cfg.horizonteServidor;
+    const hzDias = (hz && hz.casa === cfg.casa && hz.parceiro === cfg.parceiro &&
+                    Date.now() - (hz.ts || 0) < 12 * 3600000) ? Number(hz.dias) || 0 : 0;
+    const N = Math.max(1, Number(cfg.lookbackDias) || 30, hzDias);
     const cutoff = Date.now() - N * 86400000;
     const pisoSanidade = cutoff - 730 * 86400000;
     // ⚠ `cfg.casa` é o NOME DE EXIBIÇÃO que o backend devolveu no pareamento ("Jogo de Ouro"),
@@ -1764,7 +1772,7 @@
 
     painel.remove();
     roboRodando = false;
-    if (!blocos.length) {
+    const _diagRodada = () => {
       // Autodiagnóstico diferencial das casas-robô passivas (antes só a Betfair tinha; achado
       // #13). Distingue "hook NÃO carregou" (inject não injetou) de "endpoint mudou" (hook vivo,
       // 0 respostas) de "formato mudou / conta vazia" (respostas>0, 0 vistos). Antes tudo isso
@@ -1780,7 +1788,7 @@
         if (rgRespostas === 0) return " · recarregue a página (Ctrl+Shift+R); se persistir, refaça o login";
         return "";
       };
-      const diag = {
+      return {
         betfair:    { nome: "Betfair",    hook: bfHookVivo, resp: bfRespostas, vistos: bfTickets.length + bfAbertas.length },
         superbet:   { nome: "Superbet",   hook: sbHookVivo, resp: sbRespostas, vistos: sbById.size },
         betesporte: { nome: "BETesporte", hook: beHookVivo, resp: beRespostas, vistos: beTickets.length },
@@ -2030,6 +2038,9 @@
                       extra: " · frames: " + b3PorFrame.size + " · outras URLs de histórico: " + b3Soma("history") +
                              (b3Retidos ? " · RETIDOS por falta de confirmação: " + b3Retidos : "") },
       }[casa];
+    };
+    const diag = _diagRodada();
+    if (!blocos.length) {
       if (diag) {
         const msg = diag.nome + ": 0 bilhetes. Hook: " + (diag.hook ? "ATIVO" : "NÃO carregou") +
                     " · respostas da API: " + diag.resp + " · bilhetes vistos: " + diag.vistos +
@@ -2046,7 +2057,21 @@
       }
       return;
     }
-    try { chrome.storage.local.remove("lastError"); } catch (e) {}   // rodada OK → limpa diagnóstico antigo
+    // 6.5 (s460, auditoria EXT A5): rodada que trouxe bilhetes E teve erro do inject no meio
+    // (paginação que caiu, HTTP de erro) era tratada como completa: o erro ia ao console e esta
+    // linha apagava o diagnóstico. Agora ela é PARCIAL, com o motivo, na página, no popup e no
+    // log do servidor. Dica de login/recarga não é erro de rodada (só existe com 0 bilhetes), e a
+    // Bet365 tem aviso próprio (retidos). NÃO cobre: o corte por "30 s parado" e o teto de
+    // páginas, que ainda não sobem do inject.
+    const parcial = (diag && casa !== "bet365" && diag.extra &&
+                     !/fa[çc]a login|recarregue|abra |espere a p[áa]gina/i.test(diag.extra))
+      ? diag.nome + ": " + diag.extra.replace(/^\s*·\s*/, "") : "";
+    if (!parcial) {
+      try { chrome.storage.local.remove("lastError"); } catch (e) {}   // rodada OK → limpa diagnóstico antigo
+    } else {
+      try { chrome.storage.local.set({ lastError: "Captura PARCIAL — " + parcial + ". " + blocos.length +
+        " bilhete(s) foram enviados, mas a casa pode ter mais. Rode de novo para completar." }); } catch (e) {}
+    }
     // BANCA antes de enviar. O envio é ÚNICO (tudo de uma vez, no fim da varredura). Se a
     // sessão morreu no meio da raspagem — restart do servidor (as sessões vivem em memória)
     // OU queda de rede — o POST volta 401/erro e, até aqui, os minutos de serviço raspado eram
@@ -2054,17 +2079,27 @@
     // Agora: guarda em `envioPendente`, ESPERA o {ok} do background e só limpa o banco se
     // enviou de fato. Falhou → mantém guardado e o popup mostra "Reenviar" (sem re-raspar nada).
     const texto = blocos.join("\n\n");
-    try { await chrome.storage.local.set({ envioPendente: { texto: texto, n: blocos.length, casa: cfg.casa || "", ts: Date.now() } }); } catch (e) {}
+    // 7.2 (s460, auditoria EXT A7): `envioPendente` era UM slot (a 2ª rodada apagava a 1ª),
+    // sem destino (o Reenviar mandava para qualquer conta pareada depois) e a gravação que
+    // falhava era engolida com "nada foi perdido". Agora é uma FILA com casa, conta e dono, e
+    // o aviso só promete o que de fato ficou guardado.
+    const pendId = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    const guardou = await _pendGuardar({ id: pendId, texto: texto, n: blocos.length, casa: cfg.casa || "",
+                                         parceiro: cfg.parceiro || "", dono: cfg.dono || "",
+                                         ts: Date.now(), parcial: parcial });
     toastLocal(blocos.length + " bilhete(s) coletado(s), enviando…", true);
     let resp = null;
-    try { resp = await chrome.runtime.sendMessage({ type: "ENVIAR_TEXTO", texto: texto }); } catch (e) {}
+    try { resp = await chrome.runtime.sendMessage({ type: "ENVIAR_TEXTO", texto: texto, parcial: parcial }); } catch (e) {}
     _enviarCruDaRodada();   // s409: o cru vai DEPOIS do texto, separado e sem espera
     if (resp && resp.ok) {
-      try { await chrome.storage.local.remove("envioPendente"); } catch (e) {}
-    } else {
-      // NÃO perde nada: o texto fica bancado em `envioPendente`. O background já sinalizou a
-      // causa (sessão expirou / falha de rede); aqui reforça na página que dá pra reenviar.
+      await _pendRemover(pendId);
+      if (parcial) toastLocal("Captura PARCIAL — " + parcial + ". Rode de novo para completar.", false, 64);
+    } else if (guardou) {
+      // O texto ficou na fila. O background já sinalizou a causa (sessão expirou / falha de
+      // rede); aqui reforça na página que dá pra reenviar.
       toastLocal(blocos.length + " bilhete(s) guardados — a conexão caiu no envio. Reconecte no popup e clique Reenviar (nada foi perdido).", false);
+    } else {
+      toastLocal(blocos.length + " bilhete(s) NÃO foram enviados e não couberam na memória da extensão. Rode a captura de novo depois de reconectar.", false);
     }
     // Bet365: bilhete visto mas sem `confirmation` foi RETIDO (ver `b3Emissivel`). O aviso vai
     // para a TELA e para o popup porque o log do console JÁ EXISTIA e passou despercebido — foram
@@ -2077,6 +2112,37 @@
       toastLocal(av, false, 64);
       try { chrome.storage.local.set({ lastError: av }); } catch (e) {}
     }
+  }
+
+  // ── Fila de envios pendentes (7.2, s460) ────────────────────────────────────────────────
+  // Lista em `enviosPendentes`, mesma chave que o popup lê. Teto de 10 rodadas: acima disso a
+  // mais antiga sai, e o popup DIZ que saiu (nunca poda muda). Devolve true se gravou.
+  const PEND_TETO = 10;
+  async function _pendGuardar(item) {
+    try {
+      const st = await chrome.storage.local.get(["enviosPendentes", "envioPendente", "pendDescartados"]);
+      const fila = Array.isArray(st.enviosPendentes) ? st.enviosPendentes.slice() : [];
+      if (st.envioPendente && st.envioPendente.texto) {   // slot antigo (até 0.7.88) entra na fila
+        fila.push(Object.assign({ id: "legado", parceiro: "", dono: "" }, st.envioPendente));
+      }
+      fila.push(item);
+      let descartados = 0;
+      while (fila.length > PEND_TETO) { fila.shift(); descartados++; }
+      const novo = { enviosPendentes: fila };
+      if (descartados) novo.pendDescartados = (Number(st.pendDescartados) || 0) + descartados;   // soma até o popup avisar
+      await chrome.storage.local.set(novo);
+      await chrome.storage.local.remove("envioPendente");
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  async function _pendRemover(id) {
+    try {
+      const st = await chrome.storage.local.get("enviosPendentes");
+      const fila = (Array.isArray(st.enviosPendentes) ? st.enviosPendentes : []).filter((p) => p.id !== id);
+      await chrome.storage.local.set({ enviosPendentes: fila });
+    } catch (e) {}
   }
 
   // Estratégia genérica (Betano & cia): rola e colhe blocos de texto, dedup por

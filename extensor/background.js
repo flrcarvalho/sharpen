@@ -29,7 +29,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return false;
   }
   if (msg && msg.type === "ENVIAR_TEXTO") {
-    enviarTexto(msg.texto, sender.tab).then((ok) => sendResponse({ ok })).catch(() => sendResponse({ ok: false }));
+    enviarTexto(msg.texto, sender.tab, msg.parcial).then((ok) => sendResponse({ ok })).catch(() => sendResponse({ ok: false }));
     return true;
   }
   // ── "Resolver apostas abertas" (bet365) ────────────────────────────────────
@@ -171,7 +171,9 @@ async function enviarCaptura(blob, tab) {
 }
 
 // Envia o texto colhido pelo robô (modo Betano) → /captura/enviar tipo=texto.
-async function enviarTexto(texto, tab) {
+// `parcial` (6.5, s460): o motivo, quando a rodada coletou bilhetes mas o inject reportou erro
+// no meio. Vai ao servidor só para o log da captura; o texto não muda.
+async function enviarTexto(texto, tab, parcial) {
   const { token } = await chrome.storage.local.get("token");
   if (!token) { await sinalizar(tab, false, "Não conectado. Cole o código no popup."); return false; }
   if (!texto || !texto.trim()) { await sinalizar(tab, false, "Nada para enviar."); return false; }
@@ -183,6 +185,7 @@ async function enviarTexto(texto, tab) {
   fd.append("texto", texto);
   const origem = hostDaAba(tab);
   if (origem) fd.append("origem", origem);
+  if (parcial) fd.append("parcial", String(parcial).slice(0, 300));
   let r;
   try {
     r = await fetch(`${base}/captura/enviar`, { method: "POST", body: fd });
