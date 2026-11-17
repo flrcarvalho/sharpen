@@ -4608,3 +4608,49 @@ def test_s460_horizonte_da_conta():
     dias, outra = _run(body())
     # 40 dias e alguns milissegundos arredondam PARA CIMA (41), mais a folga de 2
     assert dias == 43 and outra is None, (dias, outra)
+
+
+# ── 5.5 (s460): cru recusado no /salvar não conta como processado ─────────────────────────
+# Mutações provadas (aplicadas ao ficha.py, teste vermelho, revertidas):
+#   1. sem a 2ª consulta do `gravar_cru`        → test_s460_cru_recusado_no_salvar_volta…
+#   2. sem o filtro do motivo                    → test_s460_cru_recusado_no_salvar_volta…
+#   3. sem o NOT EXISTS da aposta resolvida      → test_s460_cru_recusado_no_salvar_volta…
+
+def test_s460_cru_recusado_no_salvar_volta_a_ser_processado():
+    """As 9 do arrudex: o `/salvar` interno recusou (câmbio), o cru ficou "processado" e o
+    cru igual seguinte era pulado. Volta enquanto a recusa for a última decisão e a aposta
+    não estiver resolvida nesta conta; nunca volta por outro motivo."""
+    import ficha
+
+    async def body():
+        await _reset()
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM captura_crua WHERE dono = 'TDono460'")
+            await conn.execute("DELETE FROM ficha_virada WHERE dono = 'TDono460'")
+        item = {"codigo": "C2299104", "cru": {"id": "C2299104", "status": "lost"},
+                "hash": "h1", "removidos": []}
+        args = ("TDono460", "THUNDERPICK", "Arruda", "thp", "0.7.86", "x")
+        [i1] = await ficha.gravar_cru(*args, [item])
+        await ficha.marcar_processados([i1])
+        assert await ficha.gravar_cru(*args, [item]) == [None]       # processado: pula
+
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO ficha_virada (dono, casa, codigo, impressao, estado, motivo) "
+                "VALUES ('TDono460', 'THUNDERPICK', 'C2299104', '', 'ia', 'termo fora do dicionário')")
+        assert await ficha.gravar_cru(*args, [item]) == [None]       # outro motivo: pula
+
+        async with pool.acquire() as conn:
+            await conn.execute("UPDATE ficha_virada SET motivo = 'recusada no /salvar' "
+                               "WHERE dono = 'TDono460'")
+        volta = await ficha.gravar_cru(*args, [item])
+
+        await repository.upsert_bilhetes([_row(casa="Thunderpick", parceiro="Arruda",
+                                               codigo_bilhete="C2299104", resultado="L")],
+                                         "TDono460")
+        resolvida = await ficha.gravar_cru(*args, [item])
+        return i1, volta, resolvida
+    i1, volta, resolvida = _run(body())
+    assert volta == [i1], "o cru recusado no /salvar não voltou"
+    assert resolvida == [None], "aposta já resolvida na conta não reabre o cru"

@@ -318,6 +318,23 @@ async def gravar_cru(dono: str, casa_key: str, parceiro: str, familia: str, vers
                     "SELECT id FROM captura_crua WHERE dono = $1 AND casa = $2 AND parceiro = $3 "
                     "AND codigo = $4 AND hash = $5 AND processado_em IS NULL",
                     dono, casa_key, parceiro or "", it["codigo"], it["hash"])
+            if novo is None:
+                # 5.5 (s460, medido: as 9 perdidas do arrudex na Thunderpick, 17/11). "Processado"
+                # não é "na planilha": a Ficha foi montada, o `/salvar` interno a RECUSOU (câmbio
+                # bloqueado), e o cru igual da captura seguinte era pulado como "já montado". A
+                # aposta liquidada ficava aberta para sempre. O cru volta a ser processado
+                # enquanto a última decisão for essa recusa e a aposta não estiver resolvida
+                # nesta conta. Recusa de novo custa só a tentativa: nada vai à IA por aqui.
+                novo = await conn.fetchval(
+                    "SELECT cc.id FROM captura_crua cc JOIN ficha_virada fv ON fv.dono = cc.dono "
+                    "AND fv.casa = cc.casa AND fv.codigo = cc.codigo "
+                    "WHERE cc.dono = $1 AND cc.casa = $2 AND cc.parceiro = $3 AND cc.codigo = $4 "
+                    "AND cc.hash = $5 AND fv.motivo = 'recusada no /salvar' "
+                    "AND NOT EXISTS (SELECT 1 FROM bilhetes b WHERE b.dono = cc.dono "
+                    "AND b.parceiro = cc.parceiro AND b.codigo_bilhete = cc.codigo "
+                    "AND b.extraction_state = 'resolvida') "
+                    "ORDER BY cc.recebido_em DESC LIMIT 1",
+                    dono, casa_key, parceiro or "", it["codigo"], it["hash"])
             ids.append(novo)
     return ids
 

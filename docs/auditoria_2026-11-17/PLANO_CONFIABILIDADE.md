@@ -123,9 +123,11 @@ por mutação e o gate do projeto. **Status:** `[ ]` aberto · `[x]` feito (com 
   terminou. (ESC A9)
 - [x] **5.4** (`4db68bc`, SharpenUp 0.7.88) `cruEnviado` da extensão com escopo de sessão/dono, e marcado só com o que o
   servidor guardou. (TRAV A4)
-- [ ] **5.5** (s460, medido: as 9 do arrudex) Cru cuja linha o `/salvar` interno recusou por
+- [x] **5.5** (s460, ok do Feca; commit "5.5") (medido: as 9 do arrudex) Cru cuja linha o `/salvar` interno recusou por
   motivo transitório (câmbio) não conta como processado; o cru igual seguinte reprocessa.
-  (MEDICAO §1, §6-A)
+  (MEDICAO §1, §6-A) — feito pelo `gravar_cru`: o cru igual volta a ser processado enquanto a
+  última decisão for `recusada no /salvar` e a aposta não estiver resolvida na conta. Sem
+  script de dado: as 9 se resolvem na próxima captura da Thunderpick do arrudex.
 
 ### Fase 6 — O usuário vê o que aconteceu
 
