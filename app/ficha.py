@@ -484,6 +484,8 @@ async def receber(payload: dict = Body(...)):
         raise HTTPException(401, "Token de captura inválido ou expirado.")
     versao = str(payload.get("versao") or "")
     await _captura.registrar_versao_dur(sess, versao)
+    from main import _cobrar_versao_minima   # tardio: o main importa este módulo (s459, 3.3)
+    _cobrar_versao_minima(getattr(sess, "casa_key", ""), versao, getattr(sess, "casa", ""))
     if _desligada():
         # 503, nunca 200: com 200 a extensão marcaria o cru como enviado e não reenviaria.
         raise HTTPException(503, "Captura do cru desligada no servidor; reenvie depois.")

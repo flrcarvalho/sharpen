@@ -3293,6 +3293,33 @@ def _versao_tupla(v: str) -> tuple:
     return tuple(partes)
 
 
+# ── Versão MÍNIMA da extensão (s459, auditoria de 17/11, EXTENSÃO A3) ──────────────────────
+# O servidor anotava a versão e nunca a usava: extensão velha numa casa cujo contrato mudou
+# seguia "capturando" errado, aceita. Aqui fica a versão em que o contrato de cada casa passou
+# a valer; abaixo dela a captura é recusada com o motivo e onde baixar. Só entra casa em que a
+# versão anterior PROVADAMENTE captura errado:
+#   · GIROCERTO 0.7.84 — antes não há ramo da casa e o robô genérico manda o texto da página;
+#   · THUNDERPICK 0.7.86 — antes o inject usa a rota de liquidadas que a casa desligou (404).
+# `EXT_VERSAO_MINIMA` (env) vale para todas as casas, para o dia em que o contrato geral mudar.
+_VERSAO_MINIMA_POR_CASA = {"GIROCERTO": "0.7.84", "THUNDERPICK": "0.7.86"}
+
+
+def _versao_minima(casa_key: str) -> str:
+    por_casa = _VERSAO_MINIMA_POR_CASA.get((casa_key or "").upper(), "")
+    geral = os.environ.get("EXT_VERSAO_MINIMA", "").strip()
+    return max([v for v in (por_casa, geral) if v], key=_versao_tupla, default="")
+
+
+def _cobrar_versao_minima(casa_key: str, versao: str, casa: str) -> None:
+    minima = _versao_minima(casa_key)
+    if minima and _versao_tupla(versao or "0") < _versao_tupla(minima):
+        raise HTTPException(
+            426,
+            f"A captura da {casa} exige o SharpenUp {minima} ou mais novo (instalado: "
+            f"{versao or 'versão antiga'}). Baixe a versão nova em sharpen.bet/extensao, "
+            f"atualize a extensão e recarregue a aba da casa (F5).")
+
+
 def versao_desatualizada(v_ext: str) -> bool:
     """True se a versão instalada é menor que a publicada — OU ausente (extensão antiga
     que ainda não reporta versão). Sem referência publicada → nunca afirma desatualizado."""
@@ -4332,6 +4359,7 @@ async def captura_conectar(req: ConectarRequest):
     if not sess:
         raise HTTPException(404, "Código inválido ou expirado.")
     await _captura.registrar_versao_dur(sess, req.versao)
+    _cobrar_versao_minima(sess.casa_key, req.versao, sess.casa)
     return {"token": sess.token_ext, "casa": sess.casa, "parceiro": sess.parceiro,
             "modo": sess.modo, "dono": sess.dono,
             "versao_atual": _versao_extensao(), "desatualizada": versao_desatualizada(req.versao)}
@@ -4352,6 +4380,7 @@ async def captura_validar(req: ValidarRequest):
     if not sess:
         raise HTTPException(401, "Sessão de captura expirada.")
     await _captura.registrar_versao_dur(sess, req.versao)
+    _cobrar_versao_minima(sess.casa_key, req.versao, sess.casa)
     return {"ok": True, "casa": sess.casa, "parceiro": sess.parceiro,
             "modo": sess.modo, "dono": sess.dono,
             "versao_atual": _versao_extensao(), "desatualizada": versao_desatualizada(req.versao)}
@@ -4399,6 +4428,22 @@ async def _checar_conta_errada(sess, texto: str) -> None:
     logger.warning("trava de conta errada: %d de %d códigos já são da conta %r · lote "
                    "recusado para %s/%s/%s", n, len(codigos), conta,
                    sess.dono, sess.casa, sess.parceiro)
+    # s459 (auditoria de 17/11, TRAVAS A1): quando a "outra conta" está ARQUIVADA, a mensagem
+    # antiga mandava parear nela, e lá a trava de conta arquivada pedia confirmação: um beco
+    # para quem reorganizou as contas e voltou meses depois. A mensagem agora diz o que é.
+    arq = None
+    try:
+        arq = await conta_arquivada(sess.dono, sess.casa, conta)
+    except Exception:
+        arq = None
+    if arq is not None:
+        raise HTTPException(
+            409,
+            f"Conta incompatível: {n} de {len(codigos)} bilhetes desta captura já estão na "
+            f"conta {conta}, que está ARQUIVADA. Se a {sess.casa} logada é a mesma conta, "
+            f"desarquive {conta} e capture nela (ou renomeie {conta} para {sess.parceiro} em "
+            f"Contas). Se é outra conta, confira qual login está aberto na {sess.casa}.",
+        )
     # A extensão até a 0.7.33 mostra texto fixo para 409 ("Casa incompatível"), e o texto
     # capturado fica guardado: reparear na conta certa e clicar Reenviar grava no lugar certo.
     raise HTTPException(
@@ -4424,6 +4469,7 @@ async def captura_enviar(
     if not sess:
         raise HTTPException(401, "Token de captura inválido ou expirado.")
     await _captura.registrar_versao_dur(sess, versao)
+    _cobrar_versao_minima(sess.casa_key, versao, sess.casa)
 
     # Amarração casa↔site (backstop do servidor): se a captura veio do site de uma casa
     # CONHECIDA diferente da casa da sessão, rejeita — impede gravar (ex.) Superbet no slot

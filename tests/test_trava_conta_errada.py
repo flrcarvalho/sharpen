@@ -113,3 +113,21 @@ def test_texto_sem_marcador_nem_consulta_o_banco(sessao, consulta):
     r = _enviar(sessao, "bilhete colado à mão, sem código")
     assert r.status_code == 200
     assert consulta["chamadas"] == []
+
+
+def test_s459_outra_conta_arquivada_diz_a_saida_e_nao_manda_parear_nela(sessao, consulta,
+                                                                       monkeypatch):
+    """Auditoria de 17/11 (TRAVAS A1): o histórico mora numa conta ARQUIVADA e o usuário captura
+    pela conta nova. A mensagem antiga mandava gerar o código da conta certa (a arquivada), e lá a
+    trava de conta arquivada pedia confirmação: um beco. Agora a recusa diz que a outra conta
+    está arquivada e quais são as saídas."""
+    consulta["resposta"] = {"mamapaul03 [Velha]": 10}
+
+    async def arquivada(dono, casa, parceiro):
+        return {"arquivada_em": None} if parceiro == "mamapaul03 [Velha]" else None
+
+    monkeypatch.setattr(main, "conta_arquivada", arquivada)
+    r = _enviar(sessao, _lote(*[f"C{i}" for i in range(10)]))
+    assert r.status_code == 409
+    d = r.json()["detail"]
+    assert "ARQUIVADA" in d and "desarquive" in d
