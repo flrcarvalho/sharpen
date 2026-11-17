@@ -59,7 +59,7 @@ const recorteWindowFn = (src, nome, arq) => {
 const FONTE = [
   ...['costKey', 'loadCusto', 'custoContaPendente', 'custoContaSubir']
     .map(n => recorteFn(GESTAO, n, 'gestao.js')),
-  ...['parseNum', '_ctHasVal', '_ctMirror', 'ctLoad', 'ctPendente', 'ctSubir']
+  ...['parseNum', '_ctHasVal', '_ctPush', 'ctLoad', 'ctSave', 'ctPendente', 'ctSubir']
     .map(n => recorteFn(APP, n, 'app.js')),
   recorteFn(CUSTOS2, '_c2guardarHTML', 'custos2.js'),
   recorteWindowFn(CUSTOS2, 'c2Guardar', 'custos2.js'),
@@ -78,6 +78,7 @@ const API = new Function(`
   const localStorage = {
     getItem: (k) => (k in LS ? LS[k] : null),
     setItem: (k, v) => { LS[k] = String(v); },
+    removeItem: (k) => { delete LS[k]; },
   };
   // Só os ids que a faixa usa; innerHTML/classList/textContent são recipientes.
   const NOS = {};
@@ -127,6 +128,8 @@ const API = new Function(`
     estado: () => ({ custoData, _custoServerBacked, _custoHadLegacy,
                      ctData, cgData, _ctServerBacked, _ctHadLegacy, LS }),
     posts: () => POSTS,
+    // Edição comum na tela de custo de tipster (o que window.saveCT faz).
+    editaTipster: (t, m, v) => { if (!ctData[t]) ctData[t] = {}; ctData[t][m] = v; ctSave(); },
     // Permite simular o dono que JÁ tem registro sem passar pelo fetch.
     forcar: (o) => { if ('conta' in o) _custoServerBacked = o.conta;
                      if ('tips' in o) _ctServerBacked = o.tips; },
@@ -205,9 +208,10 @@ console.log('C. linha existe no servidor, blob vazio, navegador com lançamento'
                     resp: { '/custos/conta': { existe: false },
                             '/custos/store': { existe: true, custo_tipster: {}, custo_geral: [] } } });
   const e = API.estado();
-  eq(Object.keys(e.ctData).length, 1, 'C1. o lançamento local SOBREVIVE ao blob vazio do servidor');
+  // Desde a s459 o legado NÃO entra na memória: sem dono, ele pode ser de outro usuário.
+  eq(Object.keys(e.ctData).length, 0, 'C1. o legado sem dono não vira custo na tela');
   eq(JSON.parse(e.LS.custoTipsterData || '{}')['Só Chutes']['2026-09'], '500',
-     'C1. e o cache no navegador não foi sobrescrito pelo vazio');
+     'C1. e o legado no navegador não foi apagado pelo vazio');
   eq(e._ctServerBacked, false, 'C1. com o blob vazio o dono NÃO conta como servido');
   ok(API.tipsPendente() !== null, 'C1. e a faixa passa a oferecer guardar');
 
@@ -295,6 +299,33 @@ console.log('F. a faixa');
                     resp: VAZIO });
   ok(/Confira as abas/.test(API.faixa()),
      'F4. com tipster/geral a faixa manda conferir: CT_KEY/CG_KEY não têm dono');
+}
+
+// ── G. o custo de OUTRO usuário do mesmo navegador (s459, auditoria NAVEGADOR C4) ──
+console.log('G. legado global de outro dono nunca sobe sozinho');
+{
+  // Alice usou este navegador antes; Bob entra e o servidor dele não tem custo.
+  const ALICE = { custoTipsterData: JSON.stringify({ 'Linha Fria': { '2026-10': '690,00' } }),
+                  custoGeralData: JSON.stringify([{ id: 7, tipo: 'VPS', values: { '2026-10': '120' } }]) };
+  await API.reset({ ls: ALICE, resp: VAZIO, dono: 'Bob' });
+  const e = API.estado();
+  eq(Object.keys(e.ctData).length, 0, 'G1. o custo de tipster da Alice não aparece na tela do Bob');
+  eq(e.cgData.length, 0, 'G1. nem o custo geral dela');
+  API.editaTipster('Tip do Bob', '2026-11', '50');
+  const ps = API.posts().filter(p => p.url === '/custos/store');
+  eq(ps.length, 1, 'G2. a edição do Bob sobe (dado digitado sobe sempre)');
+  eq(Object.keys(ps[0].body.custo_tipster).join(','), 'Tip do Bob',
+     'G2. e leva SÓ o lançamento dele, nunca o da Alice');
+  eq(ps[0].body.custo_geral.length, 0, 'G2. nem o custo geral da Alice');
+
+  // Subir o legado é ato explícito, de uso único: depois do envio ele some do navegador.
+  await API.reset({ ls: ALICE, resp: VAZIO });
+  ok(await API.tipsSubir(), 'G3. o clique em guardar sobe o legado');
+  const p3 = API.posts().filter(p => p.url === '/custos/store');
+  eq(p3.length && p3[0].body.custo_tipster['Linha Fria']['2026-10'], '690,00', 'G3. o que sobe é o legado');
+  eq(p3.length && p3[0].body.semear, true, 'G3. com união no servidor');
+  eq('custoTipsterData' in API.estado().LS, false, 'G4. e o legado sai do navegador depois de entregue');
+  eq(API.tipsPendente(), null, 'G4. a faixa não oferece de novo');
 }
 
 if (falhas) { console.error(`\n${falhas} falha(s)`); process.exit(1); }

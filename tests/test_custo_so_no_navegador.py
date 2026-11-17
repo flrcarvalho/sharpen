@@ -103,10 +103,31 @@ MUTACOES = [
         "  _ctServerBacked=true;",
     ),
     (
-        "o envio de tipster/geral nao marca o dono como servido e a faixa nunca some",
+        "o envio de tipster/geral nao marca o dono como servido",
         "app",
-        "  _ctServerBacked=true;\n  _ctMirror();\n  return true;",
-        "  _ctMirror();\n  return true;",
+        "  if(!r.ok)throw new Error('HTTP '+r.status);\n  _ctServerBacked=true;\n  // O servidor UNIU",
+        "  if(!r.ok)throw new Error('HTTP '+r.status);\n  // O servidor UNIU",
+    ),
+    # ── s459: o legado GLOBAL (sem dono) nunca vira custo de quem entrou depois ──
+    (
+        "o ctLoad volta a carregar o legado global como cache (NAVEGADOR C4)",
+        "app",
+        "  ctData={};cgData=[];\n  try{\n    const r=await fetch('/custos/store');",
+        "  try{ctData=JSON.parse(localStorage.getItem(CT_KEY)||'{}');}catch(e){ctData={};}\n"
+        "  try{cgData=JSON.parse(localStorage.getItem(CG_KEY)||'[]');}catch(e){cgData=[];}\n"
+        "  try{\n    const r=await fetch('/custos/store');",
+    ),
+    (
+        "o ctSubir volta a mandar a memoria em vez do legado",
+        "app",
+        "    body:JSON.stringify({custo_tipster:ct,custo_geral:cg,semear:true})});",
+        "    body:JSON.stringify({custo_tipster:ctData,custo_geral:cgData,semear:true})});",
+    ),
+    (
+        "o legado continua no navegador depois de entregue",
+        "app",
+        "  try{localStorage.removeItem(CT_KEY);localStorage.removeItem(CG_KEY);}catch(e){}\n  _ctHadLegacy=false;",
+        "",
     ),
     # ── O QUE ESTA NO NAVEGADOR: numero, nao verdade da string ────────────────
     (

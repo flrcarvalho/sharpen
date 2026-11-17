@@ -1393,48 +1393,49 @@ function buildHTML(){
 
 
 // ── CUSTO DE TIPSTERS ───────────────────────────────────────────────────────
-// Fonte de verdade = Postgres (por dono), via /custos/store. O localStorage virou
-// só CACHE offline / paint instantâneo (chaves legadas — as MESMAS que a página
-// /dashboard/importar-custos.html lê p/ semear o servidor). Antes o custo vivia SÓ
-// nessas chaves GLOBAIS e sumia ao trocar de aparelho (incidente Jonathan
-// 2026-07-19). Ver database.custo_store / STATUS s165.
-const CT_KEY='custoTipsterData'; // {tipster: {YYYY-MM: value}, ...}
-const CG_KEY='custoGeralData';   // [{id, tipo, values: {YYYY-MM: value}}, ...]
+// Fonte de verdade = Postgres (por dono), via /custos/store, e SÓ ele (s459).
+// As chaves CT_KEY/CG_KEY são o LEGADO de antes da s165, GLOBAIS e sem dono: num
+// navegador onde dois donos entraram, o conteúdo delas pode ser do outro. Até a s459
+// o `ctLoad` as carregava como cache e o 1º `ctSave` as mandava ao servidor com
+// `semear:true` (união): o custo do dono anterior virava custo de quem entrou depois,
+// para sempre (auditoria de 17/11, NAVEGADOR C4). Agora elas só são LIDAS para a faixa
+// "custo só neste navegador" e só sobem pelo clique em `ctSubir`, que é ato explícito
+// e de uso único. Nunca mais são escritas.
+const CT_KEY='custoTipsterData'; // legado: {tipster: {YYYY-MM: value}, ...}
+const CG_KEY='custoGeralData';   // legado: [{id, tipo, values: {YYYY-MM: value}}, ...]
 let ctData={}, cgData=[], ctMeta={};   // ctMeta: {tipster:{cobranca,parametro,ate}} (Fatia 3)
 let _ctServerBacked=false; // true quando o servidor já tem registro deste dono
 let _ctRepintou=false;     // o repaint da Visão Geral quando o custo chega roda UMA vez
 let _ctHadLegacy=false;    // true quando havia custo legado no localStorage no load
 
 function _ctHasVal(k,empty){const v=localStorage.getItem(k);return !!v&&v!==empty&&v!=='null';}
-function _ctMirror(){try{localStorage.setItem(CT_KEY,JSON.stringify(ctData));localStorage.setItem(CG_KEY,JSON.stringify(cgData));}catch(e){}}
-// `semear` = 1º envio deste navegador para um servidor sem custo deste dono; ali o
-// servidor UNE em vez de substituir. Ver salvar_custo_store (repository.py).
+// `semear` = 1º envio para um servidor sem custo deste dono; ali o servidor UNE em vez
+// de substituir. Ver salvar_custo_store (repository.py).
 function _ctPush(semear){try{fetch('/custos/store',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custo_tipster:ctData,custo_geral:cgData,semear:!!semear})});}catch(e){}}
 
-// Carga: cache local (síncrono, p/ não perder o dado se o servidor cair) + servidor
-// (fonte de verdade, corrige ao chegar). Chamar UMA vez ao entrar na aba.
+// Carga: só o servidor. Chamar UMA vez ao entrar na aba.
 async function ctLoad(){
   _ctHadLegacy=_ctHasVal(CT_KEY,'{}')||_ctHasVal(CG_KEY,'[]');
-  try{ctData=JSON.parse(localStorage.getItem(CT_KEY)||'{}');}catch(e){ctData={};}
-  try{cgData=JSON.parse(localStorage.getItem(CG_KEY)||'[]');}catch(e){cgData=[];}
+  ctData={};cgData=[];
   try{
     const r=await fetch('/custos/store');
     if(r.ok){
       const d=await r.json();
       if(d.existe){
         ctMeta=d.custo_tipster_meta||{};
+        ctData=d.custo_tipster||{};cgData=d.custo_geral||[];
         // `existe` aqui é "a LINHA do dono existe", e a linha nasce também pelo custo por
         // CONTA (`salvar_custo_conta` faz upsert na mesma linha). Então dá para o servidor
         // dizer existe=true com o blob tipster/geral vazio enquanto este navegador tem
-        // lançamento: adotar o vazio apagava o cache, e o `_ctMirror` gravava o apagão.
-        // Mantém o local e deixa a faixa da tela de Custos oferecer guardar (s360).
+        // legado: aí o dono não conta como servido, e a faixa da tela de Custos oferece
+        // guardar (s360).
         const vazioLa=!Object.keys(d.custo_tipster||{}).length&&!(d.custo_geral||[]).length;
         if(vazioLa&&_ctHadLegacy){_ctServerBacked=false;}
-        else{ctData=d.custo_tipster||{};cgData=d.custo_geral||[];_ctServerBacked=true;_ctMirror();}
+        else{_ctServerBacked=true;}
       }
       else{_ctServerBacked=false;} // servidor vazio p/ este dono
     }
-  }catch(e){/* offline: fica no cache local já carregado */}
+  }catch(e){/* offline: a tela fica sem custo de tipster, e isso é ausência, não zero */}
   // O custo chega DEPOIS do primeiro render (é fetch), e desde a s358 ele desce no P/L
   // Líquido — sem repintar, quem abre a Visão Geral vê `Custo de Tipsters R$ 0`,
   // `Custos Gerais` fora da tela e um P/L Líquido inflado, até mexer em algum filtro.
@@ -1457,7 +1458,6 @@ async function ctLoad(){
 // proíbe. O risco que ela cobria (a máquina com menos lançamentos virar a verdade)
 // passou para o servidor, como UNIÃO na semeadura, que nunca encolhe o conjunto.
 function ctSave(){
-  _ctMirror();
   const semear=!_ctServerBacked;
   _ctServerBacked=true;
   _ctPush(semear);
@@ -1481,13 +1481,25 @@ function ctPendente(){
   return{tipsters:nT,gerais:nG};
 }
 // Espera a resposta (o `_ctPush` é dispara-e-esquece, e faixa não pode mentir).
+// Sobe o LEGADO (o que está nas chaves globais), não a memória: desde a s459 a memória
+// só tem o que veio do servidor. Depois do sucesso o legado é apagado, porque ele
+// já foi entregue e, sem dono, não pode ser oferecido a um segundo usuário.
 async function ctSubir(){
   if(!ctPendente())return false;
+  let ct={},cg=[];
+  try{ct=JSON.parse(localStorage.getItem(CT_KEY)||'{}')||{};}catch(e){ct={};}
+  try{cg=JSON.parse(localStorage.getItem(CG_KEY)||'[]')||[];}catch(e){cg=[];}
+  if(!Array.isArray(cg))cg=[];
   const r=await fetch('/custos/store',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({custo_tipster:ctData,custo_geral:cgData,semear:true})});
+    body:JSON.stringify({custo_tipster:ct,custo_geral:cg,semear:true})});
   if(!r.ok)throw new Error('HTTP '+r.status);
   _ctServerBacked=true;
-  _ctMirror();
+  // O servidor UNIU; a memória passa a ter a mesma união.
+  for(const t of Object.keys(ct)){ctData[t]=Object.assign({},ct[t]||{},ctData[t]||{});}
+  const ids=new Set(cgData.map(x=>x&&x.id));
+  for(const g of cg){if(g&&!ids.has(g.id))cgData.push(g);}
+  try{localStorage.removeItem(CT_KEY);localStorage.removeItem(CG_KEY);}catch(e){}
+  _ctHadLegacy=false;
   return true;
 }
 
@@ -1534,14 +1546,39 @@ window.deleteCG=function(idx){
 // revalidate — boot instantâneo com o último dado salvo + atualização em 2º plano.
 // Chave namespaced por modo: o público NÃO pode reusar (nem sobrescrever) o
 // cache do dashboard privado — mesma origem, mesmo IndexedDB.
-const _IDB_NAME='fdc_dash', _IDB_STORE='kv',
-      _IDB_KEY=PUBLICO?('dados_pub_'+PUBLICO.slug):'dados_v1';
+//
+// A chave privada carrega QUEM está vendo O QUÊ (s459, auditoria de 17/11, NAVEGADOR
+// C3/M3). Até ali ela era a fixa 'dados_v1': no mesmo navegador, quem entrava depois
+// (outro login, ou o "ver como") abria o dashboard com a base inteira do anterior até o
+// feed chegar, e para sempre se o feed falhasse. Agora a identidade vem do `/me` ANTES
+// de pintar; sem identidade, não há cache. O registro guarda a própria chave e o
+// esquema, e cache mais velho que _IDB_MAX_IDADE_MS não pinta (quem volta depois de
+// meses via o feed de meses atrás, no formato de meses atrás).
+const _IDB_NAME='fdc_dash', _IDB_STORE='kv', _IDB_SCHEMA=2, _IDB_MAX_IDADE_MS=3*864e5;
+let _IDB_KEY=PUBLICO?('dados_pub_'+PUBLICO.slug):null;
+async function _idbIdentidade(){
+  if(PUBLICO)return _IDB_KEY;
+  try{
+    const ac=new AbortController();const t=setTimeout(()=>ac.abort(),2500);
+    const r=await fetch('/me',{cache:'no-store',signal:ac.signal});clearTimeout(t);
+    if(!r.ok)return null;
+    const m=await r.json();
+    if(!m||!m.usuario)return null;
+    return 'dados_v2::'+m.usuario+'>'+(m.dono_efetivo||m.usuario);
+  }catch(e){return null;}
+}
+function _idbCacheValido(c,chave,agora){
+  return !!(c&&chave&&c.chave===chave&&c.schema===_IDB_SCHEMA&&Array.isArray(c.data)&&c.data.length
+            &&c.savedAt&&(agora-c.savedAt)<_IDB_MAX_IDADE_MS);
+}
 function _idbOpen(){
   return new Promise((resolve,reject)=>{
     let req;
     try{req=indexedDB.open(_IDB_NAME,1);}catch(e){return reject(e);}
     req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(_IDB_STORE))db.createObjectStore(_IDB_STORE);};
-    req.onsuccess=()=>resolve(req.result);
+    // Fecha quando alguém pede para apagar o banco (o /login, s459): sem isso a conexão
+    // aberta bloqueia o `deleteDatabase`.
+    req.onsuccess=()=>{const db=req.result;db.onversionchange=()=>{try{db.close();}catch(e){}};resolve(db);};
     req.onerror=()=>reject(req.error);
   });
 }
@@ -1552,10 +1589,19 @@ function _idbGetData(){
     rq.onerror=()=>reject(rq.error);
   }));
 }
+// Grava o feed desta identidade e APAGA o de qualquer outra identidade privada (inclui o
+// legado 'dados_v1'): um navegador guarda no máximo a base de quem o usou por último.
 function _idbSetData(val){
+  if(!_IDB_KEY)return Promise.resolve();
   return _idbOpen().then(db=>new Promise((resolve,reject)=>{
     const tx=db.transaction(_IDB_STORE,'readwrite');
-    tx.objectStore(_IDB_STORE).put(val,_IDB_KEY);
+    const st=tx.objectStore(_IDB_STORE);
+    st.put(Object.assign({},val,{chave:_IDB_KEY,schema:_IDB_SCHEMA}),_IDB_KEY);
+    if(!PUBLICO&&st.getAllKeys){
+      const rk=st.getAllKeys();
+      rk.onsuccess=()=>{for(const k of rk.result||[]){
+        if(typeof k==='string'&&k.startsWith('dados_v')&&k!==_IDB_KEY)st.delete(k);}};
+    }
     tx.oncomplete=()=>resolve();
     tx.onerror=()=>reject(tx.error);
   }));
@@ -1626,8 +1672,9 @@ async function loadData(force){
   // ── 1) Primeira carga: tenta o cache local para boot instantâneo ───────────
   if(_rebuild){
     try{
-      const cached=await _idbGetData();
-      if(cached&&Array.isArray(cached.data)&&cached.data.length){
+      _IDB_KEY=await _idbIdentidade();
+      const cached=_IDB_KEY?await _idbGetData():null;
+      if(_idbCacheValido(cached,_IDB_KEY,Date.now())){
         aplicarFeed(cached.data);
         auditCasas(DADOS);
         buildHTML();
@@ -1679,7 +1726,10 @@ async function loadData(force){
     sbTipsterPintar();   // feed fresco: a matriz ROI/PL do bloco acompanha
     // builtAt = quando o servidor reconstruiu o cache (fonte de verdade da frescura dos dados)
     window._dataBuiltMs=json.builtAt?Date.parse(json.builtAt):Date.now();
-    _idbSetData({data:json.data,savedAt:Date.now(),builtAt:window._dataBuiltMs}).catch(()=>{}); // grava cache sem bloquear
+    // Grava cache sem bloquear, e só se o feed é mesmo da identidade da chave (o "ver
+    // como" pode ter trocado de base entre o /me e esta resposta).
+    if(PUBLICO||(_IDB_KEY&&(!json.dono||_IDB_KEY.endsWith('>'+json.dono))))
+      _idbSetData({data:json.data,savedAt:Date.now(),builtAt:window._dataBuiltMs}).catch(()=>{});
   }catch(err){
     _fetchErr=err.message||'Falha na conexão';
     if(!servedFromCache)DADOS=[]; // com cache, mantém o dado velho; sem cache, zera

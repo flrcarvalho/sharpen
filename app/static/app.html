@@ -533,6 +533,11 @@ body::before {
     fetch('/logout', { method: 'POST' }).catch(function(){}).then(function(){ window.location.href = '/login'; });
   });
 
+  // Volta pelo histórico restaurando a página da memória (bfcache): a casca e os iframes
+  // voltariam com os números e a sessão de quando a pessoa saiu, inclusive depois do
+  // "Sair". Recarrega, e o servidor decide de novo (s459, auditoria NAVEGADOR M2).
+  window.addEventListener('pageshow', function(e){ if (e.persisted) window.location.reload(); });
+
   window.addEventListener('hashchange', route);
   route();
 })();

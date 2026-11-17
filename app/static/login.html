@@ -7,6 +7,10 @@
      Promove a tela de login para o topo → login sempre em página cheia. -->
 <script>
   if (window.self !== window.top) { window.top.location.href = '/login'; }
+  // Na tela de login ninguém está dentro: o cache do feed (IndexedDB `fdc_dash`, a base
+  // inteira de apostas do último usuário) sai do navegador. Cobre o "Sair", a sessão
+  // expirada e o computador compartilhado (s459, auditoria de 17/11, NAVEGADOR C3).
+  else { try { indexedDB.deleteDatabase('fdc_dash'); } catch (e) {} }
 </script>
 <title>Entrar — Sharpen</title>
 <meta name="theme-color" content="#0A0D12">

@@ -993,8 +993,21 @@ async def _security_headers(request: Request, call_next):
     # StaticFiles já manda, o custo normal é um 304 sem corpo. Só HTML: JS/CSS
     # seguem cacheáveis, senão o `?v=` perderia a razão de existir.
     # Travado em tests/test_cache_headers.py (os dois lados da regra).
-    if resp.headers.get("content-type", "").startswith("text/html"):
-        resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+    #
+    # s459 (auditoria de 17/11, NAVEGADOR M2): a rota que pede MAIS que isso manda. `/`,
+    # `/app`, `/inicio` e `/login` declaram `no-store`, e esta linha o sobrescrevia por
+    # `no-cache` — a página voltava inteira da memória pelo botão Voltar (bfcache),
+    # inclusive depois do "Sair". Só preenche quando a rota não disse nada.
+    #
+    # E dado de usuário em JSON nunca é guardado por ninguém no caminho (SERVIDOR P8): sem
+    # `Cache-Control`, nada impedia um proxy/CDN na frente do domínio de guardar o feed de
+    # uma pessoa. Rota que quer cache público (`/metricas`) declara o dela.
+    ctype = resp.headers.get("content-type", "")
+    if "cache-control" not in resp.headers:
+        if ctype.startswith("text/html"):
+            resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+        elif ctype.startswith("application/json"):
+            resp.headers["Cache-Control"] = "private, no-store"
     return resp
 
 

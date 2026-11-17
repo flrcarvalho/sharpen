@@ -81,7 +81,6 @@ const API_DASH = new Function(`
   ${recorteFn(GESTAO, '_custoMirror', 'gestao.js')}
   ${recorteFn(GESTAO, '_custoPush', 'gestao.js')}
   ${recorteFn(GESTAO, 'saveCusto', 'gestao.js')}
-  ${recorteFn(APP, '_ctMirror', 'app.js')}
   ${recorteFn(APP, '_ctPush', 'app.js')}
   ${recorteFn(APP, 'ctSave', 'app.js')}
   return {

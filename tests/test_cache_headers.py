@@ -44,6 +44,21 @@ def test_html_sempre_revalida(rota):
     )
 
 
+def test_rota_que_pede_no_store_nao_e_rebaixada():
+    """s459 (auditoria NAVEGADOR M2): o `/login` declara `no-store`, e o middleware o
+    sobrescrevia por `no-cache` — a página voltava inteira da memória pelo Voltar."""
+    r = cliente.get("/login")
+    assert "no-store" in r.headers.get("cache-control", ""), r.headers.get("cache-control")
+
+
+def test_json_de_api_nunca_e_guardado():
+    """s459 (auditoria SERVIDOR P8): resposta JSON sem `Cache-Control` podia ser guardada
+    por um proxy/CDN no caminho. Uma rota JSON qualquer, aqui a que recusa sem sessão."""
+    r = cliente.get("/me")
+    assert r.headers.get("content-type", "").startswith("application/json")
+    assert "no-store" in r.headers.get("cache-control", ""), r.headers.get("cache-control")
+
+
 @pytest.mark.parametrize("rota", [
     "/static/dash/assets/js/app.js",
     "/static/dash/assets/js/charts/abertas.js",
