@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import logging
@@ -4383,9 +4384,20 @@ async def dashboard_rows(donos: list[str]) -> list[dict]:
     separa ABERTA de tudo o que alimenta métrica: nenhum KPI/gráfico as soma.
     `resultado` preenchido mas fora de {W,L,V,HW,HL} continua sendo lixo → descarte.
     """
+    # s459 (auditoria de 17/11, ESCALA A1): a transformação linha a linha (2,4 s para 60 mil
+    # linhas, medido) rodava no event loop e travava TODOS os usuários enquanto um carregava a
+    # base. Agora roda numa thread; a leitura do banco segue assíncrona.
     out = []
     for dono in donos:
         rows = await export_bilhetes(dono)
+        out += await asyncio.to_thread(_linhas_do_feed, rows, dono)
+    return out
+
+
+def _linhas_do_feed(rows, dono: str) -> list[dict]:
+    """O miolo síncrono do `dashboard_rows` (roda fora do event loop)."""
+    out = []
+    if True:
         for r in rows:
             resultado = (r.get("resultado") or "").strip().upper()
             aberta = not resultado

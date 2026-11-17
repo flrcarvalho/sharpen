@@ -5315,14 +5315,19 @@ async def dashboard_data(request: Request, dono: str = Depends(dono_efetivo), re
         "operadores": escopo,
         "dono": dono,          # dono efetivo — o front escopa o store de custos por ele
     }
-    body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
     # Compressão DIRECIONADA (só esta rota): o feed é um JSON grande (~toda a base) e
     # altamente compressível → gzip corta ~85-90% da transferência, que é o gargalo
     # da 1ª carga sem cache (#17). Não usamos GZipMiddleware global de propósito: ele
     # bufferizaria os streams SSE da extração (keepalive). Aqui é uma resposta única.
+    # s459 (auditoria ESCALA A1): JSON e gzip numa thread (1,8 s de CPU para 60 mil linhas,
+    # medido); no event loop eles travavam a tela de todos os outros usuários.
     aceita_gzip = "gzip" in request.headers.get("accept-encoding", "").lower()
-    if aceita_gzip and len(body) > 1024:
-        comprimido = gzip.compress(body, compresslevel=6)
+
+    def _serializar():
+        b = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
+        return b, (gzip.compress(b, compresslevel=6) if aceita_gzip and len(b) > 1024 else None)
+    body, comprimido = await asyncio.to_thread(_serializar)
+    if comprimido is not None:
         return Response(
             content=comprimido,
             media_type="application/json",
