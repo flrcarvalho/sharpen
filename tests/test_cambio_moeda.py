@@ -409,3 +409,105 @@ def test_json_bcb_carrega_o_corpo_na_excecao():
     with pytest.raises(P.BcbRecusou) as e:
         P._json_bcb(_RespHtml())
     assert "Request Rejected" in str(e.value)
+
+
+# ── s458: com o BCB recusando, o PTAX gravado no Postgres ────────────────────
+
+def _banco_falso(gravado):
+    """Dubla `_ptax_banco_ler`/`_gravar` com um dict {moeda: {iso: venda}}."""
+    lidas, gravadas = [], []
+
+    async def ler(moeda, de_iso):
+        lidas.append((moeda, de_iso))
+        return {i: v for i, v in gravado.get(moeda, {}).items() if i >= de_iso}
+
+    async def gravar(moeda, mapa):
+        gravadas.append((moeda, dict(mapa)))
+    return ler, gravar, lidas, gravadas
+
+
+def _com_banco(gravado, fn):
+    ler, gravar, lidas, gravadas = _banco_falso(gravado)
+    o_ler, o_gravar = P._ptax_banco_ler, P._ptax_banco_gravar
+    P._ptax_banco_ler, P._ptax_banco_gravar = ler, gravar
+    try:
+        fn()
+    finally:
+        P._ptax_banco_ler, P._ptax_banco_gravar = o_ler, o_gravar
+    return lidas, gravadas
+
+
+def test_bcb_recusa_e_o_eur_sai_do_banco_com_o_mesmo_numero():
+    _limpa()
+    hoje = P._hoje_iso()
+    ontem = P._iso_mais(hoje, -1)
+    _com_banco({"EUR": {ontem: 6.3102}},
+               lambda: _com_bloqueio(lambda: asyncio.run(C.carregar("EUR", [ontem, hoje]))))
+    assert C.cotacao("EUR", ontem) == 6.3102
+    assert C.cotacao("EUR", hoje) == 6.3102            # recuo de 1 dia, a régua de sempre
+    assert "EUR" not in C._PTAX_MOEDA_FAIXA            # a próxima carga volta a tentar o BCB
+
+
+def test_bcb_recusa_e_o_banco_nao_cobre_hoje_continua_recusando():
+    import pytest
+    _limpa()
+    velha = P._iso_mais(P._hoje_iso(), -40)
+    with pytest.raises(P.CambioIndisponivel):
+        _com_banco({"EUR": {velha: 5.0}},
+                   lambda: _com_bloqueio(lambda: asyncio.run(C.carregar("EUR", [velha]))))
+
+
+def test_bcb_recusa_e_o_usd_sai_do_banco():
+    _limpa()
+    P._PTAX_DE = P._PTAX_ATE = None
+    hoje = P._hoje_iso()
+    ontem = P._iso_mais(hoje, -1)
+    _com_banco({"USD": {ontem: 5.7324}},
+               lambda: _com_bloqueio(lambda: asyncio.run(C.carregar("USD", [ontem]))))
+    assert C.cotacao("USD", ontem) == 5.7324
+    assert C.cotacao("USD", hoje) == 5.7324
+    assert P._PTAX_ATE is None                          # faixa não marcada
+
+
+def test_carga_boa_grava_o_fechamento_no_banco():
+    _limpa()
+    gravadas = []
+
+    async def gravar(moeda, mapa):
+        gravadas.append((moeda, dict(mapa)))
+    o = P._ptax_banco_gravar
+    P._ptax_banco_gravar = gravar
+    try:
+        _carrega_ptax("EUR", _boletins("2026-10-02", 5.8657, 5.8815))
+    finally:
+        P._ptax_banco_gravar = o
+    assert gravadas == [("EUR", {"2026-10-02": 5.8815})]   # o Fechamento, não a abertura
+
+
+def test_bcb_recusa_e_o_banco_nao_cobre_hoje_no_usd_continua_recusando():
+    import pytest
+    _limpa()
+    P._PTAX_DE = P._PTAX_ATE = None
+    velha = P._iso_mais(P._hoje_iso(), -40)
+    with pytest.raises(P.CambioIndisponivel):
+        _com_banco({"USD": {velha: 5.0}},
+                   lambda: _com_bloqueio(lambda: asyncio.run(P._garantir_cobertura(None, velha))))
+
+
+def test_carga_boa_do_dolar_grava_no_banco():
+    _limpa()
+    gravadas = []
+
+    async def gravar(moeda, mapa):
+        gravadas.append((moeda, dict(mapa)))
+
+    async def fake_get(client, url, params):
+        return _Resp([{"cotacaoCompra": 5.0, "cotacaoVenda": 5.01,
+                       "dataHoraCotacao": "2026-10-08 13:08:16.8"}])
+    o_g, o_r = P._ptax_banco_gravar, P._get_retry
+    P._ptax_banco_gravar, P._get_retry = gravar, fake_get
+    try:
+        asyncio.run(P._carregar_periodo(None, "2026-10-01", "2026-10-09"))
+    finally:
+        P._ptax_banco_gravar, P._get_retry = o_g, o_r
+    assert gravadas == [("USD", {"2026-10-08": 5.01})]

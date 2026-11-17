@@ -137,6 +137,7 @@ async def _carregar_ptax_moeda(client: httpx.AsyncClient, moeda: str, de_iso: st
     }
     r = await _poly._get_retry(client, _BCB_MOEDA_PERIODO, params)
     mapa = _PTAX_MOEDA_MAPA.setdefault(moeda, {})
+    lidos: dict[str, float] = {}
     for item in _poly._json_bcb(r).get("value", []):
         if item.get("tipoBoletim") != "Fechamento":
             continue
@@ -144,7 +145,20 @@ async def _carregar_ptax_moeda(client: httpx.AsyncClient, moeda: str, de_iso: st
         cot = item.get("cotacaoVenda")
         if len(iso) == 10 and cot:
             mapa.setdefault(iso, float(cot))   # 1º do dia, como o `$top=1` do dólar
+            lidos.setdefault(iso, mapa[iso])
     _PTAX_MOEDA_FAIXA[moeda] = (de, hoje)
+    await _poly._ptax_banco_gravar(moeda, lidos)   # s458: o próximo bloqueio do BCB lê daqui
+
+
+async def _ptax_moeda_do_banco(moeda: str, de_iso: str) -> bool:
+    """O BCB recusou (s458): preenche o mapa com o PTAX gravado de `[de_iso − 10 dias ..]`.
+    True só se ele cobre HOJE pela régua de recuo (`_ptax_moeda_ate`). A faixa não é marcada,
+    então a próxima carga volta a tentar o BCB."""
+    mapa = _PTAX_MOEDA_MAPA.setdefault(moeda, {})
+    for iso, v in (await _poly._ptax_banco_ler(
+            moeda, _poly._iso_mais(de_iso, -_poly._RECUO_MAX_DIAS))).items():
+        mapa.setdefault(iso, v)
+    return _ptax_moeda_ate(moeda, _poly._hoje_iso()) is not None
 
 
 def _ptax_moeda_ate(moeda: str, iso: str) -> float | None:
@@ -191,6 +205,9 @@ async def carregar(moeda: str, isos: list[str]) -> None:
         except Exception as exc:
             # O motivo vai ao log (s458): achatado, o bloqueio do BCB ao servidor ficou mudo.
             _poly._logger.warning("câmbio: %s→BRL falhou: %s: %s", moeda, type(exc).__name__, exc)
+            if moeda in _PTAX_MOEDAS and await _ptax_moeda_do_banco(moeda, datas[0]):
+                _poly._logger.warning("câmbio: PTAX %s lido do banco (BCB recusou)", moeda)
+                return
             raise _poly.CambioIndisponivel(
                 f"Câmbio {moeda}→BRL indisponível agora. Tente de novo em alguns minutos."
             ) from exc

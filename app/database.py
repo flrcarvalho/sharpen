@@ -1173,6 +1173,19 @@ CREATE TABLE IF NOT EXISTS kalshi_chave (
     conferida_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     ultimo_sync  TIMESTAMPTZ
 );
+
+-- s458 (17/11/2026): o PTAX de Fechamento já lido, por moeda e dia. O firewall do BCB passou a
+-- recusar o IP de saída da Railway (`200 text/html` "Request Rejected"), e sem cotação o
+-- `/salvar` recusa toda linha em USD/EUR/AUD. Cotação de dia passado nunca muda: o servidor
+-- grava cada carga boa aqui e, quando o BCB recusa, lê daqui (`polymarket._ptax_banco_*`).
+-- Quem alcança o BCB preenche por fora: `scripts/semear_ptax.py`. Mesma fonte, mesmo número.
+CREATE TABLE IF NOT EXISTS cotacao_ptax (
+    moeda     TEXT NOT NULL,
+    data      DATE NOT NULL,
+    venda     NUMERIC NOT NULL,
+    gravada_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (moeda, data)
+);
 """
 
 

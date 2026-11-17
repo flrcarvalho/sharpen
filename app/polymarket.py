@@ -91,6 +91,50 @@ def _json_bcb(r):
         raise BcbRecusou(f"BCB respondeu sem JSON: {corpo or '(corpo vazio)'}") from exc
 
 
+# ── PTAX gravado no Postgres (s458) ─────────────────────────────────────────
+#
+# O BCB recusa o IP de saída da Railway (ver `BcbRecusou`). A cotação de dia passado nunca
+# muda, então toda carga boa vai para `cotacao_ptax` e, quando o BCB recusa, o mapa é
+# preenchido de lá: a MESMA fonte e o MESMO número, só que lidos antes por quem alcança o BCB
+# (o servidor num dia bom, ou `scripts/semear_ptax.py`). Falha de banco aqui nunca derruba
+# nada: sem banco, o comportamento é o de antes (recusa a linha).
+
+async def _ptax_banco_gravar(moeda: str, mapa: dict) -> None:
+    """Grava as cotações do `mapa` (ISO → venda). Dia já gravado fica como está."""
+    if not mapa:
+        return
+    try:
+        from decimal import Decimal
+        from datetime import date
+        from database import get_pool
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.executemany(
+                "INSERT INTO cotacao_ptax (moeda, data, venda) VALUES ($1, $2, $3) "
+                "ON CONFLICT (moeda, data) DO NOTHING",
+                [(moeda, date.fromisoformat(iso), Decimal(str(v))) for iso, v in mapa.items()])
+    except Exception as exc:  # noqa: BLE001 — gravar é bônus; a conversão já tem o número
+        _logger.warning("câmbio: PTAX %s não gravado no banco: %s: %s",
+                        moeda, type(exc).__name__, exc)
+
+
+async def _ptax_banco_ler(moeda: str, de_iso: str) -> dict[str, float]:
+    """As cotações gravadas de `moeda` desde `de_iso`, ISO → venda. Sem banco, {}."""
+    try:
+        from datetime import date
+        from database import get_pool
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT data, venda FROM cotacao_ptax WHERE moeda = $1 AND data >= $2",
+                moeda, date.fromisoformat(de_iso))
+        return {r["data"].isoformat(): float(r["venda"]) for r in rows}
+    except Exception as exc:  # noqa: BLE001
+        _logger.warning("câmbio: PTAX %s do banco ilegível: %s: %s",
+                        moeda, type(exc).__name__, exc)
+        return {}
+
+
 class PolymarketRespostaInesperada(RuntimeError):
     """Endpoint respondeu 200 mas não com uma lista — falha em vez de truncar o histórico em silêncio."""
 
@@ -282,6 +326,7 @@ async def _carregar_periodo(client: httpx.AsyncClient, de_iso: str, ate_iso: str
         "$format": "json",
     }
     r = await _get_retry(client, BCB_PTAX_PERIODO, params)
+    lidos: dict[str, float] = {}
     for item in _json_bcb(r).get("value", []):
         iso = str(item.get("dataHoraCotacao") or "")[:10]
         cot = item.get("cotacaoVenda")
@@ -291,6 +336,8 @@ async def _carregar_periodo(client: httpx.AsyncClient, de_iso: str, ate_iso: str
             # com dois boletins de mesmo valor; a escolha não muda o número, mas
             # manter a regra idêntica garante que re-sync não mexa em stake gravado.
             _PTAX_MAPA.setdefault(iso, float(cot))
+            lidos.setdefault(iso, _PTAX_MAPA[iso])
+    await _ptax_banco_gravar("USD", lidos)
     _PTAX_DE = min(_PTAX_DE, de_iso) if _PTAX_DE else de_iso
     _PTAX_ATE = max(_PTAX_ATE, ate_iso) if _PTAX_ATE else ate_iso
 
@@ -312,7 +359,14 @@ async def _garantir_cobertura(client: httpx.AsyncClient, iso: str) -> None:
         # O motivo vai ao log: achatado em "indisponível", o bloqueio do BCB ao IP do servidor
         # passou um dia inteiro sem causa visível (s458).
         _logger.warning("câmbio: PTAX USD falhou: %s: %s", type(exc).__name__, exc)
-        raise CambioIndisponivel(_CAMBIO_INDISPONIVEL_MSG) from exc
+        # O BCB recusou: o PTAX já gravado (s458). Só segue se ele cobre HOJE pela mesma régua
+        # de recuo do mapa; a faixa (`_PTAX_DE/_ATE`) não é marcada, então a próxima carga
+        # volta a tentar o BCB. Data antiga fora do banco continua sem cotação (linha recusada).
+        for iso_b, v in (await _ptax_banco_ler("USD", de)).items():
+            _PTAX_MAPA.setdefault(iso_b, v)
+        if _cotacao_do_mapa(hoje) is None:
+            raise CambioIndisponivel(_CAMBIO_INDISPONIVEL_MSG) from exc
+        _logger.warning("câmbio: PTAX USD lido do banco (BCB recusou)")
 
 
 def _cotacao_do_mapa(iso: str) -> float | None:
