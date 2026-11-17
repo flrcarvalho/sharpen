@@ -1,4 +1,5 @@
 import asyncio
+import weakref
 import base64
 import csv
 import gzip
@@ -134,6 +135,22 @@ def _fire(coro):
 
 _MAX_CHUNKS = 4         # PISO de paralelismo, não teto de tamanho: lote pequeno continua
                         # fatiado em até 4 pedaços (ver `_BILHETES_POR_CHUNK`).
+# s459 (auditoria de 17/11, ESCALA A4): teto GLOBAL de chamadas simultâneas à IA. O semáforo
+# de 8 abaixo é criado por requisição; 4 usuários extraindo ao mesmo tempo faziam 32 chamadas
+# simultâneas (medido), e no pico todo mundo tomava 429/overload junto. Um por event loop
+# (os testes rodam vários loops; o semáforo prende ao primeiro que o usa).
+_MAX_IA_GLOBAL = int(os.environ.get("IA_SIMULTANEAS_MAX", "16") or 16)
+_IA_GLOBAL: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()
+
+
+def _ia_global() -> asyncio.Semaphore:
+    loop = asyncio.get_running_loop()
+    s = _IA_GLOBAL.get(loop)
+    if s is None:
+        s = _IA_GLOBAL[loop] = asyncio.Semaphore(_MAX_IA_GLOBAL)
+    return s
+
+
 _MAX_CONCURRENT = 8      # requests simultâneos à API (semáforo). Subiu de 4 p/ 8 para PDF
                         # grande: mais chunks pequenos em paralelo → o chunk mais lento
                         # termina antes e a extração não estoura o timeout de borda.
@@ -2719,7 +2736,7 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
                 cache_quente.set()
 
     async def _call_chunk_inner(idx: int, chunk_content: list[dict]):
-        async with sem:
+        async with sem, _ia_global():
             t0 = time.perf_counter()
             accumulated = ""
             tokens = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
@@ -2970,7 +2987,7 @@ async def _stream_contrato(texto: str, casa_key: str, casa: str, parceiro: str, 
 
     async def _uma(i: int, txt: str):
         nonlocal chamadas, tentativas
-        async with sem:
+        async with sem, _ia_global():
             content = [{"type": "text", "text": txt}, instr]
             messages = [{"role": "user", "content": content}]
             acc = ""
