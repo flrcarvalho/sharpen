@@ -353,3 +353,59 @@ def test_numeric_vai_como_decimal_e_nunca_float():
     assert R._dec(25.1) == Decimal("25.1")
     assert isinstance(R._dec(5.1998), Decimal)
     assert R._dec(None) is None and R._dec("") is None
+
+
+# ── s458: o BCB bloqueia o IP do servidor com `200 text/html` ────────────────
+
+_PAGINA_BLOQUEIO = ("<html><head><title>Request Rejected</title></head><body>The requested URL "
+                    "was rejected. Please consult with your administrator.<br><br>Your support "
+                    "ID is: 14273271139584409029</body></html>")   # o corpo real, 17/11/2026
+
+
+class _RespHtml:
+    """A resposta medida de dentro do servidor: status 200, corpo HTML. `json()` quebra."""
+    status_code = 200
+    text = _PAGINA_BLOQUEIO
+
+    def json(self):
+        import json
+        return json.loads(self.text)
+
+
+def _com_bloqueio(fn):
+    async def fake_get(client, url, params):
+        return _RespHtml()
+    original = P._get_retry
+    P._get_retry = fake_get
+    try:
+        return fn()
+    finally:
+        P._get_retry = original
+
+
+def test_bloqueio_do_bcb_diz_o_motivo_no_eur(caplog):
+    """Antes da s458 o `JSONDecodeError` virava "indisponível" sem nada no log."""
+    _limpa()
+    import pytest
+    with caplog.at_level("WARNING", logger="scanner"):
+        with pytest.raises(P.CambioIndisponivel):
+            _com_bloqueio(lambda: asyncio.run(C.carregar("EUR", ["2026-11-16"])))
+    assert "Request Rejected" in caplog.text and "EUR" in caplog.text
+    assert C.cotacao("EUR", "2026-11-16") is None          # nada inventado
+
+
+def test_bloqueio_do_bcb_diz_o_motivo_no_usd(caplog):
+    _limpa()
+    P._PTAX_DE = P._PTAX_ATE = None      # sem faixa coberta: a carga tem de ir à rede
+    import pytest
+    with caplog.at_level("WARNING", logger="scanner"):
+        with pytest.raises(P.CambioIndisponivel):
+            _com_bloqueio(lambda: asyncio.run(P._garantir_cobertura(None, "2026-11-16")))
+    assert "Request Rejected" in caplog.text and "USD" in caplog.text
+
+
+def test_json_bcb_carrega_o_corpo_na_excecao():
+    import pytest
+    with pytest.raises(P.BcbRecusou) as e:
+        P._json_bcb(_RespHtml())
+    assert "Request Rejected" in str(e.value)

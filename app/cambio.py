@@ -137,7 +137,7 @@ async def _carregar_ptax_moeda(client: httpx.AsyncClient, moeda: str, de_iso: st
     }
     r = await _poly._get_retry(client, _BCB_MOEDA_PERIODO, params)
     mapa = _PTAX_MOEDA_MAPA.setdefault(moeda, {})
-    for item in r.json().get("value", []):
+    for item in _poly._json_bcb(r).get("value", []):
         if item.get("tipoBoletim") != "Fechamento":
             continue
         iso = str(item.get("dataHoraCotacao") or "")[:10]
@@ -189,6 +189,8 @@ async def carregar(moeda: str, isos: list[str]) -> None:
         except _poly.CambioIndisponivel:
             raise
         except Exception as exc:
+            # O motivo vai ao log (s458): achatado, o bloqueio do BCB ao servidor ficou mudo.
+            _poly._logger.warning("câmbio: %s→BRL falhou: %s: %s", moeda, type(exc).__name__, exc)
             raise _poly.CambioIndisponivel(
                 f"Câmbio {moeda}→BRL indisponível agora. Tente de novo em alguns minutos."
             ) from exc

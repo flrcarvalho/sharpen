@@ -32,10 +32,13 @@ casos de cauda longa caem em `Outro`/`ML` e são triviais de ajustar na grade.
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 from datetime import datetime, timezone, timedelta
 
 import httpx
+
+_logger = logging.getLogger("scanner")
 
 POLY_BASE = "https://polymarket-proxy.flrcarvalho.workers.dev"
 _BCB_ODATA = "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/"
@@ -70,6 +73,22 @@ _CAMBIO_INDISPONIVEL_MSG = (
     "Câmbio (PTAX/BCB) indisponível agora — não foi possível converter "
     "USD→BRL. Tente sincronizar novamente em alguns minutos."
 )
+
+
+class BcbRecusou(RuntimeError):
+    """O BCB respondeu, mas o corpo não é JSON (s458, 17/11/2026: o firewall dele devolve
+    `200 text/html` "Request Rejected" ao IP de saída da Railway, e o `r.json()` quebrava
+    com um `JSONDecodeError` que ninguém via). A mensagem carrega o começo do corpo."""
+
+
+def _json_bcb(r):
+    """`r.json()` do BCB, com o corpo na mensagem quando ele não é JSON. Status 200 NÃO prova
+    que veio dado: a página de bloqueio vem com 200, e por isso o retry nunca a pegava."""
+    try:
+        return r.json()
+    except ValueError as exc:
+        corpo = " ".join(str(getattr(r, "text", "") or "").split())[:200]
+        raise BcbRecusou(f"BCB respondeu sem JSON: {corpo or '(corpo vazio)'}") from exc
 
 
 class PolymarketRespostaInesperada(RuntimeError):
@@ -263,7 +282,7 @@ async def _carregar_periodo(client: httpx.AsyncClient, de_iso: str, ate_iso: str
         "$format": "json",
     }
     r = await _get_retry(client, BCB_PTAX_PERIODO, params)
-    for item in r.json().get("value", []):
+    for item in _json_bcb(r).get("value", []):
         iso = str(item.get("dataHoraCotacao") or "")[:10]
         cot = item.get("cotacaoVenda")
         if len(iso) == 10 and cot:
@@ -290,6 +309,9 @@ async def _garantir_cobertura(client: httpx.AsyncClient, iso: str) -> None:
     try:
         await _carregar_periodo(client, min(de, _PTAX_DE) if _PTAX_DE else de, hoje)
     except Exception as exc:
+        # O motivo vai ao log: achatado em "indisponível", o bloqueio do BCB ao IP do servidor
+        # passou um dia inteiro sem causa visível (s458).
+        _logger.warning("câmbio: PTAX USD falhou: %s: %s", type(exc).__name__, exc)
         raise CambioIndisponivel(_CAMBIO_INDISPONIVEL_MSG) from exc
 
 
