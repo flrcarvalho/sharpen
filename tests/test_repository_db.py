@@ -4443,3 +4443,96 @@ def test_s448_ficha_regrava_a_reliquidada(monkeypatch):
     assert feitos == {_SIMPLES} and linha == ("W", "1,82"), (linha, feitos)
     feitos, linha = _run(rodar(True))
     assert linha == ("L", "9,99"), "correção humana manda sobre a reliquidação"
+
+
+# ── 4.1 / 7.4 (s460): o lote do `upsert_bilhetes` é UMA transação, com trava por conta ────
+# Mutações provadas (aplicadas ao repository.py, teste vermelho, revertidas):
+#   1. sem a transação (`async with pool.acquire() as conn:`) → os três abaixo
+#   2. sem o advisory lock                                    → test_s460_lote_da_mesma_conta_espera…
+#   3. sem o SAVEPOINT do INSERT                              → test_s460_colisao_no_lote_nao_aborta…
+# NÃO cobre: o SAVEPOINT do `_rastro_ficha` (falha de INSERT em `correcoes` não se provoca
+# sem dublar a conexão) e a ordem fixa das chaves (deadlock entre dois lotes com as mesmas contas em ordem
+# trocada é difícil de provocar de forma determinística aqui; a ordem é `sorted`).
+
+def test_s460_lote_e_atomico(monkeypatch):
+    """Erro no fim do lote desfaz o lote INTEIRO. Antes, as linhas já gravadas ficavam."""
+    async def explode(*_a, **_k):
+        raise RuntimeError("falha no meio do lote")
+
+    async def body():
+        await _reset()
+        monkeypatch.setattr(repository, "_caixa_adotar_abertas_tardias", explode)
+        with pytest.raises(RuntimeError):
+            await repository.upsert_bilhetes(
+                [_row(codigo_bilhete=f"ATOM{i}") for i in range(5)], "TDono460")
+        return await _count("TDono460")
+    assert _run(body()) == 0
+
+
+def test_s460_um_aviso_base_mudou_por_lote():
+    """ESC A2: 843 avisos num lote de 1.000 linhas (medido na auditoria). Agora, 1."""
+    import asyncpg
+
+    async def body():
+        await _reset()
+        avisos = []
+        ouvinte = await asyncpg.connect(TEST_DB)
+        await ouvinte.add_listener("base_mudou", lambda *a: avisos.append(a[3]))
+        try:
+            await repository.upsert_bilhetes(
+                [_row(codigo_bilhete=f"AV{i}") for i in range(40)], "TDono460")
+            await asyncio.sleep(0.5)
+        finally:
+            await ouvinte.close()
+        return [a for a in avisos if a == "TDono460"]
+    assert len(_run(body())) == 1
+
+
+def test_s460_lote_da_mesma_conta_espera_o_outro(monkeypatch):
+    """Dois `/salvar` da MESMA conta não se intercalam (disputa de órfã, ESC A7); de contas
+    diferentes, sim. O lote A fica parado DENTRO da transação dele."""
+    original = repository._caixa_adotar_abertas_tardias
+    solta = asyncio.Event()
+    chamadas = []
+
+    async def segura_o_primeiro(conn, dono, novas):
+        chamadas.append(dono)
+        if len(chamadas) == 1:
+            await solta.wait()
+        return await original(conn, dono, novas)
+
+    async def body():
+        await _reset()
+        monkeypatch.setattr(repository, "_caixa_adotar_abertas_tardias", segura_o_primeiro)
+        a = asyncio.ensure_future(repository.upsert_bilhetes(
+            [_row(codigo_bilhete="LK1")], "TDono460"))
+        await asyncio.sleep(0.3)
+        outra = asyncio.ensure_future(repository.upsert_bilhetes(
+            [_row(codigo_bilhete="LK3", parceiro="Outra [Eu]")], "TDono460"))
+        mesma = asyncio.ensure_future(repository.upsert_bilhetes(
+            [_row(codigo_bilhete="LK2")], "TDono460"))
+        await asyncio.sleep(0.8)
+        estado = (a.done(), outra.done(), mesma.done())
+        solta.set()
+        await asyncio.gather(a, outra, mesma)
+        return estado, await _count("TDono460")
+    estado, n = _run(body())
+    assert estado == (False, True, False), estado    # só a outra conta passou
+    assert n == 3
+
+
+def test_s460_colisao_no_lote_nao_aborta_o_resto():
+    """O `except UniqueViolationError` do INSERT agora roda dentro da transação do lote: sem
+    o SAVEPOINT, a 1ª colisão deixaria a transação abortada e o lote inteiro cairia.
+    A colisão é provocada de verdade: a sequência do `id` recua para um id que já existe."""
+    async def body():
+        await _reset()
+        await repository.upsert_bilhetes([_row(codigo_bilhete="COL0")], "TDono460")
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute("SELECT setval(pg_get_serial_sequence('bilhetes', 'id'), 1, false)")
+        await repository.upsert_bilhetes(
+            [_row(codigo_bilhete="COL1"), _row(codigo_bilhete="COL2")], "TDono460")
+        return await _count("TDono460")
+    # COL1 colide no id 1 (cai no `except`, que não acha linha para atualizar); COL2 entra
+    assert _run(body()) == 2

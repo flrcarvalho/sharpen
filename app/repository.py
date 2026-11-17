@@ -1896,16 +1896,21 @@ def _txt(v) -> str:
 
 async def _rastro_ficha(conn, dono: str, antes, depois) -> None:
     """Uma linha em `correcoes` (`origem='ficha'`) por campo de `_RASTRO_FICHA` que o UPSERT da
-    Ficha mudou. Nunca derruba o `/salvar`: falha aqui é logada."""
+    Ficha mudou. Nunca derruba o `/salvar`: falha aqui é logada.
+
+    Roda dentro da transação do lote (4.1, s460), por isso o SAVEPOINT: sem ele, um INSERT que
+    falhasse aqui deixaria a transação abortada e o resto do lote cairia junto, ao contrário
+    do que a frase acima promete."""
     try:
-        for campo in _RASTRO_FICHA:
-            a, d = _txt(antes[campo]), _txt(depois[campo])
-            if a != d:
-                await conn.execute(
-                    "INSERT INTO correcoes (bilhete_id, dono, casa, campo, valor_anterior, "
-                    "valor_novo, descricao, origem) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-                    antes["id"], dono, antes["casa"], campo, a or None, d or None,
-                    antes["descricao"], _ORIGEM_FICHA)
+        async with conn.transaction():
+            for campo in _RASTRO_FICHA:
+                a, d = _txt(antes[campo]), _txt(depois[campo])
+                if a != d:
+                    await conn.execute(
+                        "INSERT INTO correcoes (bilhete_id, dono, casa, campo, valor_anterior, "
+                        "valor_novo, descricao, origem) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                        antes["id"], dono, antes["casa"], campo, a or None, d or None,
+                        antes["descricao"], _ORIGEM_FICHA)
     except Exception:  # noqa: BLE001
         logger.exception("rastro da Ficha não gravado em correcoes (bilhete %s)", antes["id"])
 
@@ -1965,7 +1970,19 @@ async def upsert_bilhetes(
     # `_caixa_abertas_ids` lê — ver `_caixa_adotar_abertas_tardias`.
     abertas_tardias: list[tuple[str, str, dict]] = []
 
-    async with pool.acquire() as conn:
+    # 4.1 (s460, auditoria ESC A2/A7): o LOTE é uma transação só. Antes cada comando era um
+    # commit próprio (até 5 por linha): erro ou deploy no meio deixava o lote pela metade,
+    # sem como saber, e o trigger `base_mudou` avisava as telas a CADA linha (843 avisos num
+    # lote de 1.000, medido). `conn` já existe quando `conn.transaction()` é avaliado: os
+    # itens de um `async with` entram da esquerda para a direita.
+    async with pool.acquire() as conn, conn.transaction():
+        # Um lote por CONTA de cada vez. Os índices de órfãs abaixo (`sem_cod_no_banco`,
+        # `ocr_no_banco`) são lidos no começo e usados no laço: dois `/salvar` simultâneos da
+        # mesma conta podiam adotar a MESMA órfã. Ordem fixa das chaves: dois lotes com as
+        # mesmas contas não se travam um ao outro. Espera sob o `lock_timeout` do pool (60 s).
+        for chave in sorted({(row.get("casa", ""), row.get("parceiro", "")) for row in rows}):
+            await conn.execute("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+                               "upsert\x1f%s\x1f%s\x1f%s" % (dono, chave[0], chave[1]))
         # Rede de segurança (camada 2): índice dos bilhetes que JÁ estão no banco COM
         # código, por (casa, parceiro, stake, odd). Serve para avisar quando uma linha
         # que chega SEM código bater com um bilhete já salvo COM código nesta conta —
@@ -2254,7 +2271,11 @@ async def upsert_bilhetes(
                     "WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND assinatura = $4",
                     dono, row.get("casa", ""), row.get("parceiro", ""), sig)
             try:
-                rec = await conn.fetchrow(
+                # SAVEPOINT (4.1): dentro da transação do lote, um erro de SQL aborta tudo o
+                # que vem depois. A colisão do `except` abaixo é ESPERADA e tratada, então ela
+                # desfaz só este INSERT, e o lote segue.
+                async with conn.transaction():
+                    rec = await conn.fetchrow(
                     """
                     INSERT INTO bilhetes
                         (dono, casa, parceiro, assinatura, codigo_bilhete, data, esporte, tipster,

@@ -99,7 +99,10 @@ por mutação e o gate do projeto. **Status:** `[ ]` aberto · `[x]` feito (com 
 
 ### Fase 4 — Escrita consistente
 
-- [ ] **4.1** `upsert_bilhetes` numa transação por lote + advisory lock por conta. (ESC A2, A7)
+- [x] **4.1** (s460, commit "4.1 + 7.4") `upsert_bilhetes` numa transação por lote + advisory lock por conta. (ESC A2, A7) —
+  INSERT com `UniqueViolationError` e `_rastro_ficha` viram SAVEPOINT; lock por (dono,
+  casa, conta) em ordem fixa, sob o `lock_timeout` de 60 s. Fora do escopo: os passos do
+  `/salvar` DEPOIS do upsert (absorção, log) seguem em transações próprias.
 - [x] **4.2** (`19d24e4`) `abertas_corte` atualizado de forma atômica em todos os escritores. (ESC A8)
 - [x] **4.3** (`19d24e4`) Custos com controle de versão (409 em conflito) ou escrita por item. (NAV A1, ESC A11)
 - [x] **4.4** (`a04747b`) Invalidação de cache pelo banco (matcher, categorias); LISTEN que reconecta avisa
@@ -142,16 +145,29 @@ por mutação e o gate do projeto. **Status:** `[ ]` aberto · `[x]` feito (com 
 - [ ] **7.2** `envioPendente` vira fila com destino conferido no Reenviar; sem poda muda. (EXT A7)
 - [x] **7.3** (`ec23947`, parcial: transformação + JSON/gzip em thread; falta decode do asyncpg, cache por dono e feed incremental) Feed do dashboard montado fora do event loop, com cache por dono invalidado pelo
   `base_mudou`. (ESC A1)
-- [ ] **7.4** Trigger `base_mudou` por comando, não por linha. (ESC A2)
+- [x] **7.4** (s460, resolvida pela 4.1, **medida**) Trigger `base_mudou` por comando, não por linha. (ESC A2) — o
+  `pg_notify` já deduplica payload igual dentro da transação; o que gerava 843 avisos era
+  cada linha ser um commit. Com o lote numa transação: **1 aviso por lote**
+  (`test_s460_um_aviso_base_mudou_por_lote`). Trocar o trigger por três de comando (tabelas
+  de transição) não acrescenta nada medido; não feito.
 - [x] **7.5** (`3d96fae`, parcial: teto global 16; falta cota por dono) Limitador global e por dono de chamadas à IA. (ESC A4)
 - [ ] **7.6** Horizonte da captura decidido pelo servidor por conta. (EXT A6)
 
 ### Fase 8 — Liquidação com contrato único (R3)
 
-- [ ] **8.1** Teste de contrato igual para todas as casas (cashout, perna anulada, meia
-  asiática, devolução) sobre as fixtures do harness. (GIT família L)
-- [ ] **8.2** Resultado decidido pelo dinheiro no servidor (`_veredito_do_retorno`) quando o
-  rótulo da casa é desconhecido. (GIT família L, TRAV A8)
+- [x] **8.1** (`9ff8ecd`) Teste de contrato igual para todas as casas (cashout, perna anulada, meia
+  asiática, devolução) sobre as fixtures do harness. (GIT família L) — as funções reais do
+  servidor sobre os 1.336 blocos do harness (60 casas), snapshot conferido no CI; achou e
+  consertou 4 defeitos (tolerância em BTC no veredito e na Ficha, `Stake: 30,00 USDT` fora
+  do gate na família TV, "a conferir" com seta virando L). Cobertura por casa em catraca;
+  **8 casas sem nenhum W no harness** (1xBit, 20bet, Faz1bet, GoldenBet, Jack, Locasbet,
+  MelBet, PariPesa) como dívida nomeada: fixture de W real de cada uma fecha a dívida.
+- [x] **8.2** (`9ff8ecd`, **escopo reduzido por evidência**) Resultado decidido pelo dinheiro no servidor (`_veredito_do_retorno`) quando o
+  rótulo da casa é desconhecido. (GIT família L, TRAV A8) — feito: linha que a IA deixou
+  aberta num bloco que DECLAROU o resultado sai com o que o dinheiro confirma. **Não feito, de
+  propósito:** decidir o "a conferir". Medido: 0 apostas do estoque de produção presas por
+  rótulo (MEDICAO §1); os "a conferir" do harness são ambíguos por construção; o CLAUDE.md
+  proíbe. Reabrir só com estoque medido de aposta presa por rótulo.
 
 ---
 
