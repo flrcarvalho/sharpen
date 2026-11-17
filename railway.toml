@@ -1,6 +1,10 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
+# Auditoria de 17/11/2026 (PLANO_CONFIABILIDADE 2.1): todo push redeployava, inclusive commit
+# só de docs/STATUS/BACKLOG/testes, e cada deploy apaga o estado em memória do processo
+# (pareamento da extensão, fila de captura). Só o que entra na imagem (ver Dockerfile) dispara.
+watchPatterns = ["app/**", "global/**", "casas/**", "extensor/**", "Dockerfile", "railway.toml"]
 
 [deploy]
 restartPolicyType = "ON_FAILURE"
