@@ -21,6 +21,10 @@ As provas reexecutáveis ficaram no scratchpad da sessão (temporário); os rela
 nomes dos scripts. Produção **não** foi auditada (acesso negado pelo classificador de
 permissões); por isso nenhum número aqui é frequência real.
 
+**Medida na s460** (só leitura, autorização do Feca):
+[`MEDICAO_PRODUCAO.md`](MEDICAO_PRODUCAO.md), harness em `tools/medicao_producao/`. Abriu
+os itens **2.6**, **5.5** e **6.6** abaixo.
+
 ---
 
 ## 1. Diagnóstico em uma página
@@ -77,6 +81,9 @@ por mutação e o gate do projeto. **Status:** `[ ]` aberto · `[x]` feito (com 
   (a captura só sai da fila depois do ack do dashboard); o deploy deixa de derrubar o
   pareamento. (SRV P3, EXT A1, ESC A6, TRAV A6)
 - [x] **2.5** (`a04747b`) Tarefas de fundo com referência guardada e log de morte. (SRV P12)
+- [ ] **2.6** (s460, medido) `enviar` para sessão encerrada no mesmo instante bate na FK de
+  `captura_fila` e responde 200 "em memória": a captura some com "enviado ✓". Responder
+  como sessão inexistente. (MEDICAO §3)
 
 ### Fase 3 — Identidade de versão
 
@@ -112,6 +119,9 @@ por mutação e o gate do projeto. **Status:** `[ ]` aberto · `[x]` feito (com 
   terminou. (ESC A9)
 - [x] **5.4** (`4db68bc`, SharpenUp 0.7.88) `cruEnviado` da extensão com escopo de sessão/dono, e marcado só com o que o
   servidor guardou. (TRAV A4)
+- [ ] **5.5** (s460, medido: as 9 do arrudex) Cru cuja linha o `/salvar` interno recusou por
+  motivo transitório (câmbio) não conta como processado; o cru igual seguinte reprocessa.
+  (MEDICAO §1, §6-A)
 
 ### Fase 6 — O usuário vê o que aconteceu
 
@@ -121,6 +131,9 @@ por mutação e o gate do projeto. **Status:** `[ ]` aberto · `[x]` feito (com 
   só sucesso mexe no carimbo de sincronização. (NAV A2, A3, B3)
 - [x] **6.4** (`74def2e`, parcial: a recusa explica e dá a saída; mover histórico entre contas pela tela segue aberto) Conta errada × conta arquivada deixa de ser beco sem saída. (TRAV A1)
 - [ ] **6.5** Captura parcial declarada (completo/parcial:motivo) e mostrada. (EXT A5)
+- [ ] **6.6** (s460, medido: arrudex 21 capturas × 3 `/extrair`) A parte que a Ficha deixa
+  para a IA espera um "Processar" que não vem, e a grade já mudou. **Decisão do Feca:**
+  destacar o número na Extração ou disparar o `/extrair` sozinho. (MEDICAO §5, §6-D)
 
 ### Fase 7 — Volume
 
