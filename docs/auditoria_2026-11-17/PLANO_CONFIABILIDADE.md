@@ -110,7 +110,7 @@ por mutação e o gate do projeto. **Status:** `[ ]` aberto · `[x]` feito (com 
   contrário é corrigido. (TRAV A3)
 - [ ] **5.3** Ficha: cru marcado como processado só no fim; reenvio reprocessa o que não
   terminou. (ESC A9)
-- [ ] **5.4** `cruEnviado` da extensão com escopo de sessão/dono, e marcado só com o que o
+- [x] **5.4** (`4db68bc`, SharpenUp 0.7.88) `cruEnviado` da extensão com escopo de sessão/dono, e marcado só com o que o
   servidor guardou. (TRAV A4)
 
 ### Fase 6 — O usuário vê o que aconteceu

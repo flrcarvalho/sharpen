@@ -290,21 +290,43 @@ async def gravar(dono: str, casa_key: str, parceiro: str, versao_ext: str, orige
 
 async def gravar_cru(dono: str, casa_key: str, parceiro: str, familia: str, versao_ext: str,
                      origem: str, itens: list[dict]) -> list[int | None]:
-    """Grava o cru e devolve, por item, o id da linha NOVA (None = já existia igual)."""
+    """Grava o cru e devolve, por item, o id da linha a PROCESSAR: a nova, ou a já existente
+    que ainda não foi processada (s459: requisição que morreu no meio). None = já existia igual
+    e já foi processado."""
     from database import get_pool
     pool = await get_pool()
     ids: list[int | None] = []
     async with pool.acquire() as conn:
         for it in itens:
-            ids.append(await conn.fetchval(
+            novo = await conn.fetchval(
                 """INSERT INTO captura_crua
                      (dono, casa, parceiro, familia, codigo, hash, cru, removidos,
                       versao_ext, origem)
                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                    ON CONFLICT DO NOTHING RETURNING id""",
                 dono, casa_key, parceiro or "", familia, it["codigo"], it["hash"],
-                _cru.canonico(it["cru"]), it["removidos"], versao_ext or "", origem or ""))
+                _cru.canonico(it["cru"]), it["removidos"], versao_ext or "", origem or "")
+            if novo is None:
+                novo = await conn.fetchval(
+                    "SELECT id FROM captura_crua WHERE dono = $1 AND casa = $2 AND parceiro = $3 "
+                    "AND codigo = $4 AND hash = $5 AND processado_em IS NULL",
+                    dono, casa_key, parceiro or "", it["codigo"], it["hash"])
+            ids.append(novo)
     return ids
+
+
+async def marcar_processados(ids) -> None:
+    """s459: o cru só conta como tratado depois que a Ficha dele terminou."""
+    ids = [i for i in ids if i is not None]
+    if not ids:
+        return
+    try:
+        from database import get_pool
+        pool = await get_pool()
+        await pool.execute("UPDATE captura_crua SET processado_em = NOW() "
+                           "WHERE id = ANY($1::bigint[])", ids)
+    except Exception:  # noqa: BLE001 — sem a marca, o pior caso é processar de novo (idempotente)
+        logger.warning("ficha: marca de processado falhou para %d cru(s)", len(ids), exc_info=True)
 
 
 async def moedas_do_cru_conn(conn, dono: str, casa_key: str, parceiro: str,
@@ -561,6 +583,7 @@ async def _processar(sess, payload: dict, versao: str) -> dict:
         logger.warning("ficha: %d de %d códigos do cru já são da conta %r · nada gravado em "
                        "%s/%s/%s", n, len({it['codigo'] for it in aceitos}), conta, sess.dono,
                        sess.casa_key, sess.parceiro)
+        await marcar_processados(ids)      # s459: nada a fazer nesta conta, por desenho
         return {"guardado": True, "recebidos": len(itens), "descartados": descartados,
                 "novos": sum(1 for i in ids if i is not None),
                 "fichas": {"aceitas": 0, "recusadas": 0}, "na_planilha": 0,
@@ -598,6 +621,9 @@ async def _processar(sess, payload: dict, versao: str) -> dict:
             logger.warning("ficha: %s %s — %d Ficha(s) recusada(s): %s", sess.dono,
                            sess.casa_key, fichas_recusadas,
                            next(r["motivos"] for r in registros if not r["aceita"])[:3])
+    # s459: só aqui, depois da Ficha montada e gravada, o cru conta como tratado. Exceção acima
+    # deixa o cru sem marca, e o reenvio da extensão o processa de novo.
+    await marcar_processados(ids)
     return {"guardado": True, "recebidos": len(itens), "descartados": descartados,
             "novos": sum(1 for i in ids if i is not None),
             "fichas": {"aceitas": fichas_aceitas, "recusadas": fichas_recusadas},

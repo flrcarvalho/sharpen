@@ -981,6 +981,20 @@ CREATE TABLE IF NOT EXISTS captura_crua (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS captura_crua_unica
     ON captura_crua (dono, casa, parceiro, codigo, hash);
+-- s459 (auditoria de 17/11, ESCALA A9): o cru é gravado ANTES de a Ficha ser montada; se a
+-- requisição morria entre os dois (deploy, pool travado, exceção), o reenvio achava o cru
+-- igual e pulava: a aposta nunca entrava pela Ficha. `processado_em` só é preenchido no FIM,
+-- e cru igual sem ele é processado de novo. As linhas que já existiam nascem marcadas
+-- (default de constante: o Postgres não reescreve a tabela) e as novas nascem NULL.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name = 'captura_crua' AND column_name = 'processado_em') THEN
+        ALTER TABLE captura_crua ADD COLUMN IF NOT EXISTS processado_em TIMESTAMPTZ
+            DEFAULT '2000-01-01 00:00:00+00';
+        ALTER TABLE captura_crua ALTER COLUMN processado_em DROP DEFAULT;
+    END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS captura_crua_casa ON captura_crua (casa, recebido_em);
 -- A Ficha montada aponta o cru de onde saiu.
 ALTER TABLE ficha_sombra ADD COLUMN IF NOT EXISTS cru_id BIGINT;

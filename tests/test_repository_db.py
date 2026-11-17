@@ -1527,6 +1527,11 @@ def test_captura_crua_grava_uma_vez_e_cru_mudado_vira_linha_nova():
         ids = await ficha.gravar_cru("TDonoA", "DEXSPORT", "conta [Op]", "dx", "0.7.52",
                                      "dexsport.io", [item])
         assert ids[0] is not None
+        # s459 (ESCALA A9): cru igual ainda NÃO processado (a requisição morreu no meio) volta
+        # para ser processado; depois de marcado, o igual devolve None como antes.
+        assert await ficha.gravar_cru("TDonoA", "DEXSPORT", "conta [Op]", "dx", "", "",
+                                      [item]) == ids
+        await ficha.marcar_processados(ids)
         assert await ficha.gravar_cru("TDonoA", "DEXSPORT", "conta [Op]", "dx", "", "",
                                       [item]) == [None]
         mudado = dict(bilhete, payout=0)
