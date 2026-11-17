@@ -2296,7 +2296,9 @@ async def upsert_bilhetes(
                         -- Freebet (s392): a parte da casa não muda depois de feita a aposta,
                         -- então só PREENCHE, como o carimbo — e vale em linha resolvida.
                         stake_freebet    = COALESCE(bilhetes.stake_freebet, EXCLUDED.stake_freebet),
-                        atualizado_em    = NOW()
+                        atualizado_em    = NOW(),
+                        -- s459: a leitura CHEGOU (prova da barreira; ver database.py)
+                        lido_em          = NOW()
                     RETURNING id, (xmax = 0) AS was_inserted, odd, stake, moeda, cotacao
                     """,
                     dono, row.get("casa", ""), row.get("parceiro", ""), sig,
@@ -2360,7 +2362,8 @@ async def upsert_bilhetes(
                         aposta_em        = COALESCE(aposta_em, $19),
                         -- freebet: só preenche (espelha o ON CONFLICT)
                         stake_freebet    = COALESCE(stake_freebet, $23),
-                        atualizado_em    = NOW()
+                        atualizado_em    = NOW(),
+                        lido_em          = NOW()
                     WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND assinatura = $4
                     RETURNING id, FALSE AS was_inserted, odd, stake, moeda, cotacao
                     """,
@@ -6798,7 +6801,11 @@ async def blocos_conhecidos(dono: str, casa: str, codigos, parceiro: str | None 
                   WHERE b.codigo_bilhete = ANY($1::text[])
                     AND b.dono = $2"""
         if gravados:
-            sql += " AND b.atualizado_em >= v.atualizado_em"
+            # s459 (auditoria SERVIDOR P10): a prova é o `lido_em`, que só a gravação de uma
+            # leitura move. O `atualizado_em` qualquer escrita renova (tipster em lote, semente
+            # diária…), e aí a aposta liquidada na casa era pulada com a linha aberta. Linha
+            # anterior à coluna (NULL) cai no critério antigo até a próxima leitura.
+            sql += " AND COALESCE(b.lido_em, b.atualizado_em) >= v.atualizado_em"
         # `tabela="b"` é obrigatório aqui: as DUAS tabelas do JOIN têm `casa`. Ver o
         # aviso no `_filtro_conta` e `test_blocos_conhecidos_filtra_por_conta_no_banco`.
         sql += _filtro_conta(params, casa, parceiro, tabela="b")

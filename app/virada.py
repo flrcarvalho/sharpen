@@ -781,6 +781,24 @@ async def resolver_no_extrair(dono: str, casa_key: str, casa: str, parceiro: str
                         else:
                             fica[cod] = "cru não chegou"   # extensão sem cru: a IA lê
                 segurar, esgotou, ja_foi = await _saida(conn, dono, ck, quer)
+                # s459 (auditoria de 17/11, TRAVAS A3): "já foi à IA uma vez" só vale se a
+                # leitura CHEGOU ao banco. Se a casa já diz no texto que a aposta liquidou
+                # (`Status: … → W/L/V`) e a linha desta conta segue sem liquidar, aquela ida
+                # não virou dado (aba fechada antes do /salvar, linha recusada, deploy no
+                # meio) e a aposta ficaria ABERTA para sempre, sem aviso. Volta à IA.
+                if ja_foi:
+                    com_veredito = [c for c in ja_foi
+                                    if _VEREDITO.search((blocos or {}).get(c) or "")]
+                    if com_veredito:
+                        liq = await _liquidados(conn, dono, ck, com_veredito, parceiro or None)
+                        de_novo = {c for c in com_veredito if c not in liq}
+                        if de_novo:
+                            logger.warning("virada: %s %s · %d aposta(s) liquidadas na casa e "
+                                           "abertas no banco voltam à IA (a leitura anterior "
+                                           "não virou linha)", dono, ck, len(de_novo))
+                        for cod in de_novo:
+                            ja_foi.discard(cod)
+                            esgotou[cod] = quer.get(cod, "")
                 for cod, imp in esgotou.items():       # a saída: à IA uma vez
                     fica[cod] = ESGOTADA
                     velhos[cod] = (imp, "ia", ESGOTADA)

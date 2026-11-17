@@ -77,6 +77,14 @@ ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS codigo_ocr BOOLEAN NOT NULL DEFAUL
 -- a mesma string. Por isso é TEXT e não TIMESTAMPTZ — não é data, é identidade, e quem
 -- tratá-la como data vai datar bilhete por aqui.
 ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS aposta_em TEXT;
+-- s459 (auditoria de 17/11, SERVIDOR P10): o instante em que uma LEITURA da aposta chegou ao
+-- banco. Só o UPSERT da gravação (`/salvar`, Ficha, bot) o move. A barreira de recaptura usava
+-- `atualizado_em` como prova de "leitura gravada", e qualquer outra escrita (tipster em lote,
+-- tipster sugerido, edição, semente diária) renovava esse carimbo: a aposta liquidada na casa
+-- passava a ser pulada com a linha aberta no banco. Sem backfill de propósito: linha antiga
+-- fica NULL e a barreira cai no `atualizado_em`, como era, até a próxima leitura.
+ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS lido_em TIMESTAMPTZ;
+ALTER TABLE bilhetes ALTER COLUMN lido_em SET DEFAULT NOW();
 
 -- Backfill da Blaze — determinístico, não heurístico: a Blaze só entrou na captura em
 -- 09/09/2026 19:24 BRT (commit d3f2233). Toda linha de Blaze criada ANTES desse instante

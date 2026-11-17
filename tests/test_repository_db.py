@@ -969,6 +969,31 @@ def test_hash_de_leitura_nao_salva_nao_vale_para_pular():
     _run(body())
 
 
+def test_s459_outra_escrita_na_linha_nao_prova_que_a_leitura_chegou():
+    """Auditoria de 17/11 (SERVIDOR P10): a prova da barreira era `bilhetes.atualizado_em`, e
+    QUALQUER escrita o renova. Aqui: a IA leu o bloco liquidado e ninguém salvou; depois o
+    dono rotula o tipster em lote. Antes a barreira passava a pular o bloco e a aposta ficava
+    aberta para sempre. Com `lido_em`, só o UPSERT de uma leitura prova."""
+    async def body():
+        await _reset_barreira()
+        texto = "[Código: ABERTA2]\nStake: R$ 10,00\nStatus: Ganhou → W\n"
+        await repository.upsert_bilhetes(
+            [_row(casa="Bet365", parceiro="Feca [Eu]", codigo_bilhete="ABERTA2")], "TDonoA")
+        assert await repository.registrar_blocos_vistos("TDonoA", "Bet365", texto) == 1
+        pool = await get_pool()
+        bid = await pool.fetchval("SELECT id FROM bilhetes WHERE codigo_bilhete='ABERTA2'")
+        await asyncio.sleep(0.01)
+        await repository.set_tipster_bulk([bid], "Tipster X", "TDonoA")
+        assert await repository.blocos_conhecidos(
+            "TDonoA", "Bet365", ["ABERTA2"], "Feca [Eu]", gravados=True) == {}, \
+            "o rótulo de tipster não pode valer como leitura gravada"
+        await repository.upsert_bilhetes(
+            [_row(casa="Bet365", parceiro="Feca [Eu]", codigo_bilhete="ABERTA2")], "TDonoA")
+        assert "ABERTA2" in await repository.blocos_conhecidos(
+            "TDonoA", "Bet365", ["ABERTA2"], "Feca [Eu]", gravados=True)
+    _run(body())
+
+
 # ── Janela de vida da conta (s322/s323) ──────────────────────────────────────
 # Estes três exercem o SCHEMA_SQL de verdade. Sem eles o job de banco só provava que a
 # migração NÃO EXPLODE: o backfill roda dentro de um `DO ... EXCEPTION WHEN others` (um erro
@@ -3281,6 +3306,25 @@ def test_d39_segurada_esgota_depois_de_2_extrair_e_vai_a_ia_uma_vez(monkeypatch)
     assert aceita not in _run(_avisos_ficha(sess.dono))
     lidos5, log5 = _run(_virada_segunda_captura(sess, mudou, envelhecer=False))  # uma vez só
     assert lidos5 == [] and aceita not in _run(_avisos_ficha(sess.dono))
+
+
+def test_s459_d39_liquidada_na_casa_e_aberta_no_banco_volta_a_ia(monkeypatch):
+    """Auditoria de 17/11 (TRAVAS A3): a segurada que esgota vai à IA uma vez; se essa leitura
+    não chega ao banco, ela não ia NUNCA mais (o teste acima, com texto sem veredito, segue
+    valendo). Quando o texto da casa já diz que liquidou (`→ W`) e a linha segue aberta, a
+    ida não virou dado: volta à IA na captura seguinte, em vez de ficar aberta para sempre."""
+    aceita, recusada, sem_cru = _VIRADA
+    sess, payload, texto = _virada_cenario(monkeypatch, "VAVADA", aberta=True)
+    _run(_virada_ponta_a_ponta(sess, payload, texto))
+    mudou = texto.replace(f"[Código: {aceita}]\nStake: 10\nStatus: Perdido",
+                          f"[Código: {aceita}]\nStake: 10\nStatus: Ganho 20,00 → W")
+    _run(_virada_segunda_captura(sess, mudou))                                 # segura a aberta
+    _run(_virada_segunda_captura(sess, mudou, envelhecer=False))               # a sem cru esgota
+    lidos4, _ = _run(_virada_segunda_captura(sess, mudou, envelhecer=False))   # a aberta esgota
+    assert aceita in lidos4
+    # a leitura da IA não foi salva: a linha continua aberta
+    lidos5, _ = _run(_virada_segunda_captura(sess, mudou, envelhecer=False))
+    assert aceita in lidos5, "liquidada na casa e aberta no banco: tinha de voltar à IA"
 
 
 def test_d39_segurada_ha_24h_vai_a_ia(monkeypatch):
