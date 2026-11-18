@@ -17,7 +17,12 @@ Mutações provadas (aplicadas, teste ao lado vermelho), 15/11/2026:
   8. meia vitória vira `ganha` (perna ignorada)              → test_anulada_e_meias_usam_a_odd_original
   9. aberta / rejected / cashout / freebet / múltipla aceitas → test_sem_amostra_recusa
 
-O QUE NÃO COBRE: aberta, múltipla, cashout e freebet REAIS (a conta do recon não tem nenhum;
+s461 (18/11/2026), múltiplas reais em `girocerto.multiplas.json`: mutações 6 aplicadas, 5
+detectadas (perna meia aceita, produto com as anuladas, sem fechar o produto, tipo errado,
+múltipla de 1 perna). A que escapa é INÓCUA: sem exigir perna anulada, o produto das ganhas é a
+odd cheia, e ganhar por ela é ganhar pela odd da casa.
+
+O QUE NÃO COBRE: aberta, builder, múltipla com meia, cashout e freebet REAIS (a conta do recon não tem nenhum;
 os testes usam clone com o campo trocado) e o `liquidada_em` contra a tela (o card não mostra
 a hora da liquidação).
 """
@@ -135,7 +140,8 @@ def test_dinheiro_que_nao_fecha_recusa(cod, campos, perna):
     ({"cashedCents": 50000}, None, "cashout"),
     ({"lastCashout": {"cents": 1}}, None, "cashout"),
     ({"freebet": True}, None, "freebet"),
-    ({"kind": "multiple"}, None, "kind"),
+    ({"kind": "builder"}, None, "kind"),
+    ({"kind": "multiple"}, None, "múltipla com 1 perna"),
     ({}, {"status": "zzz"}, "perna"),
     ({"code": ""}, None, "sem code"),
 ])
@@ -149,6 +155,48 @@ def test_duas_pernas_recusa():
     c["legs"] = c["legs"] * 2
     with pytest.raises(Recusa, match="perna"):
         gc.adaptar(c, "GIROCERTO")
+
+
+# s461: as 2 primeiras múltiplas reais (Gabriel, 16-17/11/2026), crus de produção verbatim.
+MULT = {c["code"]: c for c in json.loads((_FIX / "girocerto.multiplas.json").read_text(encoding="utf-8"))}
+M_PERD, M_ANUL = "GRSQYRB7FZ", "Q6GEKXMSRV"
+
+
+def test_multipla_perdida():
+    """3 pernas, a de hóquei (Mais de 5.5) perdeu às 15:30 de 17/11; as outras ganharam."""
+    f, d = _montar(MULT[M_PERD])
+    assert (f["tipo"], f["status"], f["odd"], f["retorno"]) == ("multipla", "perdida", "7.252", "0")
+    assert (d["resultado"], d["odd"], d["data"]) == ("L", "7,252", "17/11/2026")
+    assert [p["status_perna"] for p in f["pernas"]] == ["perdida", "ganha", "ganha"]
+
+
+def test_multipla_ganha_com_duas_pernas_anuladas():
+    """Crédito R$ 750 sobre R$ 300 = a única perna que valeu (2,5). A odd cheia 14,795 não pagou."""
+    f, d = _montar(MULT[M_ANUL])
+    assert (f["tipo"], f["status"], f["odd"], f["retorno"]) == ("multipla", "ganha", "14.795", "750")
+    assert (d["resultado"], d["odd"], d["data"]) == ("W", "2,5", "17/11/2026")
+    assert [p["status_perna"] for p in f["pernas"]] == ["anulada", "ganha", "anulada"]
+
+
+def _mclone(cod=M_ANUL, pernas=None, **campos):
+    c = copy.deepcopy(MULT[cod])
+    c.update(campos)
+    for i, st in (pernas or {}).items():
+        c["legs"][i]["status"] = st
+    return c
+
+
+@pytest.mark.parametrize("campos,pernas,motivo", [
+    ({"creditedCents": 76000}, None, "não fecha"),                 # fora do produto das ganhas
+    ({}, {0: "won", 2: "won"}, "não fecha"),                       # sem anulada: produto cheio não pagou
+    ({}, {0: "half_won"}, "múltipla com perna"),                   # perna meia numa múltipla
+    ({}, {0: "open"}, "múltipla com perna"),                       # perna aberta
+    ({}, {0: "lost"}, "não fecha"),                                # perna perdida com crédito
+    ({"status": "lost"}, None, "não fecha"),                       # lost com crédito
+])
+def test_multipla_que_nao_fecha_recusa(campos, pernas, motivo):
+    with pytest.raises(Recusa, match=motivo):
+        gc.adaptar(_mclone(pernas=pernas, **campos), "GIROCERTO")
 
 
 def test_recusa_grava_o_code_nunca_o_uuid():

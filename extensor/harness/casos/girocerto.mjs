@@ -154,7 +154,51 @@ export async function rodar() {
   testes += await semLixo(falhas, fx);
   testes += await novaRodada(falhas, fx);
   testes += await deslogado(falhas);
+  testes += await multiplasReais(falhas, fmt);
   return { falhas, testes };
+}
+
+// s461 (Gabriel, 16-17/11/2026): as 2 primeiras múltiplas reais, crus de produção
+// (`girocerto.multiplas.json`, o cru verbatim de `captura_crua`; não há campo de usuário).
+// Esperado pelo DINHEIRO e pelo status de cada perna, não pelo card (a conta não é a do recon).
+//   • GRSQYRB7FZ: 3 pernas, a 1ª perdida, crédito 0 → L @ 7,252 (a `originalOdds`).
+//   • Q6GEKXMSRV: 3 pernas, 2 anuladas (`void` @ 2,69 e 2,2) e 1 ganha @ 2,5; crédito R$ 750
+//     sobre R$ 300 = a perna que valeu. `originalOdds` 14,795 não fecha; W @ 2,5. A IA da época
+//     liquidou certo sozinha, com o bloco dizendo "a conferir".
+// Mutações (18/11/2026), 6 aplicadas, 5 detectadas. A que escapa é INÓCUA: tirar a exigência
+// de perna anulada. Sem anulada, o produto das pernas ganhas é a odd cheia, e esse caso já sai W
+// no ramo de cima; o que muda é só o rótulo do status.
+async function multiplasReais(falhas, fmt) {
+  const fx = JSON.parse(fixture("girocerto.multiplas.json"));
+  const { ultima } = await rodarInject({
+    inject: "gc_inject.js", href: "https://girocerto.fun/esportes?aba=apostas",
+    semRequisicaoInicial: true, pedido: "__sharpenupGCReq",
+    responder: (url) => (RX_LISTA.test(url) ? JSON.stringify(fx) : null),
+  });
+  const bs = (ultima && ultima.bilhetes) || [];
+  if (bs.length !== 2) { falhas.push(`múltiplas: esperava 2 bilhetes, vieram ${bs.length}`); return 1; }
+  let n = 0;
+  const ok = (cond, msg) => { n++; if (!cond) falhas.push(msg); };
+  const perd = bs.find((x) => x.id === "GRSQYRB7FZ"), gan = bs.find((x) => x.id === "Q6GEKXMSRV");
+  if (!perd || !gan) { falhas.push("múltiplas: código ausente"); return 1; }
+  const tp = fmt(perd), tg = fmt(gan);
+  ok(L.test(linha(tp, "Status:")), `GRSQYRB7FZ: status "${linha(tp, "Status:")}"`);
+  ok(linha(tp, "Odd:") === "7,252", `GRSQYRB7FZ: odd "${linha(tp, "Odd:")}"`);
+  ok(linha(tp, "Tipo:") === "Múltipla (3 seleções)", `GRSQYRB7FZ: tipo "${linha(tp, "Tipo:")}"`);
+  ok(/Mais de 5\.5 \[perna perdida\]/.test(tp) && /Odd da seleção: 1,85/.test(tp), "GRSQYRB7FZ: a perna perdida ou a odd dela sumiu");
+  ok(/^Ganhou → W \(retorno R\$ 750,00; múltipla com 2 perna\(s\) anulada\(s\), odd = retorno ÷ stake\)$/.test(linha(tg, "Status:")),
+     `Q6GEKXMSRV: status "${linha(tg, "Status:")}"`);
+  ok(linha(tg, "Odd:") === "2,5", `Q6GEKXMSRV: odd "${linha(tg, "Odd:")}" (é retorno ÷ stake, a odd cheia 14,795 não pagou)`);
+  ok(linha(tg, "Data (evento mais recente):") === "17/11/2026 16:00:00", `Q6GEKXMSRV: data "${linha(tg, "Data (evento mais recente):")}"`);
+  ok((tg.match(/\[perna anulada\]/g) || []).length === 2, "Q6GEKXMSRV: as 2 pernas anuladas não estão ditas");
+  // As bordas: sem perna anulada, crédito fora do centavo, perna meia ou perdida → a conferir.
+  const conf = (b, nome) => ok(CONF.test(linha(fmt(b), "Status:")), `Q6GEKXMSRV (${nome}): "${linha(fmt(b), "Status:")}"`);
+  conf({ ...gan, retorno: 760 }, "crédito fora do produto");
+  conf({ ...gan, sels: gan.sels.map((s) => ({ ...s, status: "won" })) }, "sem perna anulada");
+  conf({ ...gan, sels: gan.sels.map((s, i) => (i === 0 ? { ...s, status: "half_won" } : s)) }, "perna meia");
+  conf({ ...gan, sels: gan.sels.map((s, i) => (i === 0 ? { ...s, status: "lost" } : s)) }, "perna perdida");
+  conf({ ...gan, status: "lost" }, "status lost com crédito");
+  return n;
 }
 
 // Sessão caída: a API responde OBJETO (erro), não lista. Não é resposta válida, e o robô

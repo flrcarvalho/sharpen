@@ -5415,6 +5415,22 @@
     return null;
   }
 
+  // Múltipla GANHA com perna anulada (s461, Gabriel, Q6GEKXMSRV de 17/11/2026): a perna `void`
+  // paga 1, e o crédito é stake × o produto das pernas que VALERAM (300 × 2,5 = 750, odd cheia
+  // 14,795). Só com as duas provas: ao menos uma perna `void` e o crédito fechando esse produto
+  // no centavo. Perna meia (half_*) numa múltipla fica a conferir: sem amostra. Devolve quantas
+  // pernas foram anuladas, ou 0.
+  function _multiplaAnuladaGC(b) {
+    const sels = b.sels || [];
+    if (b.status !== "won" || sels.length < 2 || !(b.stake > 0) || !(b.retorno > b.stake)) return 0;
+    if (sels.some((s) => s.status !== "won" && s.status !== "void")) return 0;
+    const anuladas = sels.filter((s) => s.status === "void").length;
+    if (!anuladas) return 0;
+    let prod = 1;
+    for (const s of sels) if (s.status === "won") { if (!(s.odd > 1)) return 0; prod *= s.odd; }
+    return Math.abs(b.retorno - b.stake * prod) <= 0.01 ? anuladas : 0;
+  }
+
   // Odd: W → retorno ÷ stake conciliado com a da casa (a da casa vence se fecha no centavo);
   // o resto (L, V, HW, HL, aberta) → a da casa na COLOCAÇÃO.
   function _oddGC(b) {
@@ -5442,6 +5458,8 @@
         : "retorno = stake com " + cru + " (a conferir — não liquidar automaticamente)";
     }
     if (b.status === "won" && b.odd > 0 && Math.abs(pay - st * b.odd) <= 0.01) return "Ganhou → W (retorno R$ " + _brl(pay) + ")";
+    const anul = _multiplaAnuladaGC(b);
+    if (anul) return "Ganhou → W (retorno R$ " + _brl(pay) + "; múltipla com " + anul + " perna(s) anulada(s), odd = retorno ÷ stake)";
     return "Retorno R$ " + _brl(pay) + " com " + cru + " (não fecha stake × odd: meia sem a perna, boost, perna anulada ou cashout; a conferir — não liquidar automaticamente)";
   }
 

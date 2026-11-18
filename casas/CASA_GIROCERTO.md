@@ -75,7 +75,7 @@ cotação, **Valor apostado** e **Valor recebido** (ganha/anulada) ou **Ganho po
 |---|---|
 | `code` | 10 caracteres `[A-Z0-9]` (`ZHUUMZ423Z`), o rodapé do card → `[Código:]` |
 | `id` | UUID interno. **Nunca** vai para o marcador |
-| `kind` | `single` em toda a amostra. O boletim da casa tem os modos de múltipla e `builder`; o `kind` que eles gravam não foi medido |
+| `kind` | `single` no recon; `multiple` medido na s461 (2 do Gabriel). O `builder` não foi medido |
 | `status` | `won` · `lost` · `void` na amostra; o JS da casa conhece `accepted`, `pending`, `placing`, `cashing`, `voiding` (em aberto), `cashed_out` e `rejected` |
 | `stakeCents` / `originalStakeCents` | stake em centavos (iguais na amostra) |
 | `originalOdds` | **a odd da aposta**, a da colocação |
@@ -121,6 +121,8 @@ leitura do print).
 | `won` · crédito = stake × `originalOdds` (± 1 centavo: a casa corta para baixo) | Ganhou | `W` |
 | `won` · perna `half_won` · crédito = stake ÷ 2 × odd + stake ÷ 2 | Meia vitória | `HW`, odd original |
 | `lost` · perna `half_lost` · crédito = stake ÷ 2 | Meia derrota | `HL`, odd original |
+| múltipla `lost` · crédito 0 | Perdeu | `L`, odd original; data = início da perna perdida mais cedo |
+| múltipla `won` · pernas `won`/`void` · crédito = stake × produto das pernas GANHAS | Ganhou com perna anulada | `W`, odd = retorno ÷ stake |
 | `rejected` | a casa recusou: **não é aposta** | *(o robô pula; nunca sobe)* |
 | `cashed_out`, crédito que não fecha, freebet, status novo | sobe cru | *(a conferir)* |
 
@@ -206,8 +208,12 @@ aqui. Os prefixos `1º tempo -` e `- outras linhas` são do período/variação,
 - [ ] Coluna Data = evento em São Paulo.
 - [ ] Meias derrotas como `HL` com metade da stake (GGGT2EW6RZ, TJLVHW8CG7).
 - [ ] **Aberta real:** conferir o `status` (`accepted`?) e o texto "em aberto" no bloco.
-- [ ] **Múltipla / builder, cashout, freebet, turbinada:** salvar o JSON como fixture, trocar
-      o clone do harness e liberar na Ficha.
+- [x] **Múltipla** (s461, `girocerto.multiplas.json`, Gabriel 16-17/11/2026): GRSQYRB7FZ perdida
+      e Q6GEKXMSRV ganha com 2 pernas anuladas (a casa grava `odds` 2.5, a efetiva). Até a 0.7.90
+      o bloco dizia "a conferir" e a Ficha recusava; a IA acertou o resultado e errou a data da
+      Q6GEKXMSRV (16/11, a colocação), corrigida por `scripts/corrigir_data_girocerto_s461.py`.
+- [ ] **Builder, múltipla com meia, cashout, freebet, turbinada:** salvar o JSON como fixture,
+      trocar o clone do harness e liberar na Ficha.
 
 ---
 
@@ -225,7 +231,10 @@ Recon de 15/11/2026 (**50 bilhetes**, todos liquidados, todos simples):
 | 6M3YQUCREG | Handicap +1.0,+1.5 | `won` · `half_won` → HW | 300,00 | 1,825 | 423,75 | 01/11/2026 13:38 | 01/11/2026 14:00 |
 | GGGT2EW6RZ | 1º tempo - handicap 0.0, -0.5 | `lost` · `half_lost` → HL | 525,00 | 2,025 | 262,50 (o card não mostra) | 01/11/2026 16:25 | 01/11/2026 23:00 |
 
-**Sem amostra:** aberta · múltipla/builder · cashout · freebet · turbinada.
+Múltiplas (s461): **GRSQYRB7FZ** L @ 7,252 (3 pernas, data 17/11) e **Q6GEKXMSRV** W @ 2,5 (R$ 300 → R$ 750,
+2 pernas anuladas, odd cheia 14,795, data 17/11), em `extensor/harness/fixtures/girocerto.multiplas.json`.
+
+**Sem amostra:** aberta · builder · múltipla com meia · cashout · freebet · turbinada.
 
 ---
 
