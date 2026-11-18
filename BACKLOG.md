@@ -49,13 +49,15 @@ o `docs/HISTORICO.md`. Este arquivo só guarda o que está **aberto**.
 
 ### Bloqueado por ação humana (não é bilhete)
 
-- **PTAX bloqueado no servidor (s458, 17/11/2026). DECISAO DO FECA.** O firewall do BCB devolve
-  `200 text/html` "Request Rejected" ao IP de saida da Railway (`152.55.178.94`) em `olinda` e em
-  `api.bcb.gov.br`; toda conta em USD/EUR/AUD tem a linha recusada no `/salvar` (USDT/ARS, pela
-  Binance, seguem). Saidas: (a) IP de saida fixo/outro na Railway e testar; (b) cotacao PTAX gravada
-  no Postgres por quem alcanca o BCB (maquina do Feca ou cron externo) e lida pelo servidor antes da
-  rede; (c) outra fonte de cambio, que exige provar valor a valor que o numero nao muda (CLAUDE.md,
-  "Trocar a fonte de um numero"). Prova: `railway ssh` + `/tmp/sonda2.py` da s458.
+- **PTAX: semear a `cotacao_ptax` de forma automatica (s458, 18/11/2026).** O firewall do BCB
+  recusa o IP de saida da Railway (`152.55.178.94`, `200 text/html` "Request Rejected"). Saida
+  aplicada (b): o servidor le o PTAX gravado no Postgres quando o BCB recusa, e o
+  `scripts/semear_ptax.py` grava a partir de uma maquina que alcanca o BCB. **O fallback cobre so
+  10 dias alem do ultimo dia gravado** (`_RECUO_MAX_DIAS`); depois disso a linha volta a ser
+  recusada, com o motivo no log. Ultimo dia gravado: 17/11/2026, entao **rodar de novo ate
+  27/11** (`python scripts/semear_ptax.py 2026-11-01` com `DATABASE_URL` = URL publica). Falta
+  tirar a mao do Feca: tarefa agendada na maquina dele ou cron externo (Cloudflare, precisa do
+  acesso dele). Se o BCB desbloquear a Railway, o caminho normal volta sozinho e este item fecha.
 
 - **Ficha (s409): 1xBit e Kikobet fora da `EXTRACAO_SEM_PENSAMENTO`.** Sem amostra para provar o
   fiscal: a 1xBit tem 8 apostas, todas perdidas; a Kikobet tem 3 ganhas, sem bloco na
