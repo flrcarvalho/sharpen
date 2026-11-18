@@ -140,9 +140,12 @@ por mutação e o gate do projeto. **Status:** `[ ]` aberto · `[x]` feito (com 
   rodada com bilhetes E erro do inject fica PARCIAL com o motivo: toast, `lastError` no popup e
   `captura PARCIAL` no log do servidor. Falta: o corte por "30 s parado" e o teto de páginas
   (Altenar, 600) ainda não sobem do inject; o dashboard não mostra o estado.
-- [ ] **6.6** (s460, medido: arrudex 21 capturas × 3 `/extrair`) A parte que a Ficha deixa
-  para a IA espera um "Processar" que não vem, e a grade já mudou. **Decisão do Feca:**
-  destacar o número na Extração ou disparar o `/extrair` sozinho. (MEDICAO §5, §6-D)
+- [x] **6.6** (s460, medido: arrudex 21 capturas × 3 `/extrair`) A parte que a Ficha deixa
+  para a IA espera um "Processar" que não vem, e a grade já mudou. **Decisão do Feca
+  (18/11/2026): processar sozinho.** A tela dispara o Processar 5 s depois da última captura,
+  só com o lote inteiro da extensão e a conta da conexão na tela; espera o processamento
+  anterior da conta acabar. O `/extrair` pula o que já está salvo, então sem resto não há IA.
+  Gate: `tests/test_processar_auto_captura.py` (7 mutações). (MEDICAO §5, §6-D)
 
 ### Fase 7 — Volume
 

@@ -6976,7 +6976,9 @@ async function conectarExtensao() {
     }
     if (!r.ok) throw new Error('parear');
     const d = await r.json();
-    extSessao = { sessao_id: d.sessao_id, codigo: d.codigo };
+    // `parceiro_id`: a conta para a qual a ponte foi aberta (s460, 6.6). O Processar
+    // automático só roda com ESTA conta na tela.
+    extSessao = { sessao_id: d.sessao_id, codigo: d.codigo, parceiro_id: parceiroSelecionado.id };
     let copiado = false;
     try { await navigator.clipboard.writeText(d.codigo); copiado = true; } catch (_) {}
     extStatus(`Código ${d.codigo}${copiado ? ' copiado' : ''} — cole na extensão. Aguardando…`, '');
@@ -6998,6 +7000,58 @@ async function conectarExtensao() {
 // `extVistos` impede que uma reentrega entre duas vezes na tela.
 let extAck = [];
 const extVistos = new Set();
+
+// s460 (plano 6.6, pedido do Feca em 18/11/2026): a captura chega, a Ficha grava sozinha o que
+// sabe ler e o resto ficava no campo de texto esperando um "Processar" que quase ninguém dava.
+// A grade mudava e a captura PARECIA terminada (medido: arrudex, 21 capturas e 3 /extrair em
+// 17/11). Agora a tela processa sozinha, alguns segundos depois da última captura chegar, e
+// só quando o lote é INTEIRO da extensão e a conta na tela é a da conexão. O /extrair pula o
+// que já está salvo, então quando a Ficha resolveu tudo a IA não é chamada.
+//
+// `_extLote` = retrato do formulário logo depois da última captura entrar. Se o usuário
+// mexeu (digitou, colou, anexou) depois, o formulário deixa de bater e nada dispara.
+const EXT_AUTO_ESPERA_MS = 5000;
+let _extLote = null;   // { parceiro_id, texto, n_arquivos }
+let _extAutoTimer = null;
+
+// Pura, para o teste: decide se o Processar automático pode rodar AGORA.
+function _extAutoPode(e) {
+  if (!e.sessao || !e.lote || !e.selecionado) return 'sem-sessao';
+  if (e.selecionado !== e.sessao || e.lote.parceiro_id !== e.sessao) return 'outra-conta';
+  if (e.captura !== e.sessao) return 'nao-e-captura';
+  if (e.texto !== e.lote.texto || e.n_arquivos !== e.lote.n_arquivos || e.outros > 0) return 'mexeu';
+  if (!e.texto.trim() && !e.n_arquivos) return 'vazio';
+  if (e.processando) return 'esperar';
+  return 'ok';
+}
+
+function _extAutoAgendar() {
+  clearTimeout(_extAutoTimer);
+  _extAutoTimer = setTimeout(_extAutoDisparar, EXT_AUTO_ESPERA_MS);
+}
+
+function _extAutoDisparar() {
+  _extAutoTimer = null;
+  const p = parceiroSelecionado;
+  const pr = p && _procPorConta.get(p.id);
+  const v = _extAutoPode({
+    sessao: extSessao && extSessao.parceiro_id, lote: _extLote, selecionado: p && p.id,
+    captura: extCapturaParceiro, texto: document.getElementById('texto').value,
+    n_arquivos: arquivos.length, outros: csvFiles.length + xlsFiles.length + pdfFiles.length,
+    processando: !!(pr && !pr.fim),
+  });
+  // Processando a captura anterior desta conta: espera ela acabar, senão as duas leituras
+  // mandam os mesmos bilhetes à IA antes de qualquer uma gravar.
+  if (v === 'esperar') { _extAutoAgendar(); return; }
+  if (v !== 'ok') {
+    if (v === 'mexeu' || v === 'outra-conta') extStatus('Captura recebida. Clique em Processar Bilhetes para terminar.', 'warn');
+    _extLote = null;
+    return;
+  }
+  _extLote = null;
+  extStatus('Processando a captura…', 'ok');
+  document.getElementById('btn-extrair').click();
+}
 async function pollExtensao() {
   if (!extSessao) { clearInterval(extPollTimer); return; }
   try {
@@ -7029,6 +7083,12 @@ async function pollExtensao() {
       return true;
     });
     if (novas.length) {
+      const _taPrev = document.getElementById('texto').value;
+      const _lotePrevio = {
+        texto: _taPrev, n_arquivos: arquivos.length,
+        temAlgo: !!_taPrev.trim() || arquivos.length > 0 || csvFiles.length > 0
+                 || xlsFiles.length > 0 || pdfFiles.length > 0,
+      };
       const imgs = [];
       // Imagem além do limite da tela NÃO é confirmada: fica na fila e volta depois do
       // "Limpar", em vez de ser descartada como antes.
@@ -7049,8 +7109,21 @@ async function pollExtensao() {
       const esperando = novas.length - novas.filter(c => extVistos.has(c.id)).length;
       if (esperando) setStatus(`Limite de ${IMG_MAX} imagens: ${esperando} captura(s) esperando na fila. Processe ou use "Limpar" e elas chegam.`, 'warn');
       // Marca a procedência: este lote (texto E/OU imagem) veio da captura.
+      // s460 (6.6): o lote só é "da captura" se o formulário não tinha nada de outra origem
+      // quando ela entrou. Captura que chega sobre lote dela mesma continua sendo dela.
+      const eraSoCaptura = !_lotePrevio.temAlgo
+        || (_extLote && _lotePrevio.texto === _extLote.texto && _lotePrevio.n_arquivos === _extLote.n_arquivos);
       if (parceiroSelecionado) extCapturaParceiro = parceiroSelecionado.id;
-      extStatus(`Extensão conectada ✓ — ${novas.length - esperando} captura(s) recebida(s). Processe abaixo.`, 'ok');
+      const nRec = novas.length - esperando;
+      if (eraSoCaptura && parceiroSelecionado && extSessao && parceiroSelecionado.id === extSessao.parceiro_id) {
+        _extLote = { parceiro_id: parceiroSelecionado.id, texto: document.getElementById('texto').value,
+                     n_arquivos: arquivos.length };
+        _extAutoAgendar();
+        extStatus(`Extensão conectada ✓ — ${nRec} captura(s) recebida(s). Processando em alguns segundos…`, 'ok');
+      } else {
+        _extLote = null;
+        extStatus(`Extensão conectada ✓ — ${nRec} captura(s) recebida(s). Clique em Processar Bilhetes.`, 'ok');
+      }
     }
   } catch (_) {}
 }
@@ -7058,6 +7131,7 @@ async function pollExtensao() {
 function desconectarExtensao(avisar = true) {
   clearInterval(extPollTimer); extPollTimer = null;
   extAck = []; extVistos.clear();
+  clearTimeout(_extAutoTimer); _extAutoTimer = null; _extLote = null;
   extConectadoAviso = false;
   extCapturaParceiro = null;
   if (extSessao) {
