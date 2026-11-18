@@ -876,6 +876,29 @@ CREATE TABLE IF NOT EXISTS lixeira_bilhetes (
 CREATE INDEX IF NOT EXISTS lixeira_bilhetes_dono_excluido
     ON lixeira_bilhetes (dono, excluido_em);
 
+-- ── Aposta EXCLUÍDA que volta pela captura (s460, Feca 18/11/2026) ───────────────
+-- A captura varre o histórico da casa, e a aposta que o usuário apagou volta inteira na
+-- varredura seguinte. Antes ela entrava calada; agora entra MARCADA (`voltou_excluida`), e a
+-- grade pergunta: manter (a marca sai) ou excluir de vez (vai para a lixeira e o código entra
+-- em `exclusao_confirmada`, que o UPSERT e o pré-dedup do /extrair pulam, sem custo de IA).
+-- `exclusao_confirmada` não pode ser a lixeira: a lixeira expira em 90 dias, e "de vez" não
+-- expira. Chave pela CHAVE da casa (`casa_chave.chave`), a mesma régua da virada, porque o
+-- código é único na casa e a grafia da casa varia. Desfazer é a lista "Excluídas de vez".
+ALTER TABLE bilhetes ADD COLUMN IF NOT EXISTS voltou_excluida TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS lixeira_bilhetes_dono_codigo
+    ON lixeira_bilhetes (dono, (bilhete->>'codigo_bilhete'));
+CREATE TABLE IF NOT EXISTS exclusao_confirmada (
+    dono         TEXT NOT NULL,
+    casa         TEXT NOT NULL,     -- chave da casa (casa_chave.chave)
+    codigo       TEXT NOT NULL,
+    casa_nome    TEXT,              -- como a tela mostrava, para a lista de desfazer
+    parceiro     TEXT,
+    descricao    TEXT,
+    data         TEXT,
+    excluido_em  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (dono, casa, codigo)
+);
+
 -- ── Preço do fornecedor, com DATA DE VIGÊNCIA (s348, Fatia 1) ────────────────
 -- Uma linha por (fornecedor, casa, data em que o preço passou a valer). O preço
 -- muda com o tempo — "em agosto subiu o preço, ou fiz um deal melhor" (Feca) —, e

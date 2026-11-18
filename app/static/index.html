@@ -1786,13 +1786,47 @@ button.pc-dia:focus-visible { outline: 2px solid var(--accent); outline-offset: 
    #fff/#241a02 literais e são desvio conhecido — não copiar daqui. */
 .sb-info.on { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .sb-info.on .sb-n { color: var(--bg); }
-.sb-open {
+/* s460: "Excluídas que voltaram" usa o MESMO âmbar do "Aguardando resultado" (o Feca pediu
+   amarelo; o texto da pílula separa as duas). Uma regra só para as duas, para não divergirem. */
+.sb-open, .sb-voltou {
   background: rgba(var(--warn-rgb),.10); border: 1px solid rgba(var(--warn-rgb),.32);
 }
-.sb-open .sb-n { color: var(--warn); }
-.sb-open:hover { background: rgba(var(--warn-rgb),.22); color: var(--ink); }
-.sb-open.on { background: var(--warn); border-color: var(--warn); color: var(--bg); }
-.sb-open.on .sb-n { color: var(--bg); }
+.sb-open .sb-n, .sb-voltou .sb-n { color: var(--warn); }
+.sb-open:hover, .sb-voltou:hover { background: rgba(var(--warn-rgb),.22); color: var(--ink); }
+.sb-open.on, .sb-voltou.on { background: var(--warn); border-color: var(--warn); color: var(--bg); }
+.sb-open.on .sb-n, .sb-voltou.on .sb-n { color: var(--bg); }
+/* Linha que voltou: o selo segue o desenho do .dup-badge (10px/700), em âmbar; os dois
+   botões são texto em 11px, --ink-soft (Escada: ação secundária, nunca --ink-mute). */
+.voltou-linha { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+.voltou-badge {
+  display: inline-flex; align-items: center; font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 3px; line-height: 1.5; white-space: nowrap;
+  background: rgba(var(--warn-rgb),.18); color: var(--warn); letter-spacing: .02em;
+}
+.voltou-btn {
+  background: none; border: 0; padding: 0; cursor: pointer; font: inherit;
+  font-size: 11px; font-weight: 600; color: var(--ink-soft); text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.voltou-btn:hover { color: var(--ink); }
+.voltou-btn.del:hover { color: var(--neg); }
+.btbl-data-row.voltou { box-shadow: inset 3px 0 0 var(--warn); }
+.voltou-barra {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 10px 20px 2px;
+  flex-shrink: 0;   /* o recuo é o do .grade-header, para alinhar com o título e a tabela */
+  padding: 8px 12px; border-radius: var(--r-sm);
+  background: rgba(var(--warn-rgb),.08); border: 1px solid rgba(var(--warn-rgb),.28);
+}
+.voltou-barra[hidden] { display: none; }
+.voltou-barra-txt { flex: 1 1 320px; font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+.voltou-barra-txt b { color: var(--ink); font-weight: 600; }
+.voltou-barra-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.devez-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
+  padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.devez-row:last-child { border-bottom: 0; }
+.devez-desc { font-size: 13px; color: var(--ink); overflow-wrap: anywhere; }
+.devez-meta { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+.devez-vazio { padding: 14px 12px; font-size: 12px; color: var(--ink-soft); }
 /* Toast de undo (exclusão): fixo no rodapé-centro, some sozinho; ação Desfazer. */
 .undo-toast {
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(8px);
@@ -3203,6 +3237,10 @@ td.c-res.res-HL { color: var(--warn); }
                 <button type="button" id="s-result" class="stat-badge sb-open" hidden
                         title="Bilhetes desta conta ainda em aberto, sem resultado. Clique para ver só essas linhas.">
                   Aguardando resultado<span class="sb-n">0</span></button>
+                <!-- s460: apostas que o usuário EXCLUIU e a captura trouxe de volta. -->
+                <button type="button" id="s-voltou" class="stat-badge sb-voltou" hidden
+                        title="Apostas que você tinha excluído e a captura trouxe de volta. Clique para ver só essas e decidir: manter ou excluir de vez.">
+                  Excluídas que voltaram<span class="sb-n">0</span></button>
                 <span id="exp-status" class="exp-status"></span>
               </div>
               <!-- Ver a grade na MOEDA DA CONTA (s391, passo 3). Só aparece quando a conta
@@ -3240,6 +3278,16 @@ td.c-res.res-HL { color: var(--warn); }
               <button class="btn btn-ghost btn-sm btn-danger" id="btn-deletar-sel" style="display:none">🗑 Excluir selecionadas</button>
               <button class="btn btn-ghost btn-sm btn-danger" id="btn-desfazer" style="display:none">↩ Desfazer análise</button>
             </div>
+          </div>
+          <!-- s460: aparece com o filtro "Excluídas que voltaram" ligado. Diz o que são as
+               linhas e oferece a decisão para todas de uma vez. -->
+          <div class="voltou-barra" id="voltou-barra" hidden>
+            <span class="voltou-barra-txt">Estas apostas foram excluídas por você e voltaram pela captura. <b>Manter</b> deixa a aposta na base; <b>Excluir de vez</b> tira e ela não volta mais.</span>
+            <span class="voltou-barra-acts">
+              <button class="btn btn-ghost btn-sm" type="button" id="voltou-manter-todas">Manter todas</button>
+              <button class="btn btn-ghost btn-sm btn-danger" type="button" id="voltou-excluir-todas">Excluir todas de vez</button>
+              <button class="btn btn-ghost btn-sm" type="button" id="voltou-ver-devez">Ver excluídas de vez</button>
+            </span>
           </div>
           <div class="btbl-wrap">
             <div class="btbl-counter" id="btbl-counter"></div>
@@ -3692,6 +3740,27 @@ td.c-res.res-HL { color: var(--warn); }
     <div class="modal-foot">
       <button class="btn btn-ghost btn-sm" id="rnm-cancel" type="button">Fechar</button>
       <button class="btn btn-primary btn-sm" id="rnm-ok" type="button">Lançar renovação</button>
+    </div>
+  </div>
+</div>
+
+<!-- s460: o desfazer do "Excluir de vez". Mesmo esqueleto do modal de Renovações. -->
+<div class="modal-overlay" id="devez-modal">
+  <div class="modal">
+    <div class="modal-head cxm-head">
+      <span class="cxm-head-txt">
+        <span class="modal-title">Excluídas de vez</span>
+        <span class="cxm-sub">Apostas que a captura não grava mais</span>
+      </span>
+      <button class="modal-close" id="devez-close" type="button">✕</button>
+    </div>
+    <div class="modal-body cxm-body">
+      <div class="cxe-wrap" id="devez-lista"></div>
+      <div class="cxm-hint">Liberar faz a aposta voltar na próxima captura da casa.</div>
+      <div class="cxm-erro" id="devez-erro" hidden></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="devez-fechar" type="button">Fechar</button>
     </div>
   </div>
 </div>
@@ -4556,16 +4625,18 @@ function renderParceirosEmLista(casa, listEl) {
 // Azul = sem tipster (aguardando informação), âmbar = abertas (aguardando resultado).
 let semTipsterPorCasa = {}, semTipsterPorParceiro = {};  // azul
 let abertasPorCasa = {},   abertasPorParceiro = {};      // âmbar
+let voltaramPorParceiro = {};                            // s460: excluídas que voltaram
 
 async function atualizarIncompletos() {
   try {
     const r = await fetch('/incompletos');
     if (!r.ok) return;
     const { por_parceiro, por_casa_tipster, por_casa_aberta } = await r.json();
-    semTipsterPorParceiro = {}; abertasPorParceiro = {};
-    (por_parceiro || []).forEach(({ casa, parceiro, sem_tipster, abertas }) => {
+    semTipsterPorParceiro = {}; abertasPorParceiro = {}; voltaramPorParceiro = {};
+    (por_parceiro || []).forEach(({ casa, parceiro, sem_tipster, abertas, voltaram }) => {
       (semTipsterPorParceiro[casa] = semTipsterPorParceiro[casa] || {})[parceiro] = sem_tipster;
       (abertasPorParceiro[casa]    = abertasPorParceiro[casa]    || {})[parceiro] = abertas;
+      (voltaramPorParceiro[casa]   = voltaramPorParceiro[casa]   || {})[parceiro] = voltaram || 0;
     });
     semTipsterPorCasa = por_casa_tipster || {};
     abertasPorCasa    = por_casa_aberta  || {};
@@ -8271,7 +8342,9 @@ async function carregarGrade() {
 //   'sem_tipster' → /bilhetes?pendencia=sem_tipster  (repository._PENDENCIAS_SQL)
 //   'aberta'      → /bilhetes?extraction_state=aberta (idêntico ao COUNT de
 //                   contar_incompletos, que é a fonte do número âmbar)
-const FILTROS_BADGE = { 's-info': 'sem_tipster', 's-result': 'aberta' };
+//   'voltou'      → /bilhetes?pendencia=voltou (s460; o mesmo `_PENDENCIAS_SQL["voltou"]`
+//                   que o contar_incompletos usa para o número)
+const FILTROS_BADGE = { 's-info': 'sem_tipster', 's-result': 'aberta', 's-voltou': 'voltou' };
 let filtroGrade = null;
 
 // Alterna o filtro (clicar no badge ligado desliga). Volta para a 1ª página: o
@@ -10346,10 +10419,15 @@ function renderGrade() {
       ? `<div class="btbl-tipo ap-edit${tipoIncerta ? ' incerta' : ''}" data-field="aposta" title="Duplo-clique para trocar o mercado">${tipoIncerta ? `<span class="inc-glifo" aria-hidden="true" title="Categoria incerta — clique para confirmar ou corrigir" onclick="event.stopPropagation();abrirEdicao(${b.id})" style="cursor:pointer">${GLIFO_SVG}</span>` : ''}${esc(b.aposta)}</div>`
       : '';
     const contaHtml = b.parceiro ? `<span class="btbl-casa-conta ap-edit" data-field="parceiro">${esc(b.parceiro)}</span>` : '';
-    return `<div class="btbl-cols btbl-data-row" data-id="${b.id}">
+    // s460: aposta que o usuário excluiu e a captura trouxe de volta. Fora do `.btbl-desc`
+    // (que edita no duplo-clique), para os dois botões não brigarem com a edição.
+    const voltouHtml = b.voltou_excluida
+      ? `<div class="voltou-linha"><span class="voltou-badge" title="Você tinha excluído esta aposta, e a captura a trouxe de volta.">Excluída antes</span><button type="button" class="voltou-btn" onclick="event.stopPropagation();voltouManter([${b.id}])">Manter</button><button type="button" class="voltou-btn del" onclick="event.stopPropagation();voltouExcluirDeVez([${b.id}])">Excluir de vez</button></div>`
+      : '';
+    return `<div class="btbl-cols btbl-data-row${b.voltou_excluida ? ' voltou' : ''}" data-id="${b.id}">
       <div class="btbl-cell btbl-sel"><input type="checkbox" class="row-chk" data-id="${b.id}" onchange="onRowChkChange()"></div>
       <div class="btbl-cell btbl-date ap-edit" data-field="data">${esc(b.data)}${_dataRevisao(b) ? `<span class="date-review" title="Data no futuro numa aposta já resolvida — confirme a data do jogo (a Superbet mostra a data do torneio em apostas 'Longo Prazo').">i</span>` : ''}</div>
-      <div class="btbl-cell">${tipoHtml}<div class="btbl-desc ap-edit" data-field="descricao" data-full="${esc(b.descricao)}">${esc(b.descricao)}${badges.join('')}</div></div>
+      <div class="btbl-cell">${tipoHtml}<div class="btbl-desc ap-edit" data-field="descricao" data-full="${esc(b.descricao)}">${esc(b.descricao)}${badges.join('')}</div>${voltouHtml}</div>
       <div class="btbl-cell btbl-sport ap-edit" data-field="esporte"><span class="sp-chip">${sportEmoji(b.esporte)}</span><span>${esc(b.esporte)}</span></div>
       <div class="btbl-cell"><input class="btbl-tip-input js-ac-tipster${(b.tipster || '').trim() ? '' : ' tip-empty'}" type="text" data-tip-id="${b.id}" spellcheck="false" autocomplete="off" readonly value="${esc(b.tipster)}" placeholder="— tipster —"></div>
       <div class="btbl-cell btbl-casa">
@@ -11299,6 +11377,9 @@ function atualizarStats() {
     : `${totalBilhetes} apostas`;
   _statBadge('s-info',   semInfo,   filtroGrade === 'sem_tipster');
   _statBadge('s-result', semResult, filtroGrade === 'aberta');
+  _statBadge('s-voltou', (voltaramPorParceiro[casa] || {})[nome] || 0, filtroGrade === 'voltou');
+  const barra = document.getElementById('voltou-barra');
+  if (barra) barra.hidden = filtroGrade !== 'voltou';
 }
 
 // Badge de contagem: some em zero (conta em dia não ganha pill de "0", que é
@@ -11493,6 +11574,88 @@ async function deletarBilhete(id) {
     setExpStatus('Erro ao deletar', 'err');
   }
 }
+
+// ── s460: aposta excluída que voltou pela captura ────────────────────────────
+// `ids` = linhas da grade; `todas` = todas as que voltaram NA CONTA ATIVA (o servidor busca,
+// porque passam de uma página). Manter tira a marca; Excluir de vez leva à lixeira e a captura
+// deixa de gravar o código (desfaz em "Ver excluídas de vez").
+function _voltouCorpo(ids, todas) {
+  return todas
+    ? { casa: parceiroSelecionado.casa, parceiro: parceiroSelecionado.nome }
+    : { ids };
+}
+async function _voltouPost(url, corpo) {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                               body: JSON.stringify(corpo) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+  return d;
+}
+async function voltouManter(ids, todas) {
+  if (!parceiroSelecionado) return;
+  try {
+    const d = await _voltouPost('/bilhetes/voltaram/manter', _voltouCorpo(ids, todas));
+    setExpStatus(`${d.mantidas} aposta${d.mantidas === 1 ? '' : 's'} mantida${d.mantidas === 1 ? '' : 's'}`, 'ok');
+    await carregarGrade(); atualizarIncompletos();
+  } catch (e) { setExpStatus('Erro ao manter: ' + e.message, 'err'); }
+}
+async function voltouExcluirDeVez(ids, todas) {
+  if (!parceiroSelecionado) return;
+  const qual = todas ? 'todas as apostas que voltaram nesta conta' : 'esta aposta';
+  if (!confirm(`Excluir de vez ${qual}? A captura não vai trazer de volta. Dá para desfazer em "Ver excluídas de vez".`)) return;
+  try {
+    const d = await _voltouPost('/bilhetes/voltaram/excluir-de-vez', _voltouCorpo(ids, todas));
+    setExpStatus(`${d.excluidas} aposta${d.excluidas === 1 ? '' : 's'} excluída${d.excluidas === 1 ? '' : 's'} de vez`, 'ok');
+    await carregarGrade(); atualizarIncompletos();
+  } catch (e) { setExpStatus('Erro ao excluir: ' + e.message, 'err'); }
+}
+document.getElementById('voltou-manter-todas').addEventListener('click', () => voltouManter(null, true));
+document.getElementById('voltou-excluir-todas').addEventListener('click', () => voltouExcluirDeVez(null, true));
+
+async function abrirExcluidasDeVez() {
+  const modal = document.getElementById('devez-modal');
+  const lista = document.getElementById('devez-lista');
+  const erro = document.getElementById('devez-erro');
+  erro.hidden = true;
+  lista.innerHTML = '<div class="devez-vazio">Carregando…</div>';
+  modal.classList.add('open');
+  try {
+    const r = await fetch('/bilhetes/excluidas-de-vez');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const { itens } = await r.json();
+    if (!itens.length) {
+      lista.innerHTML = '<div class="devez-vazio">Nenhuma aposta excluída de vez. Quando você usar "Excluir de vez" numa aposta que voltou, ela aparece aqui.</div>';
+      return;
+    }
+    lista.innerHTML = itens.map(x => `<div class="devez-row">
+        <div><div class="devez-desc">${esc(x.descricao || 'cód. ' + x.codigo)}</div>
+          <div class="devez-meta">${esc(NOMES[x.casa_nome] || x.casa_nome || x.casa)} · ${esc(x.parceiro || '')} · ${esc(x.data || '')} · cód. ${esc(x.codigo)}</div></div>
+        <button type="button" class="btn btn-ghost btn-sm" data-casa="${esc(x.casa)}" data-codigo="${esc(x.codigo)}">Liberar</button>
+      </div>`).join('');
+  } catch (e) {
+    lista.innerHTML = '';
+    erro.textContent = 'Não consegui carregar a lista: ' + e.message;
+    erro.hidden = false;
+  }
+}
+document.getElementById('devez-lista').addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('button[data-codigo]');
+  if (!btn) return;
+  btn.disabled = true;
+  try {
+    await _voltouPost('/bilhetes/excluidas-de-vez/liberar', { chaves: [[btn.dataset.casa, btn.dataset.codigo]] });
+    btn.closest('.devez-row').remove();
+    if (!document.querySelector('#devez-lista .devez-row')) abrirExcluidasDeVez();
+  } catch (e) {
+    btn.disabled = false;
+    const erro = document.getElementById('devez-erro');
+    erro.textContent = 'Não consegui liberar: ' + e.message;
+    erro.hidden = false;
+  }
+});
+document.getElementById('voltou-ver-devez').addEventListener('click', abrirExcluidasDeVez);
+['devez-close', 'devez-fechar'].forEach(id => document.getElementById(id)
+  .addEventListener('click', () => document.getElementById('devez-modal').classList.remove('open')));
 
 // ── Seleção múltipla ──────────────────────────────────────────────────────────
 function onRowChkChange() {

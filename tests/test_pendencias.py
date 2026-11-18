@@ -37,8 +37,10 @@ def test_pendencia_desconhecida_e_ignorada():
 def test_todas_as_pendencias_da_ui_existem():
     """Chave usada pelo front precisa ter par no backend. `sem_tipster` é a que o
     badge azul da barra aplica (s262); as outras três seguem servidas pela rota,
-    sem consumidor na UI desde que a faixa de chips saiu."""
-    assert set(R._PENDENCIAS_SQL) == {"sem_odd", "sem_stake", "categoria", "sem_tipster"}
+    sem consumidor na UI desde que a faixa de chips saiu. `voltou` (s460) é a da pílula
+    amarela "Excluídas que voltaram"."""
+    assert set(R._PENDENCIAS_SQL) == {"sem_odd", "sem_stake", "categoria", "sem_tipster",
+                                      "voltou"}
 
 
 def test_pendencia_nao_consome_placeholder():

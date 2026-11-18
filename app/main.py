@@ -85,6 +85,8 @@ from repository import (
     criar_parceiro, criar_sessao_trial, dashboard_rows, data_valida,
     extracoes_do_trial,
     deletar_bilhetes, excluir_bilhetes_lote,
+    manter_voltaram, excluir_de_vez, listar_excluidas_de_vez, liberar_excluidas_de_vez,
+    codigos_excluidos_de_vez,
     export_bilhetes, get_ativos_tipster, get_codigos_existentes,
     get_codigos_resolvidos, vereditos_do_texto, get_tipster_por_codigo,
     remover_bilhetes_supersedidos,
@@ -1643,6 +1645,10 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     vereditos = vereditos_do_texto(blocos_txt)
     ja_resolvidos = await get_codigos_resolvidos(codigos, dono, casa, parceiro,
                                                  vereditos=vereditos)
+    # s460: o código que o usuário EXCLUIU DE VEZ sai aqui, antes da IA e da Ficha: o UPSERT
+    # já não o grava (`exclusao_confirmada`), e lê-lo seria pagar por nada.
+    if (de_vez := await codigos_excluidos_de_vez(codigos, dono, casa)):
+        ja_resolvidos = set(ja_resolvidos) | de_vez
     # Para PULAR, a leitura anterior tem de ter chegado ao banco (`gravados`, s424): sem
     # isso, a aposta aberta que liquidou e cuja leitura não foi salva era pulada para
     # sempre como "sem mudança" (MyStake 308613169). Ver `blocos_conhecidos`.
@@ -5494,6 +5500,56 @@ async def restaurar_bilhetes_route(body: RestaurarRequest, dono: str = Depends(d
     return {"restaurados": restaurados}
 
 
+class VoltaramRequest(BaseModel):
+    # `ids` = as linhas marcadas; vazio com `casa` + `parceiro` = TODAS as que voltaram naquela
+    # conta (o "Manter todas" / "Excluir todas de vez" da grade, que passa de uma página).
+    ids: list[int] = []
+    casa: Optional[str] = None
+    parceiro: Optional[str] = None
+
+
+def _escopo_voltaram(body: VoltaramRequest) -> dict:
+    if not body.ids and not ((body.casa or "").strip() and (body.parceiro or "").strip()):
+        raise HTTPException(400, "Nenhuma aposta selecionada.")
+    return {"ids": body.ids or None, "casa": body.casa if not body.ids else None,
+            "parceiro": body.parceiro if not body.ids else None}
+
+
+# s460 (Feca, 18/11/2026): a aposta que o usuário excluiu e a captura trouxe de volta entra
+# marcada (`bilhetes.voltou_excluida`). "Manter" tira a marca; "Excluir de vez" leva à lixeira e
+# bloqueia o código (`exclusao_confirmada`), que a captura passa a pular. Dono EFETIVO: atuam
+# sobre a tela, como o /bilhetes/lote.
+@app.post("/bilhetes/voltaram/manter")
+async def manter_voltaram_route(body: VoltaramRequest, dono: str = Depends(dono_efetivo)):
+    e = _escopo_voltaram(body)
+    return {"mantidas": await manter_voltaram(e["ids"], dono, e["casa"], e["parceiro"])}
+
+
+@app.post("/bilhetes/voltaram/excluir-de-vez")
+async def excluir_de_vez_route(body: VoltaramRequest, dono: str = Depends(dono_efetivo)):
+    e = _escopo_voltaram(body)
+    res = await excluir_de_vez(e["ids"], dono, e["casa"], e["parceiro"])
+    if res["excluidas"]:
+        matcher.invalidar(dono)
+    return res
+
+
+@app.get("/bilhetes/excluidas-de-vez")
+async def listar_excluidas_de_vez_route(dono: str = Depends(dono_leitura)):
+    return {"itens": await listar_excluidas_de_vez(dono)}
+
+
+class LiberarRequest(BaseModel):
+    chaves: list[list[str]]     # [[chave da casa, código], ...]
+
+
+@app.post("/bilhetes/excluidas-de-vez/liberar")
+async def liberar_excluidas_de_vez_route(body: LiberarRequest, dono: str = Depends(dono_efetivo)):
+    if not body.chaves:
+        raise HTTPException(400, "Nenhuma aposta selecionada.")
+    return {"liberadas": await liberar_excluidas_de_vez(body.chaves, dono)}
+
+
 class ExcluirLoteRequest(BaseModel):
     ids: list[int]
     # Quantas apostas o usuário DIGITOU no modal. Tem de bater com len(ids): a UI trava o
@@ -5835,7 +5891,9 @@ async def listar_incompletos(dono: str = Depends(dono_leitura)):
     linhas = await contar_incompletos(dono)
     por_parceiro = [
         {"casa": r["casa"], "parceiro": r["parceiro"],
-         "sem_tipster": r["sem_tipster"], "abertas": r["abertas"]}
+         "sem_tipster": r["sem_tipster"], "abertas": r["abertas"],
+         # s460: excluídas pelo usuário que a captura trouxe de volta (pílula amarela)
+         "voltaram": r.get("voltaram", 0)}
         for r in linhas
     ]
     por_casa_tipster: dict[str, int] = {}

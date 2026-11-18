@@ -11,6 +11,7 @@ from decimal import Decimal, InvalidOperation
 import asyncpg
 
 from database import get_pool
+import casa_chave as _cc
 from descricao_check import checar_descricao, checar_fidelidade, resumo_lote
 from tradutor import _num_bloco  # noqa: F401  (reexport — ver a nota no lugar antigo)
 
@@ -2102,6 +2103,12 @@ async def upsert_bilhetes(
                 for rr in recs:
                     sig_de_coproprietario.add(rr["assinatura"])
 
+        # s460 (Feca, 18/11/2026): a aposta excluída que volta pela captura. Dois conjuntos
+        # por (chave da casa, código), lidos uma vez por lote: o que o usuário EXCLUIU DE VEZ
+        # (não grava) e o que ele excluiu pela tela e está na lixeira (grava MARCADA).
+        de_vez, excluidas_tela = await _excluidas_do_lote(conn, dono, rows)
+        voltaram = bloqueadas = 0
+
         for i, row in enumerate(rows):
             codigo = row.get("codigo_bilhete", "").strip()
 
@@ -2152,6 +2159,12 @@ async def upsert_bilhetes(
                     f"({row.get('casa', '')} / {row.get('parceiro', '')}) — "
                     "histórico anterior ao repasse, ignorado."
                 )
+                id_per_row.append(None)
+                continue
+
+            chave_cod = (_cc.chave(row.get("casa")), codigo) if codigo else None
+            if chave_cod in de_vez:
+                bloqueadas += 1
                 id_per_row.append(None)
                 continue
 
@@ -2507,6 +2520,10 @@ async def upsert_bilhetes(
                 id_per_row.append(db_id)
                 if rec["was_inserted"]:
                     inseridos += 1
+                    if chave_cod in excluidas_tela:
+                        await conn.execute(
+                            "UPDATE bilhetes SET voltou_excluida = NOW() WHERE id = $1", db_id)
+                        voltaram += 1
                     # Aposta que NASCE aberta e cuja captura é anterior a uma Caixa já
                     # ligada: candidata a ter ficado de fora do `abertas_corte` pela
                     # corrida descrita em `_caixa_adotar_abertas_tardias`.
@@ -2524,6 +2541,13 @@ async def upsert_bilhetes(
                 id_per_row.append(None)
 
         await _caixa_adotar_abertas_tardias(conn, dono, abertas_tardias)
+
+    if voltaram:
+        alertas.append(
+            f"{voltaram} aposta(s) que você tinha excluído voltaram pela captura. Estão "
+            "marcadas em amarelo na lista: mantenha ou exclua de vez.")
+    if bloqueadas:
+        logger.info("upsert: %d aposta(s) excluídas de vez não gravadas · %s", bloqueadas, dono)
 
     # Monta mapa duplicatas: str(db_id) → [occurrence, total]
     duplicatas: dict[str, list[int]] = {}
@@ -2666,6 +2690,116 @@ async def absorver_consolidadas(dono: str, casa_key: str, parceiro: str,
                 logger.info("absorver: %s %s/%s · %d linha(s) juntadas em %s", dono, chave,
                             parceiro, len(sairam), novo)
     return total
+
+
+# ── Aposta EXCLUÍDA que volta pela captura (s460, Feca 18/11/2026) ───────────────────────
+# Só a exclusão feita pelo USUÁRIO na tela marca a volta: os motivos de `MOTIVOS_EXCLUSAO` e o
+# da exclusão em massa começam por "exclusão" ou "desfazer análise". Os automáticos (Juntadas,
+# reparo de duplicata por script) tiram a linha porque ela está repetida; a volta deles não é
+# a aposta que o usuário quis tirar.
+_MOTIVO_DO_USUARIO = "(l.motivo LIKE 'exclusão%' OR l.motivo LIKE 'desfazer análise%')"
+MOTIVO_DE_VEZ = "excluída de vez pela tela (voltou pela captura)"
+
+
+async def _excluidas_do_lote(conn, dono: str, rows: list[dict]) -> tuple[set, set]:
+    """(excluídas de vez, excluídas pela tela e na lixeira), por (chave da casa, código)."""
+    codigos = sorted({(r.get("codigo_bilhete") or "").strip() for r in rows} - {""})
+    if not codigos:
+        return set(), set()
+    de_vez = {(r["casa"], r["codigo"]) for r in await conn.fetch(
+        "SELECT casa, codigo FROM exclusao_confirmada WHERE dono = $1 AND codigo = ANY($2::text[])",
+        dono, codigos)}
+    casa_sql = _cc.sql("(l.bilhete->>'casa')")
+    tela = {(r["casa"], r["codigo"]) for r in await conn.fetch(
+        f"SELECT DISTINCT {casa_sql} AS casa, "
+        "l.bilhete->>'codigo_bilhete' AS codigo FROM lixeira_bilhetes l "
+        f"WHERE l.dono = $1 AND l.bilhete->>'codigo_bilhete' = ANY($2::text[]) "
+        f"AND {_MOTIVO_DO_USUARIO}", dono, codigos)}
+    return de_vez, tela
+
+
+def _escopo_voltaram(ids, dono, casa, parceiro) -> tuple[str, list]:
+    """WHERE (alias `b`) das linhas marcadas: as `ids` dadas, ou todas da conta."""
+    if ids:
+        return ("b.id = ANY($1::int[]) AND b.dono = $2 AND b.voltou_excluida IS NOT NULL",
+                [sorted({int(i) for i in ids}), dono])
+    return ("b.dono = $1 AND b.casa = $2 AND b.parceiro = $3 AND b.voltou_excluida IS NOT NULL",
+            [dono, casa or "", parceiro or ""])
+
+
+async def manter_voltaram(ids, dono: str, casa: str | None = None,
+                          parceiro: str | None = None) -> int:
+    """"Manter": tira a marca. Devolve quantas linhas mudaram (só as do dono)."""
+    where, params = _escopo_voltaram(ids, dono, casa, parceiro)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        st = await conn.execute(
+            f"UPDATE bilhetes b SET voltou_excluida = NULL WHERE {where}", *params)
+    return int(st.split()[-1])
+
+
+async def excluir_de_vez(ids, dono: str, casa: str | None = None,
+                         parceiro: str | None = None) -> dict:
+    """"Excluir de vez": grava o bloqueio (dono, chave da casa, código) e MOVE a linha para a
+    lixeira, numa transação. Só linha marcada e com código: sem código não há o que bloquear,
+    e a linha nunca marcada já tem o "Excluir" de sempre."""
+    where, params = _escopo_voltaram(ids, dono, casa, parceiro)
+    where += " AND COALESCE(btrim(b.codigo_bilhete), '') <> ''"
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                f"""INSERT INTO exclusao_confirmada
+                        (dono, casa, codigo, casa_nome, parceiro, descricao, data)
+                    SELECT b.dono, {_cc.sql('b.casa')}, btrim(b.codigo_bilhete), b.casa,
+                           b.parceiro, b.descricao, b.data
+                      FROM bilhetes b WHERE {where}
+                    ON CONFLICT (dono, casa, codigo) DO NOTHING""", *params)
+            sairam = await _mover_para_lixeira(conn, where, params, MOTIVO_DE_VEZ)
+    logger.info("excluir de vez: dono=%s · %d aposta(s)", dono, len(sairam))
+    return {"excluidas": len(sairam)}
+
+
+async def listar_excluidas_de_vez(dono: str) -> list[dict]:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT casa, codigo, casa_nome, parceiro, descricao, data, excluido_em "
+            "FROM exclusao_confirmada WHERE dono = $1 ORDER BY excluido_em DESC, codigo", dono)
+    return [dict(r) for r in rows]
+
+
+async def liberar_excluidas_de_vez(chaves: list, dono: str) -> int:
+    """Desfaz o bloqueio. A aposta volta na próxima captura (sem marca: a exclusão dela agora
+    tem o motivo de "de vez", que não é o da tela)."""
+    pares = [(str(c[0]), str(c[1])) for c in chaves or [] if len(c) == 2]
+    if not pares:
+        return 0
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        st = await conn.execute(
+            "DELETE FROM exclusao_confirmada WHERE dono = $1 AND (casa, codigo) IN "
+            "(SELECT * FROM unnest($2::text[], $3::text[]))",
+            dono, [p[0] for p in pares], [p[1] for p in pares])
+    return int(st.split()[-1])
+
+
+async def codigos_excluidos_de_vez(codigos: list[str], dono: str, casa: str | None) -> set[str]:
+    """Para o pré-dedup do /extrair: os códigos deste lote que o dono excluiu de vez nesta
+    casa. Falha na leitura não esconde nada (o UPSERT segura do mesmo jeito)."""
+    codigos = [c for c in (codigos or []) if c]
+    if not codigos or not casa:
+        return set()
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT codigo FROM exclusao_confirmada WHERE dono = $1 AND casa = $2 "
+                "AND codigo = ANY($3::text[])", dono, _cc.chave(casa), codigos)
+        return {r["codigo"] for r in rows}
+    except Exception:  # noqa: BLE001
+        logger.warning("excluídas de vez: leitura falhou (segue sem pular)", exc_info=True)
+        return set()
 
 
 async def deletar_bilhetes(ids: list[int], dono: str, motivo: str = "") -> list[dict]:
@@ -2812,17 +2946,20 @@ async def contar_incompletos(dono: str) -> list[dict]:
     aplica). O `btrim` importa: tipster com espaço em branco só, sem ele, entrava
     numa contagem e ficava fora da outra."""
     sem_tip = _PENDENCIAS_SQL["sem_tipster"]
+    voltou = _PENDENCIAS_SQL["voltou"]          # s460: o mesmo predicado do filtro da grade
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             f"""SELECT casa, parceiro,
                        COUNT(*) FILTER (WHERE {sem_tip})                  AS sem_tipster,
-                       COUNT(*) FILTER (WHERE extraction_state = 'aberta') AS abertas
+                       COUNT(*) FILTER (WHERE extraction_state = 'aberta') AS abertas,
+                       COUNT(*) FILTER (WHERE {voltou})                   AS voltaram
                 FROM bilhetes
                 WHERE dono = $1
                 GROUP BY casa, parceiro
                 HAVING COUNT(*) FILTER (WHERE {sem_tip}) > 0
-                    OR COUNT(*) FILTER (WHERE extraction_state = 'aberta') > 0""",
+                    OR COUNT(*) FILTER (WHERE extraction_state = 'aberta') > 0
+                    OR COUNT(*) FILTER (WHERE {voltou}) > 0""",
             dono,
         )
     return [dict(r) for r in rows]
@@ -2845,6 +2982,8 @@ _PENDENCIAS_SQL = {
     # Categoria a confirmar: vazia, 'Outros…' ou marcada com ⚠ pela IA (= `_aposta_incerta`).
     "categoria":   "(aposta IS NULL OR btrim(aposta) = '' OR aposta ILIKE 'outros%' OR aposta LIKE '%⚠%')",
     "sem_tipster": "(tipster IS NULL OR btrim(tipster) = '')",
+    # s460: excluída pelo usuário que a captura trouxe de volta (pílula amarela da grade).
+    "voltou":      "(voltou_excluida IS NOT NULL)",
 }
 
 
