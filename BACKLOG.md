@@ -1918,13 +1918,18 @@ Entrou na 0.7.84, plataforma própria, família `gc`, recon LOGADO no Chrome do 
 - ~~Virada nas 3 listas da Railway~~ e ~~botão Conectar provado em produção~~: feitos na s455
   (16/11/2026). A semente manual travou (conexão perdida); a diária das 04h cobre, e só há o
   que semear depois do 1º cru da GiroCerto.
-- **1ª captura pela extensão instalada**, conferida no `virada_log` (pela_ficha × para_ia).
+- ~~1ª captura pela extensão instalada~~: feita (s461, 18/11/2026). Jonathan 40 bilhetes,
+  Gabriel 2, nenhum cru sem bilhete. 11 pela Ficha, o resto pela IA por "termo fora do
+  dicionário" (casa nova; a semente diária cobre). Duas datas erradas da IA corrigidas por
+  `scripts/corrigir_data_girocerto_s461.py`. Falta conferir que a próxima captura vai mais
+  pela Ficha depois da semente.
 - **A API só entrega os 50 mais recentes.** Decidido (Feca, 16/11/2026): o print segue aceito
   na GiroCerto (`captura.PRINT_LIBERADO`). Aberto: o mesmo bilhete por print e pela extensão
   dedupa pelo `code`, mas o print da GiroCerto já errou 1 código em 107 (9 caracteres): medir
-  duplicata depois da 1ª captura.
-- **Sem amostra, o adaptador recusa:** aberta, múltipla/builder, cashout, freebet, turbinada.
-  Medir cada uma quando aparecer numa conta viva.
+  duplicata (print × captura) nas contas do Jonathan e do Gabriel.
+- ~~Múltipla~~: suportada na 0.7.90 e na Ficha (s461, 2 reais do Gabriel): perdida, ganha cheia
+  e ganha com perna anulada. **Sem amostra, o adaptador recusa:** aberta, builder, múltipla com
+  perna meia, cashout, freebet, turbinada. Medir cada uma quando aparecer numa conta viva.
 
 ### 4.0y CopaWin: virar a Ficha e validar a 1ª captura (s451). **VIVA, harness com fixture real**
 
