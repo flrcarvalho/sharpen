@@ -266,9 +266,12 @@ async def _liquidados(conn, dono: str, casa_key: str, codigos: list[str],
     (D10). O mesmo código noutra casa do dono é outra aposta (s423, BACKLOG §4.18): sem a casa,
     a Ficha nem a decidia, e ela não gravava, não ficava `ia` nem virava pendente. Com
     `parceiro`, só os liquidados NESTA conta (o filtro do pré-dedup, `repository._filtro_conta`)."""
+    # s460: a liquidada gravada com REVISAR não conta como liquidada aqui; a Ficha pode
+    # regravá-la, e a exceção do UPSERT troca o marcador (`repository.sql_a_revisar`).
+    from repository import sql_a_revisar
     sql = ("SELECT DISTINCT codigo_bilhete FROM bilhetes WHERE dono = $1 "
            "AND codigo_bilhete = ANY($2::text[]) AND extraction_state = 'resolvida' "
-           f"AND {_K} = $3")
+           f"AND {_K} = $3 AND NOT " + sql_a_revisar("descricao", "esporte", "aposta"))
     args = [dono, codigos, casa_key]
     if parceiro:
         sql += " AND parceiro = $4"

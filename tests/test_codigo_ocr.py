@@ -47,6 +47,11 @@ def _chamadas_com_sql(trecho: str):
         if not (isinstance(alvo, ast.Attribute) and alvo.attr in ("fetchrow", "execute")):
             continue
         primeiro = no.args[0]
+        # s460: o SQL do UPSERT ganhou `"""…""".replace("__TROCA_REVISAR__", …)` (a exceção
+        # REVISAR). O texto do SQL continua sendo a constante antes do `.replace`.
+        if isinstance(primeiro, ast.Call) and isinstance(primeiro.func, ast.Attribute) \
+                and primeiro.func.attr == "replace":
+            primeiro = primeiro.func.value
         if isinstance(primeiro, ast.Constant) and isinstance(primeiro.value, str) \
                 and trecho in primeiro.value:
             achadas.append((primeiro.value, len(no.args) - 1))

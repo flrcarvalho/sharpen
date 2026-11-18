@@ -1916,6 +1916,33 @@ async def _rastro_ficha(conn, dono: str, antes, depois) -> None:
         logger.exception("rastro da Ficha não gravado em correcoes (bilhete %s)", antes["id"])
 
 
+# EXCEÇÃO "REVISAR" ao congelamento (s460, decisão do Feca em 18/11/2026).
+# `Mercado Especial - REVISAR` (MASTER_DESCRICAO §18) é o que a IA grava quando não soube ler o
+# mercado: um MARCADOR, não dado. Com o congelamento, a recaptura nunca o trocava, e o único
+# jeito de corrigir era apagar e capturar de novo. Medido na produção (06 a 16/11): o Gabriel
+# apagou 1.126 apostas pela tela de Extração, e em 471 a descrição que voltou era outra.
+# A regra: a linha gravada com REVISAR (em descrição, esporte ou categoria) aceita a leitura que
+# chega SEM ele, e os três campos trocam JUNTOS (blindar metade é pior que blindar todos). A
+# leitura que ainda diz REVISAR não toca em nada. Correção humana não é afetada: quem editou à
+# mão já tirou o marcador. O texto ' ' entre os campos impede "REVI" + "SAR" de casar.
+# Quem também deixa a linha voltar à leitura: `sql_a_revisar` (pré-dedup, barreira e Ficha).
+def sql_a_revisar(descricao: str, esporte: str, aposta: str) -> str:
+    """Expressão SQL que é verdadeira quando algum dos três campos traz o marcador."""
+    return (f"((COALESCE({descricao}, '') || ' ' || COALESCE({esporte}, '') || ' ' || "
+            f"COALESCE({aposta}, '')) LIKE '%REVISAR%')")
+
+
+def _troca_revisar(velho: tuple[str, str, str], novo: tuple[str, str, str]) -> str:
+    return (f"({sql_a_revisar(*velho)} AND NULLIF({novo[0]}, '') IS NOT NULL "
+            f"AND NOT {sql_a_revisar(*novo)})")
+
+
+_TROCA_REVISAR_UPSERT = _troca_revisar(
+    ("bilhetes.descricao", "bilhetes.esporte", "bilhetes.aposta"),
+    ("EXCLUDED.descricao", "EXCLUDED.esporte", "EXCLUDED.aposta"))
+_TROCA_REVISAR_FALLBACK = _troca_revisar(("descricao", "esporte", "aposta"), ("$15", "$13", "$14"))
+
+
 async def upsert_bilhetes(
     rows: list[dict], dono: str, confianca: float | None = None,
     origem: str = "extracao", criado_base: datetime | None = None,
@@ -2359,13 +2386,16 @@ async def upsert_bilhetes(
                         -- correção do classificador fora do banco — foi o que segurou 40
                         -- linhas mal classificadas. Fora do `sync`, segue intocada (a IA
                         -- relê com ruído e o operador edita na grade).
-                        esporte = CASE WHEN EXCLUDED.origem = 'sync'
+                        -- EXCEÇÃO "REVISAR" (s460, Feca 18/11/2026): o marcador de "não soube
+                        -- ler" não é dado, então a leitura que sai SEM ele substitui os três
+                        -- campos juntos (ver `_troca_revisar`).
+                        esporte = CASE WHEN EXCLUDED.origem = 'sync' OR __TROCA_REVISAR__
                                        THEN COALESCE(NULLIF(EXCLUDED.esporte, ''), bilhetes.esporte)
                                        ELSE bilhetes.esporte END,
-                        aposta = CASE WHEN EXCLUDED.origem = 'sync'
+                        aposta = CASE WHEN EXCLUDED.origem = 'sync' OR __TROCA_REVISAR__
                                       THEN COALESCE(NULLIF(EXCLUDED.aposta, ''), bilhetes.aposta)
                                       ELSE bilhetes.aposta END,
-                        descricao = CASE WHEN EXCLUDED.origem = 'sync'
+                        descricao = CASE WHEN EXCLUDED.origem = 'sync' OR __TROCA_REVISAR__
                                          THEN COALESCE(NULLIF(EXCLUDED.descricao, ''), bilhetes.descricao)
                                          ELSE bilhetes.descricao END,
                         -- backfill do USD em re-sync; nunca apaga um valor já gravado
@@ -2394,7 +2424,7 @@ async def upsert_bilhetes(
                         -- s459: a leitura CHEGOU (prova da barreira; ver database.py)
                         lido_em          = NOW()
                     RETURNING id, (xmax = 0) AS was_inserted, odd, stake, moeda, cotacao
-                    """,
+                    """.replace("__TROCA_REVISAR__", _TROCA_REVISAR_UPSERT),
                     dono, row.get("casa", ""), row.get("parceiro", ""), sig,
                     codigo or None,
                     row.get("data"), row.get("esporte"), row.get("tipster"),
@@ -2441,11 +2471,11 @@ async def upsert_bilhetes(
                         cotacao = CASE WHEN (extraction_state = 'aberta' OR $12 = 'sync')
                                             AND NULLIF($11, '') IS NOT NULL
                                        THEN $22 ELSE cotacao END,
-                        esporte   = CASE WHEN $12 = 'sync'
+                        esporte   = CASE WHEN $12 = 'sync' OR __TROCA_REVISAR__
                                          THEN COALESCE(NULLIF($13, ''), esporte)   ELSE esporte   END,
-                        aposta    = CASE WHEN $12 = 'sync'
+                        aposta    = CASE WHEN $12 = 'sync' OR __TROCA_REVISAR__
                                          THEN COALESCE(NULLIF($14, ''), aposta)    ELSE aposta    END,
-                        descricao = CASE WHEN $12 = 'sync'
+                        descricao = CASE WHEN $12 = 'sync' OR __TROCA_REVISAR__
                                          THEN COALESCE(NULLIF($15, ''), descricao) ELSE descricao END,
                         -- estrutura imutável: só preenche (espelha o ON CONFLICT acima)
                         sistema          = COALESCE(sistema, $16),
@@ -2460,7 +2490,7 @@ async def upsert_bilhetes(
                         lido_em          = NOW()
                     WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND assinatura = $4
                     RETURNING id, FALSE AS was_inserted, odd, stake, moeda, cotacao
-                    """,
+                    """.replace("__TROCA_REVISAR__", _TROCA_REVISAR_FALLBACK),
                     dono, row.get("casa", ""), row.get("parceiro", ""), sig,
                     row.get("tipster"), codigo or None, resultado, extraction_state,
                     row.get("odd"), row.get("data"), row.get("stake"), origem,
@@ -6653,6 +6683,9 @@ async def get_codigos_resolvidos(codigos: list[str], dono: str, casa: str | None
                WHERE b.codigo_bilhete = ANY($1::text[])
                  AND b.extraction_state = 'resolvida'
                  AND b.dono = $2""")
+    # s460: a liquidada gravada com REVISAR volta à leitura, para a exceção do UPSERT ter o
+    # que aplicar (`sql_a_revisar`). Sem isto ela era pulada aqui e o marcador ficava.
+    sql += " AND NOT " + sql_a_revisar("b.descricao", "b.esporte", "b.aposta")
     sql += _filtro_conta(params, casa, parceiro, "b")
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -6944,6 +6977,8 @@ async def blocos_conhecidos(dono: str, casa: str, codigos, parceiro: str | None 
             # diária…), e aí a aposta liquidada na casa era pulada com a linha aberta. Linha
             # anterior à coluna (NULL) cai no critério antigo até a próxima leitura.
             sql += " AND COALESCE(b.lido_em, b.atualizado_em) >= v.atualizado_em"
+            # s460: a linha com REVISAR nunca é "lida": o bloco igual vai de novo à leitura.
+            sql += " AND NOT " + sql_a_revisar("b.descricao", "b.esporte", "b.aposta")
         # `tabela="b"` é obrigatório aqui: as DUAS tabelas do JOIN têm `casa`. Ver o
         # aviso no `_filtro_conta` e `test_blocos_conhecidos_filtra_por_conta_no_banco`.
         sql += _filtro_conta(params, casa, parceiro, tabela="b")

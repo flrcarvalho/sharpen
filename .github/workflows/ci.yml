@@ -59,7 +59,7 @@ jobs:
       - name: Harness de camada-DB (Postgres)
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sharpen_test
-        run: pytest -q tests/test_repository_db.py
+        run: pytest -q tests/test_repository_db.py tests/test_revisar_recaptura_db.py
 
       - name: Auditoria casa × global
         run: python tools/audit_casas.py

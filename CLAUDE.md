@@ -195,7 +195,7 @@ Toda chamada paga à Anthropic grava tokens e custo no `uso_tokens` (`registrar_
 de outro registro cobrir o que ele media.**
 
 Gasta sem registro (RC48): o **sharpen-bot** (`vision.js`), o **socantos-bot** e o serviço
-**`web`** da Railway. O **aquecedor** (`main._cache_warmer`) também, até a s449.
+**`web`** da Railway.
 
 ---
 
@@ -836,7 +836,8 @@ bilhete. O que já duplicou sai por `reparar_duplicatas_codigo_ocr.py` (print) e
 O UPSERT **congela** `odd`, `data`, `stake`, `esporte`, `aposta` e `descricao` assim que a
 aposta resolve: a re-leitura da IA é ruidosa. **Exceções:** `origem='sync'` (fonte
 determinística, o `/polymarket/sync`) refresca todos; e a **reliquidação** (a casa troca a
-CLASSE do resultado, W↔L↔V) leva a odd junto. → [o caso](docs/casos/CASOS_CAPTURA.md)
+CLASSE do resultado, W↔L↔V) leva a odd junto; `REVISAR` cede os 3 campos à leitura
+limpa (Feca, 18/11/2026). → [o caso](docs/casos/CASOS_CAPTURA.md)
 
 **Por que a exceção existe:** `resultado` **nunca foi congelado**. Com fonte determinística
 isso deixava a linha **meio atualizada** — resultado novo, odd velha — e virava lucro
