@@ -192,6 +192,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # GiroCerto (s455): a ganha de 01/11/2026 (R$ 750 @2,02, recebido R$ 1.515), conta do recon.
     # `code` do bilhete (o do rodapé do card), nunca o `id` UUID.
     "GIROCERTO":  "ZHUUMZ423Z",
+    # Epicbet (s462): a ganha de 20/11/2026 (40 USDT @7,14, payout 285,6), conta do recon.
+    # `sequence` (o "ID" do card), nunca o `bet.id` (39939822).
+    "EPICBET":    "11",
     # `internal_bet_id` real da conta (a perdida de 07/08, stake R$18,88 @3,95) — numérico de
     # 7 dígitos. ⚠ É o ID que o CARD estampa; o `ticket_id` (11 dígitos) NÃO vai para o
     # marcador, senão print e captura gerariam códigos diferentes para o mesmo bilhete.

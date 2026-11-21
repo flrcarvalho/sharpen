@@ -503,6 +503,30 @@
     }
   });
 
+  // Bilhetes da EPICBET capturados pelo eb_inject.js (mundo MAIN) — API tRPC
+  // `ticket.listWithMatchInfo`, plataforma PRÓPRIA (s462). O painel pede 3 por página; o inject
+  // pede `pending` e `settled` de 25 em 25 só com o cookie, até o `count`. `ebById` guarda 1
+  // bilhete por `sequence` (o "ID" do card); a versão LIQUIDADA vence a aberta.
+  const ebById = new Map();          // sequence → bilhete
+  let ebFimReal = false;
+  let ebHookVivo = false, ebRespostas = 0;
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupEBData) {
+      if (d.hook) ebHookVivo = true;
+      if (typeof d.respostas === "number") ebRespostas = d.respostas;
+      if (Array.isArray(d.bilhetes)) {
+        const aberta = (b) => b.status === "pending";
+        for (const b of d.bilhetes) {
+          if (!b || !b.id) continue;
+          const ex = ebById.get(b.id);
+          if (!ex || aberta(ex) || !aberta(b)) ebById.set(b.id, b);
+        }
+      }
+      if (d.fim) ebFimReal = true;
+    }
+  });
+
   // Bilhetes da SHUFFLE capturados pelo shf_inject.js (mundo MAIN) — o GraphQL `GetSportsBets`
   // (`sportsBetsV3`), já normalizado. Plataforma PRÓPRIA (s401), a 1ª casa GraphQL. O inject
   // aprende o `authorization` de qualquer chamada GraphQL autenticada da página e pede a lista
@@ -1718,6 +1742,12 @@
       // casa devolve os 50 mais recentes de uma vez. SEM fallback de texto: o card da perdida
       // estampa o "Ganho potencial" e o da meia derrota diz só "PERDEU".
       blocos = await roboGCPassive(ctx);
+    } else if (casa === "epicbet") {
+      // Busca ativa (eb_inject, plataforma PRÓPRIA, tRPC — s462). O painel "My Bets" pede 3 por
+      // página e anda por botões: o inject pede `pending` e `settled` de 25 em 25 só com o
+      // cookie, até o `count`. SEM fallback de texto: a casa não publica retorno, e o "Payout"
+      // do card é stake × odds até na aberta.
+      blocos = await roboEBPassive(ctx);
     } else if (casa === "shuffle") {
       // Passivo + replay (shf_inject, plataforma PRÓPRIA — s401), a 1ª casa GraphQL. A TELA É
       // ESTREITA: pede `first: 9` com o filtro de uma aba. O replay pede a lista SEM filtro e
@@ -1988,6 +2018,9 @@
         // GiroCerto (s455): só o cookie. Zero respostas = sessão caída (a API não devolve lista).
         girocerto:  { nome: "GiroCerto",  hook: gcHookVivo, resp: gcRespostas, vistos: gcById.size,
                       extra: gcRespostas === 0 ? " · faça login em girocerto.fun, abra Minhas apostas e rode de novo" : "" },
+        // EpicBet (s462): só o cookie. Zero respostas = sessão caída (a API devolve erro tRPC).
+        epicbet:    { nome: "Epicbet",    hook: ebHookVivo, resp: ebRespostas, vistos: ebById.size,
+                      extra: ebRespostas === 0 ? " · faça login em epicbet.com, abra My Bets e rode de novo" : "" },
         // Shuffle (s401): o token sai de qualquer chamada GraphQL autenticada da página. Sem
         // ele (`semToken`) a sessão não está logada ou a página não carregou os esportes.
         shuffle:    { nome: "Shuffle",    hook: shfHookVivo, resp: shfRespostas, vistos: shfById.size,
@@ -5548,6 +5581,144 @@
     console.log("[SharpenUp] GiroCerto: " + blocos.length + " bilhete(s) · gcById=" + gcById.size +
                 " · recusadas=" + recusadas + " · hook=" + gcHookVivo + " · respostas=" + gcRespostas +
                 " · fimReal=" + gcFimReal);
+    return blocos;
+  }
+
+  // ── EpicBet (plataforma própria, `epicbet.com`, tRPC — s462) ─────────────────────
+  // Formata 1 bilhete de `ticket.listWithMatchInfo` (normalizado pelo eb_inject) no bloco que a
+  // IA lê. Leituras VALIDADAS contra o card (recon de 21/11/2026, 13 múltiplas em USDT):
+  //   • NÃO HÁ CAMPO DE RETORNO. O "Payout" do card é `stake × odds` (40 × 7,14 = 285,6; 0 na
+  //     perdida; o potencial na aberta). O W sai daí, e só com as provas: status `won`, TODA
+  //     perna `won`, sem cashout e sem boost. O resto que tenha dinheiro diferente fica a conferir.
+  //   • `odd` (bet.odds) já é a EFETIVA, a do card: perna pushed e half_won entram recalculadas
+  //     pela casa (ID 12: card 6.14, produto 12,10; ID 7: card 5.87, produto 8,42).
+  //   • o código é o `sequence` (o "ID" do card); o `bet.id` sobe como "ID interno".
+  //   • datas em ISO UTC; aqui saem em São Paulo pelo `_dhJB` (o card mostra Brasília).
+  // O que NÃO se decide aqui: status desconhecido sobe cru, "a conferir". O de-para vive na
+  // CASA_EPICBET.md. Sem amostra (a conferir): cashout, boost, anulada, ganha com perna
+  // pushed/half_won, `partially_won`, `cashed out`, `campaign settled`.
+  const _abertaEB = (b) => b.status === "pending";
+  const _PERNA_EB = { pending: "em aberto", won: "ganha", lost: "perdida", pushed: "anulada (pushed)",
+                      half_won: "meia vitória", half_lost: "meia derrota" };
+
+  function _dataEventoEB(b) {
+    let max = null;
+    for (const s of (b.sels || [])) {
+      if (s.inicio != null && isFinite(s.inicio) && (max == null || s.inicio > max)) max = s.inicio;
+    }
+    return max;
+  }
+
+  function _resultadoEB(b) {
+    const cru = "status \"" + b.status + "\"";
+    if (_abertaEB(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    const sels = b.sels || [];
+    if ((b.cashouts || []).length) return cru + " com Cash Out, sem amostra medida desta casa (a conferir — não liquidar automaticamente)";
+    if (b.boost != null) return cru + " com boost de odd, sem amostra medida desta casa (a conferir — não liquidar automaticamente)";
+    if (!(b.stake > 0) || !(b.odd > 1)) return cru + " sem stake ou odd (a conferir — não liquidar automaticamente)";
+    if (b.status === "won") {
+      if (sels.length && sels.every((s) => s.status === "won")) {
+        return "Ganhou → W (retorno " + _dinJB(b, b.stake * b.odd) + " = stake × odd; a casa não publica o retorno, o Payout do card é stake × odds)";
+      }
+      return cru + " com perna " + sels.filter((s) => s.status !== "won").map((s) => s.status).join("/") +
+        " (odd já recalculada pela casa; sem amostra liquidada; a conferir — não liquidar automaticamente)";
+    }
+    if (b.status === "lost") {
+      if (sels.some((s) => s.status === "lost" || s.status === "half_lost")) return "Perdeu → L";
+      return cru + " sem perna perdida (a conferir — não liquidar automaticamente)";
+    }
+    return cru + " (a conferir — não liquidar automaticamente)";
+  }
+
+  function _tipoEB(b) {
+    const sels = b.sels || [], n = sels.length;
+    if (sels.some((s) => s.betBuilder)) return "Bet Builder (mesmo jogo · " + n + " seleções)";
+    if (n >= 2) return "Múltipla (" + n + " seleções)";
+    if (n === 1) return "Simples";
+    return b.tipo ? "tipo \"" + b.tipo + "\"" : "";
+  }
+
+  function formatTicketEB(b) {
+    const L = [];
+    L.push("[Código: " + b.id + "]");
+    if (b.betId) L.push("ID interno (bet.id): " + b.betId);
+    const dev = _dhJB(_dataEventoEB(b));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    const dh = _dhJB(b.ts);
+    if (dh) L.push("Data (colocação): " + dh);
+    L.push("Stake: " + _brl(b.stake));
+    _linhaMoeda(L, b.moeda);
+    _linhaCarimbo(L, b.ts, b.moeda);
+    L.push("Status: " + _resultadoEB(b));
+    L.push("Status (API): status " + b.status + " · type " + (b.tipo || "?"));
+    if (b.odd != null && b.odd > 0) L.push("Odd: " + _odd(b.odd));
+    const tipo = _tipoEB(b);
+    if (tipo) L.push("Tipo: " + tipo);
+    if (_abertaEB(b) && b.stake > 0 && b.odd > 0) L.push("Retorno potencial: " + _dinJB(b, b.stake * b.odd));
+    if (b.boost != null) L.push("Boost: " + JSON.stringify(b.boost) + " (conferir regra da odd)");
+    L.push("Seleções:");
+    const sels = b.sels || [];
+    for (const s of sels) {
+      const sel = [s.selecao, s.linhaSelecao].filter(Boolean).join(" ");
+      const mer = [s.mercado, s.linhaMercado].filter(Boolean).join(" ");
+      L.push("- " + ((mer ? mer + ": " : "") + sel + " [perna " + (_PERNA_EB[s.status] || "status " + s.status) + "]").trim());
+      const ctx2 = [];
+      if (s.jogo) ctx2.push("Jogo: " + s.jogo);
+      if (s.liga) ctx2.push("Liga: " + s.liga);
+      if (s.esporte) ctx2.push("Esporte: " + s.esporte);
+      if (s.inicio) ctx2.push("Início: " + _dhJB(s.inicio));
+      if (s.aoVivo) ctx2.push("ao vivo");
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (s.odd != null && sels.length > 1) L.push("    Odd da seleção: " + _odd(s.odd));
+    }
+    return L.join("\n");
+  }
+
+  async function roboEBPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    // Abertas primeiro e todas (a janela nunca corta aberta); depois as liquidadas, da mais nova
+    // para a mais velha, até o stopId ou a 1ª fora da janela (que ainda sobe, como na GiroCerto).
+    const processar = () => {
+      const todos = Array.from(ebById.values()).sort((a, b) =>
+        (_abertaEB(b) - _abertaEB(a)) || ((b.ts || 0) - (a.ts || 0)));
+      for (const b of todos) {
+        const cod = String(b.id || "");
+        if (!cod || usados.has(cod)) continue;
+        if (!_abertaEB(b) && ctx.stopId && cod === ctx.stopId) { travado = true; return; }
+        usados.add(cod);
+        // Janela de dias corta só as LIQUIDADAS (pela colocação); aberta nunca.
+        const dt = (b.ts != null && isFinite(b.ts)) ? b.ts * 1000 : NaN;
+        const passou = !_abertaEB(b) && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketEB(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+
+    // Rodada nova começa do zero (lição da s393, DEX Sport): o inject zera o lado dele no
+    // mesmo pedido e busca as duas listas de novo.
+    ebById.clear();
+    ebFimReal = false;
+    try { window.postMessage({ __sharpenupEBReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+
+    // As abertas chegam primeiro e as liquidadas depois: processar antes do `fim` poria uma
+    // liquidada antiga na frente do corte. Espera o fim (ou estagnação) e ordena uma vez só.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !ebFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      ctx.painel.contador.textContent = ebById.size + " bilhete" + (ebById.size === 1 ? "" : "s");
+      if (ebById.size > ultTotal) { ultTotal = ebById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 20000) break;
+    }
+    await sleep(300);
+    processar();
+    console.log("[SharpenUp] Epicbet: " + blocos.length + " bilhete(s) · ebById=" + ebById.size +
+                " · hook=" + ebHookVivo + " · respostas=" + ebRespostas + " · fimReal=" + ebFimReal +
+                (travado ? " · parou no corte" : ""));
     return blocos;
   }
 

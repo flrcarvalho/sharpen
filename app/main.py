@@ -323,6 +323,10 @@ _CASA_DISPLAY: dict[str, str] = {
     # casa, por print, como `GiroCerto` (medido em 15/11/2026: 107 bilhetes, 1 conta, 1
     # casas_meta, 241 correcoes, 11 uso_tokens, uma grafia só), então vale a da base.
     "GIROCERTO":      "GiroCerto",
+    # Plataforma PRÓPRIA (s462, `epicbet.com`, API tRPC `ticket.listWithMatchInfo`). A base JÁ
+    # tinha a casa, por print, como `Epicbet` (medido em 21/11/2026: 10 bilhetes, 1 conta, 10
+    # correcoes, 4 uso_tokens, uma grafia só em bilhetes/parceiros), então vale a da base.
+    "EPICBET":        "Epicbet",
     "BETESPORTE":     "BETesporte",
     "BETFAIR":        "Betfair",
     "BETFAST":        "Betfast",
@@ -1395,6 +1399,9 @@ _CASAS_MARCADOR_CODIGO = frozenset({
     # GiroCerto (s455) — plataforma própria. ID = `code` do bilhete, 10 caracteres [A-Z0-9]
     # (`ZHUUMZ423Z`), o mesmo do rodapé do card e do print. O `id` (UUID) é interno.
     "GIROCERTO",
+    # EpicBet (s462) — plataforma própria. ID = `sequence` do ticket, o "ID" do card (1, 2, 3…
+    # por conta), o mesmo código que a base já tinha por print. O `bet.id` (8 dígitos) é interno.
+    "EPICBET",
     "BETPIX365",
     # Estrela Bet (s303) — 5ª casa Altenar. Mesmo espaço de IDs do motor: numérico de 10
     # dígitos, o mesmo número que o rodapé do card estampa como `ID:`.
@@ -3305,9 +3312,10 @@ def _versao_tupla(v: str) -> tuple:
 # a valer; abaixo dela a captura é recusada com o motivo e onde baixar. Só entra casa em que a
 # versão anterior PROVADAMENTE captura errado:
 #   · GIROCERTO 0.7.84 — antes não há ramo da casa e o robô genérico manda o texto da página;
-#   · THUNDERPICK 0.7.86 — antes o inject usa a rota de liquidadas que a casa desligou (404).
+#   · THUNDERPICK 0.7.86 — antes o inject usa a rota de liquidadas que a casa desligou (404);
+#   · EPICBET 0.7.91 — antes não há ramo da casa e o robô genérico manda o texto da página.
 # `EXT_VERSAO_MINIMA` (env) vale para todas as casas, para o dia em que o contrato geral mudar.
-_VERSAO_MINIMA_POR_CASA = {"GIROCERTO": "0.7.84", "THUNDERPICK": "0.7.86"}
+_VERSAO_MINIMA_POR_CASA = {"GIROCERTO": "0.7.84", "THUNDERPICK": "0.7.86", "EPICBET": "0.7.91"}
 
 
 def _versao_minima(casa_key: str) -> str:

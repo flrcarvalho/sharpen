@@ -71,6 +71,7 @@ const CASA_ICONS={
   'Win.Bet':'https://www.google.com/s2/favicons?sz=128&domain=win.bet',
   'CopaWin':'https://www.google.com/s2/favicons?sz=128&domain=wncopa.com',
   'GiroCerto':'https://www.google.com/s2/favicons?sz=128&domain=girocerto.fun',   // s455
+  'Epicbet':'https://www.google.com/s2/favicons?sz=128&domain=epicbet.com',   // s462
   '99play':'https://www.google.com/s2/favicons?sz=128&domain=99play.io',
   'Faz1bet':'https://www.google.com/s2/favicons?sz=128&domain=faz1.bet.br',
   'MyStake':'https://www.google.com/s2/favicons?sz=128&domain=mystake.bet',
@@ -200,6 +201,7 @@ const HOUSE_DOMAIN={
   'Win.Bet':'win.bet',         // Soh Props - Nômade (26/10/2026)
   'CopaWin':'wncopa.com',
   'GiroCerto':'girocerto.fun',   // s455, domínio medido no recon
+  'Epicbet':'epicbet.com',       // s462, domínio medido no recon
   '99play':'99play.io',
   'Faz1bet':'faz1.bet.br',   // grafia unificada no banco (s284); a s204 elegera 'Faz1Bet',
                              // mas imports posteriores viraram a maioria e a marca escreve minúsculo

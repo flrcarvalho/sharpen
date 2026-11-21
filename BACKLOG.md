@@ -1911,6 +1911,26 @@ Entrou na 0.7.69, 11ª Altenar, espelho da Vavada, recon LOGADO na conta do Feca
 - Espelho numerado (`sportaza-5178.com`): domínio novo entra no manifest, `popup.js` e
   `_HOSTS_POR_CASA`, com versão nova.
 
+### 4.0za Epicbet: virar a Ficha, provar o botão e a 1ª captura (s462). **VIVA, harness com fixture real**
+
+Entrou na 0.7.91, plataforma própria tRPC, família `eb`, recon LOGADO no Chrome do Feca
+(`CASA_EPICBET.md`). Harness e adaptador com 13 bilhetes reais, inject provado ao vivo na aba.
+- **Virada:** `EPICBET` em `FICHA_SOMBRA_CASAS`, `FICHA_CASAS_VIRADAS` e
+  `EXTRACAO_SEM_PENSAMENTO` (Railway, serviço `extrator`; comando com o Feca), depois
+  `python scripts/semear_dicionario.py --aplicar`.
+- **Botão Conectar em produção:** `_casaConectavel('Epicbet')` × controle negativo, e
+  `EPICBET` em `captura` no `/casas`.
+- **Aviso ao grupo** da 0.7.91 (casa nova = capacidade nova): mensagem pronta, espera o ok.
+- **1ª captura do Gabriel:** os 10 bilhetes que ele tem por print (códigos 1 a 10, o `sequence`)
+  têm de casar com a captura, sem duplicata. A stake deles está em R$ e a captura manda USDT:
+  conferir a conversão na linha já resolvida (o UPSERT congela a stake).
+- **Print da Epicbet passa a ser recusado** (`CASAS_COM_FICHA`). Se o Gabriel depender do print,
+  decidir com o Feca se a casa entra em `PRINT_LIBERADO`.
+- **Sem amostra, o adaptador recusa:** simples, cashout, boost, bet builder, anulada, ganha com
+  perna pushed/meia, `partially_won`, `cashed out`, `campaign settled`. Medir quando aparecer.
+- **`audit_sharpenup` cego ao autodiagnóstico:** procura `const diag = {` no `content.js`, que
+  virou `_diagRodada()`; acusa WARN em TODA casa de captura.
+
 ### 4.0z GiroCerto: virar a Ficha, validar a 1ª captura e a janela de 50 (s455). **VIVA, harness com fixture real**
 
 Entrou na 0.7.84, plataforma própria, família `gc`, recon LOGADO no Chrome do Feca
