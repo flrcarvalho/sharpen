@@ -1918,8 +1918,8 @@ Entrou na 0.7.91, plataforma própria tRPC, família `eb`, recon LOGADO no Chrom
 - **Virada:** `EPICBET` em `FICHA_SOMBRA_CASAS`, `FICHA_CASAS_VIRADAS` e
   `EXTRACAO_SEM_PENSAMENTO` (Railway, serviço `extrator`; comando com o Feca), depois
   `python scripts/semear_dicionario.py --aplicar`.
-- **Botão Conectar em produção:** `_casaConectavel('Epicbet')` × controle negativo, e
-  `EPICBET` em `captura` no `/casas`.
+- ~~Botão Conectar em produção~~: provado no build `d3599ae3deaf` (21/11/2026):
+  `_casaConectavel('Epicbet')` true × `'CasaQueNaoExiste'` false; `Epicbet` em `captura` e `ficha` no `/casas`.
 - **Aviso ao grupo** da 0.7.91 (casa nova = capacidade nova): mensagem pronta, espera o ok.
 - **1ª captura do Gabriel:** os 10 bilhetes que ele tem por print (códigos 1 a 10, o `sequence`)
   têm de casar com a captura, sem duplicata. A stake deles está em R$ e a captura manda USDT:
