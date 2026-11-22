@@ -1530,6 +1530,38 @@ def _corte_historico_text(text: str, dono: str, casa: str) -> tuple[str, int]:
     return ("\n\n".join(mantidos) if mantidos else ""), n
 
 
+def _travas_de_entrada(text: str, casa_key: str, hoje=None) -> tuple[str, dict, dict]:
+    """As travas de entrada (`app/travas_entrada.py`, s465): aposta finalizada há mais de 12
+    meses (D51; aberta entra sempre) e conta da Sportsbet.io em moeda sem escala medida. O bloco barrado sai do
+    texto ANTES do pré-dedup, da Ficha e da IA.
+
+    Devolve `(texto, {código: motivo}, {motivo: n})`; a virada marca os códigos para não
+    virarem aviso falso de "não lida" (`virada.marcar_barradas`). Só bloco COM `[Código:]`
+    (o que um robô de captura escreveu) é julgado: texto colado à mão vira um bloco só, e uma
+    linha `Data:` velha nele cortaria a colagem inteira."""
+    import travas_entrada as _travas
+    if not text:
+        return text, {}, {}
+    blocos = _split_superbet_bilhetes(text)
+    if not blocos:
+        return text, {}, {}
+    hoje = hoje or _travas.hoje_brasilia()
+    mantidos, barrados, n = [], {}, {}
+    for bloco in blocos:
+        m = _SUPERBET_ID_RE.search(bloco)
+        cod = m.group(1).strip() if m else ""
+        motivo = _travas.motivo_do_bloco(casa_key, bloco, hoje) if cod else None
+        if motivo is None:
+            mantidos.append(bloco)
+            continue
+        n[motivo] = n.get(motivo, 0) + 1
+        barrados[cod] = motivo
+    if not n:
+        return text, {}, {}
+    logger.info("travas de entrada: %s · %s", n, casa_key)
+    return ("\n\n".join(mantidos) if mantidos else ""), barrados, n
+
+
 # ── Betfair: join determinístico bilhete↔extrato pelo ID O/… ────────────────────
 # O bilhete traz o ID (O/25146258/XXXX) mas NÃO a data; o extrato CSV traz a data de
 # liquidação por ID. Antes o CSV INTEIRO ia pro modelo fazer o join → chamada única
@@ -1595,7 +1627,8 @@ def _split_betfair_bilhetes(text: str) -> list[str]:
 
 async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
                                parceiro: str = "", casa_key: str = "",
-                               info: dict | None = None) -> tuple[str, int]:
+                               info: dict | None = None, barrados: dict | None = None,
+                               fora_travas: dict | None = None) -> tuple[str, int]:
     """Espelha `_dedup_betano_text` para a Superbet.
 
     Remove bilhetes já liquidados no banco + duplicatas dentro do colar. A chave é o
@@ -1663,6 +1696,7 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     por_codigo = {k: hash_bloco(v) for k, v in blocos_txt.items()}
     pela_ficha: set[str] = set()
     segurados: set[str] = set()
+    velhas_ficha: set[str] = set()
     espera, fica_ia = 0.0, {}
     if virou:
         # N3 (parecer 012): a Ficha só tira o código se o cru é desta captura OU se o bloco
@@ -1680,10 +1714,22 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
         # `segurados` = sem cru novo e sem cru liquidado (ou cru que não chegou): saem do lote
         # da IA como os da Ficha e ficam pendentes ("captura incompleta", `info["incompletas"]`).
         # `blocos_txt` leva o veredito do texto para conferir o cru guardado liquidado.
+        # s465: o código que a trava de entrada tirou do texto continua "no texto" para o
+        # `_pendentes`: a casa o mandou e ele foi decidido de propósito, não esquecido.
         pela_ficha, espera, fica_ia, segurados = await _virada.resolver_no_extrair(
             dono, casa_key, casa, parceiro, [c for c in dict.fromkeys(codigos)
                                              if c not in ja_resolvidos], iguais,
-            no_texto=list(dict.fromkeys(codigos)), info=info, blocos=blocos_txt)
+            no_texto=list(dict.fromkeys(list(codigos) + list(barrados or {}))), info=info,
+            blocos=blocos_txt)
+        # s465: a Ficha que a régua de idade barrou na `aplicar` (texto sem data legível e cru
+        # com ela) também sai do lote, sem IA: o texto não disse nada que a desmentisse.
+        velhas_ficha = set((info or {}).pop("velhas_ficha", None) or ())
+        if velhas_ficha:
+            import travas_entrada as _travas
+            fora_travas = dict(fora_travas or {})
+            fora_travas[_travas.IDADE] = fora_travas.get(_travas.IDADE, 0) + len(velhas_ficha)
+            if info is not None:            # o `/extrair` soma na contagem da tela
+                info["velhas_ficha_n"] = len(velhas_ficha)
         # RC44 (parecer 023 §2.3): a rota do cru pode gravar DURANTE a espera acima, e o código
         # que ela liquidou nesse meio-tempo a `aplicar` pula (`_liquidados`, D10) sem dar
         # motivo: ele ia à IA à toa (20BET do Gabriel, 06/11: 129 apostas, US$ 0,94). Refaz o
@@ -1715,6 +1761,9 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
                 vistos.add(bid)
                 skipped += 1
                 continue
+            if bid in velhas_ficha:            # s465 (D51): contada nas travas, não aqui
+                vistos.add(bid)
+                continue
             atual = por_codigo.get(bid)
             if atual is not None and conhecidos.get(bid) == atual:
                 inalterados += 1
@@ -1729,7 +1778,7 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     if virou:
         # O motivo de cada código que de fato seguiu para a IA (um código, um motivo).
         motivos: dict[str, int] = {}
-        for bid in vistos - pela_ficha - segurados:
+        for bid in vistos - pela_ficha - segurados - velhas_ficha:
             if (m := fica_ia.get(bid)):
                 motivos[m] = motivos.get(m, 0) + 1
         logger.info("virada: %s/%s · %d capturada(s), %d pela Ficha, %d à IA, %d esperando cru "
@@ -1739,7 +1788,8 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
             info["motivos"] = motivos   # página de Logs, parte só do admin (s433)
         _fire(_virada.registrar(dono, casa_key, len(set(codigos)),
                                 len(set(codigos) & ja_resolvidos), n_ficha, inalterados,
-                                len(mantidos), espera, motivos, len(segurados)))
+                                len(mantidos), espera, motivos, len(segurados),
+                                fora_travas=fora_travas))
         if motivos.get("termo fora do dicionário") or motivos.get("descrição fora do dicionário"):
             _virada.marcar_termo_novo(dono, casa)
         # A Ficha LEU estes blocos: sem o `bloco_visto` deles, a captura seguinte (texto igual,
@@ -4671,6 +4721,8 @@ def _avisos_do_done(d: dict) -> list[str]:
     fid = d.get("fidelidade") or {}
     if fid.get("restantes"):
         avisos.append(f"{fid['restantes']} aposta(s) com descrição que parece de outro bilhete: confira")
+    if d.get("fora_moeda"):
+        avisos.append(f"{d['fora_moeda']} aposta(s) em conta de real: ainda não suportada nesta casa")
     return avisos
 
 
@@ -4685,6 +4737,13 @@ async def _com_log(fluxo, dono: str, casa: str, parceiro: str, contagem: dict, t
             except ValueError:
                 d = None
             if isinstance(d, dict) and (d.get("done") or d.get("error")):
+                # s465: as travas de entrada contam ANTES do gerador que fecha o fluxo (são três
+                # caminhos até o `done`); a contagem entra aqui, num lugar só, para a tela.
+                fora = contagem.get("fora_travas") or {}
+                if d.get("done") and fora:
+                    import travas_entrada as _travas
+                    d["fora_idade"] = fora.get(_travas.IDADE, 0)
+                    d["fora_moeda"] = fora.get(_travas.MOEDA, 0)
                 avisos = [] if d.get("error") else _avisos_do_done(d)
                 m = _NOTAS_RE.search(d.get("resultado") or "")
                 log_id = await registrar_extracao(
@@ -4697,6 +4756,7 @@ async def _com_log(fluxo, dono: str, casa: str, parceiro: str, contagem: dict, t
                     modelo=d.get("modelo") or "", tokens=d.get("tokens"))
                 if d.get("done") and log_id:
                     d["log_id"] = log_id
+                if d.get("done") and (log_id or fora):
                     ev = f"data: {json.dumps(d)}\n\n"
         yield ev
 
@@ -4799,6 +4859,7 @@ async def extrair(
 
     xls_skipped = 0
     fora_corte = 0
+    fora_travas: dict = {}   # {motivo: n} das travas de entrada (s465)
     contagem: dict = {}   # preenchida pelo pré-dedup: vira o evento `triagem` (s433)
 
     if texto:
@@ -4808,6 +4869,15 @@ async def extrair(
         # Contado à parte de `xls_skipped` de propósito: "ignorada porque já está salva" e
         # "ignorada porque é anterior ao corte" são coisas diferentes na tela.
         texto, fora_corte = _corte_historico_text(texto, dono, _casa_display(casa_key))
+        # Travas de entrada (s465): D51 (finalizada há mais de 12 meses) e moeda sem escala medida. Mesmo
+        # lugar do corte, pelo mesmo motivo: o que sai aqui não se lê, não se paga e não se
+        # grava. A marca na virada vem ANTES do pré-dedup: a rota do cru deste mesmo lote já
+        # decidiu esses códigos como `ia` (Ficha recusada), e sem a marca eles virariam aviso
+        # de "não lida" (`virada._pendentes`) ou "sem linha" (`_marcar_sem_linha`).
+        texto, barrados, fora_travas = _travas_de_entrada(texto, casa_key)
+        if barrados:
+            import virada as _virada
+            await _virada.marcar_barradas(dono, casa_key, barrados)
 
     if texto:
         # Betano (texto): pré-dedup por ID antes de chamar o modelo — descarta
@@ -4832,10 +4902,27 @@ async def extrair(
             # nunca esconder bilhete, que era o modo de falha antigo.
             texto, n_skip = await _dedup_superbet_text(
                 texto, dono, _casa_display(casa_key), parceiro, casa_key=casa_key,
-                info=contagem)
+                info=contagem, barrados=barrados, fora_travas=fora_travas)
             xls_skipped += n_skip
+            if (n_velhas := contagem.pop("velhas_ficha_n", 0)):
+                import travas_entrada as _travas
+                fora_travas = {**fora_travas,
+                               _travas.IDADE: fora_travas.get(_travas.IDADE, 0) + n_velhas}
         if texto:
             base_content.append({"type": "text", "text": texto})
+    elif fora_travas:
+        # Lote inteiro barrado (s465): sem texto não há pré-dedup, e a casa virada ficaria sem a
+        # linha do `virada_log` desta captura, que é onde as travas são medidas.
+        import virada as _virada
+        if _virada.virada(casa_key):
+            _fire(_virada.registrar(dono, casa_key.upper(), 0, 0, 0, 0, 0,
+                                    fora_travas=fora_travas))
+    if fora_travas:
+        # Página de Logs (`extracao_log.motivos`) mede as travas em TODA casa, virada ou não; o
+        # pré-dedup grava `motivos` por cima, então a soma vem depois dele. O `done` leva as
+        # contagens para a tela (`_com_log`).
+        contagem["motivos"] = {**(contagem.get("motivos") or {}), **fora_travas}
+        contagem["fora_travas"] = fora_travas
 
     betfair_dates: dict | None = None
     if csv_content:
@@ -4868,7 +4955,7 @@ async def extrair(
                    "lendo": contagem.get("lendo", [])}
 
     if not base_content:
-        if xls_skipped > 0 or fora_corte > 0:
+        if xls_skipped > 0 or fora_corte > 0 or fora_travas:
             _payload = json.dumps({"done": True, "resultado": "", "modelo": modelo,
                                    "xls_skipped": xls_skipped, "fora_corte": fora_corte,
                                    "tokens": {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}})

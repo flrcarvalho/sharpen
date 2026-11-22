@@ -320,13 +320,19 @@ async def _no_banco(conn, dono: str, casa_key: str, codigos: list[str],
 
 
 async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
-                  candidatas: dict) -> tuple[set, dict]:
+                  candidatas: dict, velhas: set | None = None) -> tuple[set, dict]:
     """`candidatas` = {código: (Ficha ou None, motivos de recusa)}. Grava o que a Ficha resolve
     e devolve (códigos que a Ficha resolveu, {código: motivo} dos que ficam com a IA).
     Código liquidado no banco não entra em nenhum dos dois: o pré-dedup de sempre o tira, e o
     que a rota do cru liquidou durante a espera sai na segunda conferência do `/extrair`
     (RC44, `main._dedup_superbet_text`). A exceção é o liquidado só noutra CONTA: fica com a
-    IA, com o motivo `OUTRA_CONTA` (s449)."""
+    IA, com o motivo `OUTRA_CONTA` (s449).
+
+    D51 (s465): a Ficha aceita de aposta FINALIZADA com mais de 12 meses (a data mais recente
+    entre colocação, liquidação e início das pernas) NÃO grava nem vai à IA; aberta entra sempre.
+    Fica `BARRADA` e, com `velhas` (um set do chamador), o código é posto lá para sair do lote."""
+    import travas_entrada as _travas
+    hoje = _travas.hoje_brasilia()
     casa_key = (casa_key or "").upper()
     cods = [c for c in candidatas if c]
     if not cods:
@@ -382,6 +388,11 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
         f, motivos = candidatas[cod]
         if f is None or motivos:
             ia(cod, "Ficha recusada")
+            continue
+        if _travas.ficha_velha(f, hoje):             # D51: nem grava nem vai à IA
+            novo_estado[cod] = (f.get("impressao") or "", BARRADA, _travas.IDADE)
+            if velhas is not None:
+                velhas.add(cod)
             continue
         esporte, categoria, faltam = _dic.traduzir(f, termos)
         if faltam:
@@ -447,6 +458,34 @@ async def _gravar_estados(conn, dono: str, casa_key: str, novo_estado: dict) -> 
 async def _pool_conn():
     from database import get_pool
     return await get_pool()
+
+
+# s465: estado da aposta que uma trava de ENTRADA tirou (`app/travas_entrada.py`): nem Ficha nem
+# IA. Não é `ia`, e por isso nunca vira "não lida" (`_pendentes`) nem "sem linha"
+# (`_marcar_sem_linha`), que só olham `estado = 'ia'`; a soltura do `_pendentes` também a libera
+# (`estado <> 'ia'`) se ela já estava pendente.
+BARRADA = "barrada"
+
+
+async def marcar_barradas(dono: str, casa_key: str, barrados: dict) -> None:
+    """Grava `barrada` com o motivo da trava para cada código ({código: motivo}) e tira o aviso
+    que ele tivesse. Só na casa virada (é ela que tem `ficha_virada`). Nunca levanta: sem a marca
+    o pior caso é o aviso falso de antes, não aposta perdida."""
+    if not barrados or not virada(casa_key):
+        return
+    try:
+        pool = await _pool_conn()
+        async with pool.acquire() as conn:
+            for cod, motivo in barrados.items():
+                await conn.execute(
+                    """INSERT INTO ficha_virada (dono, casa, codigo, impressao, estado, motivo)
+                       VALUES ($1, $2, $3, '', $4, $5)
+                       ON CONFLICT (dono, casa, codigo) DO UPDATE SET estado = EXCLUDED.estado,
+                         motivo = EXCLUDED.motivo, aviso = NULL, pendente_desde = NULL,
+                         atualizado_em = NOW()""",
+                    dono, (casa_key or "").upper(), cod, BARRADA, motivo)
+    except Exception:  # noqa: BLE001
+        logger.exception("virada: barradas de %s/%s não marcadas", dono, casa_key)
 
 
 async def gravar_aceitas(sess, registros: list[dict]) -> int:
@@ -809,9 +848,12 @@ async def resolver_no_extrair(dono: str, casa_key: str, casa: str, parceiro: str
                 await _gravar_estados(conn, dono, ck, velhos)
                 if segurar:
                     await _segurar(conn, dono, ck, segurar)
+                velhas: set = set()
                 resolvidos, fica_ficha = await aplicar(conn, dono, casa_key, casa, parceiro,
-                                                       candidatas)
+                                                       candidatas, velhas)
                 fica.update(fica_ficha)
+                if velhas and info is not None:     # s465: o `/extrair` as tira do lote
+                    info["velhas_ficha"] = velhas
             # Depois de decidir os do texto: a aposta que o texto não trouxe (s423) e a soltura
             # dos avisos. Falha aqui não tira nada do lote da IA: só deixa de avisar.
             try:
@@ -831,22 +873,29 @@ async def resolver_no_extrair(dono: str, casa_key: str, casa: str, parceiro: str
 
 async def registrar(dono: str, casa_key: str, capturadas: int, ja_no_banco: int,
                     pela_ficha: int, inalterados: int, para_ia: int, espera: float = 0.0,
-                    motivos: dict | None = None, segurados: int = 0) -> None:
+                    motivos: dict | None = None, segurados: int = 0,
+                    fora_travas: dict | None = None) -> None:
     """Uma linha por `/extrair` da casa virada: a métrica antes × depois
     (`medicoes/medir_virada_custo.py`), com o motivo de cada código que foi para a IA
     (`motivos` = {motivo: n}, as chaves de `MOTIVOS`) e, desde a D39, quantos ficaram fora da IA
-    esperando cru (`captura_incompleta`). Falha aqui não importa para a captura."""
+    esperando cru (`captura_incompleta`). Desde a s465, quantos as travas de entrada tiraram
+    ANTES de tudo (`fora_idade`, D51; `fora_moeda`): eles não entram em `capturadas`, que segue
+    contando só o que sobrou no texto. Falha aqui não importa para a captura."""
+    import travas_entrada as _travas
     m = [(motivos or {}).get(mot, 0) for mot in MOTIVOS]
+    ft = fora_travas or {}
     try:
         pool = await _pool_conn()
         async with pool.acquire() as conn:
             await conn.execute(
                 f"""INSERT INTO virada_log (dono, casa, capturadas, ja_no_banco, pela_ficha,
                                             inalterados, para_ia, espera_s,
-                                            {", ".join(MOTIVOS.values())}, captura_incompleta)
-                    VALUES ({", ".join(f"${i}" for i in range(1, 10 + len(MOTIVOS)))})""",
+                                            {", ".join(MOTIVOS.values())}, captura_incompleta,
+                                            fora_idade, fora_moeda)
+                    VALUES ({", ".join(f"${i}" for i in range(1, 12 + len(MOTIVOS)))})""",
                 dono, (casa_key or "").upper(), capturadas, ja_no_banco, pela_ficha,
-                inalterados, para_ia, round(espera, 2), *m, segurados)
+                inalterados, para_ia, round(espera, 2), *m, segurados,
+                ft.get(_travas.IDADE, 0), ft.get(_travas.MOEDA, 0))
     except Exception:  # noqa: BLE001
         logger.exception("virada: não registrou a métrica de %s/%s", dono, casa_key)
 

@@ -1063,7 +1063,7 @@ CREATE TABLE IF NOT EXISTS ficha_virada (
     casa          TEXT NOT NULL,
     codigo        TEXT NOT NULL,
     impressao     TEXT NOT NULL DEFAULT '',
-    estado        TEXT NOT NULL CHECK (estado IN ('ficha', 'ia')),
+    estado        TEXT NOT NULL CHECK (estado IN ('ficha', 'ia', 'barrada')),
     motivo        TEXT NOT NULL DEFAULT '',
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (dono, casa, codigo)
@@ -1077,6 +1077,23 @@ ALTER TABLE ficha_virada ADD COLUMN IF NOT EXISTS pendente_desde TIMESTAMPTZ;
 -- `captura_incompleta` = cru guardado aberto com texto mudado, ou cru que não chegou: a aposta não
 -- vai à IA e espera o cru novo; `sem_linha` = foi à IA e não virou linha. Regras em `virada.py`.
 ALTER TABLE ficha_virada ADD COLUMN IF NOT EXISTS aviso TEXT;
+-- s465: `barrada` = uma trava de ENTRADA tirou a aposta (`app/travas_entrada.py`: D51, finalizada
+-- com mais de 12 meses; Sportsbet.io em moeda sem escala medida). Nem Ficha nem IA, e por isso nunca vira aviso
+-- de "não lida" ou "sem linha" (que só olham `ia`). A tabela nasceu com o CHECK de dois estados,
+-- e sem trocá-lo o INSERT de `barrada` levanta: na `aplicar` ele derrubaria a gravação dos estados
+-- das Fichas já gravadas. Troca só quando o CHECK não tem `barrada` (não revalida a cada boot).
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conrelid = 'ficha_virada'::regclass
+          AND conname = 'ficha_virada_estado_check'
+          AND pg_get_constraintdef(oid) LIKE '%barrada%'
+    ) THEN
+        ALTER TABLE ficha_virada DROP CONSTRAINT IF EXISTS ficha_virada_estado_check;
+        ALTER TABLE ficha_virada ADD CONSTRAINT ficha_virada_estado_check
+            CHECK (estado IN ('ficha', 'ia', 'barrada'));
+    END IF;
+END$$;
 
 -- Uma linha por `/extrair` de casa virada (s411): a métrica de cada virada, antes × depois
 -- (`docs/PROJETO_FICHA_SHARPEN/medicoes/medir_virada_custo.py`). `capturadas` = códigos
@@ -1110,6 +1127,12 @@ ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS captura_esgotada INTEGER NOT NUL
 -- s449: o código liquidado noutra CONTA do mesmo dono e casa, e não nesta. Vai à IA nesta conta
 -- (o pré-dedup filtra a conta), e antes ia sem motivo nenhum (a `aplicar` só o pulava).
 ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS outra_conta INTEGER NOT NULL DEFAULT 0;
+-- s465 (E1.1 do marco zero): as travas de ENTRADA (`app/travas_entrada.py`), que tiram o bloco do
+-- texto antes do pré-dedup, da Ficha e da IA. `fora_idade` = D51 (Feca, 22/11/2026: aposta
+-- FINALIZADA com mais de 12 meses não entra; aberta entra sempre); `fora_moeda` = Sportsbet.io em moeda sem escala
+-- medida. Não entram em `capturadas`.
+ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS fora_idade INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS fora_moeda INTEGER NOT NULL DEFAULT 0;
 
 -- D42 (s438): todo voto que a semente RECUSA fica registrado com o motivo e o termo (antes sumia em
 -- silêncio), e a perna que a Ficha grava com o texto da casa por falta de par (`origem =

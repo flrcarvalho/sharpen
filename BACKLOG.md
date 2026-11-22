@@ -1854,10 +1854,11 @@ captura pela extensão instalada ainda não.
 
 - `SPORTSBETIO` nas 3 listas da Railway desde 25/10/2026, SEM backtest (mesma decisão). Falta a
   1ª captura conferida no `virada_log`.
-- **Escala do dinheiro fora de USDT não medida** (1e8 em USDT). As 2 contas da base (Gabriel,
-  Jaao26) podem ser em BRL: medir o `stakeAmount` de uma conta em real antes de confiar; até lá a
-  Ficha recusa outra moeda e a IA lê o número que o inject já dividiu por 1e8 (se a escala for
-  outra, o texto também erra: conferir a 1ª captura de conta não-USDT contra o card).
+- **Escala:** 1e8 medida em USDT e, desde a s465, em USDC (5 reais do Jonathan, `d8f167e`).
+  **BRL segue sem prova** e, desde a s465, nem vai à IA (`app/travas_entrada.py`): o inject divide
+  toda moeda por 1e8 e a conta em real virava `Stake: 0,01`. Os 185 BRL da base são de 2023 e não
+  têm gabarito. Indício, não prova: o mercado "(máx. R$10)" tem `stakeAmount` 999999 (1e5?). Para
+  destravar, medir uma conta em real contra o CARD, nos dois lados (inject e adaptador).
 - Sem amostra: cashout (`cashout.instances`), freebet, sistema, anulada inteira; `cashBackStake`
   sem significado medido.
 - Bet Builder vai à IA (perna única com `;`). 11 de 31 bilhetes do recon eram Bet Builder.
@@ -2708,6 +2709,32 @@ Detalhe, reprodução e impedimento de cada uma em `_backups/auditoria_masters_s
   arredondar. Decidir com o ADR-001.
 - **Exemplos da Betnacional 382 e 454:** o confronto não aparece na entrada mostrada
   (`PIPELINE §5.3`). Conferir no card antes de mexer.
+
+### 4.18 Travas de entrada (s465, D51): o que ficou aberto. **VIVA, sem prazo**
+
+`app/travas_entrada.py` tira do texto, antes da IA, a aposta FINALIZADA com mais de 12 meses
+(D51, Feca, 22/11/2026; aberta entra sempre) e a Sportsbet.io em moeda sem escala medida.
+
+- **Superbet escreve o status cru** (`win`/`lost`/`cashout`, `formatTicket` do `content.js`), sem
+  `→ X`: a liquidada velha dela ENTRA (fail-open). Idem a Bet365 "a conferir HW/HL" e todo status
+  "a conferir" (cashout, freebet). Para fechar: veredito no formatador, com harness.
+- **`ADD COLUMN` de `fora_idade`/`fora_moeda` sobre um `virada_log` que JÁ existe não foi
+  exercitado** num Postgres real (na prova da s465 a tabela nasceu do zero). O CHECK de
+  `ficha_virada` foi provado nos dois casos. A consultoria confere no banco depois do deploy.
+- **Ficha recusada e velha que o texto NÃO trouxe:** o cru recusado não tem data, a rota do cru
+  não a julga, e ela vira aviso de "não lida". Só acontece quando a janela do robô corta, ou seja,
+  depois da correção B abaixo.
+- **Correção B (economia de busca):** `pisoSanidade = cutoff − 730 dias` (`content.js:1398`) é
+  relativo, e o robô não para em liquidada mais velha que isso (foi o que trouxe 2023 inteiro).
+  Antes de trocar por piso fixo, achar no histórico POR QUE ele é relativo.
+- **O corte histórico (`main._data_do_bloco`) não lê `Data (evento mais recente):`**, que 17
+  formatadores escrevem (RG, JB, DX, CW, GC, EB, SHF, TP, VV, SBI, STC, THP, CB, TV, VB, SPB, LT):
+  nessas casas ele cai na `Data (colocação):`, contra a regra do `CLAUDE.md` (o corte manda pela
+  data do EVENTO). Sem efeito hoje (só Feca × Betbra/Bolsa de Aposta têm corte, e elas escrevem
+  `Data (evento):`).
+- **8 da Stake.com do Gabriel (dez/2024) recusados pela Ficha:** o replay os contou pelo cru
+  (`active: false`, todas as datas de dez/2024), não pelo texto. Conferir no `virada_log` depois
+  do deploy.
 
 ## 5. Planos com fase aberta
 

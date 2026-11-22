@@ -7990,8 +7990,15 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
     // servidor, ANTES da IA. Contagem PRÓPRIA, nunca somada em `xls_skipped`: "já salva"
     // afirma que existe uma linha no banco, e esta nunca existiu (ou foi apagada de
     // propósito). Somar as duas faria a tela mentir justamente sobre o que o corte fez.
-    const corteInfo = data.fora_corte > 0
-      ? ` · ${data.fora_corte} anterior(es) ao corte da casa` : '';
+    // s465 — travas de entrada (`app/travas_entrada.py`), também ANTES da IA e com contagem
+    // própria: D51 (aposta finalizada há mais de 12 meses não entra) e conta da Sportsbet.io em
+    // moeda sem escala medida (o ⚠️ é dela: há aposta real que o Sharpen não leu).
+    const travasMsgs = [];
+    if (data.fora_idade > 0) travasMsgs.push(`${data.fora_idade} aposta(s) com mais de 12 meses ignorada(s)`);
+    if (data.fora_moeda > 0) travasMsgs.push(`⚠️ ${data.fora_moeda} aposta(s) em conta de real: ainda não suportada nesta casa`);
+    const corteInfo = (data.fora_corte > 0
+      ? ` · ${data.fora_corte} anterior(es) ao corte da casa` : '')
+      + travasMsgs.map((m) => ` · ${m}`).join('');
 
     if (parsed.tsv) {
       const rs = await fetch('/salvar', {
@@ -8065,7 +8072,7 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
         ? ` · ⚠️ ${fid.restantes} bilhete(s) com descrição de OUTRO bilhete — CONFIRA antes de salvar`
         : (fid.corrigidas > 0 ? ` · ${fid.corrigidas} descrição(ões) corrigida(s)` : '');
       const tipo = (ds.alertas && ds.alertas.length) || data.chunks_falhos > 0 || perdidos > 0
-                   || fid.restantes > 0 ? 'warn' : 'ok';
+                   || fid.restantes > 0 || data.fora_moeda > 0 ? 'warn' : 'ok';
 
       markDone(`✓ ${parts.join(' · ')}${skipInfo}${corteInfo}${alertMsg}${failMsg}${cobMsg}${fidMsg}`, tipo);
       // A barra diz o resultado na língua do usuário: o que entrou e o que pede ação.
@@ -8102,14 +8109,15 @@ async function runExtractionCard(form, card, parceiro, estadoSnapshot, submitted
         }
       }
       atualizarIncompletos();
-    } else if (data.xls_skipped > 0 || data.fora_corte > 0) {
+    } else if (data.xls_skipped > 0 || data.fora_corte > 0 || travasMsgs.length) {
       // Nada sobrou para a IA. Cada contagem diz o PROPRIO motivo: "já salva" (existe
       // no banco) e "anterior ao corte" (descartada de propósito) são coisas diferentes,
       // e o texto antigo repetia o mesmo número duas vezes ao colar o `skipInfo` no fim.
       const motivos = [];
       if (data.xls_skipped > 0) motivos.push(`${data.xls_skipped} já salva(s)`);
       if (data.fora_corte > 0) motivos.push(`${data.fora_corte} anterior(es) ao corte da casa`);
-      markDone(`✓ ${motivos.join(' · ')} — nada novo`, 'ok');
+      motivos.push(...travasMsgs);
+      markDone(`✓ ${motivos.join(' · ')} — nada novo`, data.fora_moeda > 0 ? 'warn' : 'ok');
       _procFim(parceiro, 'Lista e P/L atualizados.', 'ok');
     } else {
       markDone('⚠️ Nenhum bilhete extraído — veja Notas acima', 'warn');
