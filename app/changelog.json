@@ -17,6 +17,18 @@
   ],
   "novidades": [
     {
+      "id": "sharpen-32-casas-novas-na-captura-automatica",
+      "data": "2026-11-22",
+      "tag": "Sharpen",
+      "titulo": "32 casas novas na captura automática",
+      "texto": "Novidades no Sharpen:",
+      "itens": [
+        "Desde outubro, **32 casas novas** entraram na captura automática do SharpenUp: 1win, 1xBit, 20bet, 3et, Betcoin, Betfury, BetMartini, Betpanda, Betrebels, Cloudbet, CopaWin, DEX Sport, Duel, Epicbet, GiroCerto, GoldenBet, Jack, Kikobet, Locasbet, Megapari, MelBet, MyStake, PariPesa, SapphireBet, Shuffle, Sportaza, Sportsbet.io, Stake.com, Thunderpick, Tornadobet, Vavada e Vave.",
+        "A **Kalshi** entra pela API, sem extensão: cadastre a chave de leitura na conta e clique em Sincronizar."
+      ],
+      "fecho": "Para usar: atualize a extensão em sharpen.bet/extensao, recarregue a aba do painel com Ctrl+Shift+R e conecte a conta da casa."
+    },
+    {
       "id": "sharpen-caixa-inteligente-na-polymarket",
       "data": "2026-10-06",
       "tag": "Sharpen",
