@@ -354,11 +354,17 @@ dedução por nome de time nem por mercado: é a casa dizendo como ela mesma nom
 > família da s303 (`casa_dado_sujo_tab_corrompe_tsv`), e TAB é separador de coluna no TSV.
 > Mapeado, o TAB nunca chega ao bloco.
 
-**Deixados CRUS de propósito** — a casa os oferece, mas nenhum tem valor oficial no MASTER, e
+**Deixados CRUS de propósito** — a casa os oferece, mas nenhum tinha valor oficial no MASTER, e
 batizá-los aqui seria criar taxonomia por conta do arquivo de casa: `6` Sinuca · `7`
 Automobilismo · `11` Boxe · `18` Floorball · `23` Futsal · `31` Cricket · `34` Tênis de mesa ·
 `43` Biatlo · `82` Rugby League. O `7` é o que mais engana: **"Automobilismo" não é `F1`** — o
 valor oficial cobre só a F1. Quando algum deles aparecer num bilhete, a decisão é de MASTER.
+
+> Desde então a D33 criou valor oficial para vários, e o dicionário da Ficha os traduz para
+> todas as casas Altenar (`dicionario.ESPORTE_D49`): `34` Tênis de Mesa, `31` Críquete, `23`
+> Futsal, `82` Rugby (D49, 11/11/2026) e `18` Floorball (s464, 22/11/2026: a múltipla
+> Vavada 5679661219, única perna com o 18 no cru guardado, travava a Ficha). O texto que a
+> extensão manda à IA continua cru; a tradução é do servidor.
 
 ### 12.2 `sportTypeId 300` NÃO é esporte — é a gaveta de ESPECIAIS
 

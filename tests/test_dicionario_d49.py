@@ -15,7 +15,8 @@ duas pedem ao banco); a `traduzir` é a da virada.
 
 O QUE NÃO COBREM: o banco de verdade (o SQL da `carregar` é o de sempre, coberto pelo harness de
 banco) e a regravação das apostas já gravadas pela IA (D10: o passado não muda).
-Mutações (s450, detectadas): D1 o 34 volta ao `VAGOS`, D2 o 82 sai da `ESPORTE_D49`, D3 a camada
+Mutações (s450, detectadas): D1 o 34 volta ao `VAGOS`, D2 o 82 sai da `ESPORTE_D49` (s464: e o 18,
+que derruba também a múltipla da Vavada), D3 a camada
 da D49 sai da `carregar`, D4 a D49 vence a correção do Feca no banco, D5 a semente aprende por
 cima da D49, D6 a sbi volta a esvaziar o slug, D7 a thp volta a esvaziar o `gameId`.
 """
@@ -77,11 +78,28 @@ def _esporte(esporte_casa, linhas=()):
 
 
 @pytest.mark.parametrize("sid,nome", [("34", "Tênis de Mesa"), ("31", "Críquete"),
-                                      ("23", "Futsal"), ("82", "Rugby")])
+                                      ("23", "Futsal"), ("82", "Rugby"),
+                                      ("18", "Floorball")])
 def test_o_numero_da_altenar_e_esporte(sid, nome):
     assert f"sporttypeid {sid}" not in dicionario.VAGOS
     assert nome in taxonomia.esportes_canonicos()
     assert _esporte(f"sportTypeId {sid}") == (nome, [])
+
+
+def test_a_multipla_da_vavada_com_floorball_sai_pela_ficha():
+    """s464: Vavada 5679661219, as três pernas como a Ficha as monta do cru. Sem o 18 no
+    dicionário, `faltam` = [esporte sporttypeid 18] e a aposta ia à IA, que errou a linha
+    três vezes (e uma vez a perdeu de vez, no bloco tsv vazio)."""
+    f = {"tipo": "multipla", "pernas": [
+        {"esporte_casa": "sportTypeId 1", "mercado_casa": "Cartões 1x2",
+         "selecao_casa": "AS Monaco", "evento": "AS Monaco vs. Auxerre"},
+        {"esporte_casa": "sportTypeId 1", "mercado_casa": "Total (mais/menos) Chutes Roma",
+         "selecao_casa": "Mais de 18,5", "evento": "Parma Calcio vs. Roma"},
+        {"esporte_casa": "sportTypeId 18", "mercado_casa": "Handicap",
+         "selecao_casa": "Hawks Helsinki (+4,5)", "evento": "Hawks Helsinki vs. Westend Indians"}]}
+    termos = asyncio.run(dicionario.carregar(_Conn(), "VAVADA", familia=False))
+    termos[("esporte", "sporttypeid 1")] = "Futebol"
+    assert dicionario.traduzir(f, termos) == ("Múltiplos", "Múltipla", [])
 
 
 def test_a_gaveta_de_especiais_continua_vaga():

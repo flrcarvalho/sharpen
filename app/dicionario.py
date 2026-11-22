@@ -52,8 +52,15 @@ VAGOS = frozenset({"especiais", "sporttypeid 300"})
 # (`Auditorias/consultoria_ficha_2026-10/medicoes/2026-11-10_rc45_lista.md`). Vale para todas as
 # casas (`*`) com o peso de uma correção do Feca: `carregar` põe esta camada embaixo das linhas
 # `origem='feca'` do banco (uma correção gravada ainda vence) e a semente não aprende por cima.
+#
+# s464 (pedido do Feca, 22/11/2026): `18` = Floorball, pela mesma régua. O menu da Altenar
+# medido em `CASA_ESPORTIVA §12` já dizia `18 Floorball`; ficou cru só porque Floorball não
+# tinha valor oficial, e a D33 (19/10) o criou no MASTER. O único bilhete com o 18 em todo o
+# cru guardado (Vavada 5679661219, Hawks Helsinki vs. Westend Indians, dois clubes da liga
+# finlandesa de floorball) travou a Ficha e foi à IA, que errou a linha três vezes.
 ESPORTE_D49 = {"sporttypeid 34": "Tênis de Mesa", "sporttypeid 31": "Críquete",
-               "sporttypeid 23": "Futsal", "sporttypeid 82": "Rugby"}
+               "sporttypeid 23": "Futsal", "sporttypeid 82": "Rugby",
+               "sporttypeid 18": "Floorball"}
 
 # `Total` SEM qualificador (s412, Feca): a categoria principal do esporte. Esporte fora daqui:
 # a IA decide. Tênis e Vôlei dependem da linha: até 4,5 é Sets.
