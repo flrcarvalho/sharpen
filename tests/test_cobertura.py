@@ -193,8 +193,16 @@ def test_set_tsv_rows_troca_linhas_preservando_header_e_notas():
     assert conferir_cobertura(novo, _texto())["faltantes"] == []
 
 
-def test_set_tsv_rows_sem_bloco_tsv_no_op():
-    assert main._set_tsv_rows("nada aqui", ["x"]) == "nada aqui"
+def test_set_tsv_rows_sem_bloco_tsv_e_sem_linhas_no_op():
+    assert main._set_tsv_rows("nada aqui", []) == "nada aqui"
+
+
+def test_set_tsv_rows_sem_bloco_tsv_cria_o_bloco():
+    """s464: antes era no-op e jogava fora as linhas pedidas (a repescagem de um chunk que
+    respondeu só com notas sumia). Agora o bloco nasce, com cabeçalho, antes das notas."""
+    novo = main._set_tsv_rows("## Notas Críticas\nNenhuma", [_linha(CODS[0])])
+    assert _cods_do(novo) == [CODS[0]]
+    assert novo.startswith("```tsv\nData\tEsporte") and novo.endswith("## Notas Críticas\nNenhuma")
 
 
 # ── repescagem ponta a ponta (com a chamada ao modelo dublada) ────────────────

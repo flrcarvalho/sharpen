@@ -552,7 +552,9 @@ def juntar_resultado(resultado_antigo: str, linhas: list[str], cabecalho: str) -
     """O `resultado` do `done`, no formato de hoje: bloco ```tsv com cabeçalho e as linhas,
     mais o resto do texto do caminho antigo (as Notas Críticas) intacto."""
     novo = "```tsv\n" + "\n".join([cabecalho] + linhas) + "\n```"
-    m = re.search(r"```tsv\n(.*?)\n```", resultado_antigo or "", re.S)
+    # s464: o bloco pode vir VAZIO ("```tsv\n```"), sem a quebra antes do fechamento; o
+    # padrão antigo não o achava e juntava um SEGUNDO bloco na frente, que o front lia.
+    m = re.search(r"```tsv[ \t]*\n(.*?)```", resultado_antigo or "", re.S)
     if m:
         return resultado_antigo[:m.start()] + novo + resultado_antigo[m.end():]
     resto = (resultado_antigo or "").strip()

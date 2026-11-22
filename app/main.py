@@ -1943,11 +1943,31 @@ def _build_chunks(base_content: list[dict], instrucao_block: dict, casa_key: str
     return [base_content + [instrucao_block]]
 
 
+# O recorte do bloco ```tsv, UM lugar só (s464). O padrão antigo (quatro cópias) exigia
+# uma quebra de linha ANTES do fechamento, e o bloco VAZIO ("```tsv\n```") não tem.
+# É o que sobra quando a IA responde sem cabeçalho e o leitor recusa a única linha: o
+# recorte não achava o bloco, `_set_tsv_rows` devolvia o texto intacto e a linha que a
+# repescagem acabara de trazer SUMIA, com o log dizendo "1 linha(s) repescada(s)"
+# (Vavada 5679661219, 22/11/2026: múltipla perdida de 40, Caixa 40 acima da casa).
+# Aqui o conteúdo pode ser vazio; quem lê descarta as linhas em branco.
+_TSV_BLOCO_RE = re.compile(r'```tsv[ \t]*\n(.*?)```', re.DOTALL)
+
+
+def _bloco_tsv(text: str):
+    """O match do 1º bloco ```tsv, vazio inclusive. `group(1)` = o miolo (pode ser '')."""
+    return _TSV_BLOCO_RE.search(text or "")
+
+
+def _linhas_do_bloco(m) -> list[str]:
+    """As linhas do miolo, sem as em branco (o miolo termina em '\\n' ou é vazio)."""
+    return [l for l in m.group(1).split('\n') if l.strip()]
+
+
 def _extract_tsv_rows(text: str) -> list[str]:
-    m = re.search(r'```tsv\n(.*?)\n```', text, re.DOTALL)
+    m = _bloco_tsv(text)
     if not m:
         return []
-    lines = [l for l in m.group(1).split('\n') if l.strip()]
+    lines = _linhas_do_bloco(m)
     if lines and lines[0].startswith("Data\t"):
         lines = lines[1:]
     return lines
@@ -1959,10 +1979,10 @@ def _reverse_tsv_rows(text: str) -> str:
     newest-first (Bet365): o modelo emite em ordem natural de leitura; a planilha exige
     mais-antigo→mais-recente. O caminho paralelo já faz isso via
     _combine_parallel_results(reverse_rows=True)."""
-    m = re.search(r'```tsv\n(.*?)\n```', text, re.DOTALL)
+    m = _bloco_tsv(text)
     if not m:
         return text
-    lines = m.group(1).split('\n')
+    lines = _linhas_do_bloco(m)
     header: list[str] = []
     if lines and lines[0].startswith("Data\t"):
         header = [lines[0]]
@@ -1977,11 +1997,19 @@ def _reverse_tsv_rows(text: str) -> str:
 
 def _set_tsv_rows(text: str, rows: list[str]) -> str:
     """Troca as linhas de dados do bloco ```tsv preservando header e o resto do texto.
-    Espelha `_reverse_tsv_rows`, que faz o mesmo com a lista invertida."""
-    m = re.search(r'```tsv\n(.*?)\n```', text, re.DOTALL)
+    Espelha `_reverse_tsv_rows`, que faz o mesmo com a lista invertida.
+
+    Sem bloco nenhum (a IA respondeu só com notas, s179) e com linhas a pôr, o bloco é
+    CRIADO, com cabeçalho, antes do resto do texto. Devolver o texto intacto ali era
+    jogar fora as linhas que o chamador acabou de pedir à IA, sem erro (s464)."""
+    m = _bloco_tsv(text)
     if not m:
-        return text
-    linhas = m.group(1).split('\n')
+        if not rows:
+            return text
+        resto = (text or "").strip()
+        novo = "```tsv\n" + "\n".join([_TSV_HEADER] + rows) + "\n```"
+        return novo + ("\n\n" + resto if resto else "")
+    linhas = _linhas_do_bloco(m)
     header = [linhas[0]] if (linhas and linhas[0].startswith("Data\t")) else []
     novo = "```tsv\n" + "\n".join(header + rows) + "\n```"
     return text[:m.start()] + novo + text[m.end():]
@@ -2297,6 +2325,12 @@ async def _garantir_cobertura(system: list[dict], resultado: str, texto: str | N
         novas = list(reversed(novas))
     todas = _extract_tsv_rows(resultado) + novas
     resultado = _set_tsv_rows(resultado, todas)
+    # s464: a contagem do log vem do que ENTROU no resultado, não do que a IA devolveu.
+    # Foi o "1 linha(s) repescada(s)" com o bloco final vazio que escondeu a Vavada.
+    entraram = len(_extract_tsv_rows(resultado))
+    if entraram != len(todas):
+        logger.error("cobertura: %d linha(s) repescada(s) e só %d de %d chegaram ao resultado: "
+                     "linha perdida na montagem do bloco tsv", len(novas), entraram, len(todas))
     logger.info("cobertura: %d linha(s) repescada(s)", len(novas))
     return _fechar(resultado, conferir_cobertura(resultado, texto), faltantes, repescou=True)
 
@@ -2422,10 +2456,10 @@ def _apply_betfair_dates(tsv: str, date_map: dict) -> str:
     substitui o join que o modelo fazia lendo o CSV. Opera dentro do bloco ```tsv."""
     if not date_map:
         return tsv
-    m = re.search(r'```tsv\n(.*?)\n```', tsv, re.DOTALL)
+    m = _bloco_tsv(tsv)
     if not m:
         return tsv
-    linhas = m.group(1).split('\n')
+    linhas = _linhas_do_bloco(m)
     header = [linhas[0]] if (linhas and linhas[0].startswith("Data\t")) else []
     corpo = linhas[len(header):]
     rows = [ln.split('\t') for ln in corpo if ln.strip()]
