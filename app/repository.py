@@ -4982,8 +4982,12 @@ async def list_tipsters_cadastro(dono: str, incluir_arquivados: bool = False) ->
         # Pedido do Feca: "typo corrigido → some da lista". Guardado e seguro — nunca apaga quem
         # tem bilhete (o backfill o traria de volta) nem quem tem info curada (some só o lixo,
         # não o trabalho). Não há criação manual de tipster na UI, então 0 bilhetes = sempre órfão.
+        # ARQUIVADO também fica (s463): arquivar é decisão do dono, como info curada. E o
+        # "0 bilhetes" aqui só olha a base do PRÓPRIO dono, mas o supervisor vê na tela os
+        # tipsters dos operadores (feed consolidado): o Deano, só na base do Lava, era
+        # arquivado pelo Feca e apagado na listagem seguinte, voltando como ativo.
         await conn.execute(
-            "DELETE FROM tipsters t WHERE t.dono = $1 "
+            "DELETE FROM tipsters t WHERE t.dono = $1 AND t.arquivado = FALSE "
             "AND t.casas IS NULL AND t.mercados IS NULL AND t.obs IS NULL AND t.apelidos IS NULL "
             "AND t.dica_stake IS NULL AND t.esportes IS NULL AND t.stake_min IS NULL AND t.stake_max IS NULL "
             "AND NOT EXISTS (SELECT 1 FROM bilhetes b WHERE b.dono = t.dono AND b.tipster = t.nome)",
