@@ -1911,18 +1911,16 @@ Entrou na 0.7.69, 11ª Altenar, espelho da Vavada, recon LOGADO na conta do Feca
 - Espelho numerado (`sportaza-5178.com`): domínio novo entra no manifest, `popup.js` e
   `_HOSTS_POR_CASA`, com versão nova.
 
-### 4.0za Epicbet: a captura do Gabriel e o print (s462). **VIVA, virada, 1ª captura conferida**
+### 4.0za Epicbet: a captura do Gabriel (s462). **VIVA, virada, 1ª captura conferida**
 
 Entrou na 0.7.91 (plataforma própria tRPC, família `eb`, `CASA_EPICBET.md`). Virada, botão e
 1ª captura (a do Feca, 13 bilhetes, 11 pela Ficha) estão provados no `DIARIO.md` da Ficha
-(22/11/2026). Aviso ao grupo: **não sai**, decisão do Feca (22/11/2026). Sem ele, quem parear
+(22/11/2026). Print recusado como em toda casa de captura (Feca, 22/11/2026). Aviso ao grupo: **não sai**, decisão do Feca (22/11/2026). Sem ele, quem parear
 com extensão anterior à 0.7.91 toma 426; a 0.7.92 passa a mostrar o motivo no popup.
 - **1ª captura do Gabriel:** ele tem 17 bilhetes da Epicbet gravados em 21/11 17:39 UTC
   (códigos 1 a 17, `origem='extracao'`, todos resolvidos). O código é o mesmo `sequence` que a
   captura manda: conferir no banco que nenhuma linha duplica e que a stake (R$, congelada na
   linha resolvida) ficou a dele.
-- **Print da Epicbet é recusado** (`CASAS_COM_FICHA`). Se o Gabriel depender do print,
-  decidir com o Feca se a casa entra em `PRINT_LIBERADO`.
 - **Sem amostra, o adaptador recusa:** simples, cashout, boost, bet builder, anulada, ganha com
   perna pushed/meia, `partially_won`, `cashed out`, `campaign settled`. Medir quando aparecer.
 - **`audit_sharpenup` cego ao autodiagnóstico:** procura `const diag = {` no `content.js`, que
