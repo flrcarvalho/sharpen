@@ -358,8 +358,8 @@ _MOEDA_RE = re.compile(r"^Moeda:\s*(\S[^\r\n]*?)\s*$", re.MULTILINE)
 # real, real numa conta em dólar, moeda fora da tabela.
 _COMPATIVEIS = {
     "BRL": {"BRL", "R$"},
-    "USD": {"USD", "US$", "$", "USDT"},
-    "USDT": {"USDT", "$", "USD", "US$"},
+    "USD": {"USD", "US$", "$", "USDT", "USDC"},
+    "USDT": {"USDT", "$", "USD", "US$", "USDC"},
     # s392. O `$` solto NÃO cabe no peso argentino: é a grafia das casas cripto em dólar, e
     # aceitá-lo calaria justamente o caso caro (dólar gravado como peso, ~1.600× menor).
     "EUR": {"EUR", "€"},
@@ -388,7 +388,11 @@ def moedas_do_texto(texto: str | None) -> list[str]:
 # A moeda da conta (regra 5A) só vale quando a casa NÃO diz a moeda. O símbolo solto `$`
 # continua ausente (não distingue USD de USDT), e USD × USDT continua sem diferença (Feca,
 # 04/10/2026).
-_SIMBOLO = {"R$": "BRL", "US$": "USD", "€": "EUR", "A$": "AUD", "AU$": "AUD", "AR$": "ARS"}
+# USDC → USDT (decisão do Feca, 22/11/2026, s465): as duas são dólar cripto, e a cotação é a do
+# USDT/BRL. Sem isto a Sportsbet.io em USDC numa conta USDT acusava "a casa informou USDC" a cada
+# captura, e numa conta em real o USDC seria gravado como se fosse R$.
+_SIMBOLO = {"R$": "BRL", "US$": "USD", "€": "EUR", "A$": "AUD", "AU$": "AUD", "AR$": "ARS",
+            "USDC": "USDT"}
 
 
 def moeda_do_cru(moeda_conta: str, moeda_cru: str | None) -> str | None:

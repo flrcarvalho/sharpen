@@ -8,8 +8,14 @@ USDT, recon de 25/10/2026), cada valor cruzado com o card.
 
   • CÓDIGO: o `id` é base64 de `SportsbetTicketsTicket:<ObjectId>`; o código é o ObjectId (24
     hex), o que o botão "ID" do card copia e o inject põe no `[Código: …]` do texto.
-  • DINHEIRO em 1e8: `stakeAmount` 2500000000 = 25 USDT. ⚠ Escala medida SÓ em USDT: outra
-    moeda RECUSA (o texto leva à IA, que lê o número já dividido) até alguém medir.
+  • DINHEIRO em 1e8: `stakeAmount` 2500000000 = 25 USDT. ⚠ Escala medida SÓ em USDT e USDC:
+    outra moeda RECUSA até alguém medir, e desde a s465 o bloco dela nem vai à IA
+    (`travas_entrada`): o inject divide toda moeda por 1e8, e a conta em real virava
+    `Stake: 0,01` no texto. USDC (s465, 22/11/2026): os 5 bilhetes reais da conta do Jonathan
+    (2 W, 3 L) batem em stake, odd, resultado e retorno a 1e8, contra o cru e contra a linha
+    que a IA gravou (`tests/fixtures/sbi_usdc_s465.json`). Para o câmbio, USDC = USDT
+    (decisão do Feca, 22/11/2026; `cambio._SIMBOLO`). BRL continua sem prova: os 185 de 2023
+    não têm gabarito (a IA leu o número já dividido) e a escala não se escolhe no olho.
   • `wonAmount` é o RETORNO (60,01 × 1,77 = 106,2177) e é null na perdida.
   • ODD da casa: `boostedOdds` do bilhete, a do card (5,83 no turbinado, onde `odds` = 5,71).
   • status: `ACTIVE` aberta · retorno = stake anulada (o dinheiro decide) · sem retorno com
@@ -35,7 +41,7 @@ from decimal import Decimal
 from . import Recusa, iso_de_epoch, numero
 
 _ESCALA = Decimal(100_000_000)
-_MOEDAS_MEDIDAS = {"USDT"}
+_MOEDAS_MEDIDAS = {"USDT", "USDC"}
 _MEIO_CENTAVO = Decimal("0.005")
 _PERNA = {0: "aberta", 1: "ganha", 2: "perdida"}
 _ESPORTE = {"soccer": "Soccer", "basketball": "Basketball", "tennis": "Tennis",
@@ -150,7 +156,7 @@ def adaptar(t: dict, casa_key: str) -> dict:
         raise Recusa("bilhete sem id")
     moeda = _limpo(t.get("currencyCode")).upper()
     if moeda not in _MOEDAS_MEDIDAS:
-        raise Recusa(f"moeda {moeda or '(vazia)'!r}: a escala 1e8 só foi medida em USDT")
+        raise Recusa(f"moeda {moeda or '(vazia)'!r}: a escala 1e8 só foi medida em USDT e USDC")
     bets = t.get("bets") or []
     if len(bets) != 1:
         raise Recusa(f"{len(bets)} apostas no bilhete (sistema, sem amostra)")

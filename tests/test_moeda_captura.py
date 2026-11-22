@@ -84,18 +84,21 @@ def test_funcoes_puras_do_cambio():
 
 
 MUTACOES_CAMBIO = [
+    # s465: as linhas ganharam "USDC" (USDC = USDT para câmbio, decisão do Feca, 22/11/2026);
+    # os alvos acompanham, com a mesma troca de antes.
     ("'$' deixa de caber em USDT",
-     '    "USDT": {"USDT", "$", "USD", "US$"},', '    "USDT": {"USDT", "USD", "US$"},'),
+     '    "USDT": {"USDT", "$", "USD", "US$", "USDC"},', '    "USDT": {"USDT", "USD", "US$", "USDC"},'),
     ("'$' deixa de caber em USD",
-     '    "USD": {"USD", "US$", "$", "USDT"},', '    "USD": {"USD", "US$", "USDT"},'),
+     '    "USD": {"USD", "US$", "$", "USDT", "USDC"},', '    "USD": {"USD", "US$", "USDT", "USDC"},'),
     ("a comparação passa a ter caixa",
      "if str(v).strip().upper() not in ok]", "if str(v).strip() not in ok]"),
     ("USD volta a contradizer USDT",
-     '    "USDT": {"USDT", "$", "USD", "US$"},', '    "USDT": {"USDT", "$"},'),
+     '    "USDT": {"USDT", "$", "USD", "US$", "USDC"},', '    "USDT": {"USDT", "$", "USDC"},'),
     ("USDT volta a contradizer USD",
-     '    "USD": {"USD", "US$", "$", "USDT"},', '    "USD": {"USD", "US$", "$"},'),
+     '    "USD": {"USD", "US$", "$", "USDT", "USDC"},', '    "USD": {"USD", "US$", "$", "USDC"},'),
     ("real passa a caber em dólar",
-     '    "USDT": {"USDT", "$", "USD", "US$"},', '    "USDT": {"USDT", "$", "USD", "US$", "R$"},'),
+     '    "USDT": {"USDT", "$", "USD", "US$", "USDC"},',
+     '    "USDT": {"USDT", "$", "USD", "US$", "USDC", "R$"},'),
     ("a leitura deixa de exigir o início da linha",
      '_MOEDA_RE = re.compile(r"^Moeda:', '_MOEDA_RE = re.compile(r"Moeda:'),
     ("a leitura repete moedas",
