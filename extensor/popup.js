@@ -322,7 +322,17 @@ async function conectar() {
       body: JSON.stringify({ codigo, versao: VERSAO }),
     });
     if (r.status === 404) { setMsg("Código inválido ou expirado. Gere outro no dashboard.", "erro"); return; }
-    if (!r.ok) { setMsg("Erro ao conectar (" + r.status + ").", "erro"); return; }
+    if (!r.ok) {
+      // O servidor escreve o motivo de toda recusa em `detail` (426 = versão abaixo da mínima
+      // da casa, com a versão exigida e a instalada). Mostrar só o número deixava o tester sem
+      // saber o que fazer (s462, 426 na Epicbet). Sem motivo legível, a reserva por status.
+      let motivo = "";
+      try { motivo = ((await r.json()) || {}).detail; } catch (_) {}
+      if (typeof motivo === "string" && motivo.trim()) setMsg(motivo.trim(), "erro");
+      else if (r.status === 426) setMsg("Sua extensão está desatualizada para esta casa. Baixe a versão nova em sharpen.bet/extensao, atualize e gere um código novo.", "erro");
+      else setMsg("Erro ao conectar (" + r.status + ").", "erro");
+      return;
+    }
     const d = await r.json();
     _versaoInfo = { desatualizada: !!d.desatualizada, versao_atual: d.versao_atual || "" };
     await chrome.storage.local.set({
