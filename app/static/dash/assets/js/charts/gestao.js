@@ -1754,9 +1754,22 @@ window.tmToggle=tmToggle;
 
 // Tick "inativo": arquiva (não sigo mais) ou reativa o tipster e reordena a lista (inativos
 // no fim). Atualiza o flag local e re-renderiza — sem refetch (mais rápido, mantém o agg).
+//
+// Tipster que só existe nos bilhetes (a união do _tmNomes) chega aqui SEM id: o pedido ia
+// para /tipsters/undefined/arquivar e o servidor recusava (Deano, base herdada do Lava,
+// s463). Sem cadastro, cria primeiro pela mesma rota do tmToggle e arquiva o id devolvido.
 async function tmSetInativo(id,inativo,nome){
-  const url='/tipsters/'+id+'/'+(inativo?'arquivar':'reativar');
   try{
+    if(id==null){
+      const c=await fetch('/tipsters/cadastro',{method:'POST',headers:{'Content-Type':'application/json'},
+                                              body:JSON.stringify({nome:nome})});
+      if(!c.ok)throw 0;
+      const novo=await c.json();
+      id=novo.id;
+      _tmCadastro[nome]=Object.assign({},_tmCadastro[nome]||{},novo);
+      if(typeof _tipCadastro!=='undefined')_tipCadastro=null;
+    }
+    const url='/tipsters/'+id+'/'+(inativo?'arquivar':'reativar');
     const r=await fetch(url,{method:'POST'});
     if(!r.ok)throw 0;
     if(_tmCadastro[nome])_tmCadastro[nome].arquivado=inativo;
