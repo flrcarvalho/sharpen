@@ -1882,15 +1882,17 @@ casa sobe no autodiagnóstico). Falta a 1ª captura pela extensão instalada.
 **E1.3 (s465):** a XMulti LIQUIDADA em USDT passa pela Ficha (backtest D22 nas 142 de 30 dias:
 stake, resultado e retorno 142/142; odd 141, a divergência é a da IA abaixo; data 132, nas 10
 outras a IA gravou a colocação e a Ficha segue o `MASTER_OUTPUT §4`). Abertos:
-- **Passo 2: as abertas sem `iid`** (props 383 códigos, XMulti 98). Antes de código, só leitura:
-  a ligação UUID → `iid` pelo `aliases()` nas passagens reais, stake e `_potentialMultiplier`
-  iguais na passagem, se a Ficha aceita perna sem odd, e quanto do gasto vem delas.
+- **Passo 2: as abertas sem `iid`**, medido em 23/11 (só leitura, `stc_abertas.py` da s465): 383
+  props e 98 XMulti passaram a liquidadas, o `aliases()` ligou todas sem linha dupla, stake e odd
+  do bilhete iguais. Gasto estimado das abertas desde 09/11: ~58% (props US$ 6,01, XMulti 1,84).
+  - **Props aberta:** a odd da perna não mudou em nenhuma; a Ficha aceitaria as 383 se o código
+    fosse o UUID. Aguarda decisão da consultoria para escrever.
+  - **XMulti aberta fica com a IA:** a perna traz a cotação ao vivo (mudou em 81 de 98) e a Ficha
+    exige odd por perna. Só volta com uma fonte da odd da perna na aberta.
 - **692098480 (Gabriel), sem prazo:** a IA gravou odd 9,201848977, 0,17 USDT a mais que o pago
   (70 × 9,19945194 = 643,96). A Ficha não corrige linha existente; corrigir à mão ou por script.
 - RacingBet segue recusada (8 do Gabriel, sem gabarito).
 - **Boxe (3 códigos):** esporte que o dicionário da Stake.com não conhece; vão à IA. Sem prazo.
-- **`empate anula aposta` = DNB** (decisão do Feca, 23/11/2026; a IA votou DNB 1 × ML 1): falta
-  gravar como termo `origem = 'feca'` em produção (escrita, pede ok à parte).
 - Conferir na próxima captura que os 201 códigos marcados "termo fora do dicionário" (já cobertos
   pela semente de 23/11) foram pela Ficha.
 
