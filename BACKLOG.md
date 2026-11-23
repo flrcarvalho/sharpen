@@ -1879,6 +1879,21 @@ só props liquidadas (15) e apostas comuns abertas (3, Fórmula 1). Sem amostra:
 usa cópia literal das queries da página: se a casa mudar o schema, a query inteira falha (o erro da
 casa sobe no autodiagnóstico). Falta a 1ª captura pela extensão instalada.
 
+**E1.3 (s465):** a XMulti LIQUIDADA em USDT passa pela Ficha (backtest D22 nas 142 de 30 dias:
+stake, resultado e retorno 142/142; odd 141, a divergência é a da IA abaixo; data 132, nas 10
+outras a IA gravou a colocação e a Ficha segue o `MASTER_OUTPUT §4`). Abertos:
+- **Passo 2: as abertas sem `iid`** (props 383 códigos, XMulti 98). Antes de código, só leitura:
+  a ligação UUID → `iid` pelo `aliases()` nas passagens reais, stake e `_potentialMultiplier`
+  iguais na passagem, se a Ficha aceita perna sem odd, e quanto do gasto vem delas.
+- **692098480 (Gabriel), sem prazo:** a IA gravou odd 9,201848977, 0,17 USDT a mais que o pago
+  (70 × 9,19945194 = 643,96). A Ficha não corrige linha existente; corrigir à mão ou por script.
+- RacingBet segue recusada (8 do Gabriel, sem gabarito).
+- **Boxe (3 códigos):** esporte que o dicionário da Stake.com não conhece; vão à IA. Sem prazo.
+- **`empate anula aposta` = DNB** (decisão do Feca, 23/11/2026; a IA votou DNB 1 × ML 1): falta
+  gravar como termo `origem = 'feca'` em produção (escrita, pede ok à parte).
+- Conferir na próxima captura que os 201 códigos marcados "termo fora do dicionário" (já cobertos
+  pela semente de 23/11) foram pela Ficha.
+
 ### 4.0w Kalshi: no ar e sincronizando; restam os casos não medidos (s439). **VIVA**
 
 Casa por API, irmã da Polymarket (`casas/CASA_KALSHI.md`). Construída na s435 (coletor) e

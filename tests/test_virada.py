@@ -827,19 +827,25 @@ def test_d39_ficha_recusada_com_texto_mudado_segue_para_a_ia(monkeypatch):
 def test_s451_ficha_recusada_com_texto_igual_e_veredito_vai_a_ia(monkeypatch):
     """s451 (Stake.com do Gabriel, 12/11/2026): XMulti liquidada, apagada e recapturada. O cru
     é VELHO (a extensão não reenvia cru igual), o texto é IGUAL ao da última leitura e traz o
-    veredito. A Ficha recusa a XMulti, então só a IA lê: a aposta vai à IA, nunca é segurada.
+    veredito. Quando a Ficha recusa, só a IA lê: a aposta vai à IA, nunca é segurada.
     Antes, o dict de recusa do `montar_ficha` (sem `status`) passava por "cru aberto" no
     `texto_desmente` e 20 de 69 ficavam fora da base, sem erro.
 
     O cru é o REAL da fixture e a Ficha passa pelo `montar_ficha` de verdade: o teste antigo
-    da s447 nunca exerceu a recusa, porque a supunha None."""
+    da s447 nunca exerceu a recusa, porque a supunha None. Desde o E1.3 (s465) a XMulti
+    liquidada é aceita; para seguir exercendo a RECUSA, o cru real leva um `cashoutMultiplier`
+    (formato sem amostra). O mesmo cru sem a troca é aceito e também não desmente o texto."""
     from adaptadores import stc
     fix = (Path(__file__).resolve().parents[1] / "extensor" / "harness" / "fixtures"
            / "stakecom.xmulti.json")
     xm = json.loads(fix.read_text(encoding="utf-8"))
     cod = "689158437"                       # XMulti de 3, Derrota, 40 USDT, payout 0
-    cru = next({"iid": x["iid"], "bet": x["bet"]} for x in xm["settled"]
-               if stc.codigo(x) == cod)
+    real = next({"iid": x["iid"], "bet": x["bet"]} for x in xm["settled"]
+                if stc.codigo(x) == cod)
+    f, mot = ficha.montar_ficha("stc", real, "STAKECOM")
+    assert mot == [] and ficha.derivar(f)["resultado"] == "L"   # E1.3: aceita, L como no texto
+    assert not virada.texto_desmente(f, "Status: Perdeu → L")
+    cru = {"iid": real["iid"], "bet": dict(real["bet"], cashoutMultiplier=1.5)}
     f, mot = ficha.montar_ficha("stc", cru, "STAKECOM")
     assert f.get("cru_recusado") and mot                       # a premissa: a Ficha recusa
     assert not virada.texto_desmente(f, "Status: Perdeu → L")

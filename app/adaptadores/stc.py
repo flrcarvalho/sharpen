@@ -19,9 +19,15 @@ cruzadas com os cards de `/pt/my-bets/sports`.
     a perna não diz o resultado; na simples, ela herda o do bilhete.
   • MERCADO da props: `<jogador> <estatística>` ("Matisse Thybulle rebounds"), com o nome na
     frente para a chave `{jogador}` do dicionário generalizar; seleção `<over|under> <linha>`.
-  • Sem amostra, RECUSA: corrida, XMulti, promoção/boost (`promotionBet`, `customPrices`,
-    `adjustments`), cashout parcial (`cashouts`) e cashout com retorno ≠ stake. A XMulti vai pela
-    IA, que a liquida pelo texto desde a s445.
+  • XMulti (`SportsbookXMultiBet`, E1.3, s465): só a LIQUIDADA (`_betStatus` settled), em USDT,
+    sem cashout. O dinheiro decide: `payout` 0 perdida, = stake anulada, = stake ×
+    `payoutMultiplier` ganha. Odd da casa = `_potentialMultiplier` (o produto das pernas); com
+    perna anulada a casa paga o produto das não anuladas e a Ficha deriva retorno ÷ stake. Perna
+    em `prices[0]`; a comum diz o resultado em `result._status`, a de props nunca (`result` null).
+    A aberta segue recusada: a perna dela traz a cotação AO VIVO, não a da aposta (medido: mudou
+    em 77 de 92 passagens).
+  • Sem amostra, RECUSA: corrida, XMulti aberta, promoção/boost (`promotionBet`, `customPrices`,
+    `adjustments`), cashout parcial (`cashouts`) e cashout com retorno ≠ stake.
   • ALIASES (s445): a aberta de props/XMulti não traz `iid` e a extensão a grava com o UUID do
     `bet.id`; o `aliases(cru)` da liquidada devolve esse UUID para o `/salvar` adotar a linha.
 """
@@ -137,6 +143,59 @@ def _fixture(fx: dict) -> dict:
             "mandante": casa or None, "visitante": fora or None}
 
 
+# XMulti: resultado da perna comum em `result._status`. `voidedLost` (1 caso medido, 696459550 do
+# Gabriel, bilhete perdido) não se afirma: a perna fica sem resultado, e só em bilhete perdido.
+_PERNA_XM = {"won": "ganha", "lost": "perdida", "voided": "anulada"}
+
+
+def _status_xmulti(b: dict) -> str:
+    st = b.get("_betStatus")
+    if b.get("active") is True or st == "confirmed":
+        raise Recusa("XMulti aberta sem amostra (a perna traz a cotação ao vivo; o texto leva à IA)")
+    if st != "settled":
+        raise Recusa(f"XMulti _betStatus {st!r} sem amostra (o texto leva à IA)")
+    if _limpo(b.get("currency")).lower() != "usdt":
+        raise Recusa(f"XMulti em {b.get('currency')!r} sem amostra (medida só em USDT)")
+    if _d(b.get("cashoutMultiplier")) not in (None, 0):
+        raise Recusa(f"XMulti com cashoutMultiplier {b.get('cashoutMultiplier')!r} sem amostra")
+    stake, ret, mult = _d(b.get("amount")), _d(b.get("payout")), _d(b.get("payoutMultiplier"))
+    if stake is None or stake <= 0 or ret is None:
+        raise Recusa("XMulti sem amount ou sem payout")
+    if abs(ret - stake) <= _MEIO_CENTAVO:
+        return "anulada"
+    if ret == 0:
+        return "perdida"
+    if ret > stake and mult and abs(ret - stake * mult) <= _MEIO_CENTAVO:
+        return "ganha"
+    raise Recusa(f"XMulti com payout {b.get('payout')!r} sobre amount {b.get('amount')!r} e "
+                 f"payoutMultiplier {b.get('payoutMultiplier')!r} (sem amostra; a conferir)")
+
+
+def _perna_xmulti(o: dict, status: str) -> dict:
+    precos = o.get("prices") or []
+    if len(precos) != 1:
+        raise Recusa(f"perna XMulti com {len(precos)} preços sem amostra")
+    if o.get("deductions") or (o.get("result") or {}).get("deadheatMultiplier") not in (None, 0):
+        raise Recusa("perna XMulti com dedução ou dead heat sem amostra")
+    if (o.get("providerBet") or {}).get("status") != "settleAccepted":
+        raise Recusa(f"perna XMulti com providerBet {(o.get('providerBet') or {}).get('status')!r} sem amostra")
+    p = precos[0]
+    mt = (o.get("_market") or {}).get("__typename")
+    res = (o.get("result") or {}).get("_status")
+    if mt == "SwishMarket":
+        if o.get("result") is not None:
+            raise Recusa("perna de props da XMulti com resultado, sem amostra")
+        return _perna_swish({"outcome": p.get("outcome"), "lineType": p.get("lineType"),
+                             "odds": p.get("odds")}, None)
+    if mt != "SportMarket":
+        raise Recusa(f"perna XMulti de mercado {mt!r} sem amostra")
+    if res not in _PERNA_XM and not (res == "voidedLost" and status == "perdida"):
+        raise Recusa(f"perna XMulti com resultado {res!r} sem amostra")
+    return dict(_fixture(o.get("_fixture")), mercado_casa=_limpo((o.get("_market") or {}).get("name")),
+                selecao_casa=_limpo((p.get("outcome") or {}).get("name")), linha=None,
+                odd=numero(p.get("odds")), status_perna=_PERNA_XM.get(res))
+
+
 def _perna_sport(o: dict) -> dict:
     fx = _fixture(o.get("fixture"))
     out = o.get("outcome") or {}
@@ -164,7 +223,7 @@ def adaptar(cru: dict, casa_key: str) -> dict:
         raise Recusa("bilhete sem iid")
     b = cru.get("bet") or {}
     tipo = b.get("__typename")
-    if tipo not in ("SportBet", "SwishBet"):
+    if tipo not in ("SportBet", "SwishBet", "SportsbookXMultiBet"):
         raise Recusa(f"tipo {tipo!r} sem amostra (o texto leva à IA)")
     for campo in ("promotionBet",):
         if b.get(campo):
@@ -172,11 +231,20 @@ def adaptar(cru: dict, casa_key: str) -> dict:
     for campo in ("customPrices", "adjustments", "cashouts"):
         if b.get(campo):
             raise Recusa(f"{campo} preenchido sem amostra (o texto leva à IA)")
-    status = _status(b)
+    xm = tipo == "SportsbookXMultiBet"
+    status = _status_xmulti(b) if xm else _status(b)
     outs = b.get("outcomes") or []
     if not outs:
         raise Recusa("bilhete sem outcomes")
-    if tipo == "SportBet":
+    if xm:
+        if len(outs) < 2:
+            raise Recusa(f"XMulti com {len(outs)} perna sem amostra")
+        pernas = [_perna_xmulti(o, status) for o in outs]
+        if status == "ganha" and any(p["status_perna"] == "perdida" for p in pernas):
+            # Ganha pelo dinheiro com uma perna comum perdida não se explica (a CopaWin teve 6
+            # assim, E1.2). Sem amostra, fica com a IA.
+            raise Recusa("XMulti ganha com perna perdida (sem amostra; a conferir)")
+    elif tipo == "SportBet":
         pernas = [_perna_sport(o) for o in outs]
     else:
         herdado = status if len(outs) == 1 and status in ("aberta", "ganha", "perdida") else None
@@ -189,11 +257,12 @@ def adaptar(cru: dict, casa_key: str) -> dict:
         "colocada_em": _iso(b.get("createdAt")),
         "liquidada_em": None,
         "status": status,
-        "status_casa": f"{tipo} · status {b.get('status')} · customBet {b.get('customBet')}",
+        "status_casa": (f"{tipo} · _betStatus {b.get('_betStatus')}" if xm else
+                        f"{tipo} · status {b.get('status')} · customBet {b.get('customBet')}"),
         "moeda": _limpo(b.get("currency")).upper() or None,
         "stake": numero(b.get("amount")),
         "stake_freebet": None,
-        "odd": numero(_odd(b)),
+        "odd": numero(b.get("_potentialMultiplier") if xm else _odd(b)),
         "odd_calculada": False,
         "retorno": None if status == "aberta" else "0" if status == "perdida" else ret,
         "tipo": "multipla" if len(pernas) > 1 else "simples",

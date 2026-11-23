@@ -95,8 +95,8 @@ a colocação em São Paulo e **`ID da Aposta: 676.297.455`**.
 
 **Ficha:** adaptador `app/adaptadores/stc.py` (família nova). O cru é `{iid, bet}`: o `iid` vai ao
 lado porque no histórico ele mora fora da aposta e a props não o repete. Aceita perdida, ganha,
-anulada pelo dinheiro e aberta, na comum e na props; recusa corrida, XMulti, promoção/boost,
-cashout parcial e cashout com retorno ≠ stake.
+anulada pelo dinheiro e aberta, na comum e na props, e a XMulti LIQUIDADA em USDT (E1.3, s465);
+recusa corrida, XMulti aberta, promoção/boost, cashout parcial e cashout com retorno ≠ stake.
 
 ---
 
@@ -145,7 +145,22 @@ perna) ou `SportMarketOutcome` (comum: seleção em `outcome.name`, mercado em `
 jogo em `_fixture`, resultado em `result._status`). Medido em 29 XMulti da conta do Gabriel:
 perdida = `payout` 0, ganha = `payout` = stake × odd. Até a 0.7.74 todas subiam "a conferir" e
 a IA as deixava ABERTAS: 15 liquidadas apareceram como "atrasadas", ~700 USDT em aberto na
-Caixa. A Ficha segue recusando XMulti; vai pela IA.
+Caixa.
+
+**XMulti pela Ficha (E1.3, s465):** só a liquidada (`_betStatus` settled), em USDT, com
+`cashoutMultiplier` 0. Medido em 142 liquidadas de 30 dias (Gabriel e Feca), todas com gabarito:
+
+- `payout` = `amount` × `payoutMultiplier` sempre. 124 perdidas com `payout` 0; ganha com
+  `payoutMultiplier` = `_potentialMultiplier` (o produto das pernas) fora da perna anulada.
+- **Perna anulada:** a casa paga o produto das NÃO anuladas (696463077: 7,37 → 4,05). Na perna
+  de props a anulação **não aparece em lugar nenhum** (`result` null sempre): só o
+  `payoutMultiplier` mostra (692098480: 22,69 → 9,19945). A Ficha deriva a odd do retorno.
+- A odd da perna é `prices[0].odds`, o preço da aposta. O `prices[0].outcome.odds` é a cotação
+  AO VIVO, e na lista de abertas a perna inteira traz o preço ao vivo (mudou em 77 de 92
+  passagens): por isso a XMulti aberta segue com a IA.
+- Perna comum: `won`/`lost`/`voided`; `voidedLost` (1 caso, bilhete perdido) fica sem resultado.
+- A IA gravou a data da COLOCAÇÃO em 10 das 142; a Ficha usa a perna mais recente em Brasília
+  (`MASTER_OUTPUT §4`). Fixture: `tests/fixtures/stc_xmulti_s465.json`.
 
 ---
 
@@ -260,7 +275,7 @@ XMulti (s445, conta do Gabriel): `extensor/harness/fixtures/stakecom.xmulti.json
 > dinheiro prova a vitória; o bloco não marca perna nenhuma como anulada.
 
 **Sem amostra:** aposta comum liquidada · cashout ≠ stake · cancelada · corrida · boost · XMulti
-com perna anulada.
+anulada inteira · XMulti fora de USDT ou com cashout.
 
 ---
 
