@@ -846,6 +846,22 @@ verdade. Falta:
   UPSERT, mas isso é dedução.
 - Sub-posição em mais de uma moeda e cru acima de 64 KB (~150 apostas): sem amostra.
 
+### 2.2b Cloudbet: perna sem nome de mercado e as 7 linhas "Mercado sem nome" (E1.4, s465). **VIVA, em recon**
+
+Medido em 23/11/2026, só leitura, 30 dias (3.012 crus, 935 apostas; `cb_medicao*.py` no scratchpad
+da s465). A lista (`/sports-betting/v4/bets/positions`) manda a seleção sem `marketName` nem
+`outcomeName`: em **100%** das apostas com mais de 14 dias na captura (50 seleções, o replay de
+360 dias) e em **1,9%** das recentes (84 de 4.399, inclusive com o evento em `TRADING`). A Ficha
+recusa ("perna N: sem mercado nem seleção", 63 apostas; 25 de 17 a 23/11) e o texto leva
+"(mercado sem nome)" à IA, que gravou literalmente **"Mercado sem nome"** em 7 linhas, todas do
+Gabriel, conta `gfatuch [Fatuch]`, todas L: ids 430383, 430384, 430385, 430386, 430388 (só a 3ª
+perna), 430389 (bbeac05d), 430390 (03234e4a). **Corrigir depois do conserto** (a descrição
+congela no UPSERT; sai por script, com olho humano). Caminho decidido pela consultoria: A, o
+recon do endpoint de evento sem `markets=x` (prazo 25/11); sem nome lá, B: montar a perna pela
+chave (`marketKey`/`outcome`/`params`) só nas chaves medidas, `freetext` recusado, com ensaio do
+dicionário antes de escrever. Nota: o `freetext` traz o nome no `params`
+(`market_name=DK%20Metcalf%20Total%20Receptions`, `outcome=Under%204.5`).
+
 ### 2.3 Reliquidação: quantas apostas a casa refez e o banco não viu (s448). **VIVA, medida em parte (s453)**
 
 > **s453 (14/11, varredura de 4 agentes, só leitura, 26 casas com cru):** 0 aberta presa por
