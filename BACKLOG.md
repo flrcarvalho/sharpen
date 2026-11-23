@@ -1885,8 +1885,9 @@ outras a IA gravou a colocação e a Ficha segue o `MASTER_OUTPUT §4`). Abertos
 - **Passo 2: as abertas sem `iid`**, medido em 23/11 (só leitura, `stc_abertas.py` da s465): 383
   props e 98 XMulti passaram a liquidadas, o `aliases()` ligou todas sem linha dupla, stake e odd
   do bilhete iguais. Gasto estimado das abertas desde 09/11: ~58% (props US$ 6,01, XMulti 1,84).
-  - **Props aberta: APROVADA pela consultoria com uma condição, já atendida; aguarda o ok do
-    Feca para commit e deploy (s465, 23/11).** Código =
+  - **Props aberta: NO AR em 23/11 (`e12dbec`, deploy `0afc79f4`). Falta só ler a 1ª captura
+    da Stake.com depois do deploy (`virada_log`: pela_ficha, aberta_atrasada, para_ia,
+    ficha_recusada); conferida, o item sai daqui (s465).** Código =
     UUID do `bet.id` (`stc._codigo_da_aberta`, só `SwishBet`, só aberta, só sem `iid`). A lista
     de abertas não traz o NOME do esporte, só o slug: `stc._ESPORTE_DO_SLUG` o leva ao nome que a
     casa escreve na liquidada (3 esportes medidos; fora deles, esporte vazio e IA). **Decisão da
