@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Turnover · proposta v3</title>
+<!-- CSS REAL do dash, lido do repositório (nenhum estilo de marca reescrito aqui) -->
+<link rel="stylesheet" href="../../../app/static/fonts.css">
+<link rel="stylesheet" href="../../../app/static/dash/assets/css/tokens.css">
+<link rel="stylesheet" href="../../../app/static/shell.css">
+<link rel="stylesheet" href="../../../app/static/dash/assets/css/layout.css">
+<link rel="stylesheet" href="../../../app/static/dash/assets/css/components.css">
+<script src="../../../app/static/dash/vendor/chart.umd.js"></script>
+<style>
+/* Só layout do protótipo. Cor, tipo e componente vêm do CSS do dash. */
+.proto        { max-width: 1360px; margin: 0 auto; padding: var(--sp-6) var(--sp-6) var(--sp-14); }
+.proto-head   { padding-bottom: var(--sp-4); border-bottom: 1px solid var(--line-2); margin-bottom: var(--sp-4); }
+.proto-lead   { color: var(--ink-soft); font-size: var(--text-sm); margin-top: var(--sp-2); max-width: 760px; }
+.proto-filt   { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-bottom: var(--sp-5); }
+.kpi-row      { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 14px; margin-bottom: 1.25rem; }
+.kpi-sub .pos { color: var(--pos); } .kpi-sub .neg { color: var(--neg); }
+.chart-box    { position: relative; height: 300px; }
+.chart-box.sm { height: 240px; }
+.card-hdr .quick-btns { margin-top: 0; }
+.sel-col      { width: 28px; }
+.sel-col input{ accent-color: var(--accent); cursor: pointer; }
+.tbl td.ocioso{ color: var(--warn); }
+.proto-nota   { color: var(--ink-soft); font-size: var(--text-xs); margin-top: var(--sp-3); }
+.proto-nota b { color: var(--ink); font-weight: 600; }
+.tip-anchor .metric-tip:not([hidden]) { position: absolute; top: 22px; left: -136px; z-index: 50; }
+@media (max-width: 1200px){ .kpi-row { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+@media (max-width: 640px) { .kpi-row { grid-template-columns: repeat(2, minmax(0,1fr)); } .proto{ padding: var(--sp-4); } }
+</style>
+</head>
+<body>
+<div class="proto">
+
+  <div class="proto-head">
+    <div class="page-sub">volume apostado por casa, tipster e conta</div>
+    <div class="page-title">Turnover</div>
+    <div class="proto-lead">Quanto foi apostado no período, como isso se compara ao mesmo trecho do mês anterior e onde o volume está. Escolha o período e a base de comparação; marque linhas da tabela para vê-las no gráfico.</div>
+  </div>
+
+  <div class="proto-filt">
+    <div class="filter-group"><div class="filter-label">Período</div>
+      <div class="quick-btns"><button class="qbtn">Hoje</button><button class="qbtn">WTD</button><button class="qbtn active">MTD</button><button class="qbtn">YTD</button><button class="qbtn">7d</button><button class="qbtn">30d</button><button class="qbtn">90d</button><button class="qbtn">Tudo</button></div></div>
+    <div class="filter-group"><div class="filter-label">Comparar com</div>
+      <div class="quick-btns"><button class="qbtn active">Mês anterior, mesmos dias</button><button class="qbtn">Média de 3 meses</button><button class="qbtn">Ano anterior</button></div></div>
+    <div class="filter-group"><div class="filter-label">Data</div>
+      <div class="quick-btns"><button class="qbtn active">Da aposta</button><button class="qbtn">Do evento</button></div></div>
+  </div>
+
+  <div class="kpi-row" id="kpis"></div>
+
+  <div class="card">
+    <div class="card-hdr"><div class="card-title">Turnover Diário · Novembro × Outubro</div>
+      <div class="quick-btns" id="tgDia"><button class="qbtn active" data-m="t">Turnover</button><button class="qbtn" data-m="n">Apostas</button></div></div>
+    <div class="card-body"><div class="chart-box"><canvas id="chDia"></canvas></div>
+      <div class="proto-nota">Barras: o dia. Linhas: o acumulado de novembro sobre o de outubro, no mesmo dia do mês. Tracejado: a projeção até o fim do mês.</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-hdr"><div class="card-title">Turnover por Dia da Semana</div>
+      <div class="quick-btns" id="tgDow"><button class="qbtn active" data-m="t">Turnover</button><button class="qbtn" data-m="n">Apostas</button></div></div>
+    <div class="card-body"><div class="chart-box sm"><canvas id="chDow"></canvas></div>
+      <div class="proto-nota">Média por dia, não soma: um mês pode ter 5 sábados e 4 segundas, e a soma premiaria o dia que apareceu mais vezes. Barra apagada: o mesmo dia da semana no período de comparação. Dia sem aposta entra como zero.</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-hdr"><div class="card-title" id="tTitulo">Turnover por Casa</div>
+      <div class="quick-btns" id="tgDim"><button class="qbtn active" data-d="Casa">Casa</button><button class="qbtn" data-d="Tipster">Tipster</button><button class="qbtn" data-d="Conta">Conta</button><button class="qbtn" data-d="Esporte">Esporte</button><button class="qbtn" data-d="Fornecedor">Fornecedor</button></div></div>
+    <div class="card-body">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:var(--sp-2)">
+        <div class="quick-btns" id="tgEsc"><button class="qbtn active" data-e="r">Valor</button><button class="qbtn" data-e="p">% do total</button></div></div>
+      <div class="chart-box sm"><canvas id="chDim"></canvas></div>
+      <div class="tbl-wrap" style="margin-top:var(--sp-4)"><table class="tbl" id="tblDim"></table></div>
+      <div class="proto-nota" id="notaSaldo"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hdr"><div class="card-title">Turnover e ROI por Mês</div></div>
+    <div class="card-body"><div class="chart-box sm"><canvas id="chMes"></canvas></div>
+      <div class="proto-nota">Volume subindo com ROI estável é escala que se sustenta. Volume subindo com ROI caindo pede olhar em qual casa ou tipster o volume novo entrou.</div></div>
+  </div>
+
+</div>
+
+<script>
+// ── Helpers COPIADOS VERBATIM de app/static/dash/assets/js/app.js (linhas 15-17, 26, 145-146, 438)
+//    e fmtSaldo de app/static/index.html:8964. Na tela real eles vêm de lá; aqui só não há app.js.
+const PUBLICO=false,_MOEDA_ORIG={};
+function fmt(v,d=2){return Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});}
+function fmtPL(v){const cls=v>0?'pos':(v<0?'neg':'');const sign=v>0?'+':(v<0?'−':'');return`<span class="money ${cls}"><span class="money-sign">${sign}R$</span><span class="money-val">${fmt(Math.abs(v))}</span></span>`;}
+function fmtR(v){return`<span class="money"><span class="money-sign">R$</span><span class="money-val">${fmt(v,0)}</span></span>`;}
+function fmtPct(v,d=2,signed=true){const abs=Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});if(!signed)return abs+'%';return(v>=0?'+':'−')+abs+'%';}
+function fmtSaldo(n,sinal,moeda){const v=Number(n)||0;const abs=Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});const s=v<0?'−':(sinal&&v>0?'+':'');return`<span class="money"><span class="money-sign">${s}R$</span><span class="money-val">${abs}</span></span>`;}
+function gc(){return'rgba(255,255,255,.05)';}
+function tc(){return'#5E6775';}
+function fmtK(v){const abs=Math.abs(Math.round(v));const s=abs.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});return(v<0?'−':'')+(PUBLICO?s+'u':'R$ '+s);}
+const nInt=v=>fmt(v,0);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pctSpan=(v,d=1)=>`<span class="${v>=0?'pos':'neg'}">${fmtPct(v,d)}</span>`;
+
+// "i" de ajuda: o mesmo markup .tip-anchor/.metric-info/.metric-tip do contas.js
+const tip=(formula,desc,bench)=>`<span class="tip-anchor"><button class="metric-info" aria-label="Sobre este número">i</button>`
+  +`<div class="metric-tip" role="tooltip" hidden><span class="metric-tip__caret"></span>`
+  +`<div class="metric-tip__formula">${formula}</div><div class="metric-tip__desc">${desc}</div>`
+  +`<div class="metric-tip__bench"><span>${bench}</span></div></div></span>`;
+document.addEventListener('mouseover',e=>{const a=e.target.closest('.tip-anchor');document.querySelectorAll('.metric-tip').forEach(t=>t.hidden=!(a&&a.contains(t)));});
+
+// ── Dados FICTÍCIOS, determinísticos ─────────────────────────────────────────
+let seed=11;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+const HOJE=22,DIAS=30;
+const out=[],nov=[],outN=[],novN=[];
+for(let d=1;d<=31;d++){const v=Math.round(18000+rnd()*16000+(d>20?6000:0));out.push(v);outN.push(Math.round(v/1080));}
+for(let d=1;d<=HOJE;d++){const z=(d===9||d===16);const v=z?0:Math.round(24000+rnd()*18000);nov.push(v);novN.push(Math.round(v/1150));}
+const acc=a=>{let s=0;return a.map(v=>s+=v);};
+const accN=acc(nov),accO=acc(out),accNn=acc(novN),accOn=acc(outN);
+const tN=accN[HOJE-1],tO=accO[HOJE-1],nN=accNn[HOJE-1],nO=accOn[HOJE-1];
+const media=tN/HOJE,ult7=nov.slice(-7).reduce((a,v)=>a+v,0)/7,proj=tN+ult7*(DIAS-HOJE),diasCom=nov.filter(v=>v>0).length;
+const roiN=4.1,roiO=3.5;
+
+// ── KPIs: mesmo markup do overview.js ───────────────────────────────────────
+const K=[
+ {l:'Turnover',v:fmtR(tN),s:`${pctSpan((tN/tO-1)*100)} vs 1 a ${HOJE} de out`},
+ {l:'Média por Dia',v:fmtR(media),s:`${HOJE} dias corridos · ${diasCom} com aposta`},
+ {l:'Projeção do Mês',v:fmtR(proj),s:`outubro fechou em ${fmtR(accO[30])}`,
+  i:tip('<span class="lbl">já apostado</span><span class="op">+</span><span class="lbl">média 7 dias</span><span class="op">×</span><span class="lbl">dias que faltam</span>',
+   `O que já foi apostado no mês, mais a média dos últimos 7 dias para cada dia que falta. Reage rápido quando a stake muda de patamar; não sabe de feriado nem de calendário de jogos.`,'recalculada a cada aposta')},
+ {l:'Apostas',v:nInt(nN),s:`${pctSpan((nN/nO-1)*100)} · ${fmt(nN/HOJE,0)} por dia`},
+ {l:'Stake Média',v:fmtSaldo(tN/nN),s:`${pctSpan(((tN/nN)/(tO/nO)-1)*100)} vs out`},
+ {l:'ROI',v:fmtPct(roiN,2),c:'pos',s:`outubro: ${fmtPct(roiO,2)}`},
+];
+document.getElementById('kpis').innerHTML=K.map(k=>`<div class="kpi"><div class="kpi-label"><span class="kpi-pipe"></span> ${k.l}${k.i||''}</div><div class="kpi-val ${k.c||'neu'}">${k.v}</div><div class="kpi-sub">${k.s}</div></div>`).join('');
+
+// ── Opções base dos gráficos: mesmas do temporal.js ─────────────────────────
+Chart.defaults.font.family=css('--font-mono')||'monospace';
+const ACC=css('--accent'),ACC2=css('--accent-2'),INK=css('--ink'),MUTE=css('--ink-mute'),SOFT=css('--ink-soft'),WARN=css('--warn'),POS=css('--pos');
+const legenda={display:true,position:'bottom',labels:{color:SOFT,font:{size:11},boxWidth:10,padding:12}};
+const eixoX={ticks:{color:tc(),font:{size:10}},grid:{display:false},border:{display:false}};
+const eixoY=(cb,pos)=>({ticks:{color:tc(),font:{size:10},callback:cb},grid:{color:pos==='right'?'transparent':gc()},border:{display:false},position:pos||'left'});
+const charts={};const mk=(id,cfg)=>{charts[id]&&charts[id].destroy();charts[id]=new Chart(document.getElementById(id),cfg);};
+
+// ── Gráfico 1: diário + acumulado ───────────────────────────────────────────
+function rDia(modo){
+  const T=modo==="t",dia=T?nov:novN,aN=T?accN:accNn,aO=T?accO:accOn,pr=T?proj:accNn[HOJE-1]+novN.slice(-7).reduce((a,v)=>a+v,0)/7*(DIAS-HOJE);
+  const labels=Array.from({length:DIAS},(_,i)=>String(i+1));
+  const projL=labels.map((_,i)=>i+1<HOJE?null:aN[HOJE-1]+(pr-aN[HOJE-1])*((i+1-HOJE)/(DIAS-HOJE)));
+  const f=T?fmtK:(v=>nInt(v));
+  mk('chDia',{type:'bar',data:{labels,datasets:[
+    {type:'line',label:'Acumulado nov',data:aN,borderColor:INK,borderWidth:2,pointRadius:0,tension:.25,yAxisID:'y1'},
+    {type:'line',label:'Acumulado out',data:aO.slice(0,DIAS),borderColor:MUTE,borderWidth:2,pointRadius:0,tension:.25,yAxisID:'y1'},
+    {type:'line',label:'Projeção',data:projL,borderColor:WARN,borderDash:[5,4],borderWidth:2,pointRadius:0,yAxisID:'y1'},
+    {type:'bar',label:T?'Turnover do dia':'Apostas do dia',data:dia,backgroundColor:'rgba(46,139,255,.55)',borderRadius:2,yAxisID:'y'},
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:legenda,tooltip:{callbacks:{title:it=>it[0].label+'/11',label:c=>c.raw==null?'':`${c.dataset.label}: ${f(c.raw)}`}}},
+    scales:{x:eixoX,y:eixoY(f),y1:eixoY(f,'right')}}});
+}
+rDia('t');
+
+// ── Turnover por dia da semana: MÉDIA por ocorrência do dia (seg → dom) ─────
+function rDow(modo){
+  const T=modo==='t',NOMES=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'],ORD=[1,2,3,4,5,6,0];
+  const agrega=(arr,ano,mes)=>{const s={},c={};ORD.forEach(i=>{s[i]=0;c[i]=0;});
+    arr.forEach((v,k)=>{const w=new Date(ano,mes,k+1).getDay();s[w]+=v;c[w]++;});
+    return{m:ORD.map(i=>c[i]?s[i]/c[i]:0),c:ORD.map(i=>c[i])};};
+  const a=agrega(T?nov:novN,2026,10),b=agrega((T?out:outN).slice(0,HOJE),2026,9);
+  const f=T?fmtK:(v=>fmt(v,1));
+  mk('chDow',{type:'bar',data:{labels:ORD.map(i=>NOMES[i]),datasets:[
+    {label:'Novembro',data:a.m,backgroundColor:'rgba(46,139,255,.75)',borderRadius:2},
+    {label:'Outubro, mesmos dias',data:b.m,backgroundColor:'rgba(46,139,255,.22)',borderRadius:2},
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:legenda,tooltip:{callbacks:{label:c=>{const n=(c.datasetIndex?b:a).c[c.dataIndex];return`${c.dataset.label}: ${f(c.raw)} por dia · ${n} ${n===1?'dia':'dias'}`;}}}},
+    scales:{x:eixoX,y:eixoY(f)}}});
+}
+rDow('t');
+
+// ── Tabela por recorte + gráfico das linhas marcadas ────────────────────────
+const MESES=['jun','jul','ago','set','out','nov*'];
+const DIM={
+ Casa:[['Bet365',182400,151200,162,5.2,24000,61003.18],['Pinnacle',121300,128900,98,3.1,18500,19802.40],['Cloudbet',88700,52100,71,6.4,9000,31544.90],['Stake',64200,70300,58,1.8,7200,27411.00],['Betano',41900,39800,44,-1.2,6800,6120.55],['Betfair',27600,11200,19,8.8,5100,5390.00]],
+ Tipster:[['Soh Props',161200,140300,141,4.4],['PassaTips',118800,96400,102,6.0],['Rei do Criquete',97300,99100,77,2.1],['Grego Tips',84100,70200,80,-0.6],['Sem tipster',64700,48700,52,3.3]],
+ Conta:[['Bet365 · conta 07',71200,60100,63,4.8,9500,22880.10],['Bet365 · conta 12',58900,49800,51,5.9,8100,18011.73],['Pinnacle · conta 02',62000,64700,49,2.7,9200,9811.00],['Cloudbet · conta 01',88700,52100,71,6.4,9000,31544.90]],
+ Esporte:[['Futebol',301200,262000,260,4.0],['Tênis',97400,88100,92,3.6],['Basquete',72100,61700,61,5.1],['eSports',55400,41700,39,2.2]],
+ Fornecedor:[['Eu',201300,188200,170,4.1],['Fornecedor A',176400,131700,149,4.6],['Fornecedor B',148400,133700,133,3.0]],
+};
+// fecha cada recorte no mesmo total do KPI (dado fictício, mas coerente entre cartões)
+Object.values(DIM).forEach(rs=>{const s=rs.reduce((a,r)=>a+r[1],0),k=tN/s;rs.forEach(r=>{r[1]=Math.round(r[1]*k);r[2]=Math.round(r[2]*k);});});
+let dimAtual='Casa',escala='r',marcados={};
+const SERIES=[{c:ACC},{c:ACC2},{c:INK,dash:[6,4]},{c:SOFT,dash:[2,3]}];
+function serieMensal(nome,tv){let s=0;for(const ch of nome)s+=ch.charCodeAt(0);seed=s*97+13;return MESES.map((_,i)=>i===5?tv:Math.round(tv*(0.55+rnd()*0.6)));}
+
+function rDim(){
+  const rows=DIM[dimAtual],tot=rows.reduce((a,r)=>a+r[1],0),temSaldo=rows[0].length>5;
+  if(!marcados[dimAtual])marcados[dimAtual]=rows.slice(0,2).map(r=>r[0]);
+  const sel=marcados[dimAtual];
+  document.getElementById('tTitulo').textContent='Turnover por '+dimAtual;
+  let h=`<thead><tr><th class="sel-col"></th><th class="th-l">${dimAtual}</th><th class="th-r">Turnover</th><th class="th-r">% do total</th><th class="th-r">vs out</th><th class="th-r">Apostas</th><th class="th-r">Stake média</th><th class="th-r">ROI</th>`
+    +(temSaldo?`<th class="th-r">Saldo hoje</th><th class="th-r">Saldo sugerido ${tip('<span class="lbl">pico em aberto (p90)</span><span class="op">+</span><span class="lbl">maior stake</span>','O maior valor que ficou em aberto ao mesmo tempo nesta '+(dimAtual==='Casa'?'casa':'conta')+' nos últimos 30 dias, ignorando os 10% de dias mais altos, mais uma stake máxima de folga.','últimos 30 dias, independe do filtro')}</th><th class="th-r">Acima do sugerido</th>`:'')
+    +`</tr></thead><tbody>`;
+  h+=`<tr class="total-row"><td></td><td>Total</td><td class="r">${fmtR(tot)}</td><td class="r">100,0%</td><td></td><td class="r">${nInt(rows.reduce((a,r)=>a+r[3],0))}</td><td></td><td></td>${temSaldo?'<td></td><td></td><td></td>':''}</tr>`;
+  rows.forEach(r=>{const [n,tv,ant,ap,roi,nec,sal]=r,d=(tv/ant-1)*100,acima=temSaldo?sal-nec:0;
+    h+=`<tr><td class="sel-col"><input type="checkbox" ${sel.includes(n)?'checked':''} data-n="${n}"></td><td>${n}</td><td class="r">${fmtR(tv)}</td><td class="r">${fmtPct(tv/tot*100,1,false)}</td><td class="r">${pctSpan(d)}</td><td class="r">${nInt(ap)}</td><td class="r">${fmtSaldo(tv/ap)}</td><td class="r"><span class="${roi>=0?'pos':'neg'}">${fmtPct(roi,2)}</span></td>`
+     +(temSaldo?`<td class="r">${fmtSaldo(sal)}</td><td class="r">${fmtR(nec)}</td><td class="r ${acima>0?'ocioso':''}">${fmtR(acima)}</td>`:'')+`</tr>`;});
+  document.getElementById('tblDim').innerHTML=h+'</tbody>';
+  document.querySelectorAll('#tblDim td.r').forEach(td=>td.style.textAlign='right');
+  document.querySelectorAll('#tblDim input').forEach(cb=>cb.onchange=()=>{const n=cb.dataset.n,s=marcados[dimAtual];
+    if(cb.checked){if(s.length>=4){cb.checked=false;return;}s.push(n);}else s.splice(s.indexOf(n),1);rGraf();});
+  document.getElementById('notaSaldo').innerHTML=temSaldo
+    ?'<b>Acima do sugerido</b> é dinheiro parado na '+(dimAtual==='Casa'?'casa':'conta')+': o saldo que a Caixa vê hoje menos o saldo sugerido. Só aparece para conta com Caixa ligada.'
+    :'Saldo só existe por casa e por conta. Em '+dimAtual.toLowerCase()+' a tabela mostra só volume e resultado.';
+  rGraf();
+}
+function rGraf(){
+  const rows=DIM[dimAtual],sel=marcados[dimAtual];
+  const totMes=MESES.map((_,i)=>rows.reduce((a,r)=>a+serieMensal(r[0],r[1])[i],0));
+  const ds=sel.map((n,k)=>{const r=rows.find(x=>x[0]===n),s=serieMensal(n,r[1]);
+    return{label:n,data:escala==='r'?s:s.map((v,i)=>v/totMes[i]*100),borderColor:SERIES[k].c,borderDash:SERIES[k].dash||[],borderWidth:2,pointRadius:3,pointBackgroundColor:SERIES[k].c,tension:.25};});
+  const f=escala==='r'?fmtK:(v=>fmtPct(v,0,false));
+  mk('chDim',{type:'line',data:{labels:MESES,datasets:ds},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:legenda,tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${escala==='r'?fmtK(c.raw):fmtPct(c.raw,1,false)}`}}},scales:{x:eixoX,y:eixoY(f)}}});
+}
+rDim();
+
+// ── Turnover × ROI por mês ──────────────────────────────────────────────────
+mk('chMes',{type:'bar',data:{labels:MESES,datasets:[
+  {type:'line',label:'ROI',data:[2.2,4.8,-0.9,3.7,3.5,4.1],borderColor:INK,borderWidth:2,pointRadius:3,pointBackgroundColor:INK,yAxisID:'y1'},
+  {type:'bar',label:'Turnover',data:[410000,520000,480000,610000,690000,tN],backgroundColor:'rgba(46,139,255,.55)',borderRadius:2,yAxisID:'y'},
+]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+  plugins:{legend:legenda,tooltip:{callbacks:{label:c=>c.dataset.label==='ROI'?'ROI: '+fmtPct(c.raw,2):'Turnover: '+fmtK(c.raw)}}},
+  scales:{x:eixoX,y:eixoY(fmtK),y1:eixoY(v=>fmtPct(v,0),'right')}}});
+
+// ── toggles ─────────────────────────────────────────────────────────────────
+const grupo=(id,fn)=>document.querySelectorAll('#'+id+' .qbtn').forEach(b=>b.onclick=()=>{document.querySelectorAll('#'+id+' .qbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');fn(b.dataset);});
+grupo('tgDia',d=>rDia(d.m));grupo('tgDow',d=>rDow(d.m));grupo('tgDim',d=>{dimAtual=d.d;rDim();});grupo('tgEsc',d=>{escala=d.e;rGraf();});
+</script>
+</body>
+</html>
