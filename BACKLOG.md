@@ -2718,9 +2718,6 @@ Detalhe, reprodução e impedimento de cada uma em `_backups/auditoria_masters_s
 - **Superbet escreve o status cru** (`win`/`lost`/`cashout`, `formatTicket` do `content.js`), sem
   `→ X`: a liquidada velha dela ENTRA (fail-open). Idem a Bet365 "a conferir HW/HL" e todo status
   "a conferir" (cashout, freebet). Para fechar: veredito no formatador, com harness.
-- **`ADD COLUMN` de `fora_idade`/`fora_moeda` sobre um `virada_log` que JÁ existe não foi
-  exercitado** num Postgres real (na prova da s465 a tabela nasceu do zero). O CHECK de
-  `ficha_virada` foi provado nos dois casos. A consultoria confere no banco depois do deploy.
 - **Ficha recusada e velha que o texto NÃO trouxe:** o cru recusado não tem data, a rota do cru
   não a julga, e ela vira aviso de "não lida". Só acontece quando a janela do robô corta, ou seja,
   depois da correção B abaixo.
