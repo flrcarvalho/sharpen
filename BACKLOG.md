@@ -1974,7 +1974,14 @@ na conta limitada do Feca (`CASA_COPAWIN.md`). Harness e adaptador com 15 bilhet
   "Resultado deixado VAZIO", mas a linha nasceu `W/resolvida` (origem `extracao`; o
   `corrigir_stake_tsv` reproduzido local não cria nem tira o W). Nenhum portão confere o
   resultado da IA contra um bloco "em aberto". Com o E1.2 a aberta da CopaWin vai pela Ficha;
-  nas outras casas o furo segue.
+  nas outras casas o furo segue. **Risco R48 da consultoria (D02).** Medido em 23/11/2026 (só
+  leitura, 30 dias, `scratchpad/r48_medir.py` da s465): 3.875 linhas `extracao` com resultado;
+  2.258 com cru do mesmo código até 15 min antes da criação; em 751 esse cru era ABERTO pela
+  Ficha real. Dessas, 723 liquidaram na casa com o MESMO resultado do banco (não dá para saber
+  com que resultado a linha nasceu: o banco não guarda isso), 16 têm o cru mais recente recusado
+  pela Ficha (não julgadas) e 12 seguem abertas na casa. Das 12, 11 nasceram SEM resultado e
+  ganharam um por correção humana (`correcoes.valor_anterior` vazio, `origem` NULL). **Sobra só o
+  836516.** Fica aqui; se repetir, vira item do plano.
 - **Jaao26 entrava por print** (166 bilhetes, 15 a 27/10). Com `COPAWIN` em `CASAS_COM_FICHA`,
   print e PDF dela são recusados no `/extrair`: ele precisa da extensão.
 
