@@ -293,3 +293,84 @@ def test_s453_retorno_fora_do_multiplicador_e_simples_seguem_recusadas():
     s["bet"]["outcomes"] = s["bet"]["outcomes"][1:2]
     with pytest.raises(Recusa, match="sem amostra"):
         stc.adaptar(s, "STAKECOM")
+
+
+# ── E1.3 passo 2 (s465): props ABERTA pela Ficha, com o UUID do `bet.id` como código ─────────
+# Fixture `tests/fixtures/stc_props_aberta_s465.json`: 4 pares REAIS (a aberta, sem `iid`, e a
+# liquidada da MESMA aposta, de `captura_crua` de produção). O gabarito da aberta é a liquidada:
+# medido nas 383 passagens de 30 dias, a stake, a odd do bilhete e a odd de cada perna não mudam.
+# Mutações provadas (s465, 23/11/2026):
+#  17. sem o `_codigo_da_aberta` (a aberta volta a recusar)        → test_props_aberta_..._liquidada
+#  18. sem a trava de tipo (a XMulti aberta passa a ter código)   → test_xmulti_aberta_segue_recusada
+#  19. sem a trava de `iid` (props com iid de outro prefixo entra) → test_props_sem_codigo_recusa
+#  20. sem a trava de estado (props LIQUIDADA sem iid entra com o UUID)
+#                                                                  → test_props_sem_codigo_recusa
+#  21. sem o mapa do slug (esporte vazio na aberta)                → test_props_aberta_..._liquidada
+#  22. slug cru quando fora do mapa                                → test_props_aberta_slug_fora_do_mapa
+#  23. `basketball` → `Basquete` (o minoritário)                   → test_props_aberta_..._liquidada
+# O QUE NÃO COBRE: a XMulti aberta (segue recusada); o nome do esporte para slug que a props
+# aberta ainda não trouxe (fica vazio, IA) e o `Basquete` da casa (a aberta sai `Basquetebol`).
+_PA = json.loads((Path(__file__).resolve().parent / "fixtures" / "stc_props_aberta_s465.json")
+                 .read_text(encoding="utf-8"))["pares"]
+
+
+def test_props_aberta_fixture_sem_identidade():
+    assert len(_PA) == 4
+    texto = json.dumps(_PA, ensure_ascii=False)
+    assert '"user"' not in texto and "gfatuch" not in texto.lower()
+
+
+@pytest.mark.parametrize("uid", sorted(_PA))
+def test_props_aberta_monta_com_o_uuid_e_bate_com_a_liquidada(uid):
+    par = _PA[uid]
+    fa, da = _montar(par["aberta"])
+    fl, dl = _montar(par["liquidada"])
+    assert (fa["codigo"], fa["status"], fa["retorno"], da["resultado"]) == (uid, "aberta", None, "")
+    assert fl["codigo"] == par["codigo_liquidada"] and stc.aliases(par["liquidada"]) == [uid]
+    assert (fa["stake"], fa["odd"], fa["moeda"], fa["tipo"]) == (fl["stake"], fl["odd"], fl["moeda"], fl["tipo"])
+    # A lista de abertas não pede o NOME do esporte nem o da liga, só o slug: o esporte vem dele.
+    fora = ("status_perna", "esporte_casa", "liga_casa")
+    sem_estado = lambda p: {k: v for k, v in p.items() if k not in fora}   # noqa: E731
+    assert [sem_estado(p) for p in fa["pernas"]] == [sem_estado(p) for p in fl["pernas"]]
+    for a, l in zip(fa["pernas"], fl["pernas"]):                 # perna a perna (há múltipla
+        assert a["esporte_casa"] in _SLUG_DO_NOME[l["esporte_casa"]]   # de dois esportes)
+    assert {p["liga_casa"] for p in fa["pernas"]} == {None}
+    assert (da["stake"], da["odd"], da["data"]) == (dl["stake"], dl["odd"], dl["data"])
+
+
+# O nome da liquidada para cada nome que o slug da aberta vira (medido nos crus de 30 dias): a
+# casa escreve `Basquete` ou `Basquetebol` para o mesmo esporte, e o adaptador fica no 2º.
+_SLUG_DO_NOME = {"Basquetebol": {"Basquetebol"}, "Basquete": {"Basquetebol"},
+                 "Hóquei no Gelo": {"Hóquei no Gelo"}, "Futebol Americano": {"Futebol Americano"}}
+
+
+def _sem_esporte(slug=None):
+    c = copy.deepcopy(_PA[sorted(_PA)[0]]["aberta"])
+    for o in c["bet"]["outcomes"]:
+        sp = o["outcome"]["market"]["game"]["fixture"]["tournament"]["category"]["sport"]
+        sp.pop("slug")
+        if slug:
+            sp["slug"] = slug
+    return c
+
+
+@pytest.mark.parametrize("slug", [None, "table-tennis"])
+def test_props_aberta_slug_fora_do_mapa_fica_sem_esporte(slug):
+    """Sem slug, ou slug que o mapa não mediu: esporte vazio (a aposta vai à IA), nunca o slug
+    cru (a semente o aprenderia e a descrição sairia sem par, congelada) nem um palpite."""
+    f, _ = ficha.montar_ficha("stc", _sem_esporte(slug), "STAKECOM")
+    assert {p["esporte_casa"] for p in f["pernas"]} == {None}
+
+
+def test_props_sem_codigo_recusa():
+    aberta = _PA[sorted(_PA)[0]]["aberta"]
+    with pytest.raises(Recusa, match="sem iid"):                 # iid de outro prefixo
+        stc.adaptar(dict(aberta, iid="racing:1"), "STAKECOM")
+    liq = copy.deepcopy(aberta)                                  # props LIQUIDADA sem iid
+    liq["bet"].update(active=False, status="settled", payout=0)
+    with pytest.raises(Recusa, match="sem iid"):
+        stc.adaptar(liq, "STAKECOM")
+    sem_id = copy.deepcopy(aberta)
+    sem_id["bet"]["id"] = ""
+    with pytest.raises(Recusa, match="sem iid"):
+        stc.adaptar(sem_id, "STAKECOM")

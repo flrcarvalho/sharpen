@@ -1949,6 +1949,167 @@ def test_cw_aberta_sem_linha_entra_aberta_pela_ficha(monkeypatch):
     assert (origem, resultado or "", estado) == ("ficha", "", "aberta")
 
 
+# ── s465 (E1.3 passo 2, Stake.com): a props ABERTA pela Ficha, com o UUID como código ─────────
+# Crus REAIS do par fbc8f266 (`tests/fixtures/stc_props_aberta_s465.json`): a aberta (lista de
+# abertas, sem `iid`, código = UUID do `bet.id`) e a liquidada da MESMA aposta (691539512, L).
+# A moeda vai a `brl` nos dois crus (só aqui): a conta do teste é em real e o câmbio buscaria
+# cotação na rede; o que se prova é a identidade da linha, não o dinheiro.
+# Caminho real: rota do cru (`ficha.receber` → `virada.aplicar`) → pré-dedup do `/extrair` →
+# IA dublê → `/salvar` (Migração C pelo `aliases_do_cru`). Mutações (Postgres local, 23/11/2026,
+# 6 de 6 detectadas):
+#   S1. sem o `if cod in atrasadas` na `aplicar`               → atrasada e mesmo_lote vermelhos
+#   S2. `codigos_irmaos` devolvendo {}                         → atrasada e mesmo_lote vermelhos
+#   S3. `stc.aliases` devolvendo []                            → adota, atrasada e mesmo_lote
+#   S4. `_codigo_da_aberta` devolvendo ""                      → controle, adota e atrasada
+#   S5. sem a Migração C no UPSERT (o laço dos aliases)         → adota vermelho
+#   S6. `virada._liquidados` vazio (a camada do E1.2)           → nao_rebaixa vermelho (na_planilha)
+#   S7. a atrasada contada como `pela_ficha` no `main` (condição da consultoria), e as três
+#       pontas do caminho da contagem: `aplicar` sem preencher `atrasadas_out`, `resolver_no_
+#       extrair` sem repassar ao `info`, `registrar` sem receber `atrasadas` → cada uma deixa
+#       atrasada e mesmo_lote vermelhos (`virada_log.pela_ficha` / `aberta_atrasada`; 4 de 4)
+# O QUE NÃO COBRE: a falha da consulta das irmãs (`sem_conferir`, a aberta vai à IA); conta
+# diferente na mesma casa (a busca filtra a conta, como a Migração C); o câmbio (moeda em brl).
+_STC_UID = "fbc8f266-3d9a-4b1c-bf11-4c49da7d4a4a"
+
+
+def _stc_cenario(monkeypatch):
+    import copy as _copy
+    import json as _json
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    import ficha
+    import main
+
+    par = _json.loads((Path(__file__).resolve().parent / "fixtures" / "stc_props_aberta_s465.json")
+                      .read_text(encoding="utf-8"))["pares"][_STC_UID]
+    aberta, liquidada = _copy.deepcopy(par["aberta"]), _copy.deepcopy(par["liquidada"])
+    for c in (aberta, liquidada):
+        c["bet"]["currency"] = "brl"
+    sess = SimpleNamespace(dono="TDonoSTC", casa_key="STAKECOM", casa=main._casa_display("STAKECOM"),
+                           parceiro="Conta [C]")
+    monkeypatch.setattr(ficha._captura, "sessao_por_token", lambda t: sess)
+    monkeypatch.setattr(ficha._captura, "registrar_versao", lambda s, v: None)
+    monkeypatch.setenv("FICHA_SOMBRA_CASAS", "")
+    monkeypatch.delenv("CRU_CAPTURA_DESLIGADA", raising=False)
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "STAKECOM")
+    sess.termos = [("STAKECOM", "esporte", "basquetebol", "Basquete"),
+                   ("STAKECOM", "categoria", "zach lavine assists", "Player Props")]
+    liq = par["codigo_liquidada"]
+    blocos = {_STC_UID: (f"[Código: {_STC_UID}]\nStake: 27,00\n"
+                         "Status: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\n"),
+              liq: f"[Código: {liq}]\nStake: 27,00\nStatus: Perdida → L\n"}
+    crus = {_STC_UID: aberta, liq: liquidada}
+
+    def lote(*cods):
+        return ({"token": "t", "versao": "0.7.92", "familia": "stc",
+                 "itens": [{"codigo": c, "cru": crus[c]} for c in cods]},
+                "\n\n".join(blocos[c] for c in cods))
+    return sess, lote, liq
+
+
+async def _stc_captura_seguinte(sess, payload, texto):
+    """A captura seguinte da mesma conta, SEM zerar o banco: rota do cru → `/extrair` → IA dublê
+    → `/salvar`. Devolve (códigos que foram à IA, {código: (estado, resultado)}, nº de linhas)."""
+    import ficha
+    import main
+    await asyncio.sleep(0.1)
+    await ficha.receber(payload)
+    para_ia, _ = await main._dedup_superbet_text(texto, sess.dono, sess.casa, sess.parceiro)
+    lidos = repository.codigos_do_texto(para_ia)
+    if lidos:
+        await main.gravar_tsv(main.SalvarRequest(tsv="\n".join(
+            f"10/10/2026\tBasquete\t\t{sess.casa}\t{sess.parceiro}\tPlayer Props\tX [A vs B]"
+            f"\t27\t2\t\t{c}" for c in lidos), casa=sess.casa, parceiro=sess.parceiro),
+            sess.dono, sess.dono)
+    return sorted(lidos), await _stc_linhas(sess.dono)
+
+
+async def _stc_linhas(dono):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch("SELECT id, codigo_bilhete, origem, resultado, extraction_state "
+                                "FROM bilhetes WHERE dono = $1 ORDER BY id", dono)
+    return [(r["id"], r["codigo_bilhete"], r["origem"], r["resultado"] or "",
+             r["extraction_state"]) for r in rows]
+
+
+def test_stc_props_aberta_entra_pela_ficha_com_o_uuid(monkeypatch):
+    """Controle: a aberta sozinha grava pela Ficha, ABERTA, com o UUID como código."""
+    sess, lote, _liq = _stc_cenario(monkeypatch)
+    resp, lidos, _c, _b = _run(_virada_ponta_a_ponta(sess, *lote(_STC_UID)))
+    assert resp["fichas"] == {"aceitas": 1, "recusadas": 0}
+    assert lidos == [] and resp["na_planilha"] == 1
+    assert [x[1:] for x in _run(_stc_linhas(sess.dono))] == [(_STC_UID, "ficha", "", "aberta")]
+
+
+def test_stc_liquidada_adota_a_aberta_que_a_ficha_gravou(monkeypatch):
+    """(b): a liquidada (número) adota a linha aberta (UUID) que a própria Ficha gravou: a MESMA
+    linha (mesmo id) passa a ter o número e o resultado, e não nasce uma segunda."""
+    sess, lote, liq = _stc_cenario(monkeypatch)
+    _run(_virada_ponta_a_ponta(sess, *lote(_STC_UID)))
+    [(id_aberta, *_)] = _run(_stc_linhas(sess.dono))
+    lidos, linhas = _run(_stc_captura_seguinte(sess, *lote(liq)))
+    assert lidos == []
+    assert linhas == [(id_aberta, liq, "ficha", "L", "resolvida")]
+
+
+def test_stc_aberta_atrasada_nao_cria_segunda_linha(monkeypatch):
+    """(a): a liquidada já está gravada (com o número) e o cru ABERTO da mesma aposta chega
+    depois. O `_liquidados` não a vê (a linha está sob o número); sem a trava a Ficha gravaria
+    uma 2ª linha, ABERTA para sempre, com a stake contada em aberto na Caixa."""
+    import virada
+    sess, lote, liq = _stc_cenario(monkeypatch)
+    _run(_virada_ponta_a_ponta(sess, *lote(liq)))
+    antes = _run(_stc_linhas(sess.dono))
+    assert [x[1:] for x in antes] == [(liq, "ficha", "L", "resolvida")]
+    lidos, linhas = _run(_stc_captura_seguinte(sess, *lote(_STC_UID)))
+    assert linhas == antes and lidos == []                 # nem grava, nem vai à IA
+    assert _run(_motivo_virada(sess.dono, _STC_UID)) == ("ficha", virada.ATRASADA)
+    # sem linha gravada, a atrasada não é `pela_ficha`: conta à parte
+    assert _run(_ultimo_virada_log()) == {"capturadas": 1, "ja_no_banco": 0, "pela_ficha": 0,
+                                          "aberta_atrasada": 1, "para_ia": 0}
+
+
+def test_stc_aberta_e_liquidada_no_mesmo_lote_uma_linha(monkeypatch):
+    """(a), no MESMO lote, a liquidada primeiro: sem a trava, a liquidada grava (não há aberta a
+    adotar) e a aberta vem logo depois como linha nova."""
+    sess, lote, liq = _stc_cenario(monkeypatch)
+    resp, lidos, _c, _b = _run(_virada_ponta_a_ponta(sess, *lote(liq, _STC_UID)))
+    assert lidos == []
+    assert [x[1:] for x in _run(_stc_linhas(sess.dono))] == [(liq, "ficha", "L", "resolvida")]
+    # a liquidada a rota do cru já gravou (`ja_no_banco`); a aberta é a atrasada
+    assert _run(_ultimo_virada_log()) == {"capturadas": 2, "ja_no_banco": 1, "pela_ficha": 0,
+                                          "aberta_atrasada": 1, "para_ia": 0}
+
+
+def test_stc_aberta_nao_rebaixa_linha_resolvida_com_o_uuid(monkeypatch):
+    """(a), a forma do E1.2: a linha RESOLVIDA está sob o próprio UUID (IA ou mão) e o cru
+    aberto chega. `_liquidados` + "vazio nunca rebaixa" seguram, como na CopaWin."""
+    sess, lote, _liq = _stc_cenario(monkeypatch)
+    resp, lidos, _c, _b = _run(_virada_ponta_a_ponta(sess, *lote(_STC_UID), antes=(_STC_UID, "W")))
+    assert resp["fichas"] == {"aceitas": 1, "recusadas": 0}
+    assert _run(_estado_da_linha(sess.dono, _STC_UID)) == ("extracao", "W", "resolvida")
+    assert resp["na_planilha"] == 0 and lidos == []
+
+
+async def _ultimo_virada_log():
+    await asyncio.sleep(0.1)          # a métrica vai por `_fire`
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        r = await conn.fetchrow("SELECT capturadas, ja_no_banco, pela_ficha, aberta_atrasada, "
+                                "para_ia FROM virada_log ORDER BY id DESC LIMIT 1")
+    return dict(r) if r else None
+
+
+async def _motivo_virada(dono, cod):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        r = await conn.fetchrow("SELECT estado, motivo FROM ficha_virada WHERE dono = $1 AND "
+                                "codigo = $2", dono, cod)
+    return tuple(r) if r else None
+
+
 async def _virada_segunda_captura(sess, texto, envelhecer=True):
     """2ª captura da mesma casa SEM cru novo (a extensão recarregada sem F5 na aba da casa:
     o texto chega, o cru não). `envelhecer` = o cru guardado é de uma captura anterior."""

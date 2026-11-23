@@ -484,7 +484,8 @@ def test_rc44_liquidada_pela_rota_do_cru_durante_a_espera_nao_vai_a_ia(monkeypat
         return set(), 0.0, {}, set()
 
     async def _registrar(dono, casa_key, capturadas, ja_no_banco, pela_ficha, inalterados,
-                         para_ia, espera=0.0, motivos=None, segurados=0, fora_travas=None):
+                         para_ia, espera=0.0, motivos=None, segurados=0, fora_travas=None,
+                         atrasadas=0):
         registro.update(ja_no_banco=ja_no_banco, para_ia=para_ia, motivos=motivos)
 
     monkeypatch.setattr(virada, "virada", lambda k: True)

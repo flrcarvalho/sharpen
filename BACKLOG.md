@@ -1885,10 +1885,29 @@ outras a IA gravou a colocação e a Ficha segue o `MASTER_OUTPUT §4`). Abertos
 - **Passo 2: as abertas sem `iid`**, medido em 23/11 (só leitura, `stc_abertas.py` da s465): 383
   props e 98 XMulti passaram a liquidadas, o `aliases()` ligou todas sem linha dupla, stake e odd
   do bilhete iguais. Gasto estimado das abertas desde 09/11: ~58% (props US$ 6,01, XMulti 1,84).
-  - **Props aberta:** a odd da perna não mudou em nenhuma; a Ficha aceitaria as 383 se o código
-    fosse o UUID. Aguarda decisão da consultoria para escrever.
+  - **Props aberta: APROVADA pela consultoria com uma condição, já atendida; aguarda o ok do
+    Feca para commit e deploy (s465, 23/11).** Código =
+    UUID do `bet.id` (`stc._codigo_da_aberta`, só `SwishBet`, só aberta, só sem `iid`). A lista
+    de abertas não traz o NOME do esporte, só o slug: `stc._ESPORTE_DO_SLUG` o leva ao nome que a
+    casa escreve na liquidada (3 esportes medidos; fora deles, esporte vazio e IA). **Decisão da
+    consultoria (aceito):** o mapa, e não o slug cru no dicionário (a descrição sairia "texto da
+    casa" até a semente aprender, e congelaria). Aceitas também as duas lacunas (irmãs não
+    conferidas e XMulti aberta atrasada vão à IA).
+    Trava nova: aberta cuja liquidada (outro código) já tem cru nesta conta é atrasada e não
+    grava nem vai à IA (`ficha.codigos_irmaos`, `virada.ATRASADA`); em 30 dias, 0 casos.
+    **Condição da consultoria:** sem linha gravada, a atrasada não conta como `pela_ficha` no
+    `virada_log`; vai à coluna própria `aberta_atrasada` (S7, 4 de 4 mutações detectadas).
+    Backtest nas 383 (dicionário de produção): 383 montam com o UUID, 383 gravariam (83 com
+    perna em texto da casa), linha = a da liquidada em 365; 6 diferem só na odd (perna anulada:
+    a liquidação refresca a odd da aberta) e 11 só na descrição (a liquidada em `Basquete` ou
+    com outro nome de time). Contra a linha da IA: stake e odd 382/382; esporte difere em 72
+    (a Ficha diz `Múltiplos` em 3+ jogos, a IA o esporte) e descrição em 183 (dicionário × texto
+    da casa copiado pela IA). Gates: `test_adaptador_stc.py` (mutações 17-23) e 5 testes de
+    banco `test_stc_*` (S1-S6), 13 de 13 mutações detectadas.
   - **XMulti aberta fica com a IA:** a perna traz a cotação ao vivo (mudou em 81 de 98) e a Ficha
-    exige odd por perna. Só volta com uma fonte da odd da perna na aberta.
+    exige odd por perna. Só volta com uma fonte da odd da perna na aberta. A trava de atrasada
+    não a cobre (ela recusa antes); a aberta atrasada de XMulti pela IA segue possível (0 em 30
+    dias).
 - **692098480 (Gabriel), sem prazo:** a IA gravou odd 9,201848977, 0,17 USDT a mais que o pago
   (70 × 9,19945194 = 643,96). A Ficha não corrige linha existente; corrigir à mão ou por script.
 - RacingBet segue recusada (8 do Gabriel, sem gabarito).

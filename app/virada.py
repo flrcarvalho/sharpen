@@ -236,6 +236,9 @@ async def gravar_na_planilha(dono: str, casa: str, parceiro: str, itens: list[tu
 
 # D42 commit 5 (s438): o `motivo` da aposta que a Ficha gravou com alguma perna no texto da casa.
 TEXTO_DA_CASA = "texto da casa"
+# E1.3 passo 2 (s465): o `motivo` da aberta que a Ficha NÃO gravou porque a liquidada da mesma
+# aposta (outro código, `ficha.codigos_irmaos`) já tem cru nesta conta.
+ATRASADA = "aberta atrasada (liquidada com outro código)"
 
 # O motivo de cada código que fica com a IA → a coluna do `virada_log` (s412).
 MOTIVOS = {
@@ -320,7 +323,8 @@ async def _no_banco(conn, dono: str, casa_key: str, codigos: list[str],
 
 
 async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
-                  candidatas: dict, velhas: set | None = None) -> tuple[set, dict]:
+                  candidatas: dict, velhas: set | None = None,
+                  atrasadas_out: set | None = None) -> tuple[set, dict]:
     """`candidatas` = {código: (Ficha ou None, motivos de recusa)}. Grava o que a Ficha resolve
     e devolve (códigos que a Ficha resolveu, {código: motivo} dos que ficam com a IA).
     Código liquidado no banco não entra em nenhum dos dois: o pré-dedup de sempre o tira, e o
@@ -330,7 +334,11 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
 
     D51 (s465): a Ficha aceita de aposta FINALIZADA com mais de 12 meses (a data mais recente
     entre colocação, liquidação e início das pernas) NÃO grava nem vai à IA; aberta entra sempre.
-    Fica `BARRADA` e, com `velhas` (um set do chamador), o código é posto lá para sair do lote."""
+    Fica `BARRADA` e, com `velhas` (um set do chamador), o código é posto lá para sair do lote.
+
+    E1.3 passo 2 (s465): a aberta ATRASADA (a liquidada já chegou com outro código) sai em
+    `resolvidos` sem gravar linha; com `atrasadas_out`, o código também vai lá, para o `/extrair`
+    a contar à parte no `virada_log` (`aberta_atrasada`), e não como `pela_ficha`."""
     import travas_entrada as _travas
     hoje = _travas.hoje_brasilia()
     casa_key = (casa_key or "").upper()
@@ -359,6 +367,21 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
     # gravá-lo (D10) e o `ficha_virada` não muda: o código é do dono e casa, não da conta.
     outra_conta = (liquidados - await _liquidados(conn, dono, casa_key, list(liquidados),
                                                   parceiro)) if liquidados and parceiro else set()
+    # E1.3 passo 2 (s465): a ABERTA que a casa grava com outro código (a props da Stake.com, UUID
+    # na aberta e número na liquidada) não passa pelo `_liquidados`: a linha resolvida está sob
+    # o NÚMERO. Se esta conta já tem o cru de uma irmã (o histórico só traz aposta liquidada),
+    # a aberta é atrasada: não grava (seria a 2ª linha da mesma aposta, aberta para sempre) e
+    # sai do lote da IA. Vale para a irmã no MESMO lote: o cru é guardado antes da Ficha.
+    abertas = [c for c in cods if c not in liquidados and not candidatas[c][1]
+               and (candidatas[c][0] or {}).get("status") == "aberta"]
+    atrasadas: set = set()
+    sem_conferir: set = set()
+    if abertas:
+        try:
+            atrasadas = set(await _ficha.codigos_irmaos(conn, dono, casa_key, parceiro, abertas))
+        except Exception:  # noqa: BLE001 — sem a conferência, a aberta vai à IA, como antes
+            logger.exception("virada: irmãs das abertas de %s/%s não conferidas", dono, casa_key)
+            sem_conferir = set(abertas)
     termos = await _dic.carregar(conn, casa_key)
     estado = {r["codigo"]: (r["impressao"], r["estado"]) for r in await conn.fetch(
         "SELECT codigo, impressao, estado FROM ficha_virada WHERE dono = $1 AND casa = $2 "
@@ -386,8 +409,14 @@ async def aplicar(conn, dono: str, casa_key: str, casa: str, parceiro: str,
         if cod in liquidados:
             continue
         f, motivos = candidatas[cod]
-        if f is None or motivos:
+        if f is None or motivos or cod in sem_conferir:
             ia(cod, "Ficha recusada")
+            continue
+        if cod in atrasadas:                         # E1.3 passo 2: a liquidada já chegou
+            resolvidos.add(cod)
+            novo_estado[cod] = (f.get("impressao") or "", "ficha", ATRASADA)
+            if atrasadas_out is not None:
+                atrasadas_out.add(cod)
             continue
         if _travas.ficha_velha(f, hoje):             # D51: nem grava nem vai à IA
             novo_estado[cod] = (f.get("impressao") or "", BARRADA, _travas.IDADE)
@@ -849,11 +878,14 @@ async def resolver_no_extrair(dono: str, casa_key: str, casa: str, parceiro: str
                 if segurar:
                     await _segurar(conn, dono, ck, segurar)
                 velhas: set = set()
+                atrasadas: set = set()
                 resolvidos, fica_ficha = await aplicar(conn, dono, casa_key, casa, parceiro,
-                                                       candidatas, velhas)
+                                                       candidatas, velhas, atrasadas)
                 fica.update(fica_ficha)
                 if velhas and info is not None:     # s465: o `/extrair` as tira do lote
                     info["velhas_ficha"] = velhas
+                if atrasadas and info is not None:  # E1.3 passo 2: contadas à parte, sem linha
+                    info["atrasadas_ficha"] = atrasadas
             # Depois de decidir os do texto: a aposta que o texto não trouxe (s423) e a soltura
             # dos avisos. Falha aqui não tira nada do lote da IA: só deixa de avisar.
             try:
@@ -874,13 +906,16 @@ async def resolver_no_extrair(dono: str, casa_key: str, casa: str, parceiro: str
 async def registrar(dono: str, casa_key: str, capturadas: int, ja_no_banco: int,
                     pela_ficha: int, inalterados: int, para_ia: int, espera: float = 0.0,
                     motivos: dict | None = None, segurados: int = 0,
-                    fora_travas: dict | None = None) -> None:
+                    fora_travas: dict | None = None, atrasadas: int = 0) -> None:
     """Uma linha por `/extrair` da casa virada: a métrica antes × depois
     (`medicoes/medir_virada_custo.py`), com o motivo de cada código que foi para a IA
     (`motivos` = {motivo: n}, as chaves de `MOTIVOS`) e, desde a D39, quantos ficaram fora da IA
     esperando cru (`captura_incompleta`). Desde a s465, quantos as travas de entrada tiraram
     ANTES de tudo (`fora_idade`, D51; `fora_moeda`): eles não entram em `capturadas`, que segue
-    contando só o que sobrou no texto. Falha aqui não importa para a captura."""
+    contando só o que sobrou no texto. `atrasadas` (E1.3 passo 2) = abertas que a Ficha tirou do
+    lote SEM gravar linha (a liquidada já chegou com outro código): estão em `capturadas`, mas
+    nunca em `pela_ficha`, que conta só o que a Ficha leu e tem linha. Falha aqui não importa
+    para a captura."""
     import travas_entrada as _travas
     m = [(motivos or {}).get(mot, 0) for mot in MOTIVOS]
     ft = fora_travas or {}
@@ -891,11 +926,11 @@ async def registrar(dono: str, casa_key: str, capturadas: int, ja_no_banco: int,
                 f"""INSERT INTO virada_log (dono, casa, capturadas, ja_no_banco, pela_ficha,
                                             inalterados, para_ia, espera_s,
                                             {", ".join(MOTIVOS.values())}, captura_incompleta,
-                                            fora_idade, fora_moeda)
-                    VALUES ({", ".join(f"${i}" for i in range(1, 12 + len(MOTIVOS)))})""",
+                                            fora_idade, fora_moeda, aberta_atrasada)
+                    VALUES ({", ".join(f"${i}" for i in range(1, 13 + len(MOTIVOS)))})""",
                 dono, (casa_key or "").upper(), capturadas, ja_no_banco, pela_ficha,
                 inalterados, para_ia, round(espera, 2), *m, segurados,
-                ft.get(_travas.IDADE, 0), ft.get(_travas.MOEDA, 0))
+                ft.get(_travas.IDADE, 0), ft.get(_travas.MOEDA, 0), atrasadas)
     except Exception:  # noqa: BLE001
         logger.exception("virada: não registrou a métrica de %s/%s", dono, casa_key)
 

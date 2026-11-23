@@ -1133,6 +1133,9 @@ ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS outra_conta INTEGER NOT NULL DEF
 -- medida. Não entram em `capturadas`.
 ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS fora_idade INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS fora_moeda INTEGER NOT NULL DEFAULT 0;
+-- E1.3 passo 2 (s465): a aberta ATRASADA (Stake.com: a props com UUID cuja liquidada já chegou
+-- com o número). Sai do lote da IA sem gravar linha; está em `capturadas` e nunca em `pela_ficha`.
+ALTER TABLE virada_log ADD COLUMN IF NOT EXISTS aberta_atrasada INTEGER NOT NULL DEFAULT 0;
 
 -- D42 (s438): todo voto que a semente RECUSA fica registrado com o motivo e o termo (antes sumia em
 -- silêncio), e a perna que a Ficha grava com o texto da casa por falta de par (`origem =

@@ -410,6 +410,36 @@ async def aliases_do_cru(dono: str, casa_key: str, parceiro: str, codigos: list[
         return {}
 
 
+async def codigos_irmaos(conn, dono: str, casa_key: str, parceiro: str,
+                         codigos: list[str]) -> dict:
+    """{código: {outros códigos da MESMA aposta}} no SENTIDO CONTRÁRIO do `aliases_do_cru`
+    (E1.3 passo 2, s465): dado o código de uma ABERTA sem `iid` (o UUID da Stake.com), os crus
+    guardados nesta conta que a declaram como alias. É a liquidada, gravada com o número, que a
+    aberta atrasada não pode duplicar. Só a família que diz onde mora o alias no cru
+    (`ALIAS_CAMINHO`), e cada candidato é conferido pelo `aliases(cru)` do próprio adaptador:
+    o caminho só estreita a busca, quem decide é a casa. Levanta: o chamador decide."""
+    codigos = sorted({c for c in codigos if c})
+    if not codigos or not casa_key:
+        return {}
+    from adaptadores import ADAPTADORES
+    out: dict = {}
+    for familia, mod in ADAPTADORES.items():
+        caminho = getattr(mod, "ALIAS_CAMINHO", None)
+        if not caminho or not hasattr(mod, "aliases"):
+            continue
+        rows = await conn.fetch(
+            "SELECT DISTINCT ON (codigo) codigo, cru::text AS cru FROM captura_crua "
+            "WHERE dono = $1 AND casa = $2 AND parceiro = $3 AND familia = $4 "
+            "AND cru #>> $5::text[] = ANY($6::text[]) AND NOT (codigo = ANY($6::text[])) "
+            "ORDER BY codigo, recebido_em DESC, id DESC",
+            dono, casa_key.upper(), parceiro or "", familia, list(caminho), codigos)
+        for r in rows:
+            for alias in mod.aliases(json.loads(r["cru"])) or []:
+                if alias in codigos and alias != r["codigo"]:
+                    out.setdefault(alias, set()).add(r["codigo"])
+    return out
+
+
 def absorvidos(familia: str, cru) -> list[str]:
     """Os códigos que o bilhete deste cru SUBSTITUI, pelo `absorvidos(cru)` do adaptador da
     família (s445: a sub-posição juntada da Cloudbet substitui as linhas por `uuid` de captura

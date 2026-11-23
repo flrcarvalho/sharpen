@@ -1697,6 +1697,7 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
     pela_ficha: set[str] = set()
     segurados: set[str] = set()
     velhas_ficha: set[str] = set()
+    atrasadas: set[str] = set()
     espera, fica_ia = 0.0, {}
     if virou:
         # N3 (parecer 012): a Ficha só tira o código se o cru é desta captura OU se o bloco
@@ -1716,10 +1717,12 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
         # `blocos_txt` leva o veredito do texto para conferir o cru guardado liquidado.
         # s465: o código que a trava de entrada tirou do texto continua "no texto" para o
         # `_pendentes`: a casa o mandou e ele foi decidido de propósito, não esquecido.
+        # E1.3 passo 2: a contagem das atrasadas não pode depender de o chamador passar `info`.
+        vinfo = info if info is not None else {}
         pela_ficha, espera, fica_ia, segurados = await _virada.resolver_no_extrair(
             dono, casa_key, casa, parceiro, [c for c in dict.fromkeys(codigos)
                                              if c not in ja_resolvidos], iguais,
-            no_texto=list(dict.fromkeys(list(codigos) + list(barrados or {}))), info=info,
+            no_texto=list(dict.fromkeys(list(codigos) + list(barrados or {}))), info=vinfo,
             blocos=blocos_txt)
         # s465: a Ficha que a régua de idade barrou na `aplicar` (texto sem data legível e cru
         # com ela) também sai do lote, sem IA: o texto não disse nada que a desmentisse.
@@ -1730,6 +1733,9 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
             fora_travas[_travas.IDADE] = fora_travas.get(_travas.IDADE, 0) + len(velhas_ficha)
             if info is not None:            # o `/extrair` soma na contagem da tela
                 info["velhas_ficha_n"] = len(velhas_ficha)
+        # E1.3 passo 2 (s465): a aberta atrasada sai do lote como as da Ficha, mas SEM linha
+        # gravada: conta à parte (`aberta_atrasada`), nunca como `pela_ficha`.
+        atrasadas = set(vinfo.pop("atrasadas_ficha", None) or ())
         # RC44 (parecer 023 §2.3): a rota do cru pode gravar DURANTE a espera acima, e o código
         # que ela liquidou nesse meio-tempo a `aplicar` pula (`_liquidados`, D10) sem dar
         # motivo: ele ia à IA à toa (20BET do Gabriel, 06/11: 129 apostas, US$ 0,94). Refaz o
@@ -1746,7 +1752,7 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
 
     mantidos: list[str] = []
     vistos: set[str] = set()
-    skipped = inalterados = n_ficha = 0
+    skipped = inalterados = n_ficha = n_atrasadas = 0
     for block, bid in zip(blocks, ids):
         if bid:
             if bid in vistos or bid in ja_resolvidos:
@@ -1754,7 +1760,10 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
                 continue
             if bid in pela_ficha:
                 vistos.add(bid)
-                n_ficha += 1
+                if bid in atrasadas:
+                    n_atrasadas += 1
+                else:
+                    n_ficha += 1
                 skipped += 1
                 continue
             if bid in segurados:               # D39: espera o cru, nunca vai à IA
@@ -1789,7 +1798,7 @@ async def _dedup_superbet_text(text: str, dono: str, casa: str = "",
         _fire(_virada.registrar(dono, casa_key, len(set(codigos)),
                                 len(set(codigos) & ja_resolvidos), n_ficha, inalterados,
                                 len(mantidos), espera, motivos, len(segurados),
-                                fora_travas=fora_travas))
+                                fora_travas=fora_travas, atrasadas=n_atrasadas))
         if motivos.get("termo fora do dicionário") or motivos.get("descrição fora do dicionário"):
             _virada.marcar_termo_novo(dono, casa)
         # A Ficha LEU estes blocos: sem o `bloco_visto` deles, a captura seguinte (texto igual,

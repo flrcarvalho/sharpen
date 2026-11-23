@@ -366,13 +366,14 @@ def test_insert_do_virada_log_fecha_colunas_e_parametros(monkeypatch):
         return pool
     monkeypatch.setattr(virada, "_pool_conn", _p)
     asyncio.run(virada.registrar("Jonathan", "SPORTSBETIO", 5, 0, 0, 0, 5,
-                                 fora_travas={T.IDADE: 185, T.MOEDA: 2}))
+                                 fora_travas={T.IDADE: 185, T.MOEDA: 2}, atrasadas=3))
     (sql, args), = pool.sql
     colunas = re.search(r"\((.*?)\)\s*VALUES", sql, re.S).group(1).split(",")
     marcas = re.findall(r"\$\d+", sql)
     assert len(colunas) == len(marcas) == len(args)
-    assert [c.strip() for c in colunas[-2:]] == ["fora_idade", "fora_moeda"]
-    assert args[-2:] == (185, 2)
+    # E1.3 passo 2 (s465): `aberta_atrasada` entrou depois das travas
+    assert [c.strip() for c in colunas[-3:]] == ["fora_idade", "fora_moeda", "aberta_atrasada"]
+    assert args[-3:] == (185, 2, 3)
 
 
 def test_check_da_ficha_virada_aceita_barrada():

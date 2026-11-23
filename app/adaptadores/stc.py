@@ -30,6 +30,9 @@ cruzadas com os cards de `/pt/my-bets/sports`.
     `adjustments`), cashout parcial (`cashouts`) e cashout com retorno ≠ stake.
   • ALIASES (s445): a aberta de props/XMulti não traz `iid` e a extensão a grava com o UUID do
     `bet.id`; o `aliases(cru)` da liquidada devolve esse UUID para o `/salvar` adotar a linha.
+  • PROPS ABERTA (E1.3 passo 2, s465): passa pela Ficha com o UUID como código
+    (`_codigo_da_aberta`). A trava contra a aberta atrasada (a liquidada já gravada com o
+    número) é da virada, que acha a irmã pelo `ALIAS_CAMINHO` (`ficha.codigos_irmaos`).
 """
 from __future__ import annotations
 
@@ -66,6 +69,12 @@ def codigo(cru) -> str:
         return ""
     m = _IID.match(str(cru.get("iid") or ""))
     return m.group(1) if m else ""
+
+
+# Onde mora, no cru, o código que o `aliases()` devolve (o UUID do `bet.id`): as chaves do
+# caminho do operador `#>>` do Postgres. É por ele que a virada acha a LIQUIDADA de uma aberta
+# sem `iid` (`ficha.codigos_irmaos`), conferindo cada uma pelo próprio `aliases()`.
+ALIAS_CAMINHO = ("bet", "id")
 
 
 def aliases(cru) -> list[str]:
@@ -130,6 +139,16 @@ def _status(b: dict) -> str:
                  f"e odd {_odd(b)!r} (sem amostra; a conferir)")
 
 
+# O nome que a casa escreve para o `slug` do esporte, medido nos crus de `captura_crua` (30 dias
+# até 23/11/2026: 4.502 pernas de props com nome, em 3.221 crus de três contas; harness:
+# `tests/test_adaptador_stc.py::test_props_aberta_monta_com_o_uuid_e_bate_com_a_liquidada`).
+# Só os três esportes que a props aberta trouxe (1.428 pernas). `basketball` sai `Basquetebol`
+# (2.116 pernas) e não `Basquete` (83): a casa escreve os dois, às vezes na mesma conta, e o
+# dicionário da Stake.com aprendeu as chaves de descrição no majoritário.
+_ESPORTE_DO_SLUG = {"basketball": "Basquetebol", "ice-hockey": "Hóquei no Gelo",
+                    "american-football": "Futebol Americano"}
+
+
 def _fixture(fx: dict) -> dict:
     fx = fx or {}
     tor = fx.get("tournament") or {}
@@ -138,8 +157,13 @@ def _fixture(fx: dict) -> dict:
     # `teams` diz quem é mandante (`qualifier`); corrida e outright não têm times.
     times = {t.get("qualifier"): _limpo(t.get("name")) for t in (dados.get("teams") or []) if isinstance(t, dict)}
     casa, fora = times.get("home"), times.get("away")
+    # E1.3 passo 2 (s465): a lista de ABERTAS não pede o nome do esporte, só o `slug`. Ele vira o
+    # nome que a PRÓPRIA casa escreve na liquidada (`_ESPORTE_DO_SLUG`), para a aberta cair nas
+    # mesmas chaves de esporte, categoria e DESCRIÇÃO do dicionário: a descrição da 1ª gravação
+    # congela (o UPSERT só a refaz em `sync`/REVISAR). Slug fora do mapa: esporte vazio, IA.
     return {"evento": _limpo(fx.get("name") or dados.get("name")), "liga_casa": _limpo(tor.get("name")) or None,
-            "esporte_casa": _limpo(sp.get("name")) or None, "inicio": _iso(dados.get("startTime")),
+            "esporte_casa": _limpo(sp.get("name")) or _ESPORTE_DO_SLUG.get(_limpo(sp.get("slug"))),
+            "inicio": _iso(dados.get("startTime")),
             "mandante": casa or None, "visitante": fora or None}
 
 
@@ -217,8 +241,23 @@ def _perna_swish(o: dict, herdado) -> dict:
                 odd=numero(o.get("odds")), status_perna="anulada" if o.get("cancel") else herdado)
 
 
+def _codigo_da_aberta(cru: dict) -> str:
+    """E1.3 passo 2 (s465): a props ABERTA (`SwishBet`) não traz `iid`, e o código dela é o UUID
+    do `bet.id`, o MESMO que a extensão grava (`stc_inject._codigo`) e que o `aliases()` da
+    liquidada devolve para o `/salvar` adotar a linha. Só a props, só aberta e só sem `iid`
+    nenhum: a XMulti aberta segue com a IA (a perna traz a cotação ao vivo), e `iid` de outro
+    prefixo segue recusado. Medido (23/11/2026, 30 dias): nas 383 passagens aberta → liquidada
+    a stake, a odd do bilhete e a odd de cada perna não mudaram."""
+    b = cru.get("bet") or {}
+    if b.get("__typename") != "SwishBet" or str(cru.get("iid") or "").strip():
+        return ""
+    if not (b.get("active") is True or b.get("status") in ("confirmed", "pending")):
+        return ""
+    return str(b.get("id") or "").strip()
+
+
 def adaptar(cru: dict, casa_key: str) -> dict:
-    cod = codigo(cru)
+    cod = codigo(cru) or _codigo_da_aberta(cru)
     if not cod:
         raise Recusa("bilhete sem iid")
     b = cru.get("bet") or {}
