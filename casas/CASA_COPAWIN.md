@@ -86,9 +86,14 @@ a IA leria derrota como ganho.
 | `items[].leg_statuses` · `leg_descriptions` · `leg_matches` | só na **Odd Turbinada** (§6) |
 | `has_void_leg` | `true` nas duas anuladas |
 
-**Ficha (s451):** adaptador `app/adaptadores/cw.py`, gate `tests/test_adaptador_cw.py`. A
-Ficha aceita simples `won`/`lost`/`void` cujo dinheiro fecha (§5) e recusa o resto, que vai à
-IA pelo texto: aberta, múltipla, cashout sem as três provas da §7, boost e a Odd Turbinada (sem odd por seleção).
+**Ficha (s451; s465 E1.2):** adaptador `app/adaptadores/cw.py`, gate `tests/test_adaptador_cw.py`
+(crus reais em `tests/fixtures/cw_multipla_s465.json`). A Ficha aceita simples `won`/`lost`/`void`
+cujo dinheiro fecha (§5), a **aberta** (`pending`/`active`, sem resultado e sem retorno) e a
+**múltipla** pelo dinheiro: `lost` com retorno 0, e `won` sem perna perdida ou aberta cujo
+retorno fecha por stake × `total_odds` (a casa às vezes paga MENOS que o produto) ou por stake ×
+produto das pernas não anuladas. Recusa o resto, que vai à IA pelo texto: múltipla `won` que não
+fecha (12 reais em 30 dias, 6 com perna perdida), múltipla `void` ou com cashout, cashout simples
+sem as três provas da §7, boost e a Odd Turbinada (sem odd por seleção).
 
 ---
 
@@ -226,8 +231,9 @@ Campo `stake`, texto em R$.
       anulada (16,98 → 8,71) e 713707 com `total_odds` 10.74 para a odd 10,742. Antes da 0.7.81
       o bloco dizia "a conferir" e a IA gravava as duas abertas.
 - [x] **Meia vitória/derrota simples** (s453, `copawin.meia-asiatica.json`, Jonathan 14/11/2026).
-- [ ] **Boost / múltipla e meia na Ficha:** salvar o JSON como fixture,
-      trocar o clone do harness e liberar na Ficha.
+- [x] **Múltipla e aberta na Ficha** (s465, E1.2): 321 múltiplas com gabarito e 345 passagens de
+      aberta a liquidada, `captura_crua` de 30 dias.
+- [ ] **Boost e meia na Ficha:** salvar o JSON como fixture, trocar o clone do harness e liberar.
 - [ ] **Mais de uma página:** conferir que o inject parou em `total_pages` e não repetiu a 1ª.
 
 ---

@@ -1880,6 +1880,75 @@ def test_virada_d10_liquidada_nao_e_reescrita(monkeypatch):
     assert banco[aceita] == ("extracao", "W")
 
 
+# ── s465 (E1.2, CopaWin): a aberta pela Ficha nunca rebaixa linha resolvida ────────────────
+# Condição (c) da consultoria. O cru é o REAL do 836516 (Jonathan, `pending`, a aposta que a IA
+# gravou W em 23/11/2026; `tests/fixtures/cw_multipla_s465.json`). Caminho real: rota do cru
+# (`ficha.receber` → `virada.aplicar`) → pré-dedup do `/extrair` → IA dublê → `/salvar`.
+# DUAS camadas seguram, e as mutações (Postgres local, 22/11/2026) medem cada uma:
+#   CW1. `virada._liquidados` vazio: a Ficha manda a aberta ao `/salvar` (na_planilha 1), e o
+#        UPSERT ("vazio nunca rebaixa") mantém W/resolvida  → nao_rebaixa vermelho (na_planilha)
+#   CW1b. só o UPSERT rebaixando (resultado = EXCLUDED, estado sem a trava): ESCAPA, inócua
+#        neste caminho, porque o `_liquidados` não deixa a aberta chegar ao `/salvar`
+#   CW2. as duas fora: a linha vira ('extracao', None, 'aberta')  → nao_rebaixa vermelho (estado)
+#   CW3. a aberta volta a recusar no `cw.py`                     → os dois vermelhos
+def _cw_aberta_cenario(monkeypatch):
+    import json as _json
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    import ficha
+    import main
+
+    fx = _json.loads((Path(__file__).resolve().parent / "fixtures" / "cw_multipla_s465.json")
+                     .read_text(encoding="utf-8"))
+    cod = "836516"
+    cru = fx["aberta_simples"][cod]["cru"]
+    sess = SimpleNamespace(dono="TDonoCW", casa_key="COPAWIN", casa=main._casa_display("COPAWIN"),
+                           parceiro="Richard [Richard]")
+    monkeypatch.setattr(ficha._captura, "sessao_por_token", lambda t: sess)
+    monkeypatch.setattr(ficha._captura, "registrar_versao", lambda s, v: None)
+    monkeypatch.setenv("FICHA_SOMBRA_CASAS", "")
+    monkeypatch.delenv("CRU_CAPTURA_DESLIGADA", raising=False)
+    monkeypatch.setenv("FICHA_CASAS_VIRADAS", "COPAWIN")
+    sess.termos = [("COPAWIN", "esporte", "futebol", "Futebol"),
+                   ("COPAWIN", "categoria", "resultado final ({n} min)", "ML"),
+                   ("COPAWIN", "categoria", "resultado final ({n} min) | {ent}", "ML")]
+    payload = {"token": "t", "versao": "0.7.92", "familia": "cw",
+               "itens": [{"codigo": cod, "cru": cru}]}
+    texto = (f"[Código: {cod}]\nStake: R$ 187,00\n"
+             "Status: em aberto (aguardando resultado — NÃO liquidar; sem resultado)\n")
+    return sess, payload, texto, cod
+
+
+async def _estado_da_linha(dono, cod):
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        r = await conn.fetchrow("SELECT origem, resultado, extraction_state FROM bilhetes "
+                                "WHERE dono = $1 AND codigo_bilhete = $2", dono, cod)
+    return tuple(r) if r else None
+
+
+def test_cw_aberta_nao_rebaixa_linha_resolvida(monkeypatch):
+    sess, payload, texto, cod = _cw_aberta_cenario(monkeypatch)
+    resp, lidos, _cortados, banco = _run(_virada_ponta_a_ponta(sess, payload, texto,
+                                                               antes=(cod, "W")))
+    assert resp["fichas"] == {"aceitas": 1, "recusadas": 0}     # a aberta monta na Ficha
+    # O ESTADO da linha primeiro: é ele que a condição (c) pede, e é por ele que as mutações
+    # do cabeçalho se medem (a asserção do `na_planilha` mediria só a 1ª camada).
+    assert _run(_estado_da_linha(sess.dono, cod)) == ("extracao", "W", "resolvida")
+    assert resp["na_planilha"] == 0 and lidos == []
+
+
+def test_cw_aberta_sem_linha_entra_aberta_pela_ficha(monkeypatch):
+    """Controle do teste acima: sem a linha resolvida, o MESMO cru grava pela Ficha, aberto.
+    Sem ele, o teste de cima passaria com a aberta nem chegando à planilha."""
+    sess, payload, texto, cod = _cw_aberta_cenario(monkeypatch)
+    resp, lidos, _cortados, banco = _run(_virada_ponta_a_ponta(sess, payload, texto))
+    assert resp["na_planilha"] == 1 and lidos == []
+    origem, resultado, estado = _run(_estado_da_linha(sess.dono, cod))
+    assert (origem, resultado or "", estado) == ("ficha", "", "aberta")
+
+
 async def _virada_segunda_captura(sess, texto, envelhecer=True):
     """2ª captura da mesma casa SEM cru novo (a extensão recarregada sem F5 na aba da casa:
     o texto chega, o cru não). `envelhecer` = o cru guardado é de uma captura anterior."""

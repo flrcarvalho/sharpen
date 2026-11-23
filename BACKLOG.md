@@ -1957,8 +1957,24 @@ na conta limitada do Feca (`CASA_COPAWIN.md`). Harness e adaptador com 15 bilhet
 - **Botão Conectar em produção:** `_casaConectavel('CopaWin')` × controle negativo, e
   `COPAWIN` em `captura` no `/casas`. O Chrome travou antes da prova.
 - **1ª captura pela extensão instalada**, conferida no `virada_log` (pela_ficha × para_ia).
-- **Sem amostra, o adaptador recusa:** aberta, múltipla, cashout, boost e a Odd Turbinada.
-  Medir cada uma quando aparecer numa conta viva.
+- **Sem amostra, o adaptador recusa:** múltipla `void` ou com cashout, boost e a Odd Turbinada.
+  Medir cada uma quando aparecer numa conta viva. Aberta e múltipla saíram desta lista na s465
+  (E1.2): medidas em 30 dias de `captura_crua`.
+- **Simples `won` que não fecha (s465, sem prazo):** 18 códigos do Jonathan em 30 dias (até
+  22/11/2026), retorno ≠ stake × odd (ex.: 75 sobre 150 @ 2,02, retorno = stake/2; 417 sobre
+  300 @ 1,78). Parece meia vitória/derrota sem linha partida ou produto da casa. Seguem com a IA.
+  Medir contra o card antes de liberar.
+- **`boost_pct` (s465, sem prazo):** 1 código do Jonathan (705192, `boost_pct` 5.00, `lost`).
+  Sem amostra de `won` com boost, a conta do retorno não está provada.
+- **Múltipla `won` que nenhuma conta explica (s465):** 12 em 30 dias (6 com perna PERDIDA e
+  `status won` com retorno, ex. 713945 pagou stake × 1,9425 com uma perna perdida). Produto da
+  casa sem amostra; o adaptador recusa e a IA lê. Medir no card.
+- **A IA gravou W numa aposta ABERTA (s465, 836516 do Jonathan, 23/11/2026 01:14 UTC):** o bloco
+  dizia `Status: em aberto (... NÃO liquidar; sem resultado)` e a nota da própria IA diz
+  "Resultado deixado VAZIO", mas a linha nasceu `W/resolvida` (origem `extracao`; o
+  `corrigir_stake_tsv` reproduzido local não cria nem tira o W). Nenhum portão confere o
+  resultado da IA contra um bloco "em aberto". Com o E1.2 a aberta da CopaWin vai pela Ficha;
+  nas outras casas o furo segue.
 - **Jaao26 entrava por print** (166 bilhetes, 15 a 27/10). Com `COPAWIN` em `CASAS_COM_FICHA`,
   print e PDF dela são recusados no `/extrair`: ele precisa da extensão.
 

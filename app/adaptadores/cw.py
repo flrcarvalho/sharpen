@@ -19,10 +19,29 @@ liquidadas, 5 ganhas, 8 perdidas, 2 anuladas). Escrito ANTES do 1º cru real che
     `cashout` + `cashout_used` 1 + `actual_return` = `cashout_value` → status `cashout`, e a
     Ficha decide pelo dinheiro (≠ stake → W @ retorno ÷ stake; = stake → V). A perna fica com
     o `result` que a casa der depois (`pending`, `won`): o dinheiro já saiu, e ele manda.
-  • Sem amostra, RECUSA: aberta (`pending`/`active`), múltipla (`type` ≠ `single`), cashout
-    sem as três provas, boost (`boost_pct`) e a ODD TURBINADA
-    (`market_key: "combined"`: 4 seleções num item só, sem odd por seleção — a Ficha exige
-    odd em cada perna e inventá-la seria chute).
+  • ABERTA (s465, E1.2): `pending`/`active` entra como `aberta`, com stake e `total_odds` e
+    sem retorno. Medido em 30 dias de `captura_crua` (22/11/2026): 345 códigos passaram de
+    aberta a liquidada, nenhum voltou, a stake nunca mudou e nenhuma aberta trazia
+    `actual_return`. Só a `total_odds` muda, quando uma perna é anulada (16 de 345), e a linha
+    aberta é refrescada até liquidar.
+  • MÚLTIPLA (s465, E1.2; `type: "multiple"`, 2 ou mais itens), pelo DINHEIRO. Gabarito: 321
+    liquidadas com linha da IA, stake, odd, resultado e retorno 100% iguais.
+      - `lost` + retorno 0 → perdida, odd = `total_odds` (o que o card mostra e a IA grava).
+        As pernas que a casa não julgou ficam `pending` dentro da perdida.
+      - `won` sem perna perdida ou aberta → ganha, SÓ se o retorno fecha no centavo por uma de
+        duas contas: stake × `total_odds` (a casa às vezes paga MENOS que o produto: 16,47 →
+        15,65) ou stake × produto das pernas NÃO anuladas (27 de 27 com perna anulada; sem
+        perna anulada é o produto de todas, que a `total_odds` arredonda: 3,8092 → 3,81, e o
+        retorno usa 3,8092). Uma 3ª conta, o produto de TODAS as pernas, foi medida inócua:
+        em 144 crus `won` ela nunca fechou sem a das não anuladas fechar junto. A odd gravada
+        é a do `ficha._odd`, que fecha o retorno.
+      - O resto RECUSA ANTES da Ficha: 12 `won` reais que nenhuma conta explica (6 com perna
+        perdida, 6 que não fecham). Sem a recusa aqui, o "nenhuma fecha: retorno ÷ stake" do
+        `ficha._odd` os gravaria.
+      - múltipla `void` ou com cashout: sem amostra, recusa.
+  • Sem amostra, RECUSA: `type` fora de `single`/`multiple`, cashout sem as três provas, boost
+    (`boost_pct`) e a ODD TURBINADA (`market_key: "combined"`: 4 seleções num item só, sem odd
+    por seleção — a Ficha exige odd em cada perna e inventá-la seria chute).
 """
 from __future__ import annotations
 
@@ -59,8 +78,12 @@ def _status(t: dict) -> str:
     stake, ret, odd = _d(t.get("stake")), _d(t.get("actual_return")), _d(t.get("total_odds"))
     cru = f"status {st!r}"
     if st in ("pending", "active"):
-        raise Recusa(f"{cru}: aberta sem amostra (a conferir)")
+        if stake is None or stake <= 0:
+            raise Recusa(f"{cru}: aberta sem stake")
+        return "aberta"
     usado = str(t.get("cashout_used") or "0") not in ("0", "False", "false")
+    if t.get("type") == "multiple":
+        return _status_multipla(t, st, usado, stake, ret, odd)
     if stake is None or stake <= 0 or ret is None:
         if st == "cashout" or usado:
             raise Recusa(f"{cru}: cashout sem stake ou sem actual_return")
@@ -85,14 +108,46 @@ def _status(t: dict) -> str:
                  "(HW/HL, boost ou status não mapeado, a conferir)")
 
 
+def _produto(odds) -> Decimal | None:
+    p = Decimal(1)
+    for o in odds:
+        if o is None:
+            return None
+        p *= o
+    return p
+
+
+def _status_multipla(t: dict, st, usado: bool, stake, ret, odd) -> str:
+    """Status da múltipla liquidada, pelo dinheiro (ver o cabeçalho). Recusa o que não fecha."""
+    cru = f"status {st!r} · múltipla"
+    if st == "cashout" or usado:
+        raise Recusa(f"{cru}: cashout em múltipla sem amostra")
+    if stake is None or stake <= 0 or ret is None:
+        raise Recusa(f"{cru}: sem stake ou sem actual_return")
+    itens = t.get("items") or []
+    res = [it.get("result") for it in itens]
+    if st == "lost" and ret == 0:
+        return "perdida"
+    if st == "won" and "lost" not in res and "pending" not in res and "active" not in res:
+        validas = _produto(_d(it.get("odds")) for it in itens if it.get("result") != "void")
+        for conta in (odd, validas):
+            if conta is not None and abs(ret - stake * conta) <= _CENTAVO:
+                return "ganha"
+    raise Recusa(f"{cru}: retorno {ret} sobre stake {stake} @ {odd} não fecha por "
+                 "total_odds nem pelo produto das pernas não anuladas (a conferir)")
+
+
 def adaptar(t: dict, casa_key: str) -> dict:
     if not isinstance(t, dict) or t.get("id") in (None, ""):
         raise Recusa("bilhete sem id")
-    if t.get("type") != "single":
-        raise Recusa(f"type {t.get('type')!r} sem amostra (só `single` medido)")
+    tipo = t.get("type")
+    if tipo not in ("single", "multiple"):
+        raise Recusa(f"type {tipo!r} sem amostra (só `single` e `multiple` medidos)")
     itens = t.get("items") or []
-    if len(itens) != 1:
+    if tipo == "single" and len(itens) != 1:
         raise Recusa(f"simples com {len(itens)} item(ns)")
+    if tipo == "multiple" and len(itens) < 2:
+        raise Recusa(f"múltipla com {len(itens)} item(ns)")
     status = _status(t)
     pernas = []
     for it in itens:
@@ -124,8 +179,8 @@ def adaptar(t: dict, casa_key: str) -> dict:
         "stake_freebet": None,
         "odd": numero(t.get("total_odds")),
         "odd_calculada": False,
-        "retorno": numero(t.get("actual_return")),
-        "tipo": "simples",
+        "retorno": None if status == "aberta" else numero(t.get("actual_return")),
+        "tipo": "multipla" if tipo == "multiple" else "simples",
         "sistema": None,
         "pernas": pernas,
         "origem": "servidor:adaptador_cw",

@@ -20,13 +20,32 @@ Cashout (s454), 3 reais em `copawin.cashout.json`; mutações provadas: sem conf
 `cashout_value`, sem exigir status E `cashout_used`, cashout virando `ganha`, ramo inteiro
 fora (4 de 4 detectadas).
 
-O QUE NÃO COBRE: aberta, múltipla e boost REAIS (a conta, limitada, não tem nenhum;
-os testes usam clone com o campo trocado), meia vitória real, `liquidada_em` contra a tela
-(o card não mostra a hora da liquidação).
+Múltipla e aberta (s465, E1.2): crus REAIS em `tests/fixtures/cw_multipla_s465.json`
+(`captura_crua` de produção, 30 dias até 22/11/2026, sem `user_id`), com o gabarito = a linha
+que a IA gravou no banco. Backtest D22 completo (fora daqui, só leitura): 321 múltiplas com
+gabarito, 309 aceitas com stake, odd, resultado e retorno iguais e 12 recusadas; 345 passagens
+de aberta a liquidada, a stake nunca mudou. Mutações provadas (aplicadas, teste vermelho):
+  9. a recusa da múltipla que não fecha sai (fallback retorno ÷ stake da Ficha grava)
+                                                    → test_multipla_won_que_nao_fecha_recusa
+ 10. sem a conta stake × total_odds                   → test_multipla_real_bate[718756]
+ 11. (a conta "produto de TODAS as pernas" escapou: inócua, medida em 144 crus `won`, e saiu
+     do código)
+ 12. sem a conta do produto das NÃO anuladas          → test_multipla_real_bate[725108/819029]
+ 13. `won` com perna perdida/aberta deixa de recusar  → test_multipla_won_que_nao_fecha_recusa
+ 14. aberta volta a recusar                           → test_aberta_real_entra_sem_resultado
+ 15. aberta leva o `actual_return`                    → test_aberta_real_entra_sem_resultado
+ 16. múltipla `void`/cashout deixa de recusar          → test_multipla_sem_amostra_recusa
+ 17. tipo da Ficha fica `simples` na múltipla         → test_multipla_real_bate
+
+O QUE NÃO COBRE: boost e meia vitória REAIS (os testes usam clone com o campo trocado),
+múltipla `void` ou cashout real (não houve nenhuma em 30 dias), `liquidada_em` contra a tela
+(o card não mostra a hora da liquidação). Que a aberta não rebaixa linha resolvida está no
+harness de banco (`test_repository_db.py::test_cw_aberta_nao_rebaixa_linha_resolvida`).
 """
 import copy
 import json
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 sys.path.insert(0, "app")
@@ -119,9 +138,9 @@ def test_dinheiro_que_nao_fecha_recusa(cod, campos, motivo):
 
 
 @pytest.mark.parametrize("campos,item,motivo", [
-    ({"status": "pending"}, None, "aberta"),
-    ({"status": "active"}, None, "aberta"),
-    ({"type": "multiple"}, None, "type"),
+    ({"type": "system"}, None, "type"),
+    ({"type": "multiple"}, None, "múltipla com 1"),
+    ({"status": "pending", "stake": "0.00"}, None, "aberta sem stake"),
     ({"status": "cashout"}, None, "cashout"),            # sem cashout_used
     ({"cashout_used": 1}, None, "cashout"),              # status won com cashout_used
     ({}, {"boost_pct": "10"}, "boost"),
@@ -170,4 +189,77 @@ def test_cashout_sem_as_tres_provas_recusa(campos):
     c = copy.deepcopy(CASHOUTS["718108"])
     c.update(campos)
     with pytest.raises(Recusa, match="cashout"):
+        cw.adaptar(c, "COPAWIN")
+
+
+# ── Múltipla e aberta (s465, E1.2): crus reais de produção ─────────────────────────────
+MULT = json.loads((Path(__file__).resolve().parent / "fixtures" / "cw_multipla_s465.json")
+                  .read_text(encoding="utf-8"))
+_C = Decimal("0.01")
+
+
+def _br(v):
+    return Decimal(str(v).replace(".", "").replace(",", "."))
+
+
+def test_fixture_sem_identidade():
+    assert "user_id" not in json.dumps({k: v for k, v in MULT.items() if k != "_origem"})
+
+
+@pytest.mark.parametrize("cod", sorted(MULT["aceitas"]))
+def test_multipla_real_bate(cod):
+    """Stake, resultado e DINHEIRO iguais à linha da IA; a odd da Ficha fecha o retorno."""
+    caso = MULT["aceitas"][cod]
+    f, d = _montar(caso["cru"])
+    g = caso["gabarito"]
+    assert f["tipo"] == "multipla" and len(f["pernas"]) >= 2
+    assert (d["resultado"], _br(d["stake"])) == (g["resultado"], _br(g["stake"]))
+    ret, stake, odd = Decimal(f["retorno"]), _br(d["stake"]), _br(d["odd"])
+    if d["resultado"] == "W":
+        assert abs(stake * odd - ret) <= _C                     # a odd gravada fecha o retorno
+        assert abs(stake * _br(g["odd"]) - ret) <= _C           # e paga o mesmo que a da IA
+    else:
+        assert ret == 0 and odd == _br(g["odd"]) == Decimal(caso["cru"]["total_odds"])
+
+
+@pytest.mark.parametrize("cod", sorted(MULT["recusadas"]))
+def test_multipla_won_que_nao_fecha_recusa(cod):
+    """Condição (a) da consultoria: os 12 `won` que nenhuma conta explica recusam no
+    adaptador, ANTES da Ficha, cujo `_odd` gravaria `retorno ÷ stake`."""
+    with pytest.raises(Recusa, match="não fecha"):
+        cw.adaptar(MULT["recusadas"][cod]["cru"], "COPAWIN")
+
+
+def test_passagem_real_aberta_e_liquidada():
+    caso = MULT["passagem"]["739245"]
+    fa, da = _montar(caso["aberta"])
+    fl, dl = _montar(caso["liquidada"])
+    assert (fa["status"], da["resultado"], fa["retorno"]) == ("aberta", "", None)
+    assert fa["stake"] == fl["stake"] == "350"
+    assert caso["aberta"]["total_odds"] != caso["liquidada"]["total_odds"]   # a perna anulou
+    assert dl["resultado"] == "W" and abs(_br(dl["stake"]) * _br(dl["odd"])
+                                          - Decimal(fl["retorno"])) <= _C
+
+
+def test_aberta_real_entra_sem_resultado():
+    cru = MULT["aberta_simples"]["836516"]["cru"]
+    assert cru["status"] == "pending" and cru["potential_return"] != "0.00"
+    f, d = _montar(cru)
+    assert (f["status"], f["retorno"], d["resultado"], d["odd"], f["stake"]) ==         ("aberta", None, "", "3,7", "187")
+
+
+@pytest.mark.parametrize("campos,perna,motivo", [
+    ({"status": "void", "actual_return": "500.00"}, None, "não fecha"),
+    ({"status": "cashout", "cashout_used": 1}, None, "cashout"),
+    ({"cashout_used": 1}, None, "cashout"),
+    ({}, {"result": "pending"}, "não fecha"),         # won com perna aberta
+    ({}, {"result": "lost"}, "não fecha"),            # won com perna perdida
+    ({"status": "lost", "actual_return": "10.00"}, None, "não fecha"),
+])
+def test_multipla_sem_amostra_recusa(campos, perna, motivo):
+    c = copy.deepcopy(MULT["aceitas"]["819029"]["cru"])
+    c.update(campos)
+    if perna:
+        c["items"][0].update(perna)
+    with pytest.raises(Recusa, match=motivo):
         cw.adaptar(c, "COPAWIN")
