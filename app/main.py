@@ -6360,6 +6360,22 @@ async def informar_tipster_lote(body: TipsterLoteRequest, dono: str = Depends(do
     return {"atualizados": atualizados}
 
 
+def _recusar_data_vazia(campos: dict) -> None:
+    """Edição não apaga a `data` de aposta (s466, decisão do Feca em 24/11/2026).
+
+    Aposta sem data some de toda tela com período, e recapturar não devolve: a linha
+    resolvida congela a `data` no UPSERT e a edição fica em `correcoes` como correção
+    humana. Os dois únicos eventos do histórico foram a edição em massa de TIPSTER levando
+    "Data (limpar)" junto, por tique ligado sem querer (Jaao26 28/09: 7; Jonathan 24/11: 100).
+    Não há caso legítimo para apagar a data; trocar por outra continua livre.
+
+    Não afeta linha que já nasceu sem data: o front só manda o campo que MUDOU, então
+    `data: ""` aqui é sempre alguém apagando uma data que existia.
+    """
+    if "data" in campos and not str(campos["data"] or "").strip():
+        raise HTTPException(400, "A data não pode ficar em branco.")
+
+
 class EditarLoteRequest(BaseModel):
     ids: list[int]
     # Só os campos que fazem sentido aplicar IGUAIS a N apostas. Stake, odd e descrição
@@ -6396,6 +6412,7 @@ async def editar_bilhetes_lote(body: EditarLoteRequest, dono: str = Depends(dono
     campos = {k: v for k, v in body.model_dump(exclude={"ids"}).items() if v is not None}
     if not campos:
         raise HTTPException(400, "Nenhum campo para alterar.")
+    _recusar_data_vazia(campos)
     # `resultado_valido` já aceita vazio (= aposta aberta), que aqui significa LIMPAR.
     if "resultado" in campos and not resultado_valido(campos["resultado"]):
         raise HTTPException(400, f"Resultado inválido: {campos['resultado']}")
@@ -6574,6 +6591,7 @@ async def atualizar_bilhete_route(bilhete_id: int, body: AtualizarBilheteRequest
                                   request: Request,
                                   dono: str = Depends(dono_efetivo_ou_bot)):
     campos = {k: v for k, v in body.model_dump().items() if v is not None}
+    _recusar_data_vazia(campos)
     # D44 item 3: sem sessão de navegador, quem passou pelo `dono_efetivo_ou_bot` foi o token do
     # bot (a sessão vem primeiro lá). O rastro diz 'bot', e continua correção HUMANA.
     rastro = None if usuario_do_request(request) else ORIGEM_BOT

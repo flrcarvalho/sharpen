@@ -11762,7 +11762,9 @@ document.getElementById('btn-desfazer').addEventListener('click', async () => {
 const LOTE_CAMPOS = ['data', 'resultado', 'tipster', 'esporte', 'casa', 'parceiro', 'aposta'];
 // Campos cujo valor não pode ser apagado. Bilhete sem casa nasce INVISÍVEL no Painel de
 // Contas (a casa entra na assinatura), e conta sem nome não existe para o isolamento.
-const LOTE_OBRIGATORIOS = { casa: 'Casa', parceiro: 'Parceiro' };
+// Data (s466): aposta sem data some de toda tela com período, e o tique da Data liga sem
+// querer (rótulo, digitar e apagar, "Limpar" do calendário). O servidor também recusa.
+const LOTE_OBRIGATORIOS = { data: 'Data', casa: 'Casa', parceiro: 'Parceiro' };
 const LOTE_ROTULO = {
   data: 'Data', resultado: 'Resultado', tipster: 'Tipster', esporte: 'Esporte',
   casa: 'Casa', parceiro: 'Parceiro', aposta: 'Aposta',

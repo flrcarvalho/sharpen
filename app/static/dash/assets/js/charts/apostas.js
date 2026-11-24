@@ -692,8 +692,9 @@ const _apSel = { apostas: new Set(), abertas: new Set() };
 let _abrtUltimas = [];
 const AP_LOTE_CAMPOS = ['data', 'resultado', 'tipster', 'esporte', 'casa', 'parceiro', 'aposta'];
 // Casa e parceiro não podem ser apagados: a casa entra na assinatura e bilhete sem casa
-// nasce invisível no Painel de Contas.
-const AP_LOTE_OBRIG = { casa: 'Casa', parceiro: 'Parceiro' };
+// nasce invisível no Painel de Contas. Data também não (s466): aposta sem data some de
+// toda tela com período. O servidor recusa do mesmo jeito.
+const AP_LOTE_OBRIG = { data: 'Data', casa: 'Casa', parceiro: 'Parceiro' };
 const AP_LOTE_ROTULO = { data: 'Data', resultado: 'Resultado', tipster: 'Tipster',
   esporte: 'Esporte', casa: 'Casa', parceiro: 'Parceiro', aposta: 'Aposta' };
 
