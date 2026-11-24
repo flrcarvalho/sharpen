@@ -1929,6 +1929,23 @@ outras a IA gravou a colocação e a Ficha segue o `MASTER_OUTPUT §4`). Abertos
   (70 × 9,19945194 = 643,96). A Ficha não corrige linha existente; corrigir à mão ou por script.
 - RacingBet segue recusada (8 do Gabriel, sem gabarito).
 - **Boxe (3 códigos):** esporte que o dicionário da Stake.com não conhece; vão à IA. Sem prazo.
+- **Duas linhas com esporte fora do Master (s465, 24/11):** 452101 (696793225) e 452103
+  (696778375), Jonathan, `Pessoal [Pessoal]`, L, gravadas pela IA em 22/11 com esporte `Hóquei no
+  Gelo` (o Master diz `Hóquei`). A semente recusou o voto (`semente_recusa`, "valor da IA fora do
+  Master", n 2) e o dicionário segue certo (`hóquei no gelo → Hóquei`). Corrigir por script; a
+  recaptura não conserta (o UPSERT congela esporte).
+- **Odd com ruído de float (s465):** 698119540 (Jonathan, cashout SwishBet, W) gravou odd
+  `0,9237534710000001` (= 323,31 ÷ 350). O valor está certo, só não foi arredondado. Ver quem
+  grava a odd de cashout sem arredondar antes de corrigir a linha.
+- **Semente divergente em `rushingyards` (s465):** na captura do Jonathan de 24/11 07:00, a IA
+  classificou o mesmo mercado como `Jardas` (697951507, `rachaad white rushingyards`) e como
+  `Player Props` (697942216, `samaje perine rushingyards`), e a semente aprendeu os dois. A chave
+  da categoria é jogador + estatística, então cada jogador novo vai uma vez à IA e pode cair de
+  um lado ou do outro. Decidir a categoria de `rushingyards` antes de corrigir as chaves.
+- **Dois formatos recusados, aguardando decisão da consultoria pelo volume (s465):** XMulti
+  perdida com perna `pending` ou `providerBet 'confirmAccepted'` (2 códigos em 30 dias: 697968937
+  do Feca e 698026175 do Gabriel) e cashout de SwishBet com retorno ≠ stake (1 código em 30 dias:
+  698119540). Os dois vão à IA; a IA gravou certo o dinheiro dos três.
 - Conferir na próxima captura que os 201 códigos marcados "termo fora do dicionário" (já cobertos
   pela semente de 23/11) foram pela Ficha.
 
