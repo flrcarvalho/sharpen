@@ -1623,6 +1623,9 @@ Medido: o Gabriel marca toda aposta da Shuffle como `Coxadoido`, à mão, de 1 a
 
 ## 4. Dívida técnica medida
 
+### 4.0d 219 apostas antigas sem data (s466, 24/11/2026). **VIVA, medida**
+219 apostas antigas sem data (WilliamOliveira/Lottu 187 de 26/08; Betfair de realtrial, Jonathan, Marques19981, Jaao26 e ViniciusOliveira). Não vêm da edição em lote. Investigar a origem depois do marco zero.
+
 ### 4.0a A Extração dispara ~63 `GET /parceiros` por carga (s433). **VIVA, medida nos logs HTTP**
 Um por casa (`carregarParceiros`, `index.html`), no mesmo segundo, a cada abrir da página
 (Gabriel, 28/10 19h48: 63 chamadas em 22h48:06-07 UTC). Cada uma leva ~50 ms; a soma pesa em
