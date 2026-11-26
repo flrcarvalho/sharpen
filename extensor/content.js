@@ -527,6 +527,33 @@
     }
   });
 
+  // Bilhetes da VEM COM SORTE capturados pelo vcs_inject.js (mundo MAIN) — `POST
+  // /api/bettor/bet:history`, plataforma PRÓPRIA (s467). O painel pede 90 dias, 20 por vez, e
+  // só quando abre; o inject pede 120 dias, 100 por vez, A FRIO (`localStorage.authToken`),
+  // pelo `token` até `hasMore:false`. `vcsById` guarda 1 bilhete por `id`; a versão LIQUIDADA
+  // vence a aberta.
+  const vcsById = new Map();         // id → bilhete
+  let vcsFimReal = false;
+  let vcsHookVivo = false, vcsRespostas = 0, vcsSemToken = false, vcsErro = "";
+  window.addEventListener("message", (ev) => {
+    const d = ev.data;
+    if (d && d.__sharpenupVCSData) {
+      if (d.hook) vcsHookVivo = true;
+      if (typeof d.respostas === "number") vcsRespostas = d.respostas;
+      vcsSemToken = !!d.semToken;
+      vcsErro = d.erro ? String(d.erro) : "";
+      if (Array.isArray(d.bilhetes)) {
+        const aberta = (b) => b.status === "UNSETTLED";
+        for (const b of d.bilhetes) {
+          if (!b || !b.id) continue;
+          const ex = vcsById.get(b.id);
+          if (!ex || aberta(ex) || !aberta(b)) vcsById.set(b.id, b);
+        }
+      }
+      if (d.fim) vcsFimReal = true;
+    }
+  });
+
   // Bilhetes da SHUFFLE capturados pelo shf_inject.js (mundo MAIN) — o GraphQL `GetSportsBets`
   // (`sportsBetsV3`), já normalizado. Plataforma PRÓPRIA (s401), a 1ª casa GraphQL. O inject
   // aprende o `authorization` de qualquer chamada GraphQL autenticada da página e pede a lista
@@ -1748,6 +1775,12 @@
       // cookie, até o `count`. SEM fallback de texto: a casa não publica retorno, e o "Payout"
       // do card é stake × odds até na aberta.
       blocos = await roboEBPassive(ctx);
+    } else if (casa === "vemcomsorte") {
+      // Replay A FRIO (vcs_inject, plataforma PRÓPRIA — s467). O token sai do
+      // `localStorage.authToken` (ou da chamada da página, se ela fizer); o inject pede 120 dias
+      // (o teto da casa é ~123), 100 por vez, pelo `token` até `hasMore:false`. SEM fallback de
+      // texto: o card não tem data, e a odd dele vem truncada em 2 casas.
+      blocos = await roboVCSPassive(ctx);
     } else if (casa === "shuffle") {
       // Passivo + replay (shf_inject, plataforma PRÓPRIA — s401), a 1ª casa GraphQL. A TELA É
       // ESTREITA: pede `first: 9` com o filtro de uma aba. O replay pede a lista SEM filtro e
@@ -2021,6 +2054,11 @@
         // EpicBet (s462): só o cookie. Zero respostas = sessão caída (a API devolve erro tRPC).
         epicbet:    { nome: "Epicbet",    hook: ebHookVivo, resp: ebRespostas, vistos: ebById.size,
                       extra: ebRespostas === 0 ? " · faça login em epicbet.com, abra My Bets e rode de novo" : "" },
+        // Vem com Sorte (s467): o token mora no `localStorage.authToken`. Sem ele (`semToken`)
+        // a aba não está logada; 401 no replay = sessão caída.
+        vemcomsorte: { nome: "Vem com Sorte", hook: vcsHookVivo, resp: vcsRespostas, vistos: vcsById.size,
+                      extra: vcsErro ? " · " + vcsErro
+                           : (vcsSemToken ? " · faça login em vemcomsorte.com e rode de novo" : "") },
         // Shuffle (s401): o token sai de qualquer chamada GraphQL autenticada da página. Sem
         // ele (`semToken`) a sessão não está logada ou a página não carregou os esportes.
         shuffle:    { nome: "Shuffle",    hook: shfHookVivo, resp: shfRespostas, vistos: shfById.size,
@@ -5719,6 +5757,168 @@
     console.log("[SharpenUp] Epicbet: " + blocos.length + " bilhete(s) · ebById=" + ebById.size +
                 " · hook=" + ebHookVivo + " · respostas=" + ebRespostas + " · fimReal=" + ebFimReal +
                 (travado ? " · parou no corte" : ""));
+    return blocos;
+  }
+
+  // ── Vem com Sorte (plataforma própria, `vemcomsorte.com` — s467) ─────────────────
+  // Formata 1 bilhete de `bet:history` (normalizado pelo vcs_inject) no bloco que a IA lê.
+  // Leituras VALIDADAS contra o card do painel "Minhas Apostas" (recon de 26/11/2026, 7
+  // múltiplas de 3 pernas em BRL, `extensor/harness/casos/vemcomsorte.mjs`):
+  //   • dinheiro em CENTAVOS, dividido no inject pelo `multiplier` da casa (25000 → 250,00);
+  //   • o "Saque" do card é `payout` (o retorno, 0 na perdida) e o "Ganho possível" da aberta é
+  //     `possiblePayout`, já com o Combo Boost;
+  //   • o card TRUNCA a odd ("Odds totais 6.59"); a completa é `initialOdds`. Na GANHA a odd é
+  //     retorno ÷ stake (1648,95 ÷ 250 = 6,5958): o boost entra como lucro DENTRO do retorno.
+  //     Na perdida e na aberta, a `initialOdds`, que é a do card (com o boost, mesmo quando a
+  //     perda o desliga do `possiblePayout`). Nunca o produto das pernas;
+  //   • o card não mostra data: colocação (`createTime`) e evento (`event.startTime`) vêm em
+  //     epoch ms e saem em Brasília pelo `_dhJB`.
+  // O que NÃO se decide aqui: status e tipo sobem crus; sem amostra, "a conferir". O de-para
+  // vive na CASA_VEMCOMSORTE.md §5. Sem amostra: simples real, VOID, CASHOUT, HALF_WIN,
+  // HALF_LOSE, SYSTEM/FLEXIBLE/ONE_CUT.
+  const _abertaVCS = (b) => b.status === "UNSETTLED";
+  const _PERNA_VCS = { UNSETTLED: "em aberto", WIN: "ganha", LOSE: "perdida", VOID: "anulada",
+                       HALF_WIN: "meia vitória", HALF_LOSE: "meia derrota", CASHOUT: "cashout" };
+  const _quaseVCS = (a, b, tol) => typeof a === "number" && typeof b === "number" && isFinite(a) && isFinite(b) && Math.abs(a - b) <= tol;
+
+  function _dataEventoVCS(b) {
+    let max = null;
+    for (const s of (b.sels || [])) {
+      if (s.inicio != null && isFinite(s.inicio) && (max == null || s.inicio > max)) max = s.inicio;
+    }
+    return max;
+  }
+
+  // W só com as provas todas: WIN, tipo simples/múltipla, toda perna WIN e o retorno fechando
+  // stake × odd até o centavo. Devolve a odd do W ou null. A odd é a mesma régua da Ficha
+  // (`ficha._odd`): a da CASA quando ela fecha o retorno no meio centavo (250 × 6,595784 =
+  // 1648,946 → 1648,95); senão retorno ÷ stake. Assim texto e Ficha não divergem.
+  function _oddWVCS(b) {
+    const sels = b.sels || [];
+    if (b.status !== "WIN" || (b.tipo !== "SINGLE" && b.tipo !== "MULTIPLE")) return null;
+    if (!sels.length || !sels.every((s) => s.status === "WIN")) return null;
+    if (!(b.stake > 0) || !(b.odd > 1) || !(b.retorno > b.stake)) return null;
+    if (!_quaseVCS(b.retorno, b.stake * b.odd, 0.01 + 1e-9)) return null;
+    if (_quaseVCS(b.retorno, b.stake * b.odd, 0.005 + 1e-9)) return b.odd;
+    return Math.round((b.retorno / b.stake) * 1e8) / 1e8;
+  }
+
+  function _resultadoVCS(b) {
+    const cru = "status " + (b.status || "(vazio)") + " · type " + (b.tipo || "(vazio)");
+    const conferir = (extra) => cru + (extra ? " · " + extra : "") + " (a conferir — não liquidar automaticamente)";
+    if (_abertaVCS(b)) return "em aberto (aguardando resultado — NÃO liquidar; sem resultado)";
+    if (!(b.stake > 0)) return conferir("sem stake");
+    if (typeof b.retorno !== "number") return conferir("sem retorno");
+    // Retorno = stake: P/L zero, V qualquer que seja o rótulo (rede do dinheiro).
+    if (_quaseVCS(b.retorno, b.stake, 0.005)) return "Retorno = stake (" + _dinJB(b, b.stake) + ", " + cru + ") → V";
+    if (b.status === "WIN") {
+      return _oddWVCS(b) != null ? "Ganhou → W (retorno " + _dinJB(b, b.retorno) + ")"
+                                 : conferir("retorno " + _dinJB(b, b.retorno) + ", pernas " + (b.sels || []).map((s) => s.status).join("/"));
+    }
+    if (b.status === "LOSE") {
+      if (_quaseVCS(b.retorno, 0, 0.005) && (b.sels || []).some((s) => s.status === "LOSE" || s.status === "HALF_LOSE")) return "Perdeu → L";
+      return conferir("retorno " + _dinJB(b, b.retorno) + ", pernas " + (b.sels || []).map((s) => s.status).join("/"));
+    }
+    return conferir("retorno " + _dinJB(b, b.retorno));
+  }
+
+  function _tipoVCS(b) {
+    const n = (b.sels || []).length;
+    if (b.tipo === "SINGLE") return "Simples";
+    if (b.tipo === "MULTIPLE") return "Múltipla (" + n + " seleções)";
+    return "tipo " + (b.tipo || "(vazio)") + " (" + n + " seleções; sem amostra desta casa)";
+  }
+
+  function formatTicketVCS(b) {
+    const L = [];
+    L.push("[Código: " + b.id + "]");
+    const dev = _dhJB(_dataEventoVCS(b));
+    if (dev) L.push("Data (evento mais recente): " + dev);
+    const dh = _dhJB(b.ts);
+    if (dh) L.push("Data (colocação): " + dh);
+    L.push("Stake: " + _brl(b.stake));
+    _linhaMoeda(L, b.moeda);
+    _linhaCarimbo(L, b.ts, b.moeda);
+    L.push("Status: " + _resultadoVCS(b));
+    L.push("Status (API): status " + (b.status || "(vazio)") + " · type " + (b.tipo || "(vazio)") + " · id " + b.id);
+    const oddW = _oddWVCS(b);
+    const odd = oddW != null ? oddW : (b.odd > 0 ? b.odd : null);
+    if (odd != null) L.push("Odd: " + _odd(odd));
+    L.push("Tipo: " + _tipoVCS(b));
+    if (_abertaVCS(b)) {
+      if (b.potencial > 0) L.push("Retorno potencial: " + _dinJB(b, b.potencial));
+    } else if (typeof b.retorno === "number") {
+      L.push("Retorno: " + _dinJB(b, b.retorno));
+    }
+    for (const x of (b.boosts || [])) {
+      if (x && x.pct != null) {
+        L.push("Boost: " + (x.nome || "(sem nome)") + " +" + String(x.pct).replace(".", ",") + "%" +
+               (b.bonus > 0 ? " · bônus no retorno " + _dinJB(b, b.bonus) : ""));
+      }
+    }
+    L.push("Seleções:");
+    const sels = b.sels || [];
+    for (const s of sels) {
+      const sel = [s.selecao, s.parametro].filter((x) => x != null && x !== "").join(" ");
+      L.push("- " + (s.mercado ? s.mercado + ": " : "") + (sel || "(seleção sem nome)") +
+             " [perna " + (_PERNA_VCS[s.status] || "status " + (s.status || "(vazio)")) + "]");
+      const ctx2 = [];
+      if (s.jogo) ctx2.push("Jogo: " + s.jogo);
+      if (s.liga) ctx2.push("Liga: " + s.liga + (s.regiao ? " (" + s.regiao + ")" : ""));
+      if (s.esporte) ctx2.push("Esporte: " + s.esporte);
+      if (s.inicio) ctx2.push("Início: " + _dhJB(s.inicio));
+      if (s.aoVivo) ctx2.push("ao vivo");
+      if (ctx2.length) L.push("    " + ctx2.join(" · "));
+      if (s.odd != null && sels.length > 1) L.push("    Odd da seleção: " + _odd(s.odd));
+    }
+    return L.join("\n");
+  }
+
+  async function roboVCSPassive(ctx) {
+    const blocos = [], usados = new Set();
+    let travado = false;
+
+    // Abertas primeiro e todas (a janela nunca corta aberta); depois as liquidadas, da mais nova
+    // para a mais velha, até o stopId ou a 1ª fora da janela (que ainda sobe).
+    const processar = () => {
+      const todos = Array.from(vcsById.values()).sort((a, b) =>
+        (_abertaVCS(b) - _abertaVCS(a)) || ((b.ts || 0) - (a.ts || 0)));
+      for (const b of todos) {
+        const cod = String(b.id || "");
+        if (!cod || usados.has(cod)) continue;
+        if (!_abertaVCS(b) && ctx.stopId && cod === ctx.stopId) { travado = true; return; }
+        usados.add(cod);
+        // Janela de dias corta só as LIQUIDADAS (pela colocação); aberta nunca.
+        const dt = (b.ts != null && isFinite(b.ts)) ? b.ts * 1000 : NaN;
+        const passou = !_abertaVCS(b) && !isNaN(dt) && dt < ctx.cutoff && dt > ctx.pisoSanidade;
+        blocos.push(formatTicketVCS(b));
+        ctx.painel.contador.textContent = blocos.length + " bilhete" + (blocos.length === 1 ? "" : "s");
+        if (passou) { travado = true; return; }
+      }
+    };
+
+    // Rodada nova começa do zero (lição da s393, DEX Sport): o inject zera o lado dele no
+    // mesmo pedido e busca a lista de novo.
+    vcsById.clear();
+    vcsFimReal = false;
+    try { window.postMessage({ __sharpenupVCSReq: true }, "*"); } catch (e) {}
+    await sleep(400);
+
+    // A lista vem em páginas sem ordem garantida entre abertas e liquidadas: espera o `fim`
+    // (ou estagnação) e ordena uma vez só, para o corte cair no lugar certo.
+    let voltas = 0, ultTotal = -1, ultCresceu = Date.now();
+    while (!ctx.parar() && !vcsFimReal && voltas < 600) {
+      voltas++;
+      await sleep(500);
+      ctx.painel.contador.textContent = vcsById.size + " bilhete" + (vcsById.size === 1 ? "" : "s");
+      if (vcsById.size > ultTotal) { ultTotal = vcsById.size; ultCresceu = Date.now(); }
+      else if (Date.now() - ultCresceu > 20000) break;
+    }
+    await sleep(300);
+    processar();
+    console.log("[SharpenUp] Vem com Sorte: " + blocos.length + " bilhete(s) · vcsById=" + vcsById.size +
+                " · hook=" + vcsHookVivo + " · respostas=" + vcsRespostas + " · fimReal=" + vcsFimReal +
+                (vcsErro ? " · erro=" + vcsErro : "") + (travado ? " · parou no corte" : ""));
     return blocos;
   }
 

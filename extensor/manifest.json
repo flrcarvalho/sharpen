@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SharpenUp",
-  "version": "0.7.92",
+  "version": "0.7.93",
   "description": "A perninha do Sharpen: captura seus bilhetes na casa e sobe pro painel do sharpen.bet via pareamento por código.",
   "action": {
     "default_popup": "popup.html",
@@ -301,6 +301,12 @@
     {
       "matches": ["*://*.epicbet.com/*", "*://epicbet.com/*"],
       "js": ["eb_inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["*://*.vemcomsorte.com/*", "*://vemcomsorte.com/*"],
+      "js": ["vcs_inject.js"],
       "run_at": "document_start",
       "world": "MAIN"
     },

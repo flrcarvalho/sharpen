@@ -44,6 +44,7 @@ FIXTURES_POR_FAMILIA = {
     "cw": ["copawin.my-bets.json"],
     "gc": ["girocerto.bets.json", "girocerto.multiplas.json"],
     "eb": ["epicbet.pending.json", "epicbet.settled.json"],
+    "vcs": ["vemcomsorte.bet_history.json"],
     "dx": ["dexsport.tickets.json"],
     "et": ["3et.settled.json", "3et.open.json", "3et.simples.settled.json", "3et.simples.open.json"],
     "jb": ["betpanda.my_bets.json", "jonbet.my_bets_all.json", "jonbet.my_bets_open.json"],

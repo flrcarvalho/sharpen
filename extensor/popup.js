@@ -118,6 +118,8 @@ const CASA_HOSTS = {
   "GiroCerto":   ["girocerto.fun"],
   // Epicbet (s462): plataforma própria, API tRPC `/s/sport-bet/...` no MESMO domínio da aba.
   "Epicbet":     ["epicbet.com"],
+  // Vem com Sorte (s467): plataforma própria, API `/api/bettor/bet:history` no MESMO domínio da aba.
+  "Vem com Sorte": ["vemcomsorte.com"],
   // Antiga "Rei do Pitaco" (grafia unificada no banco na s270). Plataforma própria,
   // gRPC-Web/protobuf — inject próprio.
   "Pitaco":     ["pitaco.bet.br"],
@@ -479,6 +481,8 @@ async function capturar() {
                 : casa === "GiroCerto" ? "gc_inject.js"
                 // Epicbet: plataforma própria, tRPC (s462). `eb_`, das letras da marca.
                 : casa === "Epicbet" ? "eb_inject.js"
+                // Vem com Sorte: plataforma própria (s467). `vcs_`, das iniciais da marca.
+                : casa === "Vem com Sorte" ? "vcs_inject.js"
                 : casa === "Pitaco" ? "pt_inject.js"
                 : casa === "Novibet" ? "nv_inject.js"
                 // Motor Rogue: TRES casas espelho, MESMO inject — como Tivo/Betfast/Faz1bet.

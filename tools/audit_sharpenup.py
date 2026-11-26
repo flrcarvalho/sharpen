@@ -195,6 +195,9 @@ CODIGO_EXEMPLO: dict[str, str] = {
     # Epicbet (s462): a ganha de 20/11/2026 (40 USDT @7,14, payout 285,6), conta do recon.
     # `sequence` (o "ID" do card), nunca o `bet.id` (39939822).
     "EPICBET":    "11",
+    # Vem com Sorte (s467): a múltipla ganha de 25/11/2026 (R$ 250 @6,5958 com Combo Boost,
+    # retorno R$ 1.648,95), conta do recon. `id` da aposta, 7 dígitos.
+    "VEMCOMSORTE": "3602620",
     # `internal_bet_id` real da conta (a perdida de 07/08, stake R$18,88 @3,95) — numérico de
     # 7 dígitos. ⚠ É o ID que o CARD estampa; o `ticket_id` (11 dígitos) NÃO vai para o
     # marcador, senão print e captura gerariam códigos diferentes para o mesmo bilhete.

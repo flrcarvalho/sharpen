@@ -300,6 +300,12 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0793",
+      "v": "v0.7.93",
+      "data": "2026-11-26",
+      "texto": "**Vem com Sorte** liga na extensão: abertas e liquidadas dos últimos 4 meses."
+    },
+    {
       "id": "su-0791",
       "v": "v0.7.91",
       "data": "2026-11-21",

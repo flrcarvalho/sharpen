@@ -1985,6 +1985,22 @@ Entrou na 0.7.69, 11ª Altenar, espelho da Vavada, recon LOGADO na conta do Feca
 - Espelho numerado (`sportaza-5178.com`): domínio novo entra no manifest, `popup.js` e
   `_HOSTS_POR_CASA`, com versão nova.
 
+### 4.0zb Vem com Sorte: virar a Ficha e validar a 1ª captura (s467). **VIVA, harness com fixture real + replay ao vivo**
+
+Entrou na 0.7.93 (plataforma própria, família `vcs`, `CASA_VEMCOMSORTE.md`). O replay a frio
+foi provado na aba logada do Feca (7 de 7, `fim`); a extensão instalada não rodou. Aviso ao
+grupo: **não sai**, pedido do Feca (26/11/2026); nota só na home.
+- **Virada:** a casa entra em `FICHA_SOMBRA_CASAS`, `FICHA_CASAS_VIRADAS` e
+  `EXTRACAO_SEM_PENSAMENTO` (Railway, serviço `extrator`), depois `scripts/semear_dicionario.py
+  --aplicar`. Conferir a 1ª captura no `virada_log` (pela_ficha × para_ia).
+- **1ª captura:** botão Conectar em produção (`_casaConectavel` com controle negativo),
+  Copiar bilhetes, conferir contagem, código, data do evento e a odd completa no dashboard.
+- **Sem amostra, o adaptador recusa:** simples, `VOID`, `CASHOUT`, `HALF_WIN`/`HALF_LOSE`,
+  `SYSTEM`/`FLEXIBLE`/`ONE_CUT`, ganha com perna não-`WIN`. Medir quando aparecer.
+- **Janela de ~123 dias:** a API não alcança bilhete mais antigo. Se o dono quiser o
+  histórico anterior, só por print.
+- O WARN de autodiagnóstico do `audit_sharpenup` é o defeito já registrado no 4.0za.
+
 ### 4.0za Epicbet: a captura do Gabriel (s462). **VIVA, virada, 1ª captura conferida**
 
 Entrou na 0.7.91 (plataforma própria tRPC, família `eb`, `CASA_EPICBET.md`). Virada, botão e
