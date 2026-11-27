@@ -1990,11 +1990,13 @@ Entrou na 0.7.69, 11ª Altenar, espelho da Vavada, recon LOGADO na conta do Feca
 Entrou na 0.7.93 (plataforma própria, família `vcs`, `CASA_VEMCOMSORTE.md`). O replay a frio
 foi provado na aba logada do Feca (7 de 7, `fim`); a extensão instalada não rodou. Aviso ao
 grupo: **não sai**, pedido do Feca (26/11/2026); nota só na home.
-- **Virada:** a casa entra em `FICHA_SOMBRA_CASAS`, `FICHA_CASAS_VIRADAS` e
-  `EXTRACAO_SEM_PENSAMENTO` (Railway, serviço `extrator`), depois `scripts/semear_dicionario.py
-  --aplicar`. Conferir a 1ª captura no `virada_log` (pela_ficha × para_ia).
-- **1ª captura:** botão Conectar em produção (`_casaConectavel` com controle negativo),
-  Copiar bilhetes, conferir contagem, código, data do evento e a odd completa no dashboard.
+- **Virada: FEITA** (26/11/2026 14:10; as três listas lidas na CLI terminam em VEMCOMSORTE,
+  redeploy `1ce451c2` SUCCESS). Semente do dicionário fica com o job das 04h (sem par gravado
+  da casa ainda). Falta conferir a 1ª captura no `virada_log` (pela_ficha × para_ia ×
+  ficha_recusada).
+- **1ª captura:** botão Conectar já provado em produção (`_casaConectavel` com controle
+  negativo). Falta Copiar bilhetes pela extensão instalada e conferir contagem, código, data
+  do evento e a odd completa no dashboard.
 - **Sem amostra, o adaptador recusa:** simples, `VOID`, `CASHOUT`, `HALF_WIN`/`HALF_LOSE`,
   `SYSTEM`/`FLEXIBLE`/`ONE_CUT`, ganha com perna não-`WIN`. Medir quando aparecer.
 - **Janela de ~123 dias:** a API não alcança bilhete mais antigo. Se o dono quiser o
