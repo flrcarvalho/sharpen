@@ -2633,16 +2633,52 @@ def _combine_parallel_results(results: list[tuple[int, str, dict]], reverse_rows
 
 # ── Stream functions ──────────────────────────────────────────────────────────
 
+_TK_CHAVES = ("input", "output", "cache_read", "cache_write")
+
+
+async def _registrar_uso_interrompido(dono: str, casa: str, modelo: str, chamadas: int,
+                                      n_itens: int, caminho: str | None, rotulo: str, *,
+                                      partes=(), tarefas=(), fila: asyncio.Queue | None = None):
+    """Registra o uso de uma extração que saiu SEM chegar ao `done` (D50, s465).
+
+    Chamada pelo `finally` dos dois caminhos, em segundo plano (`_fire`): o gerador já foi
+    cancelado e não pode esperar nada. Soma o que já tinha voltado (`partes`), ESPERA as
+    tarefas de pedaço que ainda estavam em voo (no paralelo elas não são canceladas junto
+    com o gerador, então seguem gastando) e soma o que elas puseram na `fila`.
+
+    O que NÃO entra, por não haver número: a chamada cortada no meio (o sequencial cancela a
+    sua; a repescagem em curso morre com o gerador). A API não devolve o uso de um stream
+    interrompido, e estimar seria inventar o custo.
+    """
+    if tarefas:
+        await asyncio.gather(*tarefas, return_exceptions=True)
+    lotes = list(partes)
+    if fila is not None:
+        while not fila.empty():
+            lotes.append(fila.get_nowait()[2])   # (idx, texto, tokens, erro)
+    soma = dict.fromkeys(_TK_CHAVES, 0)
+    for tk in lotes:
+        for k in soma:
+            soma[k] += (tk or {}).get(k, 0)
+    logger.warning("%s: extração saiu sem o done (cliente fechou ou erro); uso registrado "
+                   "assim mesmo: %s", rotulo, soma)
+    if any(soma.values()):
+        await registrar_uso(dono, casa, modelo, chamadas, n_itens, soma, caminho=caminho)
+
+
 async def _stream_sequential(system: list[dict], content: list[dict], modelo: str, xls_skipped: int, texto: str | None = None,
                              dono: str = "", casa: str = "", n_itens: int = 0, reverse_rows: bool = False,
                              betfair_dates: dict | None = None, codigo_ocr: bool = False,
                              fora_corte: int = 0, caminho: str | None = None,
                              pensamento: dict | None = None):
     t_start = time.perf_counter()
+    # D50 (s465): ver a nota no `_stream_parallel`. Aqui a chamada em voo é cancelada pelo
+    # próprio laço; o `finally` registra as partes que já tinham voltado.
+    registrado = False
+    total_tokens = dict.fromkeys(_TK_CHAVES, 0)
+    part = 0
     try:
         accumulated = ""
-        total_tokens = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
-        part = 0
         messages = [{"role": "user", "content": content}]
 
         while True:
@@ -2801,6 +2837,7 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
         if sis_fix["sistemas"]:
             logger.info("seq sistema: %d linha(s) marcada(s) como sistema", sis_fix["sistemas"])
         _fire(registrar_uso(dono, casa, modelo, part, n_itens, total_tokens, caminho=caminho))
+        registrado = True
         # Fase 0 do tradutor (modo sombra): guarda bruto×decisão para o mapa se
         # escrever sozinho. Vem DEPOIS de `anexar_sistema_tsv` porque o corpo de
         # treino tem de ser o TSV FINAL — o mesmo que foi para o banco, não um
@@ -2820,6 +2857,10 @@ async def _stream_sequential(system: list[dict], content: list[dict], modelo: st
     except Exception:
         logger.exception("Erro no stream sequencial")
         yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
+    finally:
+        if not registrado:
+            _fire(_registrar_uso_interrompido(dono, casa, modelo, part, n_itens, caminho, "seq",
+                                              partes=[dict(total_tokens)]))
 
 
 async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo: str, xls_skipped: int, casa_key: str = "", texto: str | None = None,
@@ -2911,146 +2952,165 @@ async def _stream_parallel(system: list[dict], chunks: list[list[dict]], modelo:
                 logger.error("par chunk %d/%d erro: %s", idx + 1, n_chunks, e)
                 await result_queue.put((idx, "", tokens, e))
 
-    tasks = [asyncio.create_task(_call_chunk(i, chunks[i])) for i in range(n_chunks)]
+    # D50 (s465): o uso tem de ser registrado mesmo quando o gerador NÃO chega ao `done`.
+    # O caso: 24/11/2026, Jaao26 na Cloudbet. O cliente fechou a conexão depois que os 5
+    # pedaços já tinham voltado; o Starlette cancelou o gerador num `yield` do laço, o
+    # `CancelledError` não é `Exception`, e as 5 chamadas pagas ficaram sem linha no
+    # `uso_tokens`, sem log de erro e sem linha no `extracao_log`. Os pedaços são tarefas
+    # próprias e seguem gastando depois do cancelamento: o registro espera por eles.
+    registrado = False
+    extra = dict.fromkeys(_TK_CHAVES, 0)   # repescagens de cobertura e fidelidade
+    tasks: list = []
     completed = []
-    chunks_falhos = 0   # chunk que falhou = bilhetes daquele pedaço NÃO extraídos (aviso visível)
-
     try:
-        for _ in range(n_chunks):
-            while True:
-                try:
-                    idx, text, tokens, err = await asyncio.wait_for(result_queue.get(), timeout=20)
-                    break
-                except asyncio.TimeoutError:
-                    yield f"data: {json.dumps({'keepalive': True})}\n\n"
-            if err:
-                logger.error("par chunk %d falhou (continuando): %s", idx + 1, err)
-                completed.append((idx, "", tokens))
-                chunks_falhos += 1
-            else:
-                completed.append((idx, text, tokens))
-            yield f"data: {json.dumps({'chunk_progress': idx + 1, 'of': n_chunks})}\n\n"
-    except Exception:
-        logger.exception("Erro no stream paralelo")
+        tasks = [asyncio.create_task(_call_chunk(i, chunks[i])) for i in range(n_chunks)]
+        chunks_falhos = 0   # chunk que falhou = bilhetes daquele pedaço NÃO extraídos (aviso visível)
+
+        try:
+            for _ in range(n_chunks):
+                while True:
+                    try:
+                        idx, text, tokens, err = await asyncio.wait_for(result_queue.get(), timeout=20)
+                        break
+                    except asyncio.TimeoutError:
+                        yield f"data: {json.dumps({'keepalive': True})}\n\n"
+                if err:
+                    logger.error("par chunk %d falhou (continuando): %s", idx + 1, err)
+                    completed.append((idx, "", tokens))
+                    chunks_falhos += 1
+                else:
+                    completed.append((idx, text, tokens))
+                yield f"data: {json.dumps({'chunk_progress': idx + 1, 'of': n_chunks})}\n\n"
+        except Exception:
+            logger.exception("Erro no stream paralelo")
+            await asyncio.gather(*tasks, return_exceptions=True)
+            yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
+            return
+
         await asyncio.gather(*tasks, return_exceptions=True)
-        yield f"data: {json.dumps({'error': 'Erro ao processar a extração. Tente novamente.'})}\n\n"
-        return
-
-    await asyncio.gather(*tasks, return_exceptions=True)
-    try:
-        # Regras de ordenação por casa (a grade exibe o último inserido no topo →
-        # p/ a bet mais nova ficar no topo, o TSV tem de ser salvo do mais ANTIGO p/ o
-        # mais novo, i.e. inverter quando a entrada vem newest-first):
-        # - Pinnacle XLS: texto pré-invertido pelo parser → chunk 0 = mais antigo → reverse=False
-        # - Superbet PRINT: usuário cola na ordem certa → reverse=False
-        # - Superbet TEXTO (scanner) e todo o resto: entrada newest-first → reverse=True
-        is_xls_mode = any(
-            isinstance(b, dict) and b.get("type") == "text" and "=== Aposta ID" in b.get("text", "")
-            for b in chunks[0]
-        )
-        superbet_print = casa_key.upper() == "SUPERBET" and any(
-            isinstance(b, dict) and b.get("type") == "image" for b in chunks[0]
-        )
-        # Casas de feed newest-first (Bet365, Superbet-texto): o modelo emite em ordem de
-        # CAPTURA/leitura natural (§2 "não inverter"). A inversão p/ oldest→newest tem de
-        # ser no nível de LINHA, não de chunk: com >_MAX_CHUNKS bilhetes os chunks têm 2+
-        # cada e inverter só a ORDEM DOS CHUNKS embaralha em blocos (o bug de ordem que a
-        # Bet365 apresentava — ex.: 6 bilhetes T1..T6 saíam T5,T6,T3,T4,T1,T2). Inverter as
-        # LINHAS finais é determinístico e não depende de o modelo obedecer a instrução.
-        superbet_text = casa_key.upper() == "SUPERBET" and not superbet_print
-        # Betfair (texto dos bilhetes em ordem da Fonte A, newest-first) entra no reverse
-        # por LINHA como a Bet365 — agora que é paralela, não dá p/ depender do modelo.
-        reverse_rows_casa = casa_key.upper() in ("BET365", "BETANO", "BETFAIR") or superbet_text
-        if reverse_rows_casa:
-            completed.sort(key=lambda x: x[0])   # ordem de captura (idx crescente)
-            resultado, total_tokens, scroll_overlap_indices = _combine_parallel_results(completed, reverse_rows=True)
-        else:
-            reverse_chunks = not (is_xls_mode or superbet_print)
-            completed.sort(key=lambda x: x[0], reverse=reverse_chunks)
-            resultado, total_tokens, scroll_overlap_indices = _combine_parallel_results(completed)
-        logger.info("par total: %.1fs | chunks=%d | out=%d",
-                    time.perf_counter() - t_start, n_chunks, total_tokens["output"])
-        # Para a sombra de números (s407) — ver a nota no caminho sequencial.
-        titular_bruto, tk_base = resultado, dict(total_tokens)
-        # O leitor (s417): ver a nota no seq.
-        resultado, leitor = await _leitor(resultado, texto, dono, casa, "par")
-        # Correção determinística do ID contra o texto colado (ver nota no seq).
-        resultado, id_fix = corrigir_codigos_tsv(resultado, texto)
-        if id_fix["corrigidos"] or id_fix["incertos"]:
-            logger.info("par id-fix: corrigidos=%d incertos=%d", id_fix["corrigidos"], id_fix["incertos"])
-        # Código determinístico (s356): ver a nota no seq. Antes da cobertura pelo mesmo
-        # motivo — é a repescagem que transforma um código inventado em DUAS linhas.
-        resultado, cod_fix = _corrigir_codigos_fantasma(resultado, texto, codigo_ocr)
-        if cod_fix["fantasmas"]:
-            logger.warning("par código: %d código(s) que não existem no texto do robô — "
-                           "%d adotado(s) do bloco, %d esvaziado(s): %s",
-                           cod_fix["fantasmas"], cod_fix["adotados"],
-                           cod_fix["esvaziados"], cod_fix["exemplos"])
-        # Cobertura: chunk que responde sem o bloco ```tsv some em silêncio (o
-        # `chunks_falhos` só conta exceção). Confere pelo gabarito de códigos e repesca.
-        resultado, cobertura, tk_extra = await _garantir_cobertura(
-            system, resultado, texto, modelo,
-            chunks[0][-1] if chunks and chunks[0] else None, reverse_rows_casa, pensamento)
-        for k in total_tokens:
-            total_tokens[k] += tk_extra.get(k, 0)
-        # Fidelidade: a linha do código X saiu do bloco do código X? Ver a nota no seq.
-        resultado, fidelidade, tk_fid = await _garantir_fidelidade(
-            system, resultado, texto, modelo,
-            chunks[0][-1] if chunks and chunks[0] else None, pensamento)
-        for k in total_tokens:
-            total_tokens[k] += tk_fid.get(k, 0)
-        if cobertura.get("recuperados") or fidelidade.get("corrigidas"):
-            # A lista de linhas mudou → os índices de sobreposição de scroll não valem
-            # mais. São só um badge azul de dica; descartar é seguro (e casa com código
-            # nunca é marcada como sobreposição — ver `_scroll_key`).
-            scroll_overlap_indices = []
-        # Betfair: preenche a Data pelo ID (join com o extrato, feito no código).
-        if betfair_dates:
-            resultado = _apply_betfair_dates(resultado, betfair_dates)
-        # Stake determinística (s311) — ver nota no caminho sequencial. Aqui é onde ela
-        # mais importa: o carryover de stake nasce da vizinhança DENTRO de um chunk.
-        resultado, leitor2 = await _leitor(resultado, texto, dono, casa, "par pós-repesca",
-                                      final=True)
-        # s423: a linha que a passada final ainda recusa sai do lote; ela tem de
-        # aparecer na tela como faltante (o "REPROCESSE"), nunca sumir em silêncio.
-        if leitor2["recusadas"] and texto:
-            cobertura = {**cobertura,
-                         "faltantes": conferir_cobertura(resultado, texto)["faltantes"]}
-        leitor = {k: leitor[k] + leitor2[k] for k in ("realinhadas", "recusadas")} | {
-            "exemplos": leitor["exemplos"] + leitor2["exemplos"]}
-        resultado, stake_fix = corrigir_stake_tsv(resultado, texto)
-        if stake_fix["stakes"]:
-            logger.warning("par stake: %d linha(s) com stake do bilhete errado — corrigidas "
-                           "pelo bloco cru: %s", stake_fix["stakes"], stake_fix["exemplos"])
-        if stake_fix["financeiro"]:
-            logger.warning("par financeiro: %d linha(s) com odd/resultado que o RETORNO do "
-                           "bloco desmente — corrigidas: %s",
-                           stake_fix["financeiro"], stake_fix["exemplos_fin"])
-        # Data da múltipla que perdeu cedo (s405, `MASTER_OUTPUT §4.0.1`): depois da stake,
-        # porque o resultado final pode ter sido corrigido lá.
-        resultado, data_fix = corrigir_data_tsv(resultado, texto)
-        if data_fix["datas"]:
-            logger.warning("par data: %d múltipla(s) perdida(s) datada(s) pela perna perdida: %s",
-                           data_fix["datas"], data_fix["exemplos"])
-        # 12ª coluna (estrutura de SISTEMA) — ver nota no caminho sequencial.
-        resultado, sis_fix = anexar_sistema_tsv(resultado, texto)
-        if sis_fix["sistemas"]:
-            logger.info("par sistema: %d linha(s) marcada(s) como sistema", sis_fix["sistemas"])
-        _fire(registrar_uso(dono, casa, modelo, n_chunks, n_itens, total_tokens, caminho=caminho))
-        # Fase 0 do tradutor (modo sombra) — ver a nota no caminho sequencial.
-        _fire(_sombra_e_semente(dono, casa, texto, resultado))
-        # Memória da barreira de recaptura — ver `_barreira_lembrar`.
-        _fire(_barreira_lembrar(dono, casa, texto))
-        # Sombra de MODELO: os MESMOS chunks, com o MESMO system. Ver `_sombra_modelo`.
-        if _sombra_vale_agora():
-            _fire(_sombra_modelo(dono, casa, system, chunks, texto, modelo,
-                                 titular_bruto=titular_bruto, titular_final=resultado,
-                                 titular_tk=tk_base, titular_tk_total=dict(total_tokens),
-                                 codigo_ocr=codigo_ocr, betfair_dates=betfair_dates))
-        yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'leitor': leitor, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto), 'moedas': _cambio.moedas_do_texto(texto), 'freebets': freebets_do_texto(texto)})}\n\n"
-    except Exception:
-        logger.exception("par-final error")
-        yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"
+        try:
+            # Regras de ordenação por casa (a grade exibe o último inserido no topo →
+            # p/ a bet mais nova ficar no topo, o TSV tem de ser salvo do mais ANTIGO p/ o
+            # mais novo, i.e. inverter quando a entrada vem newest-first):
+            # - Pinnacle XLS: texto pré-invertido pelo parser → chunk 0 = mais antigo → reverse=False
+            # - Superbet PRINT: usuário cola na ordem certa → reverse=False
+            # - Superbet TEXTO (scanner) e todo o resto: entrada newest-first → reverse=True
+            is_xls_mode = any(
+                isinstance(b, dict) and b.get("type") == "text" and "=== Aposta ID" in b.get("text", "")
+                for b in chunks[0]
+            )
+            superbet_print = casa_key.upper() == "SUPERBET" and any(
+                isinstance(b, dict) and b.get("type") == "image" for b in chunks[0]
+            )
+            # Casas de feed newest-first (Bet365, Superbet-texto): o modelo emite em ordem de
+            # CAPTURA/leitura natural (§2 "não inverter"). A inversão p/ oldest→newest tem de
+            # ser no nível de LINHA, não de chunk: com >_MAX_CHUNKS bilhetes os chunks têm 2+
+            # cada e inverter só a ORDEM DOS CHUNKS embaralha em blocos (o bug de ordem que a
+            # Bet365 apresentava — ex.: 6 bilhetes T1..T6 saíam T5,T6,T3,T4,T1,T2). Inverter as
+            # LINHAS finais é determinístico e não depende de o modelo obedecer a instrução.
+            superbet_text = casa_key.upper() == "SUPERBET" and not superbet_print
+            # Betfair (texto dos bilhetes em ordem da Fonte A, newest-first) entra no reverse
+            # por LINHA como a Bet365 — agora que é paralela, não dá p/ depender do modelo.
+            reverse_rows_casa = casa_key.upper() in ("BET365", "BETANO", "BETFAIR") or superbet_text
+            if reverse_rows_casa:
+                completed.sort(key=lambda x: x[0])   # ordem de captura (idx crescente)
+                resultado, total_tokens, scroll_overlap_indices = _combine_parallel_results(completed, reverse_rows=True)
+            else:
+                reverse_chunks = not (is_xls_mode or superbet_print)
+                completed.sort(key=lambda x: x[0], reverse=reverse_chunks)
+                resultado, total_tokens, scroll_overlap_indices = _combine_parallel_results(completed)
+            logger.info("par total: %.1fs | chunks=%d | out=%d",
+                        time.perf_counter() - t_start, n_chunks, total_tokens["output"])
+            # Para a sombra de números (s407) — ver a nota no caminho sequencial.
+            titular_bruto, tk_base = resultado, dict(total_tokens)
+            # O leitor (s417): ver a nota no seq.
+            resultado, leitor = await _leitor(resultado, texto, dono, casa, "par")
+            # Correção determinística do ID contra o texto colado (ver nota no seq).
+            resultado, id_fix = corrigir_codigos_tsv(resultado, texto)
+            if id_fix["corrigidos"] or id_fix["incertos"]:
+                logger.info("par id-fix: corrigidos=%d incertos=%d", id_fix["corrigidos"], id_fix["incertos"])
+            # Código determinístico (s356): ver a nota no seq. Antes da cobertura pelo mesmo
+            # motivo — é a repescagem que transforma um código inventado em DUAS linhas.
+            resultado, cod_fix = _corrigir_codigos_fantasma(resultado, texto, codigo_ocr)
+            if cod_fix["fantasmas"]:
+                logger.warning("par código: %d código(s) que não existem no texto do robô — "
+                               "%d adotado(s) do bloco, %d esvaziado(s): %s",
+                               cod_fix["fantasmas"], cod_fix["adotados"],
+                               cod_fix["esvaziados"], cod_fix["exemplos"])
+            # Cobertura: chunk que responde sem o bloco ```tsv some em silêncio (o
+            # `chunks_falhos` só conta exceção). Confere pelo gabarito de códigos e repesca.
+            resultado, cobertura, tk_extra = await _garantir_cobertura(
+                system, resultado, texto, modelo,
+                chunks[0][-1] if chunks and chunks[0] else None, reverse_rows_casa, pensamento)
+            for k in total_tokens:
+                total_tokens[k] += tk_extra.get(k, 0)
+                extra[k] += tk_extra.get(k, 0)
+            # Fidelidade: a linha do código X saiu do bloco do código X? Ver a nota no seq.
+            resultado, fidelidade, tk_fid = await _garantir_fidelidade(
+                system, resultado, texto, modelo,
+                chunks[0][-1] if chunks and chunks[0] else None, pensamento)
+            for k in total_tokens:
+                total_tokens[k] += tk_fid.get(k, 0)
+                extra[k] += tk_fid.get(k, 0)
+            if cobertura.get("recuperados") or fidelidade.get("corrigidas"):
+                # A lista de linhas mudou → os índices de sobreposição de scroll não valem
+                # mais. São só um badge azul de dica; descartar é seguro (e casa com código
+                # nunca é marcada como sobreposição — ver `_scroll_key`).
+                scroll_overlap_indices = []
+            # Betfair: preenche a Data pelo ID (join com o extrato, feito no código).
+            if betfair_dates:
+                resultado = _apply_betfair_dates(resultado, betfair_dates)
+            # Stake determinística (s311) — ver nota no caminho sequencial. Aqui é onde ela
+            # mais importa: o carryover de stake nasce da vizinhança DENTRO de um chunk.
+            resultado, leitor2 = await _leitor(resultado, texto, dono, casa, "par pós-repesca",
+                                          final=True)
+            # s423: a linha que a passada final ainda recusa sai do lote; ela tem de
+            # aparecer na tela como faltante (o "REPROCESSE"), nunca sumir em silêncio.
+            if leitor2["recusadas"] and texto:
+                cobertura = {**cobertura,
+                             "faltantes": conferir_cobertura(resultado, texto)["faltantes"]}
+            leitor = {k: leitor[k] + leitor2[k] for k in ("realinhadas", "recusadas")} | {
+                "exemplos": leitor["exemplos"] + leitor2["exemplos"]}
+            resultado, stake_fix = corrigir_stake_tsv(resultado, texto)
+            if stake_fix["stakes"]:
+                logger.warning("par stake: %d linha(s) com stake do bilhete errado — corrigidas "
+                               "pelo bloco cru: %s", stake_fix["stakes"], stake_fix["exemplos"])
+            if stake_fix["financeiro"]:
+                logger.warning("par financeiro: %d linha(s) com odd/resultado que o RETORNO do "
+                               "bloco desmente — corrigidas: %s",
+                               stake_fix["financeiro"], stake_fix["exemplos_fin"])
+            # Data da múltipla que perdeu cedo (s405, `MASTER_OUTPUT §4.0.1`): depois da stake,
+            # porque o resultado final pode ter sido corrigido lá.
+            resultado, data_fix = corrigir_data_tsv(resultado, texto)
+            if data_fix["datas"]:
+                logger.warning("par data: %d múltipla(s) perdida(s) datada(s) pela perna perdida: %s",
+                               data_fix["datas"], data_fix["exemplos"])
+            # 12ª coluna (estrutura de SISTEMA) — ver nota no caminho sequencial.
+            resultado, sis_fix = anexar_sistema_tsv(resultado, texto)
+            if sis_fix["sistemas"]:
+                logger.info("par sistema: %d linha(s) marcada(s) como sistema", sis_fix["sistemas"])
+            _fire(registrar_uso(dono, casa, modelo, n_chunks, n_itens, total_tokens, caminho=caminho))
+            registrado = True
+            # Fase 0 do tradutor (modo sombra) — ver a nota no caminho sequencial.
+            _fire(_sombra_e_semente(dono, casa, texto, resultado))
+            # Memória da barreira de recaptura — ver `_barreira_lembrar`.
+            _fire(_barreira_lembrar(dono, casa, texto))
+            # Sombra de MODELO: os MESMOS chunks, com o MESMO system. Ver `_sombra_modelo`.
+            if _sombra_vale_agora():
+                _fire(_sombra_modelo(dono, casa, system, chunks, texto, modelo,
+                                     titular_bruto=titular_bruto, titular_final=resultado,
+                                     titular_tk=tk_base, titular_tk_total=dict(total_tokens),
+                                     codigo_ocr=codigo_ocr, betfair_dates=betfair_dates))
+            yield f"data: {json.dumps({'done': True, 'resultado': resultado, 'stop_reason': 'end_turn', 'modelo': modelo, 'xls_skipped': xls_skipped, 'fora_corte': fora_corte, 'tokens': total_tokens, 'scroll_overlap_indices': scroll_overlap_indices, 'id_fix': id_fix, 'chunks_falhos': chunks_falhos, 'cobertura': cobertura, 'fidelidade': fidelidade, 'stake_fix': stake_fix, 'cod_fix': cod_fix, 'leitor': leitor, 'codigo_ocr': codigo_ocr, 'carimbos': carimbos_do_texto(texto), 'moedas': _cambio.moedas_do_texto(texto), 'freebets': freebets_do_texto(texto)})}\n\n"
+        except Exception:
+            logger.exception("par-final error")
+            yield f"data: {json.dumps({'error': 'Erro ao consolidar a extração. Tente novamente.'})}\n\n"
+    finally:
+        if not registrado:
+            _fire(_registrar_uso_interrompido(
+                dono, casa, modelo, n_chunks, n_itens, caminho, "par",
+                partes=[tk for _, _, tk in completed] + [extra],
+                tarefas=tasks, fila=result_queue))
 
 
 # ── Contrato de texto de 4 campos (s386) — DESLIGADO por padrão ──────────────
