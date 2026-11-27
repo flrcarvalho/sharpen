@@ -20,8 +20,11 @@ perdidas). Escrito ANTES do 1º cru real chegar ao banco.
     não é provadamente a liquidação: não entra.
   • status pelo DINHEIRO: ganha só com `WIN`, toda perna `WIN` e retorno fechando stake × odd
     no centavo; perdida só com `LOSE`, retorno 0 e ao menos uma perna `LOSE`/`HALF_LOSE`.
+  • Ganha com perna `VOID` (s468, 1º cru real: Gabriel 6442644, 27/11/2026): a anulada sai da
+    conta e o boost cai junto. Aceita só com o retorno fechando stake × produto das pernas
+    GANHAS no centavo (300 × 1,90 × 1,70 = 969,00); a odd sai por retorno ÷ stake na Ficha.
   • Sem amostra, RECUSA: `VOID`, `CASHOUT`, `HALF_WIN`, `HALF_LOSE` no bilhete, tipos
-    `SYSTEM`/`FLEXIBLE`/`ONE_CUT`, ganha com perna que não seja `WIN`.
+    `SYSTEM`/`FLEXIBLE`/`ONE_CUT`, ganha com perna que não seja `WIN`/`VOID`, ganha só de anuladas.
 """
 from __future__ import annotations
 
@@ -73,7 +76,9 @@ def _juntar(*partes) -> str:
     return " ".join(str(p) for p in partes if p is not None and str(p) != "")
 
 
-def _status(t: dict, stake: Decimal, odd: Decimal, retorno: Decimal | None, pst: list) -> str:
+def _status(t: dict, stake: Decimal, odd: Decimal, retorno: Decimal | None, pst: list,
+            odds_ganhas: list | None = None) -> str:
+    odds_ganhas = odds_ganhas or []
     st = t.get("status")
     cru = f"status {st!r}"
     if st == "UNSETTLED":
@@ -81,10 +86,26 @@ def _status(t: dict, stake: Decimal, odd: Decimal, retorno: Decimal | None, pst:
     if retorno is None:
         raise Recusa(f"{cru} sem payout")
     if st == "WIN":
-        if not pst or not all(p == "WIN" for p in pst):
+        if not pst or not all(p in ("WIN", "VOID") for p in pst) or "WIN" not in pst:
             raise Recusa(f"{cru} com pernas {pst!r}: sem amostra liquidada (a conferir)")
-        if retorno <= stake or abs(retorno - stake * odd) > _CENTAVO:
-            raise Recusa(f"{cru}: retorno {retorno} não fecha stake {stake} × odd {odd}")
+        if retorno <= stake:
+            raise Recusa(f"{cru}: retorno {retorno} não passa da stake {stake}")
+        if "VOID" not in pst:
+            if abs(retorno - stake * odd) > _CENTAVO:
+                raise Recusa(f"{cru}: retorno {retorno} não fecha stake {stake} × odd {odd}")
+            return "ganha"
+        # s468 (Gabriel, 6442644): perna anulada sai da conta e o boost cai junto. A casa
+        # pagou stake × produto das pernas GANHAS, sem boost (300 × 1,90 × 1,70 = 969,00), e a
+        # Ficha deriva a odd por retorno ÷ stake (`ficha._odd`, nenhuma outra fecha).
+        # Só com o retorno fechando essa conta no centavo; boost sobrevivendo, recusa.
+        prod = Decimal(1)
+        for o in odds_ganhas:
+            if o is None or o <= 1:
+                raise Recusa(f"{cru}: perna ganha sem odd")
+            prod *= o
+        if abs(retorno - stake * prod) > _CENTAVO:
+            raise Recusa(f"{cru} com perna anulada: retorno {retorno} não fecha stake {stake} "
+                         f"× pernas ganhas {prod}")
         return "ganha"
     if st == "LOSE":
         if retorno == 0 and any(p in ("LOSE", "HALF_LOSE") for p in pst):
@@ -119,7 +140,8 @@ def adaptar(t: dict, casa_key: str) -> dict:
         raise Recusa(f"stake {m.get('amount')!r} ou odd {t.get('initialOdds')!r} inválida")
     payout = _dec(m.get("payout"))
     retorno = payout / mult if payout is not None else None
-    status = _status(t, stake, odd, retorno, [o.get("status") for o in outs])
+    status = _status(t, stake, odd, retorno, [o.get("status") for o in outs],
+                     [_dec(o.get("odds")) for o in outs if o.get("status") == "WIN"])
     pernas = []
     for o in outs:
         ev, mk, sp = o.get("event") or {}, o.get("market") or {}, o.get("sport") or {}

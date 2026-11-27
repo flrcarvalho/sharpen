@@ -23,6 +23,16 @@ detectadas, com o teste que acusa:
  12. início em segundos (epoch ms lido como s)              → test_fixture_inteira_monta
  13. código = billingTransactionId                          → test_fixture_inteira_monta
 
+s468: ganha com perna VOID, pelo 1º cru real (`tests/fixtures/vcs_perna_anulada_s468.json`).
+Mutações (27/11/2026), com o teste que acusa:
+ 14. VOID volta a recusar (só WIN)                          → test_ganha_com_perna_anulada_...
+ 15. produto de TODAS as pernas (anulada junto)              → test_ganha_com_perna_anulada_...
+ 16. sem conferir o retorno contra as pernas ganhas          → test_perna_anulada_sem_a_conta_fechar
+ 17. só anuladas aceito (sem exigir uma WIN)                 → INÓCUA sozinha
+ 18. sem `retorno <= stake`                                  → INÓCUA sozinha
+     17 e 18 se cobrem: só anuladas paga a stake, e uma das duas basta para recusar. As duas
+     juntas → test_perna_anulada_sem_a_conta_fechar (detectada). 5 aplicadas, 3 + o par.
+
 O QUE NÃO COBRE: simples, VOID, CASHOUT, HALF_WIN/HALF_LOSE no bilhete e SYSTEM/FLEXIBLE/
 ONE_CUT REAIS (a conta do recon não tem nenhum; os testes usam clone com o campo trocado) e o
 `liquidada_em` (`updateTime` não é provadamente a liquidação).
@@ -142,6 +152,43 @@ def test_sem_amostra_recusa():
     _recusa(c)
     _recusa(clone(initialOdds=None, odds=None))
     _recusa(clone(id=None))
+
+
+# s468: o 1º cru real com perna anulada (Gabriel, conta gfatuch, 27/11/2026), verbatim do
+# `captura_crua`. Card: VENCEU, Valor R$ 300,00, Saque R$ 969,00; pernas 1,90 WIN · 1,80 VOID ·
+# 1,70 WIN; `initialOdds` 5,95842 (com o boost que caiu). A Ficha recusava, a IA gravou V e o
+# P/L da conta ficou 669,00 abaixo do da casa.
+ANULADA = json.loads((Path(__file__).resolve().parent / "fixtures" / "vcs_perna_anulada_s468.json")
+                     .read_text(encoding="utf-8"))
+
+
+def test_ganha_com_perna_anulada_paga_as_pernas_ganhas():
+    f, d = _montar(ANULADA)
+    assert f["codigo"] == "6442644" and f["status"] == "ganha"
+    assert f["retorno"] == "969" and f["stake"] == "300"
+    assert [p["status_perna"] for p in f["pernas"]] == ["ganha", "anulada", "ganha"]
+    assert d["resultado"] == "W" and d["odd"] == "3,23"              # 969 ÷ 300, nunca 5,95842
+    assert d["data"] == "26/11/2026"
+
+
+def test_perna_anulada_sem_a_conta_fechar_recusa():
+    c = copy.deepcopy(ANULADA)
+    c["money"]["payout"] = 174420                                   # o retorno com as 3 pernas
+    _recusa(c)
+    c = copy.deepcopy(ANULADA)
+    c["money"]["payout"] = 99807                                    # 969 + boost de 3% no lucro
+    _recusa(c)
+    c = copy.deepcopy(ANULADA)
+    for o in c["outcomes"]:
+        o["status"] = "VOID"
+    c["money"]["payout"] = 30000                                    # só anuladas: sem amostra
+    _recusa(c)
+    c = copy.deepcopy(ANULADA)
+    c["outcomes"][1]["status"] = "HALF_WIN"
+    _recusa(c)
+    c = copy.deepcopy(ANULADA)
+    c["outcomes"][0]["odds"] = None
+    _recusa(c)
 
 
 def test_codigo_e_o_id_da_aposta():

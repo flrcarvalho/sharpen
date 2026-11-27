@@ -1,0 +1,339 @@
+{
+ "id": "6442644",
+ "odds": 5.95,
+ "type": "MULTIPLE",
+ "money": {
+  "rate": 0.1533311969186563,
+  "bonus": 0,
+  "amount": 30000,
+  "payout": 96900,
+  "currency": "BRL",
+  "payoutNet": 96900,
+  "payoutTax": 0,
+  "multiplier": 100,
+  "payoutGross": 96900,
+  "multiplierBC": 100,
+  "initialAmount": 30000,
+  "possibleBonus": 0,
+  "possiblePayout": 174420,
+  "initialAmountNet": 30000,
+  "initialAmountTax": 0,
+  "possiblePayoutNet": 174420,
+  "possiblePayoutTax": 0,
+  "initialAmountGross": 30000,
+  "possiblePayoutGross": 174420
+ },
+ "locale": "BR-PT",
+ "status": "WIN",
+ "bonuses": [
+  {
+   "id": "01a14578-53cf-732b-a768-9f5c91476b36",
+   "name": "Combo Boost — Até +100% em apostas múltiplas!",
+   "type": "EXPRESS",
+   "target": "WIN_AMOUNT",
+   "options": [
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 3,
+     "bonusPercentage": 3
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 4,
+     "bonusPercentage": 5
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 5,
+     "bonusPercentage": 7
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 6,
+     "bonusPercentage": 10
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 7,
+     "bonusPercentage": 15
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 8,
+     "bonusPercentage": 20
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 9,
+     "bonusPercentage": 25
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 10,
+     "bonusPercentage": 30
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 11,
+     "bonusPercentage": 35
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 12,
+     "bonusPercentage": 40
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 13,
+     "bonusPercentage": 45
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 14,
+     "bonusPercentage": 50
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 15,
+     "bonusPercentage": 55
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 16,
+     "bonusPercentage": 60
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 17,
+     "bonusPercentage": 70
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 18,
+     "bonusPercentage": 80
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 19,
+     "bonusPercentage": 90
+    },
+    {
+     "active": false,
+     "minOdds": 1.4,
+     "outcomesCount": 20,
+     "bonusPercentage": 100
+    }
+   ],
+   "appliedOutcomes": null
+  }
+ ],
+ "outcomes": [
+  {
+   "id": "1110596705",
+   "name": "Over",
+   "odds": 1.9,
+   "event": {
+    "id": "5609391",
+    "name": "Samuel Garcia Hernandez vs Liam Delicata",
+    "slug": "samuel-garcia-hernandez-vs-liam-delicata",
+    "startTime": 1795678200000
+   },
+   "sport": {
+    "id": "3",
+    "name": "Tennis"
+   },
+   "market": {
+    "id": "471571245",
+    "name": "Under/Over Games",
+    "typeId": "175"
+   },
+   "region": {
+    "id": "753",
+    "name": "ITF Men"
+   },
+   "status": "WIN",
+   "typeId": "2",
+   "awayScore": 0,
+   "homeScore": 0,
+   "matchClock": "",
+   "parameters": "18.5",
+   "tournament": {
+    "id": "6325",
+    "name": "ITF Heraklion | Men | Singles",
+    "slug": "itf-heraklion-men-singles"
+   },
+   "earlyPayout": false,
+   "participants": [
+    {
+     "id": "243377316",
+     "fullName": "Liam Delicata",
+     "qualifier": "away",
+     "shortName": "",
+     "imageUrlPath": "/sportsbook/participant/1-52618493.webp"
+    },
+    {
+     "id": "259477476",
+     "fullName": "Samuel Garcia Hernandez",
+     "qualifier": "home",
+     "shortName": "",
+     "imageUrlPath": "/sportsbook/participant/1-53806365.webp"
+    }
+   ],
+   "sportService": "PREMATCH",
+   "currentPeriod": "",
+   "discriminator": "SPORT",
+   "statisticAway": 0,
+   "statisticHome": 0,
+   "statisticType": "SCORE",
+   "vipBettingEligible": false,
+   "earlyPayoutEligible": false
+  },
+  {
+   "id": "1110444643",
+   "name": "Over",
+   "odds": 1.8,
+   "event": {
+    "id": "5609099",
+    "name": "Pierluigi Basile vs Theofanis Kontopoulos",
+    "slug": "pierluigi-basile-vs-theofanis-kontopoulos",
+    "startTime": 1795678200000
+   },
+   "sport": {
+    "id": "3",
+    "name": "Tennis"
+   },
+   "market": {
+    "id": "471508096",
+    "name": "Under/Over Games",
+    "typeId": "175"
+   },
+   "region": {
+    "id": "753",
+    "name": "ITF Men"
+   },
+   "status": "VOID",
+   "typeId": "2",
+   "awayScore": 0,
+   "homeScore": 0,
+   "matchClock": "",
+   "parameters": "16.5",
+   "tournament": {
+    "id": "6325",
+    "name": "ITF Heraklion | Men | Singles",
+    "slug": "itf-heraklion-men-singles"
+   },
+   "earlyPayout": false,
+   "participants": [
+    {
+     "id": "53319922",
+     "fullName": "Pierluigi Basile",
+     "qualifier": "home",
+     "shortName": "",
+     "imageUrlPath": "/sportsbook/participant/1-53699733.webp"
+    },
+    {
+     "id": "2096089314",
+     "fullName": "Theofanis Kontopoulos",
+     "qualifier": "away",
+     "shortName": "",
+     "imageUrlPath": "/sportsbook/participant/1-53490171.webp"
+    }
+   ],
+   "sportService": "PREMATCH",
+   "currentPeriod": "",
+   "discriminator": "SPORT",
+   "statisticAway": 0,
+   "statisticHome": 0,
+   "statisticType": "SCORE",
+   "vipBettingEligible": false,
+   "earlyPayoutEligible": false
+  },
+  {
+   "id": "1110158835",
+   "name": "Kitchee",
+   "odds": 1.7,
+   "event": {
+    "id": "5561810",
+    "name": "Gangwon FC vs Kitchee",
+    "slug": "gangwon-fc-vs-kitchee",
+    "startTime": 1795687200000
+   },
+   "sport": {
+    "id": "1",
+    "name": "Football"
+   },
+   "market": {
+    "id": "471391157",
+    "name": "Asian Handicap",
+    "typeId": "100"
+   },
+   "region": {
+    "id": "63",
+    "name": "International"
+   },
+   "status": "WIN",
+   "typeId": "58",
+   "awayScore": 0,
+   "homeScore": 0,
+   "matchClock": "",
+   "parameters": "+1.5",
+   "tournament": {
+    "id": "925",
+    "name": "AFC Champions League Two",
+    "slug": "afc-champions-league-two"
+   },
+   "earlyPayout": false,
+   "participants": [
+    {
+     "id": "1352",
+     "fullName": "Gangwon FC",
+     "qualifier": "home",
+     "shortName": "",
+     "imageUrlPath": "/sportsbook/participant/1-201605.webp"
+    },
+    {
+     "id": "24091",
+     "fullName": "Kitchee",
+     "qualifier": "away",
+     "shortName": "",
+     "imageUrlPath": "/sportsbook/participant/1-236247.webp"
+    }
+   ],
+   "sportService": "PREMATCH",
+   "currentPeriod": "",
+   "discriminator": "SPORT",
+   "statisticAway": 0,
+   "statisticHome": 0,
+   "statisticType": "GOAL",
+   "vipBettingEligible": false,
+   "earlyPayoutEligible": false
+  }
+ ],
+ "requestId": "9c0e28c6-33a7-4780-b223-714305827d52",
+ "boostxable": false,
+ "createTime": 1795645780984,
+ "updateTime": 1795693998936,
+ "initialOdds": 5.95842,
+ "boostxStatus": "UNAVAILABLE",
+ "cutPercentage": 0,
+ "cashoutEligible": false,
+ "winCombinationSize": 3,
+ "billingTransactionId": "2762828090"
+}
