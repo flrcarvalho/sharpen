@@ -1,0 +1,293 @@
+{
+ "_cabecalho": {
+  "o_que_e": "Cópia das 28 marketKey da Cloudbet que a Ficha monta quando a posição não traz marketName/outcomeName (mercado de jogo). Só os campos Name, Variables e Outcomes, sem alteração.",
+  "fonte": "https://storage.googleapis.com/kubershmuber-dev-sports-asia/market-translations-gz/{esporte}/en.json",
+  "esportes": [
+   "american_football",
+   "basketball",
+   "dota_2",
+   "handball",
+   "ice_hockey",
+   "soccer",
+   "tennis"
+  ],
+  "baixado_em": "26/11/2026 11:25 (Brasília)",
+  "criterio": "marketKey das pernas sem nome nas recusas de 30 dias (s465) cujas Variables batem exatamente com os params; optional.* fora (decisão da consultoria, 26/11/2026).",
+  "conferido_na_casa": "27/11/2026, pela consultoria, navegando jogos abertos: '1st half - handicap' = 'NY Knicks -2.5' / 'MIA Heat +2.5' ({{-x}} e o '+' da linha positiva); 'Veronika Erjavec Total Games' ({{team}}).",
+  "atualizar": "marketKey nova entra só copiada da mesma fonte, com data, e com caso conferido na casa."
+ },
+ "mercados": {
+  "american_football.1x2_period_first_half": {
+   "Name": "1st half - 1x2",
+   "Variables": [],
+   "Outcomes": {
+    "away": "{{away}}",
+    "draw": "Draw",
+    "home": "{{home}}"
+   }
+  },
+  "american_football.handicap": {
+   "Name": "Handicap",
+   "Variables": [
+    "handicap"
+   ],
+   "Outcomes": {
+    "away": "{{away}} {{-handicap}}",
+    "home": "{{home}} {{handicap}}"
+   }
+  },
+  "american_football.quarter_total": {
+   "Name": "Quarter {{quarter}} - total",
+   "Variables": [
+    "total",
+    "quarter"
+   ],
+   "Outcomes": {
+    "over": "Over {{total}}",
+    "under": "Under {{total}}"
+   }
+  },
+  "basketball.1st_half_draw_no_bet": {
+   "Name": "1st half - draw no bet",
+   "Variables": [],
+   "Outcomes": {
+    "away": "{{away}}",
+    "home": "{{home}}"
+   }
+  },
+  "basketball.handicap": {
+   "Name": "Spread",
+   "Variables": [
+    "handicap"
+   ],
+   "Outcomes": {
+    "away": "{{away}} {{-handicap}}",
+    "home": "{{home}} {{handicap}}"
+   }
+  },
+  "basketball.handicap_period_first_half": {
+   "Name": "1st half - handicap",
+   "Variables": [
+    "handicap"
+   ],
+   "Outcomes": {
+    "away": "{{away}} {{-handicap}}",
+    "home": "{{home}} {{handicap}}"
+   }
+  },
+  "basketball.moneyline": {
+   "Name": "Money Line",
+   "Variables": [],
+   "Outcomes": {
+    "away": "{{away}}",
+    "home": "{{home}}"
+   }
+  },
+  "basketball.quarter_totals": {
+   "Name": "Quarter {{quarter}} totals",
+   "Variables": [
+    "total",
+    "quarter"
+   ],
+   "Outcomes": {
+    "over": "Over {{total}}",
+    "under": "Under {{total}}"
+   }
+  },
+  "basketball.totals": {
+   "Name": "Total",
+   "Variables": [
+    "total"
+   ],
+   "Outcomes": {
+    "over": "Over {{total}}",
+    "under": "Under {{total}}"
+   }
+  },
+  "dota_2.winner": {
+   "Name": "Winner",
+   "Variables": [],
+   "Outcomes": {
+    "away": "{{away}}",
+    "home": "{{home}}"
+   }
+  },
+  "handball.totals": {
+   "Name": "Total",
+   "Variables": [
+    "total"
+   ],
+   "Outcomes": {
+    "over": "Over {{total}}",
+    "under": "Under {{total}}"
+   }
+  },
+  "ice_hockey.handicap": {
+   "Name": "Handicap (Incl. Overtime and Penalties)",
+   "Variables": [
+    "handicap"
+   ],
+   "Outcomes": {
+    "away": "{{away}} {{-handicap}}",
+    "home": "{{home}} {{handicap}}"
+   }
+  },
+  "ice_hockey.handicap_regular_time": {
+   "Name": "Handicap (Excl. Overtime and Penalties)",
+   "Variables": [
+    "handicap"
+   ],
+   "Outcomes": {
+    "away": "{{away}} {{-handicap}}",
+    "home": "{{home}} {{handicap}}"
+   }
+  },
+  "ice_hockey.totals": {
+   "Name": "Total (Incl. Overtime and Penalties)",
+   "Variables": [
+    "total"
+   ],
+   "Outcomes": {
+    "over": "Over {{total}}",
+    "under": "Under {{total}}"
+   }
+  },
+  "ice_hockey.winner": {
+   "Name": "Winner (Incl. Overtime and Penalties)",
+   "Variables": [],
+   "Outcomes": {
+    "away": "{{away}}",
+    "home": "{{home}}"
+   }
+  },
+  "soccer.both_teams_to_score": {
+   "Name": "Both teams to score",
+   "Variables": [],
+   "Outcomes": {
+    "no": "No",
+    "yes": "Yes"
+   }
+  },
+  "soccer.corner_handicap_period_1h": {
+   "Name": "1st half - corner handicap",
+   "Variables": [
+    "handicap"
+   ],
+   "Outcomes": {
+    "away": "{{away}} {{-handicap}}",
+    "home": "{{home}} {{handicap}}"
+   }
+  },
+  "soccer.team_total_goals": {
+   "Name": "{{team}} Total Goals",
+   "Variables": [
+    "total",
+    "team"
+   ],
+   "Outcomes": {
+    "over": "Over {{total}}",
+    "under": "Under {{total}}"
+   }
+  },
+  "soccer.team_total_goals_period_first_half": {
+   "Name": "{{team}} 1st Half Total Goals",
+   "Variables": [
+    "total",
+    "team"
+   ],
+   "Outcomes": {
+    "over": "Over {{total}}",
+    "under": "Under {{total}}"
+   }
+  },
+  "soccer.total_bookings": {
+   "Name": "1-2 Total booking Points",
+   "Variables": [
+    "total"
+   ],
+   "Outcomes": {
+    "over": "Over {{total}}",
+    "under": "Under {{total}}"
+   }
+  },
+  "soccer.total_goals": {
+   "Name": "Total Goals",
+   "Variables": [
+    "total"
+   ],
+   "Outcomes": {
+    "over": "Over {{total}}",
+    "under": "Under {{total}}"
+   }
+  },
+  "tennis.game_handicap": {
+   "Name": "Game Handicap",
+   "Variables": [
+    "handicap"
+   ],
+   "Outcomes": {
+    "away": "{{away}} {{-handicap}}",
+    "home": "{{home}} {{handicap}}"
+   }
+  },
+  "tennis.set_handicap": {
+   "Name": "Set Handicap",
+   "Variables": [
+    "handicap"
+   ],
+   "Outcomes": {
+    "away": "{{away}} {{-handicap}}",
+    "home": "{{home}} {{handicap}}"
+   }
+  },
+  "tennis.team_total_games": {
+   "Name": "{{team}} Total Games",
+   "Variables": [
+    "total",
+    "team"
+   ],
+   "Outcomes": {
+    "over": "Over {{total}}",
+    "under": "Under {{total}}"
+   }
+  },
+  "tennis.total_games": {
+   "Name": "Total Games",
+   "Variables": [
+    "total"
+   ],
+   "Outcomes": {
+    "over": "Over {{total}}",
+    "under": "Under {{total}}"
+   }
+  },
+  "tennis.total_sets": {
+   "Name": "Total sets",
+   "Variables": [
+    "total"
+   ],
+   "Outcomes": {
+    "over": "Over {{total}}",
+    "under": "Under {{total}}"
+   }
+  },
+  "tennis.winner": {
+   "Name": "Winner",
+   "Variables": [],
+   "Outcomes": {
+    "away": "{{away}}",
+    "home": "{{home}}"
+   }
+  },
+  "tennis.winner_of_set": {
+   "Name": "Winner of set {{set}}",
+   "Variables": [
+    "set"
+   ],
+   "Outcomes": {
+    "away": "{{away}}",
+    "home": "{{home}}"
+   }
+  }
+ }
+}

@@ -35,12 +35,24 @@ USDT: 15 abertas e 4 perdidas, todas múltiplas de 3).
     conferido no `portfolio` da sub-posição. `absorvidos` tira a LAY que captura antiga gravou.
   • Sem amostra, RECUSA: cashout sem a contra-aposta no cru (`isCashoutBet` solto), cru de uma
     aposta em sub-posição de várias, perna sem evento. O texto continua levando esses bilhetes à IA.
+  • MERCADO DE JOGO SEM NOME (s465, E1.4): a posição só traz `marketName`/`outcomeName` em
+    prop de jogador. Nas outras pernas o nome é montado da tabela da própria casa, copiada em
+    `cb_mercados.json` (28 marketKey, data e URL no cabeçalho), sem adivinhar nada:
+      - os params têm de ser EXATAMENTE as `Variables` da marketKey (optional.* ficou fora);
+      - `{{home}}`/`{{away}}` vêm do evento do cru; `{{team}}` só aceita home ou away;
+      - linha de `handicap` sai sempre com sinal, como a casa escreve ("Lipscomb +11.5",
+        "NY Knicks -2.5"), e zero sem sinal; `{{-handicap}}` é a linha com o sinal trocado;
+      - marketKey fora da tabela, outcome desconhecido, variável faltando ou sobrando, e
+        qualquer outra forma de `{{…}}`: RECUSA, e o bilhete continua indo à IA.
 """
 from __future__ import annotations
 
+import json
 import re
+import urllib.parse
 from datetime import datetime
 from decimal import Decimal
+from pathlib import Path
 
 from . import Recusa, numero
 
@@ -48,6 +60,9 @@ _PERNA = {"WIN": "ganha", "LOSS": "perdida", "PUSH": "anulada"}
 _MEIO_CENTAVO = Decimal("0.005")
 _UM_CENTAVO = Decimal("0.01")
 _LINHA = re.compile(r"\s([+-]?\d+(?:\.\d+)?)$")
+_MERCADOS = json.loads(Path(__file__).with_name("cb_mercados.json").read_text(encoding="utf-8"))["mercados"]
+_VAR = re.compile(r"\{\{(-?)([\w.]+)\}\}")
+_COM_SINAL = {"handicap"}   # a casa escreve a linha positiva com "+" (conferido em 27/11/2026)
 
 
 def _limpo(v) -> str:
@@ -57,6 +72,51 @@ def _limpo(v) -> str:
 def _dec(v) -> Decimal | None:
     n = numero(v)
     return Decimal(n) if n is not None else None
+
+
+def _nome_da_tabela(s: dict, ev: dict) -> tuple[str, str]:
+    """(mercado, seleção) da perna sem nome, montados da tabela da casa (`cb_mercados.json`)."""
+    mk = s.get("marketKey")
+    e = _MERCADOS.get(mk)
+    if e is None:
+        raise Recusa(f"perna sem nome de mercado e marketKey {mk!r} fora da tabela")
+    ps = dict(urllib.parse.parse_qsl(str(s.get("params") or ""), keep_blank_values=True))
+    if set(ps) != set(e["Variables"]):
+        raise Recusa(f"{mk}: params {sorted(ps)} não são as variáveis da tabela {sorted(e['Variables'])}")
+    modelo = e["Outcomes"].get(s.get("outcome"))
+    if modelo is None:
+        raise Recusa(f"{mk}: outcome {s.get('outcome')!r} fora da tabela")
+    times = {"home": _limpo((ev.get("home") or {}).get("name")),
+             "away": _limpo((ev.get("away") or {}).get("name"))}
+
+    def troca(m) -> str:
+        menos, nome = m.groups()
+        if nome in times and not menos:
+            if not times[nome]:
+                raise Recusa(f"{mk}: evento sem o nome do {nome}")
+            return times[nome]
+        if nome == "team" and not menos:
+            t = ps.get("team")
+            if t not in times or not times[t]:
+                raise Recusa(f"{mk}: team={t!r}")
+            return times[t]
+        if nome not in ps or nome in times or nome == "team":
+            raise Recusa(f"{mk}: {m.group(0)} sem valor")
+        if nome not in _COM_SINAL:
+            if menos:
+                raise Recusa(f"{mk}: {m.group(0)} fora da regra")
+            v = _limpo(ps[nome])
+            if not v:
+                raise Recusa(f"{mk}: {nome} vazio")
+            return v
+        d = _dec(ps[nome])
+        if d is None:
+            raise Recusa(f"{mk}: {nome}={ps[nome]!r} não é número")
+        if menos:
+            d = -d
+        return "0" if d == 0 else ("+" if d > 0 else "-") + numero(abs(d))
+
+    return _VAR.sub(troca, e["Name"]), _VAR.sub(troca, modelo)
 
 
 def _chave(s: dict) -> tuple:
@@ -234,7 +294,10 @@ def _perna(sels: list, nomes: dict, ev: dict, bb: bool, aberta: bool) -> dict:
     partes = []
     for s in sels:
         n = nomes.get(_chave(s)) or {}
-        partes.append((_limpo(n.get("marketName")), _limpo(n.get("outcomeName") or n.get("name"))))
+        par = (_limpo(n.get("marketName")), _limpo(n.get("outcomeName") or n.get("name")))
+        if not any(par):
+            par = _nome_da_tabela(s, ev)     # s465: mercado de jogo, a casa não manda o nome
+        partes.append(par)
     if bb:
         mercado = "Bet Builder"
         selecao = "; ".join(f"{m}: {o}" for m, o in partes)

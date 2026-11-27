@@ -1,0 +1,417 @@
+[
+ {
+  "aposta": {
+   "side": "BACK",
+   "type": "PARLAY",
+   "uuid": "eb753f0d-222e-491e-badb-79119f5bf5e6",
+   "price": "7.908",
+   "stake": "40",
+   "state": "COMPLETED",
+   "result": "LOSS",
+   "channel": "WEB",
+   "betSlipId": "326d1fdd-17a0-4ae5-abea-3b99dc62f6b5",
+   "createTime": "2026-11-20T19:35:31.964801Z",
+   "isMultiple": true,
+   "selections": [
+    {
+     "price": "2.02",
+     "params": "quarter=2&total=13.5",
+     "result": "WIN",
+     "eventId": "37230648",
+     "outcome": "under",
+     "sportKey": "american_football",
+     "marketKey": "american_football.quarter_total",
+     "marketUrl": "american_football.quarter_total/under?quarter=2&total=13.5",
+     "categoryKey": "usa",
+     "adjustedPrice": "2.02",
+     "competitionKey": "tcf-ncaa"
+    },
+    {
+     "price": "2.25",
+     "params": "quarter=3&total=7.5",
+     "result": "LOSS",
+     "eventId": "37230649",
+     "outcome": "over",
+     "sportKey": "american_football",
+     "marketKey": "american_football.quarter_total",
+     "marketUrl": "american_football.quarter_total/over?quarter=3&total=7.5",
+     "categoryKey": "usa",
+     "adjustedPrice": "2.25",
+     "competitionKey": "tcf-ncaa"
+    },
+    {
+     "price": "1.74",
+     "params": "player_key=s-kelly-oubre-jr-dot&total=1.5",
+     "result": "LOSS",
+     "eventId": "37343732",
+     "outcome": "under",
+     "sportKey": "basketball",
+     "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+     "marketUrl": "basketball.player_props_three_pointers_player_ou_incl_ot/under?player_key=s-kelly-oubre-jr-dot&total=1.5",
+     "categoryKey": "usa",
+     "adjustedPrice": "1.74",
+     "competitionKey": "t8f-nba"
+    }
+   ],
+   "baseCurrency": "USDT",
+   "completeTime": "2026-11-21T03:05:08Z",
+   "isCashoutBet": false,
+   "returnAmount": "-40",
+   "adjustedPrice": "0",
+   "spendingPoints": "0",
+   "betLegsIdentifier": "6f3a209ce13a3361aaae5409a7576472c862fb6a",
+   "potentialReturnAmount": "0",
+   "exhaustedPotentialReturnAmount": "0"
+  },
+  "eventos": {
+   "37230648": {
+    "id": 37230648,
+    "key": "ce8f-tennessee-volunteers-v-cdf5-lsu-tigers",
+    "away": {
+     "key": "cdf5-lsu-tigers",
+     "name": "LSU"
+    },
+    "home": {
+     "key": "ce8f-tennessee-volunteers",
+     "name": "Tennessee"
+    },
+    "name": "Tennessee v LSU",
+    "sport": {
+     "key": "american-football",
+     "name": "American Football"
+    },
+    "status": "RESULTED",
+    "cutoffTime": "2026-11-21T20:30:00Z",
+    "competition": {
+     "key": "american-football-usa-ncaa",
+     "name": "NCAAF",
+     "category": {
+      "key": "usa",
+      "name": "USA"
+     }
+    }
+   },
+   "37230649": {
+    "id": 37230649,
+    "key": "cddd-illinois-fighting-illini-v-cde0-iowa-hawkeyes",
+    "away": {
+     "key": "cde0-iowa-hawkeyes",
+     "name": "Iowa"
+    },
+    "home": {
+     "key": "cddd-illinois-fighting-illini",
+     "name": "Illinois"
+    },
+    "name": "Illinois v Iowa",
+    "sport": {
+     "key": "american-football",
+     "name": "American Football"
+    },
+    "status": "RESULTED",
+    "cutoffTime": "2026-11-21T19:30:00Z",
+    "competition": {
+     "key": "american-football-usa-ncaa",
+     "name": "NCAAF",
+     "category": {
+      "key": "usa",
+      "name": "USA"
+     }
+    }
+   },
+   "37343732": {
+    "id": 37343732,
+    "key": "c579-cleveland-cavaliers-v-c5f9-indiana-pacers",
+    "away": {
+     "key": "c5f9-indiana-pacers",
+     "name": "IND Pacers"
+    },
+    "home": {
+     "key": "c579-cleveland-cavaliers",
+     "name": "CLE Cavaliers"
+    },
+    "name": "CLE Cavaliers v IND Pacers",
+    "sport": {
+     "key": "basketball",
+     "name": "Basketball"
+    },
+    "status": "RESULTED",
+    "cutoffTime": "2026-11-21T00:30:00Z",
+    "competition": {
+     "key": "basketball-usa-nba",
+     "name": "NBA",
+     "category": {
+      "key": "usa",
+      "name": "USA"
+     }
+    }
+   }
+  },
+  "posicao": {
+   "type": "PARLAY",
+   "betCount": 1,
+   "positions": [
+    {
+     "status": "COMPLETED",
+     "betCount": 1,
+     "aggregate": {
+      "odds": "0",
+      "currency": "USD",
+      "stakeAmount": "40",
+      "returnAmount": "-40",
+      "cashoutAmount": "0",
+      "potentialReturnAmount": "0"
+     },
+     "portfolio": {
+      "USDT": {
+       "betCount": 1,
+       "stakeAmount": "40",
+       "returnAmount": "-40",
+       "cashoutAmount": "0",
+       "potentialReturnAmount": "0"
+      }
+     },
+     "selections": [
+      {
+       "name": "Under 1.5",
+       "params": "player_key=s-kelly-oubre-jr-dot&total=1.5",
+       "result": "LOSS",
+       "eventId": "37343732",
+       "outcome": "under",
+       "marketKey": "basketball.player_props_three_pointers_player_ou_incl_ot",
+       "marketName": "Kelly Oubre Jr. Total 3-Pointers Made",
+       "outcomeName": "Under 1.5"
+      },
+      {
+       "params": "quarter=3&total=7.5",
+       "result": "LOSS",
+       "eventId": "37230649",
+       "outcome": "over",
+       "marketKey": "american_football.quarter_total"
+      },
+      {
+       "params": "quarter=2&total=13.5",
+       "result": "WIN",
+       "eventId": "37230648",
+       "outcome": "under",
+       "marketKey": "american_football.quarter_total"
+      }
+     ],
+     "betLegIdentifier": "6f3a209ce13a3361aaae5409a7576472c862fb6a",
+     "cashoutSupported": false
+    }
+   ],
+   "positionId": "6f3a209ce13a3361aaae5409a7576472c862fb6a",
+   "positionTime": "2026-11-21T03:05:08Z",
+   "positionStatus": "COMPLETED"
+  }
+ },
+ {
+  "aposta": {
+   "side": "BACK",
+   "type": "PARLAY",
+   "uuid": "706e1899-4992-42e6-adf0-c97d348ca22e",
+   "price": "40.411",
+   "stake": "40",
+   "state": "COMPLETED",
+   "result": "LOSS",
+   "channel": "WEB",
+   "betSlipId": "118b33a8-59a1-40ad-9adb-bbef196f0894",
+   "createTime": "2026-11-17T22:38:12.224781Z",
+   "isMultiple": true,
+   "selections": [
+    {
+     "price": "8.15",
+     "params": "player_key=s-anthony-duclair&total=0.5",
+     "result": "WIN",
+     "eventId": "37294677",
+     "outcome": "over",
+     "sportKey": "ice_hockey",
+     "marketKey": "ice_hockey.player_props_goals_player_ou_incl_ot",
+     "marketUrl": "ice_hockey.player_props_goals_player_ou_incl_ot/over?player_key=s-anthony-duclair&total=0.5",
+     "categoryKey": "usa",
+     "adjustedPrice": "8.15",
+     "competitionKey": "t172-nhl"
+    },
+    {
+     "price": "2.11",
+     "params": "handicap=-11.5",
+     "result": "LOSS",
+     "eventId": "37299665",
+     "outcome": "away",
+     "sportKey": "basketball",
+     "marketKey": "basketball.handicap_period_first_half",
+     "marketUrl": "basketball.handicap_period_first_half/away?handicap=-11.5",
+     "categoryKey": "usa",
+     "adjustedPrice": "2.11",
+     "competitionKey": "t94-ncaa"
+    },
+    {
+     "price": "2.35",
+     "params": "player_key=s-mikal-bridges&total=2.5",
+     "result": "LOSS",
+     "eventId": "37298892",
+     "outcome": "over",
+     "sportKey": "basketball",
+     "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+     "marketUrl": "basketball.player_props_assists_player_ou_incl_ot/over?player_key=s-mikal-bridges&total=2.5",
+     "categoryKey": "usa",
+     "adjustedPrice": "2.35",
+     "competitionKey": "t8f-nba"
+    }
+   ],
+   "baseCurrency": "USDT",
+   "completeTime": "2026-11-18T00:20:15Z",
+   "isCashoutBet": false,
+   "returnAmount": "-40",
+   "adjustedPrice": "0",
+   "spendingPoints": "0",
+   "betLegsIdentifier": "80b85fcac5e65a183c8bdfea119cb83b8f609b6e",
+   "potentialReturnAmount": "0",
+   "exhaustedPotentialReturnAmount": "0"
+  },
+  "eventos": {
+   "37294677": {
+    "id": 37294677,
+    "key": "c1b66-new-york-islanders-v-c18cd-columbus-blue-jackets",
+    "away": {
+     "key": "c18cd-columbus-blue-jackets",
+     "name": "CLB Blue Jackets"
+    },
+    "home": {
+     "key": "c1b66-new-york-islanders",
+     "name": "NY Islanders"
+    },
+    "name": "NY Islanders v CLB Blue Jackets",
+    "sport": {
+     "key": "ice-hockey",
+     "name": "Ice Hockey"
+    },
+    "status": "RESULTED",
+    "cutoffTime": "2026-11-18T00:00:00Z",
+    "competition": {
+     "key": "ice-hockey-usa-nhl",
+     "name": "NHL",
+     "category": {
+      "key": "usa",
+      "name": "USA"
+     }
+    }
+   },
+   "37298892": {
+    "id": 37298892,
+    "key": "c73c-toronto-raptors-v-c683-new-york-knicks",
+    "away": {
+     "key": "c683-new-york-knicks",
+     "name": "NY Knicks"
+    },
+    "home": {
+     "key": "c73c-toronto-raptors",
+     "name": "TOR Raptors"
+    },
+    "name": "TOR Raptors v NY Knicks",
+    "sport": {
+     "key": "basketball",
+     "name": "Basketball"
+    },
+    "status": "RESULTED",
+    "cutoffTime": "2026-11-18T00:30:00Z",
+    "competition": {
+     "key": "basketball-usa-nba",
+     "name": "NBA",
+     "category": {
+      "key": "usa",
+      "name": "USA"
+     }
+    }
+   },
+   "37299665": {
+    "id": 37299665,
+    "key": "cc75-purdue-boilermakers-v-cba9-lipscomb-bisons",
+    "away": {
+     "key": "cba9-lipscomb-bisons",
+     "name": "Lipscomb"
+    },
+    "home": {
+     "key": "cc75-purdue-boilermakers",
+     "name": "Purdue"
+    },
+    "name": "Purdue v Lipscomb",
+    "sport": {
+     "key": "basketball",
+     "name": "Basketball"
+    },
+    "status": "RESULTED",
+    "cutoffTime": "2026-11-17T23:30:00Z",
+    "competition": {
+     "key": "basketball-usa-ncaa",
+     "name": "NCAAM",
+     "category": {
+      "key": "usa",
+      "name": "USA"
+     }
+    }
+   }
+  },
+  "posicao": {
+   "type": "PARLAY",
+   "betCount": 1,
+   "positions": [
+    {
+     "status": "COMPLETED",
+     "betCount": 1,
+     "aggregate": {
+      "odds": "0",
+      "currency": "USD",
+      "stakeAmount": "40",
+      "returnAmount": "-40",
+      "cashoutAmount": "0",
+      "potentialReturnAmount": "0"
+     },
+     "portfolio": {
+      "USDT": {
+       "betCount": 1,
+       "stakeAmount": "40",
+       "returnAmount": "-40",
+       "cashoutAmount": "0",
+       "potentialReturnAmount": "0"
+      }
+     },
+     "selections": [
+      {
+       "params": "handicap=-11.5",
+       "result": "LOSS",
+       "eventId": "37299665",
+       "outcome": "away",
+       "marketKey": "basketball.handicap_period_first_half"
+      },
+      {
+       "name": "Over 0.5",
+       "params": "player_key=s-anthony-duclair&total=0.5",
+       "result": "WIN",
+       "eventId": "37294677",
+       "outcome": "over",
+       "marketKey": "ice_hockey.player_props_goals_player_ou_incl_ot",
+       "marketName": "Anthony Duclair Total Goals (Incl. Overtime)",
+       "outcomeName": "Over 0.5"
+      },
+      {
+       "name": "Over 2.5",
+       "params": "player_key=s-mikal-bridges&total=2.5",
+       "result": "LOSS",
+       "eventId": "37298892",
+       "outcome": "over",
+       "marketKey": "basketball.player_props_assists_player_ou_incl_ot",
+       "marketName": "Mikal Bridges Total Assists",
+       "outcomeName": "Over 2.5"
+      }
+     ],
+     "betLegIdentifier": "80b85fcac5e65a183c8bdfea119cb83b8f609b6e",
+     "cashoutSupported": false
+    }
+   ],
+   "positionId": "80b85fcac5e65a183c8bdfea119cb83b8f609b6e",
+   "positionTime": "2026-11-18T00:20:15Z",
+   "positionStatus": "COMPLETED"
+  }
+ }
+]
