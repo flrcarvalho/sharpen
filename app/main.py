@@ -841,10 +841,16 @@ def _variantes_do_aquecedor() -> list[dict]:
     O pensamento entra na chave do cache (medido na s409: a chamada sem pensamento NÃO leu
     o cache escrito pela chamada com ele). O aquecedor usa a Superbet, que não está na
     `EXTRACAO_SEM_PENSAMENTO`, então sem isto as casas da lista perdiam o cache dos manuais
-    gerais e pagavam a escrita (~US$ 0,26) no lugar da leitura (~US$ 0,013). Com a chave
-    não vazia aquecem as DUAS: a padrão segue valendo para print, PDF e casa fora da lista.
+    gerais e pagavam a escrita (~US$ 0,26) no lugar da leitura (~US$ 0,013).
+
+    Com a chave não vazia aquece SÓ a sem pensamento (decisão do Feca, 26/11/2026, E2.2).
+    Medido em 14 dias de `uso_tokens` (12 a 26/11): 327 chamadas na sem pensamento contra 8
+    na padrão (7 prints), e cada variante custava ~US$ 3/semana ao aquecedor. A padrão
+    aquecia 0 a 1 chamada por semana. Sem ela, print, PDF e casa fora da lista seguem
+    funcionando igual e só pagam a escrita do bloco dos manuais quando chegam frias
+    (~US$ 0,25 cada; cache que falta é escrito, não é erro). Chave vazia: a padrão, como sempre.
     """
-    return [{}] + ([dict(_SEM_PENSAMENTO)] if _casas_sem_pensamento() else [])
+    return [dict(_SEM_PENSAMENTO)] if _casas_sem_pensamento() else [{}]
 
 
 async def _sombra_e_semente(dono: str, casa: str, texto: str | None, tsv: str) -> None:

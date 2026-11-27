@@ -18,6 +18,8 @@ Mutações provadas (aplicadas ao `main.py`, teste ao lado vermelho):
   5. o gerador não passa `pensamento=` ao sequencial           → test_o_gerador_passa_a_decisao…
   6. aquecedor só pela decisão da Superbet (o código anterior)  → test_aquecedor_com_chave_aquece…
   7. aquecedor sempre nas duas, mesmo com a chave vazia        → test_aquecedor_com_chave_vazia…
+  8. aquecedor nas duas com a chave ligada (antes da E2.2)       → test_aquecedor_com_chave_aquece…
+  9. print vai para a variante aquecida (sem guarda de imagem)   → test_print_continua_no_padrao…
 
 O QUE ESTE GATE NÃO COBRE: não chama a API (custo e qualidade sem pensamento são
 medidos pela régua de números, `app/sombra_numeros.py`, e pelo harness do projeto), e não
@@ -199,20 +201,34 @@ def test_aquecedor_com_chave_vazia_aquece_so_a_versao_de_sempre(monkeypatch):
     assert len(feitas) == 1 and "thinking" not in feitas[0]
 
 
-def test_aquecedor_com_chave_aquece_as_duas_versoes(monkeypatch):
+def test_aquecedor_com_chave_aquece_so_a_versao_sem_pensamento(monkeypatch):
     """A Superbet (casa do aquecedor) não está na lista, e mesmo assim a versão sem
     pensamento tem de ser aquecida: o prefixo dos 6 manuais gerais é o mesmo para todas
-    as casas, e o pensamento entra na chave do cache.
+    as casas, e o pensamento entra na chave do cache. E SÓ ela (E2.2, Feca, 26/11/2026):
+    a padrão custava ~US$ 3/semana para aquecer 0 a 1 chamada por semana.
 
-    MUTAÇÃO: aquecer só pela decisão da Superbet (o código anterior) faz este teste falhar.
+    MUTAÇÕES: aquecer só pela decisão da Superbet (o código de antes da s409) e aquecer as
+    duas (o código de antes da E2.2) fazem este teste falhar.
     """
     monkeypatch.setenv("EXTRACAO_SEM_PENSAMENTO", "DEXSPORT,MYSTAKE")
     feitas = _uma_volta_do_aquecedor(monkeypatch)
-    assert len(feitas) == 2
-    assert "thinking" not in feitas[0]
-    assert feitas[1].get("thinking") == {"type": "disabled"}
-    assert feitas[0]["system"] == feitas[1]["system"], "o mesmo prefixo nas duas"
-    assert all(f["max_tokens"] == 0 for f in feitas)
+    assert len(feitas) == 1, "uma chamada por rodada, não duas"
+    assert feitas[0].get("thinking") == {"type": "disabled"}
+    assert feitas[0]["system"] == main.build_system("SUPERBET"), "o prefixo dos 6 manuais"
+    assert feitas[0]["max_tokens"] == 0
+
+
+def test_print_continua_no_padrao_com_a_chave_ligada(monkeypatch):
+    """O outro lado da E2.2: o print não passa a usar a variante aquecida. Ele segue no
+    padrão (não medido sem pensamento) e só paga a escrita do bloco quando chega frio.
+
+    MUTAÇÃO: mandar o print para a variante aquecida (tirar a guarda de imagem do
+    `_pensamento_kw`) faz este teste falhar.
+    """
+    monkeypatch.setenv("EXTRACAO_SEM_PENSAMENTO", "*")
+    img = [{"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "AA=="}}]
+    assert main._pensamento_kw("DEXSPORT", img) == {}
+    assert main._variantes_do_aquecedor() == [{"thinking": {"type": "disabled"}}]
 
 
 def test_o_gerador_passa_a_decisao_aos_dois_caminhos():
