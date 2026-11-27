@@ -300,6 +300,12 @@
   ],
   "sharpenup": [
     {
+      "id": "su-0795",
+      "v": "v0.7.95",
+      "data": "2026-11-27",
+      "texto": "**Roobet** liga na extensão: abertas e liquidadas, na moeda da conta."
+    },
+    {
       "id": "su-0794",
       "v": "v0.7.94",
       "data": "2026-11-27",

@@ -44,6 +44,8 @@ const CASA_ICONS={
   'Duel':'https://www.google.com/s2/favicons?sz=128&domain=duel.com',
   // 7a casa BetBy (s395).
   'Betcoin':'https://www.google.com/s2/favicons?sz=128&domain=betcoin.ag',
+  // 8a casa BetBy (s470).
+  'Roobet':'https://www.google.com/s2/favicons?sz=128&domain=roobet.com',
   // 6a casa Altenar (s395).
   'Betrebels':'https://www.google.com/s2/favicons?sz=128&domain=betrebels.gr',
   // 7a casa Altenar (s402).
@@ -183,6 +185,7 @@ const HOUSE_DOMAIN={
   'Betfury':'betfury.com',
   'Duel':'duel.com',
   'Betcoin':'betcoin.ag',
+  'Roobet':'roobet.com',
   'Betrebels':'betrebels.gr',
   'BetMartini':'betmartini.com',
   'Vavada':'vavada.com',

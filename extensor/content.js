@@ -1721,7 +1721,8 @@
       // é o freio que impede isso virar 152 chamadas toda vez.
       blocos = await roboLTPassive(ctx);
     } else if (casa === "jonbet" || casa === "betboom" || casa === "blaze" || casa === "betpanda" ||
-               casa === "betfury" || casa === "duel" || casa === "betcoin") {
+               casa === "betfury" || casa === "duel" || casa === "betcoin" ||
+               casa === "roobet") {
       // Passivo + replay paginado (jb_inject, API BetBy/sptpub). A lista vem de 15 em 15 e o
       // scroll não traz tudo — o inject repagina por `skip` até `skip >= count`. SEM fallback
       // de texto: os cards da Jonbet ficam num grid de 3 colunas, sem linha em branco entre
@@ -1747,6 +1748,9 @@
       // BETFURY e DUEL são a 5ª e a 6ª (s393), espelhos sem linha nova: mesmo hash de operador,
       // renderer na própria página (`sports.betfury.ai` · `duel.sptpub.com`), API em
       // `api-g-c7818b61-607` e `api-a-c7818b61-600`. Casas cripto: a moeda vem do bilhete.
+      //
+      // ROOBET é a 8ª (s470): renderer `roobet.sptpub.com` na própria página, API no MESMO
+      // host da Betfury (`api-g-c7818b61-607`), lista em `/pt/sports?bt-path=%2Fbets`.
       //
       // BETCOIN é a 7ª (s395), mesma receita: renderer `betcoin.sptpub.com` na própria página
       // (sportsbook em `/sportbook/`, sem o "s"), API em `api-i-c7818b61-624`.
@@ -2043,6 +2047,7 @@
         betfury:    { nome: "Betfury",    hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         duel:       { nome: "Duel",       hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         betcoin:    { nome: "Betcoin",    hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
+        roobet:     { nome: "Roobet",     hook: jbHookVivo, resp: jbRespostas, vistos: jbById.size },
         dexsport:   { nome: "DEX Sport",  hook: dxHookVivo, resp: dxRespostas, vistos: dxById.size,
                       extra: dxRespostas === 0 ? " · abra Esportes → Minhas apostas e rode de novo" : "" },
         // CopaWin (s451): só o cookie. Zero respostas = sessão caída (a API devolve erro).
@@ -5094,7 +5099,7 @@
     }
     await sleep(400);
     processar();   // consome o que chegou por último
-    console.log("[SharpenUp] BetBy (Jonbet/Betboom/Blaze/Betpanda/Betfury/Duel/Betcoin):" + blocos.length + " bilhete(s) · jbById=" + jbById.size +
+    console.log("[SharpenUp] BetBy (Jonbet/Betboom/Blaze/Betpanda/Betfury/Duel/Betcoin/Roobet):" + blocos.length + " bilhete(s) · jbById=" + jbById.size +
                 " · hook=" + jbHookVivo + " · respostas=" + jbRespostas + " · fimReal=" + jbFimReal);
     return blocos;
   }

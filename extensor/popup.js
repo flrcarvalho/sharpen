@@ -87,6 +87,9 @@ const CASA_HOSTS = {
   // 7ª casa BetBy (s395) · MESMO hash de operador (`c7818b61`). API em `api-i-c7818b61-624`,
   // sportsbook em `/sportbook/` (sem o "s": `/sports` dá 404).
   "Betcoin":    ["betcoin.ag"],
+  // 8ª casa BetBy (s470) · MESMO hash de operador (`c7818b61`). API em `api-g-c7818b61-607`
+  // (o host da Betfury), sportsbook em `/pt/sports`.
+  "Roobet":     ["roobet.com"],
   // Plataforma própria (s391). O histórico vive no SDK de esportes: Esportes → Minhas apostas.
   "DEX Sport":  ["dexsport.io"],
   // Plataforma própria, GraphQL (s401). O histórico: Esportes → Minhas Apostas.
@@ -456,6 +459,8 @@ async function capturar() {
                 : casa === "Duel" ? "jb_inject.js"
                 // Betcoin: 7ª casa BetBy (s395) — MESMO inject, linha própria.
                 : casa === "Betcoin" ? "jb_inject.js"
+                // Roobet: 8ª casa BetBy (s470) — MESMO inject, linha própria.
+                : casa === "Roobet" ? "jb_inject.js"
                 : casa === "DEX Sport" ? "dx_inject.js"
                 : casa === "Shuffle" ? "shf_inject.js"
                 // 1win: plataforma `top-parser`. `tp_`, e não `1w_`, para o nome não começar
